@@ -4,7 +4,6 @@
 # code to ignore case restrictions
 shopt -s nocasematch
 source ./scripts/utilities.sh
-declare -A WL_LIST
 
 # help function
 help () {
@@ -42,31 +41,17 @@ help () {
 
 # list function: list all the available docker image names
 list () {
-  WORKLOAD_PATH="./workloads"
-  WL_GROUPS=()
-  WL_GROUPS=($(find "$WORKLOAD_PATH" -mindepth 1 -maxdepth 1 -type d -exec basename {} \;))
+  json_file="${INFRA_ROOT}/workloads/workloads_db.json"
 
-  for GROUP_NAME in "${WL_GROUPS[@]}"; do
-    file="$WORKLOAD_PATH/$GROUP_NAME/apps.list"
-    if [[ ! -f $file ]]; then
-      echo "apps.list not found in $WORKLOAD_PATH/$GROUP_NAME"
-      continue
-    fi
-
-    WORKLOAD_NAMES=()
-    while IFS= read -r line; do
-      WORKLOAD_NAMES+=("$line")
-    done < "$file"
-
-    WL_LIST["$GROUP_NAME"]="${WORKLOAD_NAMES[@]}"
-  done
+  python3 ${INFRA_ROOT}/scripts/run_db.py -dbg 3 -l -d ${json_file}
 }
 
 # build function
 build () {
-  list
+  GROUP_LIST=$(ls -d ${INFRA_ROOT}/workloads/*/ | xargs -n 1 basename)
+
   FOUND=false
-  for APP_GROUPNAME in "${!WL_LIST[@]}"; do
+  for APP_GROUPNAME in ${GROUP_LIST}; do
     if [[ "$APP_GROUPNAME" == "$BUILD" ]]; then
       FOUND=true
       break
@@ -94,60 +79,33 @@ build () {
     exit 1
   fi
 
+  start=`date +%s`
+
   # Local image not found. Trying to pull pre-built image from GitHub Packages...
   if docker pull ghcr.io/litz-lab/scarab-infra/"$APP_GROUPNAME:$GIT_HASH"; then
     echo "Successfully pulled pre-built image."
     docker tag ghcr.io/litz-lab/scarab-infra/"$APP_GROUPNAME:$GIT_HASH" "$APP_GROUPNAME:$GIT_HASH"
     echo "Tagged pulled image as $APP_GROUPNAME:$GIT_HASH"
     docker rmi ghcr.io/litz-lab/scarab-infra/"$APP_GROUPNAME:$GIT_HASH"
-    exit 1
   else
     echo "No pre-built image found for $APP_GROUPNAME:$GIT_HASH (or pull failed)."
-    echo "Will build locally..."
+    echo "Build docker image locally..."
+    # build from the beginning and overwrite whatever image with the same name
+    docker build . -f ./workloads/$APP_GROUPNAME/Dockerfile --no-cache -t $APP_GROUPNAME:$GIT_HASH
   fi
 
-  # build a docker image
-  echo "build docker image.."
-  start=`date +%s`
-  # build from the beginning and overwrite whatever image with the same name
-  docker build . -f ./workloads/$APP_GROUPNAME/Dockerfile --no-cache -t $APP_GROUPNAME:$GIT_HASH
   end=`date +%s`
-  report_time "build-image" "$start" "$end"
+  report_time "pull/build-image" "$start" "$end"
 }
 
 run () {
-  # WL_LIST is filled if build is executed within a single run
-  if [ ${#WL_LIST[@]} -eq 0 ]; then
-    list
-  fi
+  exp_json_file="${INFRA_ROOT}/json/${RUN}.json"
+  db_json_file="${INFRA_ROOT}/workloads/workloads_db.json"
 
-  json_file="${INFRA_ROOT}/json/${RUN}.json"
-  key="workloads_list"
-  APP_LIST=$(jq -r ".$key" "$json_file")
-  size=${#APP_LIST[@]}
-  if (( size > 1 )); then
-    echo "Only one workload should be provided for an interactive shell of docker container."
-    exit 1
-  fi
+  python3 ${INFRA_ROOT}/scripts/run_db.py -dbg 3 -val ${exp_json_file} -d ${db_json_file}
 
-  NAME=${APP_LIST[0]}
-  FOUND=false
-  for GROUPNAME in "${!WL_LIST[@]}"; do
-    for APPNAME in "${WL_LIST[$GROUPNAME]}"; do
-      if [[ "$APPNAME" == "$NAME" ]]; then
-        set_app_groupname
-        if [[ "$APP_GROUPNAME" == "$GROUPNAME" ]]; then
-          FOUND=true
-          break
-        fi
-      fi
-    done
-  done
-
-  if [ ! -n "$FOUND" ]; then
-    echo "Workload name should be provided correctly within the correct workload group (e.g. '-r mysql' within workload group 'sysbench')."
-    exit 1
-  fi
+  APP_GROUPNAME=$(python3 ${INFRA_ROOT}/scripts/run_db.py -dbg 1 -g ${exp_json_file} -d ${db_json_file})
+  echo $APP_GROUPNAME
 
   if [[ -n $(git status --porcelain $INFRA_ROOT/common $INFRA_ROOT/workloads/$APP_GROUPNAME | grep '^ M') ]]; then
     echo "There are uncommitted changes."
@@ -321,10 +279,6 @@ while [[ $# -gt 0 ]]; do
       ;;
     --list) # list all the workload groups
       list
-      echo "WORKLOAD_GROUPNAME: WORKLOAD_NAME1 WORKLOAD_NAME2 ..."
-      for GROUP_NAME in "${!WL_LIST[@]}"; do
-        echo "$GROUP_NAME: ${WL_LIST[$GROUP_NAME]}"
-      done
       exit 0
       ;;
     -k|--kill) # kill scarab simulation

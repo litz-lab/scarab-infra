@@ -16,26 +16,32 @@ from utilities import (
         write_docker_command_to_file,
         remove_docker_containers,
         prepare_simulation,
-        finish_simulation
+        finish_simulation,
+        get_workload_groups,
+        get_docker_prefix
         )
 
 # Check if a container is running on local
 # Inputs: docker_prefix, experiment_name, user,
 # Output: list of containers
-def check_docker_container_running(docker_prefix, experiment_name, user, dbg_lvl):
-    pattern = re.compile(fr"^{docker_prefix}_.*_{experiment_name}.*_.*_{user}$")
+def check_docker_container_running(docker_prefix_list, experiment_name, user, dbg_lvl):
     try:
-        dockers = subprocess.run(["docker", "ps", "--format", "{{.Names}}"], capture_output=True, text=True, check=True)
-        lines = dockers.stdout.strip().split("\n") if dockers.stdout else []
-        matching_containers = [line for line in lines if pattern.match(line)]
+        matching_containers = []
+        for docker_prefix in docker_prefix_list:
+            pattern = re.compile(fr"^{docker_prefix}_.*_{experiment_name}.*_.*_{user}$")
+            dockers = subprocess.run(["docker", "ps", "--format", "{{.Names}}"], capture_output=True, text=True, check=True)
+            lines = dockers.stdout.strip().split("\n") if dockers.stdout else []
+            for line in lines:
+                if pattern.match(line):
+                    matching_containers.append(line)
         return matching_containers
     except Exception as e:
         err(f"Error while checking a running docker container named {docker_prefix}_.*_{experiment_name}_.*_.*_{user} on node {node}", dbg_lvl)
         raise e
 
 # Print info/status of running experiment and available cores
-def print_status(user, experiment_name, docker_prefix, dbg_lvl = 2):
-    docker_running = check_docker_container_running(docker_prefix, experiment_name, user, dbg_lvl)
+def print_status(user, experiment_name, docker_prefix_list, dbg_lvl = 2):
+    docker_running = check_docker_container_running(docker_prefix_list, experiment_name, user, dbg_lvl)
     if len(docker_running) > 0:
         print(f"\033[92mRUNNING:     local\033[0m")
         for docker in docker_running:
@@ -43,7 +49,7 @@ def print_status(user, experiment_name, docker_prefix, dbg_lvl = 2):
     else:
         print(f"\033[31mNOT RUNNING: local\033[0m")
 
-def kill_jobs(user, experiment_name, docker_prefix, infra_dir, dbg_lvl):
+def kill_jobs(user, experiment_name, docker_prefix_list, infra_dir, dbg_lvl):
     # Define the process name pattern
     pattern = re.compile(f"python3 {infra_dir}/scripts/run_simulation.py -dbg 3 -d {infra_dir}/json/{experiment_name}.json")
 
@@ -86,21 +92,21 @@ def kill_jobs(user, experiment_name, docker_prefix, infra_dir, dbg_lvl):
         print("Operation canceled.")
 
     info(f"Clean up docker containers..", dbg_lvl)
-    remove_docker_containers(docker_prefix, experiment_name, user, dbg_lvl)
+    remove_docker_containers(docker_prefix_list, experiment_name, user, dbg_lvl)
 
     info(f"Removing temporary run scripts..", dbg_lvl)
     os.system(f"rm {experiment_name}_*_tmp_run.sh")
 
-def run_simulation(user, descriptor_data, dbg_lvl = 1):
+def run_simulation(user, descriptor_data, workloads_data, dbg_lvl = 1):
     architecture = descriptor_data["architecture"]
-    docker_prefix = descriptor_data["workload_group"]
-    workloads = descriptor_data["workloads_list"]
     experiment_name = descriptor_data["experiment"]
-    scarab_mode = descriptor_data["simulation_mode"]
     docker_home = descriptor_data["root_dir"]
     scarab_path = descriptor_data["scarab_path"]
     simpoint_traces_dir = descriptor_data["simpoint_traces_dir"]
     configs = descriptor_data["configurations"]
+    simulations = descriptor_data["simulations"]
+
+    docker_prefix_list = get_workload_groups(simulations, workloads_data)
 
     available_cores = os.cpu_count()
     max_processes = int(available_cores * 0.9)
@@ -120,34 +126,73 @@ def run_simulation(user, descriptor_data, dbg_lvl = 1):
         except subprocess.CalledProcessError:
             err("Error: Not in a Git repository or unable to retrieve Git hash.")
 
-        image = subprocess.check_output(["docker", "images", "-q", f"{docker_prefix}:{githash}"])
-        if image == []:
-            info(f"Couldn't find image {docker_prefix}:{githash}", dbg_lvl)
-            subprocess.check_output(["./run.sh", "-b", docker_prefix])
+        for docker_prefix in docker_prefix_list:
             image = subprocess.check_output(["docker", "images", "-q", f"{docker_prefix}:{githash}"])
             if image == []:
-                info(f"Still couldn't find image {docker_prefix}:{githash} after trying to build one", dbg_lvl)
-                exit(1)
+                info(f"Couldn't find image {docker_prefix}:{githash}", dbg_lvl)
+                if docker_prefix == "allbench_traces":
+                    subprocess.check_output(["docker", "pull", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}"])
+                    image = subprocess.check_output(["docker", "images", "-q", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}"])
+                    if image != []:
+                        subprocess.check_output(["docker", "tag", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}", f"{docker_prefix}:{githash}"])
+                        subprocess.check_output(["docker", "rmi", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}"])
+                        continue
+                subprocess.check_output(["./run.sh", "-b", docker_prefix])
+                image = subprocess.check_output(["docker", "images", "-q", f"{docker_prefix}:{githash}"])
+                if image == []:
+                    info(f"Still couldn't find image {docker_prefix}:{githash} after trying to build one", dbg_lvl)
+                    exit(1)
 
         scarab_githash = prepare_simulation(user, scarab_path, descriptor_data['root_dir'], experiment_name, architecture, dbg_lvl)
 
         # Iterate over each workload and config combo
         tmp_files = []
-        for workload in workloads:
-            simpoints = get_simpoints(simpoint_traces_dir, workload, dbg_lvl)
+        for simulation in simulations:
+            workload = simulation["workload"]
+            exp_cluster_id = simulation["cluster_id"]
+            sim_mode = simulation["simulation_type"]
+            docker_prefix = get_docker_prefix(sim_mode, workloads_data[workload]["simulation"])
+            info(f"Using docker image with name {docker_prefix}:{githash}", dbg_lvl)
+            modules_dir = ""
+            trace_file = ""
+            env_vars = ""
+            bincmd = ""
+            client_bincmd = ""
+            simulation_data = workloads_data[workload]["simulation"][sim_mode]
+            if sim_mode == "memtrace":
+                trim_type = simulation_data["trim_type"]
+                modules_dir = simulation_data["modules_dir"]
+                trace_file = simulation_data["trace_file"]
+            if sim_mode == "exec":
+                env_vars = simulation_data["env_vars"]
+                bincmd = simulation_data["binary_cmd"]
+                client_bincmd = simulation_data["client_bincmd"]
+
+            if exp_cluster_id == 0:
+                weight = 1
+                simpoints = {}
+                simpoints[f"{exp_cluster_id}"] = weight
+            elif exp_cluster_id == -1:
+                simpoints = get_simpoints(workloads_data[workload], dbg_lvl)
+            elif exp_cluster_id > 0:
+                weight = get_weight_by_cluster_id(exp_cluster_id, workloads_data[workload]["simpoints"])
+                simpoints = {}
+                simpoints[f"{exp_cluster_id}"] = weight
+
             for config_key in configs:
                 config = configs[config_key]
 
-                for simpoint, weight in simpoints.items():
-                    print(simpoint, weight)
+                for cluster_id, weight in simpoints.items():
+                    print(cluster_id, weight)
 
-                    docker_container_name = f"{docker_prefix}_{workload}_{experiment_name}_{config_key}_{simpoint}_{user}"
+                    docker_container_name = f"{docker_prefix}_{workload}_{experiment_name}_{config_key.replace("/", "-")}_{cluster_id}_{sim_mode}_{user}"
                     # Create temp file with run command and run it
-                    filename = f"{experiment_name}_{workload}_{config_key.replace("/", "-")}_{simpoint}_tmp_run.sh"
+                    filename = f"{docker_container_name}_tmp_run.sh"
                     write_docker_command_to_file(user, local_uid, local_gid, workload, experiment_name,
                                                  docker_prefix, docker_container_name, simpoint_traces_dir,
-                                                 docker_home, githash, config_key, config, scarab_mode, scarab_githash,
-                                                 architecture, simpoint, filename)
+                                                 docker_home, githash, config_key, config, sim_mode, scarab_githash,
+                                                 architecture, cluster_id, trim_type, modules_dir, trace_file,
+                                                 env_vars, bincmd, client_bincmd, filename)
                     tmp_files.append(filename)
                     command = '/bin/bash ' + filename
                     process = subprocess.Popen("exec " + command, stdout=subprocess.PIPE, shell=True)
@@ -174,6 +219,6 @@ def run_simulation(user, descriptor_data, dbg_lvl = 1):
 
     except Exception as e:
         print("An exception occurred:", e)
-        traceback.print_exec()  # Print the full stack trace
+        traceback.print_exc()  # Print the full stack trace
         for p in processes:
             p.kill()

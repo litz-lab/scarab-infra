@@ -1,22 +1,8 @@
 {
     "_architecture": "A name of the available architectures (PARAMS.<architecture>) found in scarab repository, which defines the machine parameters of the default configuration.",
     "architecture": "sunny_cove",
-    "_workload_group": "A directory name in workloads",
-    "workload_group": "allbench_traces",
-    "_workloads_list": "List of workloads to run scarab simulation",
-    "workloads_list": [
-        "clang",
-        "gcc",
-        "mongodb",
-        "mysql",
-        "postgres",
-        "verilator",
-        "xgboost"
-    ],
     "_experiment": "The name of the experiment. scarab-infra will create a new folder named containing all files needed to execute the simulation in the <ROOT_DIR>/simulations/<experiment> directory. The folder will also contain all generated simulation statistics/outputs.",
     "experiment": "exp",
-    "_simulation_mode": "1: execution-driven simulation w/o SimPoint, 2: trace-based simulation w/o SimPoint, 3: execution-driven simulation w/ SimPoint, 4: trace-based simulation w/ SimPoint, 5: PT-trace-based simulation w/ SimPoint",
-    "simulation_mode": "4",
     "_workload_manager": "manual: run each exp scenario with all the simpoints at a time, slurm: Slurm schedules simulations based on its policy",
     "workload_manager": "manual",
     "_root_dir": "Root directory mounted into the docker container home, for instance, the user's home directory",
@@ -25,6 +11,44 @@
     "scarab_path": "/home/$USER/allbench_home/scarab",
     "_simpoint_traces_dir": "The local directory containing all simpointed traces",
     "simpoint_traces_dir": "/home/$USER/simpoint_traces",
+    "_simulations": "A list of [workload, simpoint's cluster #, simulation type] where cluster_id is found in workloads/workloads_db.json (all the simpoints if -1, whole simulation w/o simpoints if 0) and simulation type is one of 'exec', 'memtrace', 'pt'.",
+    "simulations": [
+      {
+        "workload":"clang",
+        "cluster_id":-1,
+        "simulation_type":"memtrace"
+      },
+      {
+        "workload":"gcc",
+        "cluster_id":-1,
+        "simulation_type":"memtrace"
+      },
+      {
+        "workload":"mongodb",
+        "cluster_id":-1,
+        "simulation_type":"memtrace"
+      },
+      {
+        "workload":"mysql",
+        "cluster_id":-1,
+        "simulation_type":"memtrace"
+      },
+      {
+        "workload":"postgres",
+        "cluster_id":-1,
+        "simulation_type":"memtrace"
+      },
+      {
+        "workload":"verilator",
+        "cluster_id":-1,
+        "simulation_type":"memtrace"
+      },
+      {
+        "workload":"xgboost",
+        "cluster_id":-1,
+        "simulation_type":"memtrace"
+      }
+    ],
     "_configurations": "scarab configurations to sweep",
     "configurations": {
         "baseline": "--bp_mech tage64k --fdip_enable 1 --btb_entries 8192 --perfect_crs 1 --wp_collect_stats 1 --mem_req_buffer_entries 64 --ramulator_readq_entries 64 --fe_ftq_block_num 32",

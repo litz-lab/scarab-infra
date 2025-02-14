@@ -25,21 +25,11 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
 COPY ./scripts/utilities.sh /usr/local/bin/utilities.sh
 COPY ./common/scripts/run_clustering.sh /usr/local/bin/run_clustering.sh
 COPY ./common/scripts/run_trace_post_processing.sh /usr/local/bin/run_trace_post_processing.sh
-
 COPY ./common/scripts/run_simpoint_trace.sh /usr/local/bin/run_simpoint_trace.sh
-COPY ./common/scripts/run_scarab.sh /usr/local/bin/run_scarab.sh
-COPY ./common/scripts/run_scarab_allbench.sh /usr/local/bin/run_scarab_allbench.sh
-COPY ./common/scripts/gather_fp_pieces.py /usr/local/bin/gather_fp_pieces.py
-COPY ./common/scripts/run_exp_using_descriptor.py /usr/local/bin/run_exp_using_descriptor.py
-
-COPY ./common/scripts/run_scarab_mode_4.sh /usr/local/bin/run_scarab_mode_4.sh
-COPY ./common/scripts/run_scarab_mode_4_allbench.sh /usr/local/bin/run_scarab_mode_4_allbench.sh
-COPY ./common/scripts/gather_cluster_results.py /usr/local/bin/gather_cluster_results.py
-COPY ./common/scripts/gather_cluster_results_using_descriptor.py /usr/local/bin/gather_cluster_results_using_descriptor.py
 COPY ./common/scripts/common_entrypoint.sh /usr/local/bin/common_entrypoint.sh
-
-COPY ./common/scripts/run_single_simpoint.sh /usr/local/bin/run_single_simpoint.sh
-RUN chmod +x /usr/local/bin/run_single_simpoint.sh
+COPY ./common/scripts/run_memtrace_single_simpoint.sh /usr/local/bin/run_memtrace_single_simpoint.sh
+COPY ./common/scripts/run_pt_single_simpoint.sh /usr/local/bin/run_pt_single_simpoint.sh
+COPY ./common/scripts/run_exec_single_simpoint.sh /usr/local/bin/run_exec_single_simpoint.sh
 
 RUN mkdir -p /simpoint_traces
 
