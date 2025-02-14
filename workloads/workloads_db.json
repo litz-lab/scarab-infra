@@ -276,7 +276,19 @@
         "segment_id":15,
         "weight":0.102887
       }
-    ]
+    ],
+    "performance":{
+      "topdown":{
+        "retiring":2.6,
+        "bad_speculation":7.3,
+        "frontend_bound":87.5,
+        "backend_bound":2.6
+      },
+      "execution_time":{
+        "min":42,
+        "sec":16.909971615
+      }
+    }
   },
   "mongodb":{
     "simulation":{
@@ -318,6 +330,18 @@
         "binary_cmd":"/usr/bin/mongod --config /etc/mongod.conf",
         "client_bincmd":"python3 \\$tmpdir/mongo-perf/benchrun.py -f \\$tmpdir/mongo-perf/testcases/dv_insert.js -t 1"
       }
+    },
+    "performance":{
+      "topdown":{
+        "retiring":24.2,
+        "bad_speculation":3.0,
+        "frontend_bound":61.5,
+        "backend_bound":11.3
+      },
+      "execution_time":{
+        "min":1,
+        "sec":26.487339707
+      }
     }
   },
   "dv_update":{
@@ -327,6 +351,18 @@
         "env_vars":null,
         "binary_cmd":"/usr/bin/mongod --config /etc/mongod.conf",
         "client_bincmd":"python3 \\$tmpdir/mongo-perf/benchrun.py -f \\$tmpdir/mongo-perf/testcases/dv_update.js -t 1"
+      }
+    },
+    "performance":{
+      "topdown":{
+        "retiring":26.6,
+        "bad_speculation":3.5,
+        "frontend_bound":59.9,
+        "backend_bound":10.0
+      },
+      "execution_time":{
+        "min":1,
+        "sec":35.196241052
       }
     }
   },
@@ -338,6 +374,18 @@
         "binary_cmd":"/usr/bin/mongod --config /etc/mongod.conf",
         "client_bincmd":"python3 \\$tmpdir/mongo-perf/benchrun.py -f \\$tmpdir/mongo-perf/testcases/long_multi_update.js -t 1"
       }
+    },
+    "performance":{
+      "topdown":{
+        "retiring":24.1,
+        "bad_speculation":2.3,
+        "frontend_bound":61.6,
+        "backend_bound":12.0
+      },
+      "execution_time":{
+        "min":4,
+        "sec":38.695940884
+      }
     }
   },
   "simple_insert":{
@@ -347,6 +395,18 @@
         "env_vars":null,
         "binary_cmd":"/usr/bin/mongod --config /etc/mongod.conf",
         "client_bincmd":"python3 \\$tmpdir/mongo-perf/benchrun.py -f \\$tmpdir/mongo-perf/testcases/simple_insert.js -t 1"
+      }
+    },
+    "performance":{
+      "topdown":{
+        "retiring":20.1,
+        "bad_speculation":2.2,
+        "frontend_bound":63.9,
+        "backend_bound":13.8
+      },
+      "execution_time":{
+        "min":1,
+        "sec":16.664909974
       }
     }
   },
@@ -358,6 +418,18 @@
         "binary_cmd":"/usr/bin/mongod --config /etc/mongod.conf",
         "client_bincmd":"python3 \\$tmpdir/mongo-perf/benchrun.py -f \\$tmpdir/mongo-perf/testcases/simple_multi_update.js -t 1"
       }
+    },
+    "performance":{
+      "topdown":{
+        "retiring":19.1,
+        "bad_speculation":2.4,
+        "frontend_bound":67.4,
+        "backend_bound":11.1
+      },
+      "execution_time":{
+        "min":1,
+        "sec":11.360507649
+      }
     }
   },
   "simple_update":{
@@ -367,6 +439,18 @@
         "env_vars":null,
         "binary_cmd":"/usr/bin/mongod --config /etc/mongod.conf",
         "client_bincmd":"python3 \\$tmpdir/mongo-perf/benchrun.py -f \\$tmpdir/mongo-perf/testcases/simple_update.js -t 1"
+      }
+    },
+    "performance":{
+      "topdown":{
+        "retiring":20.5,
+        "bad_speculation":3.2,
+        "frontend_bound":62.2,
+        "backend_bound":14.1
+      },
+      "execution_time":{
+        "min":1,
+        "sec":30.221068626
       }
     }
   },
@@ -378,6 +462,18 @@
         "binary_cmd":"/usr/bin/mongod --config /etc/mongod.conf",
         "client_bincmd":"python3 \\$tmpdir/mongo-perf/benchrun.py -f \\$tmpdir/mongo-perf/testcases/wildcard_index_insert.js -t 1"
       }
+    },
+    "performance":{
+      "topdown":{
+        "retiring":20.4,
+        "bad_speculation":2.7,
+        "frontend_bound":62.3,
+        "backend_bound":14.6
+      },
+      "execution_time":{
+        "min":1,
+        "sec":33.65546875
+      }
     }
   },
   "wildcard_index_query":{
@@ -387,6 +483,18 @@
         "env_vars":null,
         "binary_cmd":"/usr/bin/mongod --config /etc/mongod.conf",
         "client_bincmd":"python3 \\$tmpdir/mongo-perf/benchrun.py -f \\$tmpdir/mongo-perf/testcases/wildcard_index_query.js -t 1"
+      }
+    },
+    "performance":{
+      "topdown":{
+        "retiring":25.2,
+        "bad_speculation":2.5,
+        "frontend_bound":57.9,
+        "backend_bound":14.4
+      },
+      "execution_time":{
+        "min":2,
+        "sec":19.948048975
       }
     }
   },
@@ -419,7 +527,19 @@
         "segment_id":4,
         "weight":0.9886
       }
-    ]
+    ],
+    "performance":{
+      "topdown":{
+        "retiring":24.6,
+        "bad_speculation":5.0,
+        "frontend_bound":54.2,
+        "backend_bound":16.2
+      },
+      "execution_time":{
+        "min":0,
+        "sec":10.893791184
+      }
+    }
   },
   "postgres":{
     "simulation":{
@@ -480,7 +600,19 @@
         "segment_id":13,
         "weight":0.067498
       }
-    ]
+    ],
+    "performance":{
+      "topdown":{
+        "retiring":23.1,
+        "bad_speculation":2.7,
+        "frontend_bound":60.2,
+        "backend_bound":14.0
+      },
+      "execution_time":{
+        "min":0,
+        "sec":59.7674
+      }
+    }
   },
   "gcc":{
     "simulation":{
@@ -593,7 +725,19 @@
         "segment_id":21,
         "weight":0.100819
       }
-    ]
+    ],
+    "performance":{
+      "topdown":{
+        "retiring":25.2,
+        "bad_speculation":5.0,
+        "frontend_bound":29.3,
+        "backend_bound":40.6
+      },
+      "execution_time":{
+        "min":null,
+        "sec":null
+      }
+    }
   },
   "clang":{
     "simulation":{
@@ -759,7 +903,19 @@
         "segment_id":32,
         "weight":0.0254211
       }
-    ]
+    ],
+    "performance":{
+      "topdown":{
+        "retiring":33.4,
+        "bad_speculation":13.1,
+        "frontend_bound":35.2,
+        "backend_bound":18.3
+      },
+      "execution_time":{
+        "min":null,
+        "sec":null
+      }
+    }
   },
   "redis":{
     "simulation":{
@@ -833,8 +989,8 @@
       "exec":{
         "image_name":"memcached",
         "env_vars":null,
-        "binary_cmd":null,
-        "client_bincmd":null
+        "binary_cmd":"/usr/bin/memcached -t 1 -c 32768 -m 64 -p 11211 -u memcache -l 127.0.0.1 -P /var/run/memcached",
+        "client_bincmd":"\\$tmpdir/memcache-perf/mcperf -s localhost --noload -B -T 16 -Q 1000 -D 4 -C 4 -c 4 -q 200000"
       },
       "memtrace":{
         "image_name":"allbench_traces",
@@ -859,7 +1015,19 @@
         "segment_id":5,
         "weight":0.0383363
       }
-    ]
+    ],
+    "performance":{
+      "topdown":{
+        "retiring":20.90,
+        "bad_speculation":2.00,
+        "frontend_bound":24.90,
+        "backend_bound":52.10
+      },
+      "execution_time":{
+        "min":0,
+        "sec":6.862051228
+      }
+    }
   },
   "rocksdb":{
     "simulation":{
@@ -1067,7 +1235,19 @@
         "segment_id":42,
         "weight":0.0328084
       }
-    ]
+    ],
+    "performance":{
+      "topdown":{
+        "retiring":40.8,
+        "bad_speculation":3.5,
+        "frontend_bound":36.5,
+        "backend_bound":16.9
+      },
+      "execution_time":{
+        "min":null,
+        "sec":null
+      }
+    }
   },
   "502.gcc_r":{
     "simulation":{
