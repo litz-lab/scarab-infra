@@ -1,0 +1,21 @@
+name: Check JSON Validity
+
+on:
+  push:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  validate-json:
+    name: Validate JSON files
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate JSON files
+        run: |
+          jq empty ./json/exp.json
+          jq empty ./workloads/workloads_db.json
