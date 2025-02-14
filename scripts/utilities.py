@@ -327,7 +327,7 @@ def open_interactive_shell(user, descriptor_data, workloads_data, dbg_lvl = 1):
                                             dbg_lvl)
         workload = descriptor_data['simulations'][0]['workload']
         mode = descriptor_data['simulations'][0]['simulation_type']
-        docker_prefix = workloads_data[workload]['simulation'][mode]['group_name']
+        docker_prefix = workloads_data[workload]['simulation'][mode]['image_name']
 
         docker_container_name = f"{docker_prefix}_{experiment_name}_scarab_{scarab_githash}_{user}"
         simpoint_traces_dir = descriptor_data["simpoint_traces_dir"]
@@ -385,8 +385,8 @@ def get_workload_groups(simulations, workloads_data):
         workload = simulation["workload"]
         exp_cluster_id = simulation["cluster_id"]
         mode = simulation["simulation_type"]
-        if mode in workloads_data[workload]["simulation"].keys() and workloads_data[workload]["simulation"][mode]["group_name"] not in workload_groups:
-            workload_groups.append(workloads_data[workload]["simulation"][mode]["group_name"])
+        if mode in workloads_data[workload]["simulation"].keys() and workloads_data[workload]["simulation"][mode]["image_name"] not in workload_groups:
+            workload_groups.append(workloads_data[workload]["simulation"][mode]["image_name"])
 
     return workload_groups
 
@@ -394,7 +394,7 @@ def get_docker_prefix(sim_mode, simulation_data):
     if sim_mode not in simulation_data.keys():
         err(f"{sim_mode} is not a valid simulation type.")
         exit(1)
-    return simulation_data[sim_mode]["group_name"]
+    return simulation_data[sim_mode]["image_name"]
 
 def get_weight_by_cluster_id(exp_cluster_id, simpoints):
     for simpoint in simpoints:

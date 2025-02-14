@@ -18,8 +18,8 @@ def list_workloads(workloads_data, dbg_lvl = 2):
         print(f"{workload}")
         modes = workloads_data[workload]["simulation"].keys()
         for mode in modes:
-            group_name = workloads_data[workload]["simulation"][mode]["group_name"]
-            print(f"            <\033[92m{mode}\033[0m : \033[31m{group_name}\033[0m>")
+            image_name = workloads_data[workload]["simulation"][mode]["image_name"]
+            print(f"            <\033[92m{mode}\033[0m : \033[31m{image_name}\033[0m>")
 
 def validate(workloads_data, simulations, dbg_lvl = 2):
     for simulation in simulations:
@@ -50,12 +50,12 @@ def validate(workloads_data, simulations, dbg_lvl = 2):
                 exit(1)
         print(f"[{workload}, {cluster_id}, {sim_mode}] is a valid simulation option.")
 
-def get_group_name(workloads_data, simulation):
+def get_image_name(workloads_data, simulation):
     workload = simulation["workload"]
     cluster_id = simulation["cluster_id"]
     sim_mode = simulation["simulation_type"]
 
-    return workloads_data[workload]["simulation"][sim_mode]["group_name"]
+    return workloads_data[workload]["simulation"][sim_mode]["image_name"]
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Query workload database')
@@ -91,5 +91,5 @@ if __name__ == "__main__":
 
     if args.group != None:
         exp_data = read_descriptor_from_json(args.group, dbg_lvl)
-        print(get_group_name(workloads_data, exp_data["simulations"][0]))
+        print(get_image_name(workloads_data, exp_data["simulations"][0]))
         exit(0)

@@ -2,19 +2,19 @@
   "verilator":{
     "simulation":{
       "exec":{
-        "group_name":"verilator",
+        "image_name":"verilator",
         "env_vars":null,
         "binary_cmd":"\\$tmpdir/rocket-chip/emulator/emulator-freechips.rocketchip.system-DefaultConfigN8 +cycle-count \\$tmpdir/rocket-chip/emulator/dhrystone-head.riscv",
         "client_bincmd":null
       },
       "memtrace":{
-        "group_name":"allbench_traces",
+        "image_name":"allbench_traces",
         "trim_type":"1",
         "modules_dir":"/simpoint_traces/verilator/traces/whole/raw",
         "trace_file":"/simpoint_traces/verilator/traces/whole/trace/drmemtrace.emulator-freechips.rocketchip.system-DefaultConfigN8.00025.6005.trace.zip"
       },
       "pt":{
-        "group_name":"allbench_traces"
+        "image_name":"allbench_traces"
       }
     },
     "simpoints":[
@@ -203,13 +203,13 @@
   "xgboost":{
     "simulation":{
       "exec":{
-        "group_name":"xgboost",
+        "image_name":"xgboost",
         "env_vars":null,
         "binary_cmd":"python3 \\$tmpdir/test-arg.py",
         "client_bincmd":null
       },
       "memtrace":{
-        "group_name":"allbench_traces",
+        "image_name":"allbench_traces",
         "trim_type":"1",
         "modules_dir":"/simpoint_traces/xgboost/traces/whole/drmemtrace.python3.8.00025.6828.dir/raw",
         "trace_file":"/simpoint_traces/xgboost/traces/whole/drmemtrace.python3.8.00025.6828.dir/trace/drmemtrace.python3.8.00025.0843.trace.zip"
@@ -281,7 +281,7 @@
   "mongodb":{
     "simulation":{
       "memtrace":{
-        "group_name":"allbench_traces",
+        "image_name":"allbench_traces",
         "trim_type":"1",
         "modules_dir":"/simpoint_traces/mongodb/traces/whole/drmemtrace.mongod.04280.8169.dir/raw",
         "trace_file":"/simpoint_traces/mongodb/traces/whole/drmemtrace.mongod.04280.8169.dir/trace/drmemtrace.mongod.04332.7098.trace.zip"
@@ -313,7 +313,7 @@
   "dv_insert":{
     "simulation":{
       "exec":{
-        "group_name":"mongo-perf",
+        "image_name":"mongo-perf",
         "env_vars":null,
         "binary_cmd":"/usr/bin/mongod --config /etc/mongod.conf",
         "client_bincmd":"python3 \\$tmpdir/mongo-perf/benchrun.py -f \\$tmpdir/mongo-perf/testcases/dv_insert.js -t 1"
@@ -323,7 +323,7 @@
   "dv_update":{
     "simulation":{
       "exec":{
-        "group_name":"mongo-perf",
+        "image_name":"mongo-perf",
         "env_vars":null,
         "binary_cmd":"/usr/bin/mongod --config /etc/mongod.conf",
         "client_bincmd":"python3 \\$tmpdir/mongo-perf/benchrun.py -f \\$tmpdir/mongo-perf/testcases/dv_update.js -t 1"
@@ -333,7 +333,7 @@
   "long_multi_update":{
     "simulation":{
       "exec":{
-        "group_name":"mongo-perf",
+        "image_name":"mongo-perf",
         "env_vars":null,
         "binary_cmd":"/usr/bin/mongod --config /etc/mongod.conf",
         "client_bincmd":"python3 \\$tmpdir/mongo-perf/benchrun.py -f \\$tmpdir/mongo-perf/testcases/long_multi_update.js -t 1"
@@ -343,7 +343,7 @@
   "simple_insert":{
     "simulation":{
       "exec":{
-        "group_name":"mongo-perf",
+        "image_name":"mongo-perf",
         "env_vars":null,
         "binary_cmd":"/usr/bin/mongod --config /etc/mongod.conf",
         "client_bincmd":"python3 \\$tmpdir/mongo-perf/benchrun.py -f \\$tmpdir/mongo-perf/testcases/simple_insert.js -t 1"
@@ -353,7 +353,7 @@
   "simple_multi_update":{
     "simulation":{
       "exec":{
-        "group_name":"mongo-perf",
+        "image_name":"mongo-perf",
         "env_vars":null,
         "binary_cmd":"/usr/bin/mongod --config /etc/mongod.conf",
         "client_bincmd":"python3 \\$tmpdir/mongo-perf/benchrun.py -f \\$tmpdir/mongo-perf/testcases/simple_multi_update.js -t 1"
@@ -363,7 +363,7 @@
   "simple_update":{
     "simulation":{
       "exec":{
-        "group_name":"mongo-perf",
+        "image_name":"mongo-perf",
         "env_vars":null,
         "binary_cmd":"/usr/bin/mongod --config /etc/mongod.conf",
         "client_bincmd":"python3 \\$tmpdir/mongo-perf/benchrun.py -f \\$tmpdir/mongo-perf/testcases/simple_update.js -t 1"
@@ -373,7 +373,7 @@
   "wildcard_index_insert":{
     "simulation":{
       "exec":{
-        "group_name":"mongo-perf",
+        "image_name":"mongo-perf",
         "env_vars":null,
         "binary_cmd":"/usr/bin/mongod --config /etc/mongod.conf",
         "client_bincmd":"python3 \\$tmpdir/mongo-perf/benchrun.py -f \\$tmpdir/mongo-perf/testcases/wildcard_index_insert.js -t 1"
@@ -383,7 +383,7 @@
   "wildcard_index_query":{
     "simulation":{
       "exec":{
-        "group_name":"mongo-perf",
+        "image_name":"mongo-perf",
         "env_vars":null,
         "binary_cmd":"/usr/bin/mongod --config /etc/mongod.conf",
         "client_bincmd":"python3 \\$tmpdir/mongo-perf/benchrun.py -f \\$tmpdir/mongo-perf/testcases/wildcard_index_query.js -t 1"
@@ -393,19 +393,19 @@
   "mysql":{
     "simulation":{
       "exec":{
-        "group_name":"sysbench",
+        "image_name":"sysbench",
         "env_vars":null,
         "binary_cmd":"/usr/sbin/mysqld --basedir=/usr --datadir=/var/lib/mysql --plugin-dir=/usr/lib/mysql/plugin --log-error=/var/log/mysql/error.log --pid-file=53302ceef040.pid",
         "client_bincmd":"sysbench \\$tmpdir/sysbench/src/lua/oltp_read_write.lua --mysql-host=127.0.0.1 --mysql-port=3306 --mysql-user=sbtest --db-driver=mysql --tables=10 --table-size=10000 --time=600 run"
       },
       "memtrace":{
-        "group_name":"allbench_traces",
+        "image_name":"allbench_traces",
         "trim_type":"1",
         "modules_dir":"/simpoint_traces/mysql/traces/whole/drmemtrace.mysqld.123776.5088.dir/raw",
         "trace_file":"/simpoint_traces/mysql/traces/whole/drmemtrace.mysqld.123776.5088.dir/trace/drmemtrace.mysqld.123827.6272.trace.zip"
       },
       "pt":{
-        "group_name":"allbench_traces"
+        "image_name":"allbench_traces"
       }
     },
     "simpoints":[
@@ -424,19 +424,19 @@
   "postgres":{
     "simulation":{
       "exec":{
-        "group_name":"sysbench",
+        "image_name":"sysbench",
         "env_vars":null,
         "binary_cmd":"/usr/lib/postgresql/12/bin/postgres -D /var/lib/postgresql/12/main -c config_file=/etc/postgresql/12/main/postgresql.conf",
         "client_bincmd":"sysbench \\$tmpdir/sysbench/src/lua/oltp_point_select.lua --pgsql-host=127.0.0.1 --pgsql-port=5432 --pgsql-user=sbtest --pgsql-password=password --db-driver=pgsql --tables=10 --table-size=10000 --time=600 run"
       },
       "memtrace":{
-        "group_name":"allbench_traces",
+        "image_name":"allbench_traces",
         "trim_type":"1",
         "modules_dir":"/simpoint_traces/postgres/traces/whole/drmemtrace.postgres.10865.1082.dir/raw",
         "trace_file":"/simpoint_traces/postgres/traces/whole/drmemtrace.postgres.10865.1082.dir/trace/drmemtrace.postgres.10865.3710.trace.zip"
       },
       "pt":{
-        "group_name":"allbench_traces"
+        "image_name":"allbench_traces"
       }
     },
     "simpoints":[
@@ -485,13 +485,13 @@
   "gcc":{
     "simulation":{
       "exec":{
-        "group_name":"spec2017",
+        "image_name":"spec2017",
         "env_vars":null,
         "binary_cmd":"/bin/bash \\$tmpdir/cpu2017/bin/runcpu --config=memtrace --action=build 538.imagick_r",
         "client_bincmd":null
       },
       "memtrace":{
-        "group_name":"allbench_traces",
+        "image_name":"allbench_traces",
         "trim_type":"1",
         "modules_dir":"/simpoint_traces/gcc/traces/whole/drmemtrace.cc1.04250.2989.dir/raw",
         "trace_file":"/simpoint_traces/gcc/traces/whole/drmemtrace.cc1.04250.2989.dir/trace/drmemtrace.cc1.04250.5506.trace.zip"
@@ -598,19 +598,19 @@
   "clang":{
     "simulation":{
       "exec":{
-        "group_name":"spec2017",
+        "image_name":"spec2017",
         "env_vars":null,
         "binary_cmd":"\\$tmpdir/cpu2017/benchspec/CPU/compile-538-clang.sh 538.imagick_r_train",
         "client_bincmd":null
       },
       "memtrace":{
-        "group_name":"allbench_traces",
+        "image_name":"allbench_traces",
         "trim_type":"1",
         "modules_dir":"/simpoint_traces/clang/traces/whole/drmemtrace.clang.03072.7752.dir/raw",
         "trace_file":"/simpoint_traces/clang/traces/whole/drmemtrace.clang.03072.7752.dir/trace/drmemtrace.clang.03072.4467.trace.zip"
       },
       "pt":{
-        "group_name":"allbench_traces"
+        "image_name":"allbench_traces"
       }
     },
     "simpoints":[
@@ -764,7 +764,7 @@
   "redis":{
     "simulation":{
       "memtrace":{
-        "group_name":"allbench_traces",
+        "image_name":"allbench_traces",
         "trim_type":"1",
         "modules_dir":"/simpoint_traces/redis/traces/drmemtrace.redis-server.40792.8757.dir/raw/",
         "trace_file":"/simpoint_traces/redis/traces/drmemtrace.redis-server.40792.8757.dir/trace/drmemtrace.redis-server.40792.6868.trace.zip"
@@ -831,13 +831,13 @@
   "memcached":{
     "simulation":{
       "exec":{
-        "group_name":"memcached",
+        "image_name":"memcached",
         "env_vars":null,
         "binary_cmd":null,
         "client_bincmd":null
       },
       "memtrace":{
-        "group_name":"allbench_traces",
+        "image_name":"allbench_traces",
         "trim_type":"1",
         "modules_dir":"/simpoint_traces/memcached/traces/whole/drmemtrace.memcached.07432.6868.dir/raw",
         "trace_file":"/simpoint_traces/memcached/traces/whole/drmemtrace.memcached.07432.6868.dir/trace/drmemtrace.memcached.07434.0028.trace.zip"
@@ -864,13 +864,13 @@
   "rocksdb":{
     "simulation":{
       "exec":{
-        "group_name":"rocksdb",
+        "image_name":"rocksdb",
         "env_vars":"DB_DIR=/tmp/rocksdbtest-1000/ WAL_DIR=/tmp/rocksdbtest-1000/ NUM_KEYS=100000000",
         "binary_cmd":"\\$tmpdir/rocksdb/db_bench --benchmarks=readwhilewriting,stats --duration=300 --use_existing_db=1 --sync=1 --level0_file_num_compaction_trigger=4 --level0_slowdown_writes_trigger=20 --level0_stop_writes_trigger=30 --max_background_jobs=16 --max_write_buffer_number=8 --undefok=use_blob_cache,use_shared_block_and_blob_cache,blob_cache_size,blob_cache_numshardbits,prepopulate_blob_cache,multiread_batched,cache_low_pri_pool_ratio,prepopulate_block_cache --db=/tmp/rocksdbtest-1000/ --wal_dir=/tmp/rocksdbtest-1000/ --num=100000000 --key_size=20 --value_size=400 --block_size=8192 --cache_size=17179869184 --cache_numshardbits=6 --compression_max_dict_bytes=0 --compression_ratio=0.5 --compression_type=zstd --bytes_per_sync=1048576 --benchmark_write_rate_limit=0 --write_buffer_size=134217728 --target_file_size_base=134217728 --max_bytes_for_level_base=1073741824 --verify_checksum=1 --delete_obsolete_files_period_micros=62914560 --max_bytes_for_level_multiplier=8 --statistics=0 --stats_per_interval=1 --stats_interval_seconds=60 --report_interval_seconds=1 --histogram=1 --memtablerep=skip_list --bloom_bits=10 --open_files=-1 --subcompactions=1 --compaction_style=0 --num_levels=8 --min_level_to_compress=-1 --level_compaction_dynamic_level_bytes=true --pin_l0_filter_and_index_blocks_in_cache=1 --threads=1 --merge_operator=\"put\" --seed=1705975943 --report_file=/tmp/benchmark_readwhilewriting.t64.log.r.csv 2>&1 | tee -a /tmp/benchmark_readwhilewriting.t64.log",
         "client_bincmd":null
       },
       "memtrace":{
-        "group_name":"allbench_traces",
+        "image_name":"allbench_traces",
         "trim_type":"1",
         "modules_dir":"/simpoint_traces/old_rocksdb/traces_simp/raw/",
         "trace_file":"/simpoint_traces/old_rocksdb/traces_simp/trace/"
@@ -1072,13 +1072,13 @@
   "502.gcc_r":{
     "simulation":{
       "exec":{
-        "group_name":"spec2017",
+        "image_name":"spec2017",
         "env_vars":null,
         "binary_cmd":null,
         "client_bincmd":null
       },
       "memtrace":{
-        "group_name":"allbench_traces",
+        "image_name":"allbench_traces",
         "trim_type":"2",
         "modules_dir":"/simpoint_traces/502.gcc_r/traces_simp/",
         "trace_file":"/simpoint_traces/502.gcc_r/traces_simp/"
@@ -1385,13 +1385,13 @@
   "507.cactuBSSN_r":{
     "simulation":{
       "exec":{
-        "group_name":"spec2017",
+        "image_name":"spec2017",
         "env_vars":null,
         "binary_cmd":null,
         "client_bincmd":null
       },
       "memtrace":{
-        "group_name":"allbench_traces",
+        "image_name":"allbench_traces",
         "trim_type":"2",
         "modules_dir":"/simpoint_traces/507.cactuBSSN_r/traces_simp/",
         "trace_file":"/simpoint_traces/507.cactuBSSN_r/traces_simp/"
@@ -1458,13 +1458,13 @@
   "505.mcf_r":{
     "simulation":{
       "exec":{
-        "group_name":"spec2017",
+        "image_name":"spec2017",
         "env_vars":null,
         "binary_cmd":null,
         "client_bincmd":null
       },
       "memtrace":{
-        "group_name":"allbench_traces",
+        "image_name":"allbench_traces",
         "trim_type":"2",
         "modules_dir":"/simpoint_traces/505.mcf_r/traces_simp/",
         "trace_file":"/simpoint_traces/505.mcf_r/traces_simp/"
@@ -1531,13 +1531,13 @@
   "500.perlbench_r":{
     "simulation":{
       "exec":{
-        "group_name":"spec2017",
+        "image_name":"spec2017",
         "env_vars":null,
         "binary_cmd":null,
         "client_bincmd":null
       },
       "memtrace":{
-        "group_name":"allbench_traces",
+        "image_name":"allbench_traces",
         "trim_type":"2",
         "modules_dir":"/simpoint_traces/500.perlbench_r/traces_simp/",
         "trace_file":"/simpoint_traces/500.perlbench_r/traces_simp/"
@@ -1614,13 +1614,13 @@
   "503.bwaves_r":{
     "simulation":{
       "exec":{
-        "group_name":"spec2017",
+        "image_name":"spec2017",
         "env_vars":null,
         "binary_cmd":null,
         "client_bincmd":null
       },
       "memtrace":{
-        "group_name":"allbench_traces",
+        "image_name":"allbench_traces",
         "trim_type":"2",
         "modules_dir":"/simpoint_traces/503.bwaves_r/traces_simp/",
         "trace_file":"/simpoint_traces/503.bwaves_r/traces_simp/"
@@ -1702,13 +1702,13 @@
   "510.parest_r":{
     "simulation":{
       "exec":{
-        "group_name":"spec2017",
+        "image_name":"spec2017",
         "env_vars":null,
         "binary_cmd":null,
         "client_bincmd":null
       },
       "memtrace":{
-        "group_name":"allbench_traces",
+        "image_name":"allbench_traces",
         "trim_type":"2",
         "modules_dir":"/simpoint_traces/510.parest_r/traces_simp/",
         "trace_file":"/simpoint_traces/510.parest_r/traces_simp/"
@@ -2105,13 +2105,13 @@
   "520.omnetpp_r":{
     "simulation":{
       "exec":{
-        "group_name":"spec2017",
+        "image_name":"spec2017",
         "env_vars":null,
         "binary_cmd":null,
         "client_bincmd":null
       },
       "memtrace":{
-        "group_name":"allbench_traces",
+        "image_name":"allbench_traces",
         "trim_type":"2",
         "modules_dir":"/simpoint_traces/520.omnetpp_r/traces_simp/",
         "trace_file":"/simpoint_traces/520.omnetpp_r/traces_simp/"
@@ -2178,13 +2178,13 @@
   "511.povray_r":{
     "simulation":{
       "exec":{
-        "group_name":"spec2017",
+        "image_name":"spec2017",
         "env_vars":null,
         "binary_cmd":null,
         "client_bincmd":null
       },
       "memtrace":{
-        "group_name":"allbench_traces",
+        "image_name":"allbench_traces",
         "trim_type":"2",
         "modules_dir":"/simpoint_traces/511.povray_r/traces_simp/",
         "trace_file":"/simpoint_traces/511.povray_r/traces_simp/"
@@ -2256,13 +2256,13 @@
   "508.namd_r":{
     "simulation":{
       "exec":{
-        "group_name":"spec2017",
+        "image_name":"spec2017",
         "env_vars":null,
         "binary_cmd":null,
         "client_bincmd":null
       },
       "memtrace":{
-        "group_name":"allbench_traces",
+        "image_name":"allbench_traces",
         "trim_type":"2",
         "modules_dir":"/simpoint_traces/508.namd_r/traces_simp/",
         "trace_file":"/simpoint_traces/508.namd_r/traces_simp/"
@@ -2454,13 +2454,13 @@
   "519.lbm_r":{
     "simulation":{
       "exec":{
-        "group_name":"spec2017",
+        "image_name":"spec2017",
         "env_vars":null,
         "binary_cmd":null,
         "client_bincmd":null
       },
       "memtrace":{
-        "group_name":"allbench_traces",
+        "image_name":"allbench_traces",
         "trim_type":"2",
         "modules_dir":"/simpoint_traces/519.lbm_r/traces_simp/",
         "trace_file":"/simpoint_traces/519.lbm_r/traces_simp/"
@@ -2507,13 +2507,13 @@
   "521.wrf_r":{
     "simulation":{
       "exec":{
-        "group_name":"spec2017",
+        "image_name":"spec2017",
         "env_vars":null,
         "binary_cmd":null,
         "client_bincmd":null
       },
       "memtrace":{
-        "group_name":"allbench_traces",
+        "image_name":"allbench_traces",
         "trim_type":"2",
         "modules_dir":"/simpoint_traces/521.wrf_r/traces_simp/",
         "trace_file":"/simpoint_traces/521.wrf_r/traces_simp/"
@@ -3240,13 +3240,13 @@
   "525.x264_r":{
     "simulation":{
       "exec":{
-        "group_name":"spec2017",
+        "image_name":"spec2017",
         "env_vars":null,
         "binary_cmd":null,
         "client_bincmd":null
       },
       "memtrace":{
-        "group_name":"allbench_traces",
+        "image_name":"allbench_traces",
         "trim_type":"2",
         "modules_dir":"/simpoint_traces/525.x264_r/traces_simp/",
         "trace_file":"/simpoint_traces/525.x264_r/traces_simp/"
@@ -3323,13 +3323,13 @@
   "531.deepsjeng_r":{
     "simulation":{
       "exec":{
-        "group_name":"spec2017",
+        "image_name":"spec2017",
         "env_vars":null,
         "binary_cmd":null,
         "client_bincmd":null
       },
       "memtrace":{
-        "group_name":"allbench_traces",
+        "image_name":"allbench_traces",
         "trim_type":"2",
         "modules_dir":"/simpoint_traces/531.deepsjeng_r/traces_simp/",
         "trace_file":"/simpoint_traces/531.deepsjeng_r/traces_simp/"
@@ -3401,13 +3401,13 @@
   "523.xalancbmk_r":{
     "simulation":{
       "exec":{
-        "group_name":"spec2017",
+        "image_name":"spec2017",
         "env_vars":null,
         "binary_cmd":null,
         "client_bincmd":null
       },
       "memtrace":{
-        "group_name":"allbench_traces",
+        "image_name":"allbench_traces",
         "trim_type":"2",
         "modules_dir":"/simpoint_traces/523.xalancbmk_r/traces_simp/",
         "trace_file":"/simpoint_traces/523.xalancbmk_r/traces_simp/"
@@ -3484,13 +3484,13 @@
   "538.imagick_r":{
     "simulation":{
       "exec":{
-        "group_name":"spec2017",
+        "image_name":"spec2017",
         "env_vars":null,
         "binary_cmd":null,
         "client_bincmd":null
       },
       "memtrace":{
-        "group_name":"allbench_traces",
+        "image_name":"allbench_traces",
         "trim_type":"2",
         "modules_dir":"/simpoint_traces/538.imagick_r/traces_simp/",
         "trace_file":"/simpoint_traces/538.imagick_r/traces_simp/"
@@ -3527,13 +3527,13 @@
   "526.blender_r":{
     "simulation":{
       "exec":{
-        "group_name":"spec2017",
+        "image_name":"spec2017",
         "env_vars":null,
         "binary_cmd":null,
         "client_bincmd":null
       },
       "memtrace":{
-        "group_name":"allbench_traces",
+        "image_name":"allbench_traces",
         "trim_type":"2",
         "modules_dir":"/simpoint_traces/526.blender_r/traces_simp/",
         "trace_file":"/simpoint_traces/526.blender_r/traces_simp/"
@@ -3625,13 +3625,13 @@
   "527.cam4_r":{
     "simulation":{
       "exec":{
-        "group_name":"spec2017",
+        "image_name":"spec2017",
         "env_vars":null,
         "binary_cmd":null,
         "client_bincmd":null
       },
       "memtrace":{
-        "group_name":"allbench_traces",
+        "image_name":"allbench_traces",
         "trim_type":"2",
         "modules_dir":"/simpoint_traces/527.cam4_r/traces_simp/",
         "trace_file":"/simpoint_traces/527.cam4_r/traces_simp/"
@@ -3948,13 +3948,13 @@
   "557.xz_r":{
     "simulation":{
       "exec":{
-        "group_name":"spec2017",
+        "image_name":"spec2017",
         "env_vars":null,
         "binary_cmd":null,
         "client_bincmd":null
       },
       "memtrace":{
-        "group_name":"allbench_traces",
+        "image_name":"allbench_traces",
         "trim_type":"2",
         "modules_dir":"/simpoint_traces/557.xz_r/traces_simp/",
         "trace_file":"/simpoint_traces/557.xz_r/traces_simp/"
@@ -4021,13 +4021,13 @@
   "541.leela_r":{
     "simulation":{
       "exec":{
-        "group_name":"spec2017",
+        "image_name":"spec2017",
         "env_vars":null,
         "binary_cmd":null,
         "client_bincmd":null
       },
       "memtrace":{
-        "group_name":"allbench_traces",
+        "image_name":"allbench_traces",
         "trim_type":"2",
         "modules_dir":"/simpoint_traces/541.leela_r/traces_simp/",
         "trace_file":"/simpoint_traces/541.leela_r/traces_simp/"
@@ -4104,13 +4104,13 @@
   "548.exchange2_r":{
     "simulation":{
       "exec":{
-        "group_name":"spec2017",
+        "image_name":"spec2017",
         "env_vars":null,
         "binary_cmd":null,
         "client_bincmd":null
       },
       "memtrace":{
-        "group_name":"allbench_traces",
+        "image_name":"allbench_traces",
         "trim_type":"2",
         "modules_dir":"/simpoint_traces/548.exchange2_r/traces_simp/",
         "trace_file":"/simpoint_traces/548.exchange2_r/traces_simp/"
@@ -4182,13 +4182,13 @@
   "554.roms_r":{
     "simulation":{
       "exec":{
-        "group_name":"spec2017",
+        "image_name":"spec2017",
         "env_vars":null,
         "binary_cmd":null,
         "client_bincmd":null
       },
       "memtrace":{
-        "group_name":"allbench_traces",
+        "image_name":"allbench_traces",
         "trim_type":"2",
         "modules_dir":"/simpoint_traces/554.roms_r/traces_simp/",
         "trace_file":"/simpoint_traces/554.roms_r/traces_simp/"
@@ -4545,13 +4545,13 @@
   "544.nab_r":{
     "simulation":{
       "exec":{
-        "group_name":"spec2017",
+        "image_name":"spec2017",
         "env_vars":null,
         "binary_cmd":null,
         "client_bincmd":null
       },
       "memtrace":{
-        "group_name":"allbench_traces",
+        "image_name":"allbench_traces",
         "trim_type":"2",
         "modules_dir":"/simpoint_traces/544.nab_r/traces_simp/",
         "trace_file":"/simpoint_traces/544.nab_r/traces_simp/"
@@ -4603,13 +4603,13 @@
   "549.fotonik3d_r":{
     "simulation":{
       "exec":{
-        "group_name":"spec2017",
+        "image_name":"spec2017",
         "env_vars":null,
         "binary_cmd":null,
         "client_bincmd":null
       },
       "memtrace":{
-        "group_name":"allbench_traces",
+        "image_name":"allbench_traces",
         "trim_type":"2",
         "modules_dir":"/simpoint_traces/549.fotonik3d_r/traces_simp/",
         "trace_file":"/simpoint_traces/549.fotonik3d_r/traces_simp/"
@@ -4726,7 +4726,7 @@
   "MPC":{
     "simulation":{
       "memtrace":{
-        "group_name":"allbench_traces",
+        "image_name":"allbench_traces",
         "trim_type":"3",
         "modules_dir":"/simpoint_traces/MPC/traces_simp/",
         "trace_file":"/simpoint_traces/MPC/traces_simp/"
@@ -5021,13 +5021,13 @@
     },
     "simulation":{
       "exec":{
-        "group_name":"dacapo",
+        "image_name":"dacapo",
         "env_vars":null,
         "binary_cmd":"java -Djava.compiler=NONE -jar \\$tmpdir/dacapo-23.11-chopin.jar cassandra -n 1 -t 1",
         "client_bincmd":null
       },
       "pt":{
-        "group_name":"allbench_traces"
+        "image_name":"allbench_traces"
       }
     }
   },
@@ -5037,13 +5037,13 @@
     },
     "simulation":{
       "exec":{
-        "group_name":"dacapo",
+        "image_name":"dacapo",
         "env_vars":null,
         "binary_cmd":"\\$tmpdir/graalvm-ce-java11-22.3.1/bin/java -Djava.compiler=NONE -jar \\$tmpdir/dacapo-23.11-chopin.jar kafka -n 1 -t 1",
         "client_bincmd":null
       },
       "pt":{
-        "group_name":"allbench_traces"
+        "image_name":"allbench_traces"
       }
     }
   },
@@ -5053,13 +5053,13 @@
     },
     "simulation":{
       "exec":{
-        "group_name":"dacapo",
+        "image_name":"dacapo",
         "env_vars":null,
         "binary_cmd":"java -Djava.compiler=NONE -jar \\$tmpdir/dacapo-23.11-chopin.jar dacapo -n 1 -t 1",
         "client_bincmd":null
       },
       "pt":{
-        "group_name":"allbench_traces"
+        "image_name":"allbench_traces"
       }
     }
   },
@@ -5069,7 +5069,7 @@
     },
     "simulation":{
       "exec":{
-        "group_name":"dacapo",
+        "image_name":"dacapo",
         "env_vars":null,
         "binary_cmd":"java -Djava.compiler=NONE -jar \\$tmpdir/dacapo-23.11-chopin.jar jme -n 1 -t 1",
         "client_bincmd":null
@@ -5082,7 +5082,7 @@
     },
     "simulation":{
       "exec":{
-        "group_name":"dacapo",
+        "image_name":"dacapo",
         "env_vars":null,
         "binary_cmd":"java -Djava.compiler=NONE -jar \\$tmpdir/dacapo-23.11-chopin.jar biojava -n 1 -t 1",
         "client_bincmd":null
@@ -5095,7 +5095,7 @@
     },
     "simulation":{
       "exec":{
-        "group_name":"dacapo",
+        "image_name":"dacapo",
         "env_vars":null,
         "binary_cmd":"java -Djava.compiler=NONE -jar \\$tmpdir/dacapo-23.11-chopin.jar luindex -n 1 -t 1",
         "client_bincmd":null
@@ -5105,72 +5105,72 @@
   "finagle-chirper":{
     "simulation":{
       "exec":{
-        "group_name":"renaissance",
+        "image_name":"renaissance",
         "env_vars":null,
         "binary_cmd":"java -jar \\$tmpdir/renaissance-gpl-0.10.0.jar finagle-chirper -r 10",
         "client_bincmd":null
       },
       "pt":{
-        "group_name":"allbench_traces"
+        "image_name":"allbench_traces"
       }
     }
   },
   "finagle-http":{
     "simulation":{
       "exec":{
-        "group_name":"renaissance",
+        "image_name":"renaissance",
         "env_vars":null,
         "binary_cmd":"java -jar \\$tmpdir/renaissance-gpl-0.10.0.jar finagle-http -r 10",
         "client_bincmd":null
       },
       "pt":{
-        "group_name":"allbench_traces"
+        "image_name":"allbench_traces"
       }
     }
   },
   "drupal":{
     "simulation":{
       "exec":{
-        "group_name":"oss",
+        "image_name":"oss",
         "env_vars":null,
         "binary_cmd":"\\$HHVM \\$tmpdir/oss-performance/perf.php --drupal7 --hhvm:$(echo \\$HHVM)",
         "client_bincmd":null
       },
       "pt":{
-        "group_name":"allbench_traces"
+        "image_name":"allbench_traces"
       }
     }
   },
   "mediawiki":{
     "simulation":{
       "exec":{
-        "group_name":"oss",
+        "image_name":"oss",
         "env_vars":null,
         "binary_cmd":"\\$HHVM \\$tmpdir/oss-performance/perf.php --mediawiki --hhvm:$(echo \\$HHVM)",
         "client_bincmd":null
       },
       "pt":{
-        "group_name":"allbench_traces"
+        "image_name":"allbench_traces"
       }
     }
   },
   "wordpress":{
     "simulation":{
       "exec":{
-        "group_name":"oss",
+        "image_name":"oss",
         "env_vars":null,
         "binary_cmd":"\\$HHVM \\$tmpdir/oss-performance/perf.php --wordpress --hhvm:$(echo \\$HHVM)",
         "client_bincmd":null
       },
       "pt":{
-        "group_name":"allbench_traces"
+        "image_name":"allbench_traces"
       }
     }
   },
   "compression":{
     "simulation":{
       "exec":{
-        "group_name":"fleetbench",
+        "image_name":"fleetbench",
         "env_vars":null,
         "binary_cmd":"\\$tmpdir/.cache/bazel/_bazel_root/107a4c1ce14e7747be85d98e8915ea0d/execroot/com_google_fleetbench/bazel-out/k8-opt-clang/bin/fleetbench/compression/compression_benchmark",
         "client_bincmd":null
@@ -5180,7 +5180,7 @@
   "hashing":{
     "simulation":{
       "exec":{
-        "group_name":"fleetbench",
+        "image_name":"fleetbench",
         "env_vars":null,
         "binary_cmd":"\\$tmpdir/.cache/bazel/_bazel_root/107a4c1ce14e7747be85d98e8915ea0d/execroot/com_google_fleetbench/bazel-out/k8-opt-clang/bin/fleetbench/hashing/hashing_benchmark",
         "client_bincmd":null
@@ -5190,7 +5190,7 @@
   "mem":{
     "simulation":{
       "exec":{
-        "group_name":"fleetbench",
+        "image_name":"fleetbench",
         "env_vars":null,
         "binary_cmd":"\\$tmpdir/.cache/bazel/_bazel_root/107a4c1ce14e7747be85d98e8915ea0d/execroot/com_google_fleetbench/bazel-out/k8-opt-clang/bin/fleetbench/libc/mem_benchmark",
         "client_bincmd":null
@@ -5200,7 +5200,7 @@
   "proto":{
     "simulation":{
       "exec":{
-        "group_name":"fleetbench",
+        "image_name":"fleetbench",
         "env_vars":null,
         "binary_cmd":"\\$tmpdir/.cache/bazel/_bazel_root/107a4c1ce14e7747be85d98e8915ea0d/execroot/com_google_fleetbench/bazel-out/k8-opt-clang/bin/fleetbench/proto/proto_benchmark",
         "client_bincmd":null
@@ -5210,7 +5210,7 @@
   "cold_swissmap":{
     "simulation":{
       "exec":{
-        "group_name":"fleetbench",
+        "image_name":"fleetbench",
         "env_vars":null,
         "binary_cmd":"\\$tmpdir/.cache/bazel/_bazel_root/107a4c1ce14e7747be85d98e8915ea0d/execroot/com_google_fleetbench/bazel-out/k8-opt-clang/bin/fleetbench/swissmap/cold_swissmap_benchmark",
         "client_bincmd":null
@@ -5220,7 +5220,7 @@
   "hot_swissmap":{
     "simulation":{
       "exec":{
-        "group_name":"fleetbench",
+        "image_name":"fleetbench",
         "env_vars":null,
         "binary_cmd":"\\$tmpdir/.cache/bazel/_bazel_root/107a4c1ce14e7747be85d98e8915ea0d/execroot/com_google_fleetbench/bazel-out/k8-opt-clang/bin/fleetbench/swissmap/hot_swissmap_benchmark",
         "client_bincmd":null
@@ -5230,7 +5230,7 @@
   "empirical_driver":{
     "simulation":{
       "exec":{
-        "group_name":"fleetbench",
+        "image_name":"fleetbench",
         "env_vars":null,
         "binary_cmd":"\\$tmpdir/.cache/bazel/_bazel_root/107a4c1ce14e7747be85d98e8915ea0d/execroot/com_google_fleetbench/bazel-out/k8-opt-clang/bin/fleetbench/tcmalloc/empirical_driver",
         "client_bincmd":null
@@ -5240,7 +5240,7 @@
   "dss":{
     "simulation":{
       "exec":{
-        "group_name":"dss",
+        "image_name":"dss",
         "env_vars":null,
         "binary_cmd":"DarwinStreamingServer -d",
         "client_bincmd":null
@@ -5250,7 +5250,7 @@
   "httpd":{
     "simulation":{
       "exec":{
-        "group_name":"httpd",
+        "image_name":"httpd",
         "env_vars":null,
         "binary_cmd":"/usr/local/apache2/bin/httpd -C 'ServerName 172.17.0.2:80' -X",
         "client_bincmd":null
@@ -5260,7 +5260,7 @@
   "solr":{
     "simulation":{
       "exec":{
-        "group_name":"solr",
+        "image_name":"solr",
         "env_vars":null,
         "binary_cmd":"java -server -Xms14g -Xmx14g -XX:+UseG1GC -XX:+PerfDisableSharedMem -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=250 -XX:+UseLargePages -XX:+AlwaysPreTouch -XX:+ExplicitGCInvokesConcurrent -Xlog:gc\\*:file=/usr/src/solr-9.1.1/server/logs/solr_gc.log:time\\,uptime:filecount=9\\,filesize=20M -Dsolr.jetty.inetaccess.includes= -Dsolr.jetty.inetaccess.excludes= -DzkClientTimeout=30000 -DzkRun -Dsolr.log.dir=/usr/src/solr-9.1.1/server/logs -Djetty.port=8983 -DSTOP.PORT=7983 -DSTOP.KEY=solrrocks -Duser.timezone=UTC -XX:-OmitStackTraceInFastThrow -XX:OnOutOfMemoryError=/usr/src/solr-9.1.1/bin/oom_solr.sh\\ 8983\\ /usr/src/solr-9.1.1/server/logs -Djetty.home=/usr/src/solr-9.1.1/server -Dsolr.solr.home=/usr/src/solr_cores -Dsolr.data.home= -Dsolr.install.dir=/usr/src/solr-9.1.1 -Dsolr.default.confdir=/usr/src/solr-9.1.1/server/solr/configsets/_default/conf -Dsolr.jetty.host=0.0.0.0 -Xss256k -XX:CompileCommand=exclude\\,com.github.benmanes.caffeine.cache.BoundedLocalCache::put -Djava.security.manager -Djava.security.policy=/usr/src/solr-9.1.1/server/etc/security.policy -Djava.security.properties=/usr/src/solr-9.1.1/server/etc/security.properties -Dsolr.internal.network.permission=\\* -DdisableAdminUI=false -jar /usr/src/solr-9.1.1/server/start.jar --module=http --module=requestlog --module=gzip",
         "client_bincmd":null
@@ -5270,7 +5270,7 @@
   "python":{
     "simulation":{
       "pt":{
-        "group_name":"allbench_traces"
+        "image_name":"allbench_traces"
       }
     }
   }
