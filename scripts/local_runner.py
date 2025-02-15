@@ -190,13 +190,12 @@ def run_simulation(user, descriptor_data, workloads_data, suite_data, dbg_lvl = 
             image = subprocess.check_output(["docker", "images", "-q", f"{docker_prefix}:{githash}"])
             if image == []:
                 info(f"Couldn't find image {docker_prefix}:{githash}", dbg_lvl)
-                if docker_prefix == "allbench_traces":
-                    subprocess.check_output(["docker", "pull", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}"])
-                    image = subprocess.check_output(["docker", "images", "-q", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}"])
-                    if image != []:
-                        subprocess.check_output(["docker", "tag", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}", f"{docker_prefix}:{githash}"])
-                        subprocess.check_output(["docker", "rmi", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}"])
-                        continue
+                subprocess.check_output(["docker", "pull", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}"])
+                image = subprocess.check_output(["docker", "images", "-q", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}"])
+                if image != []:
+                    subprocess.check_output(["docker", "tag", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}", f"{docker_prefix}:{githash}"])
+                    subprocess.check_output(["docker", "rmi", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}"])
+                    continue
                 subprocess.check_output(["./run.sh", "-b", docker_prefix])
                 image = subprocess.check_output(["docker", "images", "-q", f"{docker_prefix}:{githash}"])
                 if image == []:

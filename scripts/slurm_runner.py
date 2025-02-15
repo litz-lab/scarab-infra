@@ -53,14 +53,13 @@ def prepare_docker_image(nodes, docker_prefix, githash, dbg_lvl = 1):
             info(f"{image}", dbg_lvl)
             if image == []:
                 info(f"Couldn't find image {docker_prefix}:{githash} on {node}", dbg_lvl)
-                if docker_prefix == "allbench_traces":
-                    subprocess.check_output(["srun", f"--nodelist={node}", "docker", "pull", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}"])
-                    image = subprocess.check_output(["srun", f"--nodelist={node}", "docker", "images", "-q", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}"])
-                    if image != []:
-                        subprocess.check_output(["srun", f"--nodelist={node}", "docker", "tag", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}", f"{docker_prefix}:{githash}"])
-                        subprocess.check_output(["srun", f"--nodelist={node}", "docker", "rmi", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}"])
-                        available_nodes.append(node)
-                        continue
+                subprocess.check_output(["srun", f"--nodelist={node}", "docker", "pull", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}"])
+                image = subprocess.check_output(["srun", f"--nodelist={node}", "docker", "images", "-q", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}"])
+                if image != []:
+                    subprocess.check_output(["srun", f"--nodelist={node}", "docker", "tag", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}", f"{docker_prefix}:{githash}"])
+                    subprocess.check_output(["srun", f"--nodelist={node}", "docker", "rmi", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}"])
+                    available_nodes.append(node)
+                    continue
 
                 # build the image if a pre-built image is not found
                 subprocess.check_output(["srun", f"--nodelist={node}", "./run.sh", "-b", docker_prefix])
