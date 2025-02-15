@@ -12,7 +12,7 @@ from utilities import (
         verify_descriptor,
         open_interactive_shell,
         remove_docker_containers,
-        get_workload_groups
+        get_image_list
         )
 import slurm_runner
 import local_runner
@@ -42,6 +42,7 @@ if __name__ == "__main__":
         infra_dir = subprocess.check_output(["pwd"]).decode("utf-8").split("\n")[0]
 
     workload_db_path = f"{infra_dir}/workloads/workloads_db.json"
+    suite_db_path = f"{infra_dir}/workloads/suite_db.json"
 
     # Get user for commands
     user = subprocess.check_output("whoami").decode('utf-8')[:-1]
@@ -50,36 +51,37 @@ if __name__ == "__main__":
     # Read descriptor json and extract important data
     descriptor_data = read_descriptor_from_json(descriptor_path, dbg_lvl)
     workloads_data = read_descriptor_from_json(workload_db_path, dbg_lvl)
+    suite_data = read_descriptor_from_json(suite_db_path, dbg_lvl)
     workload_manager = descriptor_data["workload_manager"]
     experiment_name = descriptor_data["experiment"]
     simulations = descriptor_data["simulations"]
-    docker_prefix_list = get_workload_groups(simulations, workloads_data)
+    docker_image_list = get_image_list(simulations, workloads_data, suite_data)
 
     if args.kill:
         if workload_manager == "manual":
-            local_runner.kill_jobs(user, experiment_name, docker_prefix_list, infra_dir, dbg_lvl)
+            local_runner.kill_jobs(user, experiment_name, docker_image_list, infra_dir, dbg_lvl)
         else:
-            slurm_runner.kill_jobs(user, experiment_name, docker_prefix_list, dbg_lvl)
+            slurm_runner.kill_jobs(user, experiment_name, docker_image_list, dbg_lvl)
         exit(0)
 
     if args.info:
         if workload_manager == "manual":
-            local_runner.print_status(user, experiment_name, docker_prefix_list, dbg_lvl)
+            local_runner.print_status(user, experiment_name, docker_image_list, dbg_lvl)
         else:
-            slurm_runner.print_status(user, experiment_name, docker_prefix_list, dbg_lvl)
+            slurm_runner.print_status(user, experiment_name, docker_image_list, dbg_lvl)
         exit(0)
 
     if args.launch:
-        verify_descriptor(descriptor_data, workloads_data, True, dbg_lvl)
+        verify_descriptor(descriptor_data, workloads_data, suite_data, True, dbg_lvl)
         open_interactive_shell(user, descriptor_data, workloads_data, dbg_lvl)
         exit(0)
 
     if args.clean:
-        remove_docker_containers(docker_prefix_list, experiment_name, user, dbg_lvl)
+        remove_docker_containers(docker_image_list, experiment_name, user, dbg_lvl)
         exit(0)
 
-    verify_descriptor(descriptor_data, workloads_data, False, dbg_lvl)
+    verify_descriptor(descriptor_data, workloads_data, suite_data, False, dbg_lvl)
     if workload_manager == "manual":
-        local_runner.run_simulation(user, descriptor_data, workloads_data, dbg_lvl)
+        local_runner.run_simulation(user, descriptor_data, workloads_data, suite_data, dbg_lvl)
     else:
-        slurm_runner.run_simulation(user, descriptor_data, workloads_data, dbg_lvl)
+        slurm_runner.run_simulation(user, descriptor_data, workloads_data, suite_data, dbg_lvl)

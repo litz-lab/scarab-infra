@@ -39,8 +39,56 @@ def read_descriptor_from_json(filename="experiment.json", dbg_lvl = 1):
         err(f"Error decoding JSON in file '{filename}': {e}", dbg_lvl)
         return None
 
+def validate_simulation(workloads_data, suite_data, simulations, dbg_lvl = 2):
+    for simulation in simulations:
+        suite = simulation["suite"]
+        subsuite = simulation["subsuite"]
+        workload = simulation["workload"]
+        cluster_id = simulation["cluster_id"]
+        sim_mode = simulation["simulation_type"]
+
+        if suite == None:
+            err(f"Suite field cannot be null.", dbg_lvl)
+            exit(1)
+
+        if suite not in suite_data.keys():
+            err(f"Suite '{suite}' is not valid.", dbg_lvl)
+            exit(1)
+
+        if subsuite != None and subsuite not in suite_data[suite].keys():
+            err(f"Subsuite '{subsuite}' is not valid in Suite '{suite}'.", dbg_lvl);
+            exit(1)
+
+        if workload == None and (cluster_id != None or sim_mode != None):
+            err(f"If you want to run all the workloads within '{suite}', empty all 'workload', 'cluster_id', 'simulation_type'.", dbg_lvl)
+            exit(1)
+
+        if workload != None and workload not in workloads_data.keys():
+            err(f"Workload '{workload}' is not valid.", dbg_lvl)
+            exit(1)
+
+        if workload != None and sim_mode not in workloads_data[workload]["simulation"].keys():
+            err(f"Simulation mode '{sim_mode}' is not an valid option for workload '{workload}'.", dbg_lvl)
+            exit(1)
+
+        if workload != None and cluster_id == None and "simpoints" not in workloads_data[workload].keys():
+            err(f"Simpoints are not available. Choose '0' for cluster id.", dbg_lvl)
+            exit(1)
+
+        if workload != None and cluster_id > 0:
+            found = False
+            for simpoint in workloads_data[workload]["simpoints"]:
+                if cluster_id == simpoint["cluster_id"]:
+                    found = True
+                    break
+            if not found:
+                err(f"Cluster ID {cluster_id} is not valid for workload '{workload}'.", dbg_lvl)
+                exit(1)
+        print(f"[{suite}, {subsuite}, {workload}, {cluster_id}, {sim_mode}] is a valid simulation option.")
+
+
 # Verify the given descriptor file
-def verify_descriptor(descriptor_data, workloads_data, open_shell = False, dbg_lvl = 2):
+def verify_descriptor(descriptor_data, workloads_data, suite_data, open_shell = False, dbg_lvl = 2):
     ## Check if the provided json describes all the valid data
 
     # Check the scarab path
@@ -63,38 +111,7 @@ def verify_descriptor(descriptor_data, workloads_data, open_shell = False, dbg_l
         exit(1)
 
     # Check if each simulation type is valid
-    for simulation in descriptor_data['simulations']:
-        workload = simulation["workload"]
-        exp_cluster_id = simulation["cluster_id"]
-        mode = simulation["simulation_type"]
-        if exp_cluster_id < 0 and exp_cluster_id != -1:
-            err(f"cluster id {exp_cluster_id} is not valid.", dbg_lvl)
-            exit(1)
-
-        simulation_type_found = False
-        if mode in workloads_data[workload]["simulation"]:
-            simulation_type_found = True
-
-        if not simulation_type_found:
-            err(f"{simulation_type_found} simulation type is not valid for {workload} workload", dbg_lvl)
-            exit(1)
-
-        if exp_cluster_id == -1 and "simpoints" not in workloads_data[workload]:
-            err(f"Simpoints are not available for simulation type [{workload}, {exp_cluster_id}, {mode}]", dbg_lvl)
-            exit(1)
-
-        if exp_cluster_id == 0 and simulation_type_found:
-            continue
-
-        if exp_cluster_id > 0:
-            simpoint_found = False
-            for simpoint in workloads_data[workload]["simpoints"]:
-                if simpoint["cluster_id"] == exp_cluster_id:
-                    simpoint_found = True
-                    break
-            if not simpoint_found:
-                err(f"{exp_cluster_id} is not a valid cluster id for {workload}'s simpoints", dbg_lvl)
-                exit(1)
+    validate_simulation(workloads_data, suite_data, descriptor_data['simulations'])
 
     # Check the workload manager
     if descriptor_data["workload_manager"] != "manual" and descriptor_data["workload_manager"] != "slurm":
@@ -379,16 +396,32 @@ def remove_docker_containers(docker_prefix_list, experiment_name, user, dbg_lvl)
         err(f"Error while removing containers: {e}")
         raise e
 
-def get_workload_groups(simulations, workloads_data):
-    workload_groups = []
+def get_image_list(simulations, workloads_data, suite_data):
+    image_list = []
     for simulation in simulations:
+        suite = simulation["suite"]
+        subsuite = simulation["subsuite"]
         workload = simulation["workload"]
         exp_cluster_id = simulation["cluster_id"]
         mode = simulation["simulation_type"]
-        if mode in workloads_data[workload]["simulation"].keys() and workloads_data[workload]["simulation"][mode]["image_name"] not in workload_groups:
-            workload_groups.append(workloads_data[workload]["simulation"][mode]["image_name"])
 
-    return workload_groups
+        if workload == None and exp_cluster_id == None and mode == None:
+            if subsuite == None:
+                for subsuite in suite_data[suite].keys():
+                    for workload in suite_data[suite][subsuite]["predefined_simulation_mode"].keys():
+                        mode = suite_data[suite][subsuite]["predefined_simulation_mode"][workload]
+                        if mode in workloads_data[workload]["simulation"].keys() and workloads_data[workload]["simulation"][mode]["image_name"] not in image_list:
+                            image_list.append(workloads_data[workload]["simulation"][mode]["image_name"])
+            else:
+                for workload in suite_data[suite][subsuite]["predefined_simulation_mode"].keys():
+                    mode = suite_data[suite][subsuite]["predefined_simulation_mode"][workload]
+                    if mode in workloads_data[workload]["simulation"].keys() and workloads_data[workload]["simulation"][mode]["image_name"] not in image_list:
+                        image_list.append(workloads_data[workload]["simulation"][mode]["image_name"])
+        else:
+            if mode in workloads_data[workload]["simulation"].keys() and workloads_data[workload]["simulation"][mode]["image_name"] not in image_list:
+                image_list.append(workloads_data[workload]["simulation"][mode]["image_name"])
+
+    return image_list
 
 def get_docker_prefix(sim_mode, simulation_data):
     if sim_mode not in simulation_data.keys():

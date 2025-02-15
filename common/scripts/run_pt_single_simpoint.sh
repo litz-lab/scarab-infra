@@ -24,7 +24,7 @@ WARMUP=49999999
 
 SIMHOME=$SCENARIO/$APPNAME
 mkdir -p $SIMHOME
-TRACEHOME=/simpoint_traces/$APPNAME
+TRACEHOME=/simpoint_traces/pt_$APPNAME
 traceMap="trace.gz"
 
 cd $SIMHOME

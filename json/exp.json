@@ -11,41 +11,34 @@
     "scarab_path": "/home/$USER/allbench_home/scarab",
     "_simpoint_traces_dir": "The local directory containing all simpointed traces",
     "simpoint_traces_dir": "/home/$USER/simpoint_traces",
-    "_simulations": "A list of [workload, simpoint's cluster #, simulation type] where cluster_id is found in workloads/workloads_db.json (all the simpoints if -1, whole simulation w/o simpoints if 0) and simulation type is one of 'exec', 'memtrace', 'pt'.",
+    "_simulations": "A list of [suite, subsuite, workload, simpoint's cluster #, simulation type]. Available suite and subsuite are found in workloads/suite_db.json and workload's available cluster_id and simulation_type are found in workloads/workloads_db.json where it runs all the simpoints if cluster_id is null and simulation type is one of 'exec', 'memtrace', 'pt'. When only 'suite' or 'suite'+'subsuite' is given and the rest are null, it launches simulations for all the workloads, all the simpoints if available, and in predefined simulation mode in workloads/suite_db.json.",
     "simulations": [
       {
-        "workload":"clang",
-        "cluster_id":-1,
-        "simulation_type":"memtrace"
+        "suite":"datacenter",
+        "subsuite":null,
+        "workload":null,
+        "cluster_id":null,
+        "simulation_type":null
       },
       {
-        "workload":"gcc",
-        "cluster_id":-1,
-        "simulation_type":"memtrace"
+        "suite":"spec2017",
+        "subsuite":"rate_int",
+        "workload":null,
+        "cluster_id":null,
+        "simulation_type":null
       },
       {
+        "suite":"spec2017",
+        "subsuite":"rate_fp",
+        "workload":"503.bwaves_r",
+        "cluster_id":null,
+        "simulation_type":"exec"
+      },
+      {
+        "suite":"datacenter",
+        "subsuite":null,
         "workload":"mongodb",
-        "cluster_id":-1,
-        "simulation_type":"memtrace"
-      },
-      {
-        "workload":"mysql",
-        "cluster_id":-1,
-        "simulation_type":"memtrace"
-      },
-      {
-        "workload":"postgres",
-        "cluster_id":-1,
-        "simulation_type":"memtrace"
-      },
-      {
-        "workload":"verilator",
-        "cluster_id":-1,
-        "simulation_type":"memtrace"
-      },
-      {
-        "workload":"xgboost",
-        "cluster_id":-1,
+        "cluster_id":4118,
         "simulation_type":"memtrace"
       }
     ],

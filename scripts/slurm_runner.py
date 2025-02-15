@@ -16,7 +16,7 @@ from utilities import (
         write_docker_command_to_file,
         prepare_simulation,
         finish_simulation,
-        get_workload_groups,
+        get_image_list,
         get_docker_prefix
         )
 
@@ -285,7 +285,7 @@ def kill_jobs(user, experiment_name, docker_prefix_list, dbg_lvl = 2):
     else:
         print("No job found.")
 
-def run_simulation(user, descriptor_data, workloads_data, dbg_lvl = 1):
+def run_simulation(user, descriptor_data, workloads_data, suite_data, dbg_lvl = 1):
     architecture = descriptor_data["architecture"]
     experiment_name = descriptor_data["experiment"]
     docker_home = descriptor_data["root_dir"]
@@ -294,7 +294,71 @@ def run_simulation(user, descriptor_data, workloads_data, dbg_lvl = 1):
     configs = descriptor_data["configurations"]
     simulations = descriptor_data["simulations"]
 
-    docker_prefix_list = get_workload_groups(simulations, workloads_data)
+    docker_prefix_list = get_image_list(simulations, workloads_data, suite_data)
+
+    def run_single_workload(workload, exp_cluster_id, sim_mode):
+        try:
+            docker_prefix = get_docker_prefix(sim_mode, workloads_data[workload]["simulation"])
+            info(f"Using docker image with name {docker_prefix}:{githash}", dbg_lvl)
+            docker_running = check_docker_image(all_nodes, docker_prefix, githash, dbg_lvl)
+            excludes = set(all_nodes) - set(docker_running)
+            info(f"Excluding following nodes: {', '.join(excludes)}", dbg_lvl)
+            sbatch_cmd = generate_sbatch_command(excludes, experiment_dir)
+            trim_type = None
+            modules_dir = ""
+            trace_file = ""
+            env_vars = ""
+            bincmd = ""
+            client_bincmd = ""
+            simulation_data = workloads_data[workload]["simulation"][sim_mode]
+            if sim_mode == "memtrace":
+                trim_type = simulation_data["trim_type"]
+                modules_dir = simulation_data["modules_dir"]
+                trace_file = simulation_data["trace_file"]
+            if sim_mode == "exec":
+                env_vars = simulation_data["env_vars"]
+                bincmd = simulation_data["binary_cmd"]
+                client_bincmd = simulation_data["client_bincmd"]
+
+            if "simpoints" not in workloads_data[workload].keys():
+                weight = 1
+                simpoints = {}
+                simpoints["0"] = weight
+            elif exp_cluster_id == None:
+                simpoints = get_simpoints(workloads_data[workload], dbg_lvl)
+            elif exp_cluster_id > 0:
+                weight = get_weight_by_cluster_id(exp_cluster_id, workloads_data[workload]["simpoints"])
+                simpoints = {}
+                simpoints[exp_cluster_id] = weight
+
+            for config_key in configs:
+                config = configs[config_key]
+
+                for cluster_id, weight in simpoints.items():
+                    print(cluster_id, weight)
+
+                    docker_container_name = f"{docker_prefix}_{workload}_{experiment_name}_{config_key.replace("/", "-")}_{cluster_id}_{sim_mode}_{user}"
+
+                    # TODO: Notification when a run fails, point to output file and command that caused failure
+                    # Add help (?)
+                    # Look into squeue -o https://slurm.schedmd.com/squeue.html
+                    # Look into resource allocation
+
+                    # TODO: Rewrite with sbatch arrays
+
+                    # Create temp file with run command and run it
+                    filename = f"{docker_container_name}_tmp_run.sh"
+                    write_docker_command_to_file(user, local_uid, local_gid, workload, experiment_name,
+                                                 docker_prefix, docker_container_name, simpoint_traces_dir,
+                                                 docker_home, githash, config_key, config, scarab_mode, scarab_githash,
+                                                 architecture, cluster_id, trim_type, modules_dir, trace_file,
+                                                 env_vars, bincmd, client_bincmd, filename)
+                    tmp_files.append(filename)
+
+                    os.system(sbatch_cmd + filename)
+                    info(f"Running sbatch command '{sbatch_cmd + filename}'", dbg_lvl)
+        except Exception as e:
+            raise e
 
     try:
         # Get user for commands
@@ -338,67 +402,24 @@ def run_simulation(user, descriptor_data, workloads_data, dbg_lvl = 1):
         # Iterate over each workload and config combo
         tmp_files = []
         for simulation in simulations:
+            suite = simulation["suite"]
+            subsuite = simulation["subsuite"]
             workload = simulation["workload"]
             exp_cluster_id = simulation["cluster_id"]
             sim_mode = simulation["simulation_type"]
-            docker_prefix = get_docker_prefix(sim_mode, workloads_data[workload]["simulation"])
-            info(f"Using docker image with name {docker_prefix}:{githash}", dbg_lvl)
-            docker_running = check_docker_image(all_nodes, docker_prefix, githash, dbg_lvl)
-            excludes = set(all_nodes) - set(docker_running)
-            info(f"Excluding following nodes: {', '.join(excludes)}", dbg_lvl)
-            sbatch_cmd = generate_sbatch_command(excludes, experiment_dir)
-            modeuls_dir = ""
-            trace_file = ""
-            env_vars = ""
-            bincmd = ""
-            client_bincmd = ""
-            simulation_data = workloads_data[workload]["simulation"][sim_mode]
-            if sim_mode == "memtrace":
-                trim_type = simulation_data["trim_type"]
-                modules_dir = simulation_data["modules_dir"]
-                trace_file = simulation_data["trace_file"]
-            if sim_mode == "exec":
-                env_vars = simulation_data["env_vars"]
-                bincmd = simulation_data["binary_cmd"]
-                client_bincmd = simulation_data["client_bincmd"]
 
-            if exp_cluster_id == 0:
-                weight = 1
-                simpoints = {}
-                simpoints[f"{exp_cluster_id}"] = weight
-            elif exp_cluster_id == -1:
-                simpoints = get_simpoints(workloads_data[workload], dbg_lvl)
-            elif exp_cluster_id > 0:
-                weight = get_weight_by_cluster_id(exp_cluster_id, workloads_data[workload]["simpoints"])
-                simpoints = {}
-                simpoints[exp_cluster_id] = weight
-
-            for config_key in configs:
-                config = configs[config_key]
-
-                for cluster_id, weight in simpoints.items():
-                    print(cluster_id, weight)
-
-                    docker_container_name = f"{docker_prefix}_{workload}_{experiment_name}_{config_key.replace("/", "-")}_{cluster_id}_{sim_mode}_{user}"
-
-                    # TODO: Notification when a run fails, point to output file and command that caused failure
-                    # Add help (?)
-                    # Look into squeue -o https://slurm.schedmd.com/squeue.html
-                    # Look into resource allocation
-
-                    # TODO: Rewrite with sbatch arrays
-
-                    # Create temp file with run command and run it
-                    filename = f"{docker_container_name}_tmp_run.sh"
-                    write_docker_command_to_file(user, local_uid, local_gid, workload, experiment_name,
-                                                 docker_prefix, docker_container_name, simpoint_traces_dir,
-                                                 docker_home, githash, config_key, config, scarab_mode, scarab_githash,
-                                                 architecture, cluster_id, trim_type, modules_dir, trace_file,
-                                                 env_vars, bincmd, client_bincmd, filename)
-                    tmp_files.append(filename)
-
-                    os.system(sbatch_cmd + filename)
-                    info(f"Running sbatch command '{sbatch_cmd + filename}'", dbg_lvl)
+            # Run all the workloads within suite
+            if workload == None and subsuite == None:
+                for subsuite in suite_data[suite].keys():
+                    for workload in suite_data[suite][subsuite]["predefined_simulation_mode"].keys():
+                        sim_mode = suite_data[suite][subsuite]["predefined_simulation_mode"][workload]
+                        run_single_workload(workload, exp_cluster_id, sim_mode)
+            elif workload == None and subsuite != None:
+                for workload in suite_data[suite][subsuite]["predefined_simulation_mode"].keys():
+                    sim_mode = suite_data[suite][subsuite]["predefined_simulation_mode"][workload]
+                    run_single_workload(workload, exp_cluster_id, sim_mode)
+            else:
+                run_single_workload(workload, exp_cluster_id, sim_mode)
 
         # Clean up temp files
         for tmp in tmp_files:
@@ -413,3 +434,10 @@ def run_simulation(user, descriptor_data, workloads_data, dbg_lvl = 1):
     except Exception as e:
         print("An exception occurred:", e)
         traceback.print_exc()  # Print the full stack trace
+
+        # Clean up temp files
+        for tmp in tmp_files:
+            info(f"Removing temporary run script {tmp}", dbg_lvl)
+            os.remove(tmp)
+
+        kill_jobs(user, experiment_name, docker_prefix_list, dbg_lvl)

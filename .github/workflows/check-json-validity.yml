@@ -19,3 +19,4 @@ jobs:
         run: |
           jq empty ./json/exp.json
           jq empty ./workloads/workloads_db.json
+          jq empty ./workloads/suite_db.json
