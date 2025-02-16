@@ -364,7 +364,7 @@ def open_interactive_shell(user, descriptor_data, workloads_data, suite_data, db
                                             dbg_lvl)
         workload = descriptor_data['simulations'][0]['workload']
         mode = descriptor_data['simulations'][0]['simulation_type']
-        docker_prefix = get_image_name(workloads_data, suite_data, descriptor_data['simulations'], dbg_lvl)
+        docker_prefix = get_image_name(workloads_data, suite_data, descriptor_data['simulations'][0])
 
         docker_container_name = f"{docker_prefix}_{experiment_name}_scarab_{scarab_githash}_{user}"
         simpoint_traces_dir = descriptor_data["simpoint_traces_dir"]
