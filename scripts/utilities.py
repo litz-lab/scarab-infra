@@ -311,7 +311,27 @@ def get_simpoints_from_simpoints_file (simpoint_traces_dir, workload, dbg_lvl = 
 
     return simpoints
 
-def open_interactive_shell(user, descriptor_data, workloads_data, dbg_lvl = 1):
+def get_image_name(workloads_data, suite_data, simulation):
+    suite = simulation["suite"]
+    subsuite = simulation["subsuite"]
+    workload = simulation["workload"]
+    cluster_id = simulation["cluster_id"]
+    sim_mode = simulation["simulation_type"]
+
+    if workload != None:
+        return workloads_data[workload]["simulation"][sim_mode]["image_name"]
+
+    if subsuite != None:
+        workload = next(iter(suite_data[suite][subsuite]["predefined_simulation_mode"]))
+        sim_mode = suite_data[suite][subsuite]["predefined_simulation_mode"][workload]
+    else:
+        subsuite = next(iter(suite_data[suite]))
+        workload = next(iter(suite_data[suite][subsuite]["predefined_simulation_mode"]))
+        sim_mode = suite_data[suite][subsuite]["predefined_simulation_mode"][workload]
+
+    return workloads_data[workload]["simulation"][sim_mode]["image_name"]
+
+def open_interactive_shell(user, descriptor_data, workloads_data, suite_data, dbg_lvl = 1):
     experiment_name = descriptor_data["experiment"]
     try:
         # Get user for commands
@@ -344,7 +364,7 @@ def open_interactive_shell(user, descriptor_data, workloads_data, dbg_lvl = 1):
                                             dbg_lvl)
         workload = descriptor_data['simulations'][0]['workload']
         mode = descriptor_data['simulations'][0]['simulation_type']
-        docker_prefix = workloads_data[workload]['simulation'][mode]['image_name']
+        docker_prefix = get_image_name(workloads_data, suite_data, descriptor_data['simulations'], dbg_lvl)
 
         docker_container_name = f"{docker_prefix}_{experiment_name}_scarab_{scarab_githash}_{user}"
         simpoint_traces_dir = descriptor_data["simpoint_traces_dir"]

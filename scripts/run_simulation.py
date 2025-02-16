@@ -73,7 +73,7 @@ if __name__ == "__main__":
 
     if args.launch:
         verify_descriptor(descriptor_data, workloads_data, suite_data, True, dbg_lvl)
-        open_interactive_shell(user, descriptor_data, workloads_data, dbg_lvl)
+        open_interactive_shell(user, descriptor_data, workloads_data, suite_data, dbg_lvl)
         exit(0)
 
     if args.clean:
