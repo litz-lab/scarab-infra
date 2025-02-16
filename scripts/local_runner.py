@@ -57,11 +57,14 @@ def kill_jobs(user, experiment_name, docker_prefix_list, infra_dir, dbg_lvl):
     found_process = []
     for proc in psutil.process_iter(attrs=['pid', 'name', 'username', 'cmdline']):
         try:
+            # Ensure 'cmdline' exists and is iterable
+            cmdline = proc.info.get('cmdline', [])
             # Check if the process name matches the pattern and is run by the specified user
-            cmdline = " ".join(proc.info['cmdline'])
-            if pattern.match(cmdline) and proc.info['username'] == user:
-                found_process.append(proc)
-                print(f"Found process {proc.info['name']} with PID {proc.info['pid']} running by {user}")
+            if cmdline and isinstance(cmdline, list):
+                cmdline_str = " ".join(cmdline)
+                if pattern.match(cmdline_str) and proc.info.get('username') == user:
+                    found_process.append(proc)
+                    print(f"Found process {proc.info.get('name')} with PID {proc.info.get('pid')} running by {user}")
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
             # Handle processes that may have been terminated or we don't have permission to access
             continue
@@ -95,7 +98,7 @@ def kill_jobs(user, experiment_name, docker_prefix_list, infra_dir, dbg_lvl):
     remove_docker_containers(docker_prefix_list, experiment_name, user, dbg_lvl)
 
     info(f"Removing temporary run scripts..", dbg_lvl)
-    os.system(f"rm {experiment_name}_*_tmp_run.sh")
+    os.system(f"rm *_{experiment_name}_*_{user}_tmp_run.sh")
 
 def run_simulation(user, descriptor_data, workloads_data, suite_data, dbg_lvl = 1):
     architecture = descriptor_data["architecture"]
