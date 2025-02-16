@@ -22,10 +22,23 @@ def list_workloads(workloads_data, dbg_lvl = 2):
             image_name = workloads_data[workload]["simulation"][mode]["image_name"]
             print(f"            <\033[92m{mode}\033[0m : \033[31m{image_name}\033[0m>")
 
-def get_image_name(workloads_data, simulation):
+def get_image_name(workloads_data, suite_data, simulation):
+    suite = simulation["suite"]
+    subsuite = simulation["subsuite"]
     workload = simulation["workload"]
     cluster_id = simulation["cluster_id"]
     sim_mode = simulation["simulation_type"]
+
+    if workload != None:
+        return workloads_data[workload]["simulation"][sim_mode]["image_name"]
+
+    if subsuite != None:
+        workload = next(iter(suite_data[suite][subsuite]["predefined_simulation_mode"]))
+        sim_mode = suite_data[suite][subsuite]["predefined_simulation_mode"][workload]
+    else:
+        subsuite = next(iter(suite_data[suite]))
+        workload = next(iter(suite_data[suite][subsuite]["predefined_simulation_mode"]))
+        sim_mode = suite_data[suite][subsuite]["predefined_simulation_mode"][workload]
 
     return workloads_data[workload]["simulation"][sim_mode]["image_name"]
 
@@ -66,5 +79,5 @@ if __name__ == "__main__":
 
     if args.group != None:
         exp_data = read_descriptor_from_json(args.group, dbg_lvl)
-        print(get_image_name(workloads_data, exp_data["simulations"][0]))
+        print(get_image_name(workloads_data, suite_data, exp_data["simulations"][0]))
         exit(0)

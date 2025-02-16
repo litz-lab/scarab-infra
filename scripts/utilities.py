@@ -75,7 +75,7 @@ def validate_simulation(workloads_data, suite_data, simulations, dbg_lvl = 2):
             err(f"Simpoints are not available. Choose '0' for cluster id.", dbg_lvl)
             exit(1)
 
-        if workload != None and cluster_id > 0:
+        if workload != None and cluster_id != None and cluster_id > 0:
             found = False
             for simpoint in workloads_data[workload]["simpoints"]:
                 if cluster_id == simpoint["cluster_id"]:

@@ -41,9 +41,10 @@ help () {
 
 # list function: list all the available docker image names
 list () {
-  json_file="${INFRA_ROOT}/workloads/workloads_db.json"
+  workload_db_json_file="${INFRA_ROOT}/workloads/workloads_db.json"
+  suite_db_json_file="${INFRA_ROOT}/workloads/suite_db.json"
 
-  python3 ${INFRA_ROOT}/scripts/run_db.py -dbg 3 -l -wdb ${json_file}
+  python3 ${INFRA_ROOT}/scripts/run_db.py -dbg 3 -l -wdb ${workload_db_json_file} -sdb ${suite_db_json_file}
 }
 
 # build function
@@ -105,7 +106,7 @@ run () {
 
   python3 ${INFRA_ROOT}/scripts/run_db.py -dbg 3 -val ${exp_json_file} -wdb ${workload_db_json_file} -sdb ${suite_db_json_file}
 
-  APP_GROUPNAME=$(python3 ${INFRA_ROOT}/scripts/run_db.py -dbg 1 -g ${exp_json_file} -wdb ${workload_db_json_file})
+  APP_GROUPNAME=$(python3 ${INFRA_ROOT}/scripts/run_db.py -dbg 1 -g ${exp_json_file} -wdb ${workload_db_json_file} -sdb ${suite_db_json_file})
   echo $APP_GROUPNAME
 
   if [[ -n $(git status --porcelain $INFRA_ROOT/common $INFRA_ROOT/workloads/$APP_GROUPNAME | grep '^ M') ]]; then
