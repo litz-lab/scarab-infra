@@ -1,0 +1,41 @@
+{
+  "_descriptor_type":"A type of descriptor. One of 'simulation' and 'trace'.",
+  "descriptor_type":"trace",
+  "_workload_manager": "manual: run each exp scenario with all the simpoints at a time, slurm: Slurm schedules simulations based on its policy",
+  "workload_manager": "manual",
+  "_root_dir": "Root directory mounted into the docker container home, for instance, $tmp_dir as a root home directory",
+  "root_dir": "/home/$USER",
+  "_scarab_path": "The path to the scarab repository that contains the scarab binary used to run the experiment.",
+  "scarab_path": "/home/$USER/allbench_home/scarab",
+  "_simpoint_traces_dir": "A directory to place the collected traces.",
+  "simpoint_traces_dir": "/home/$USER/lab/traces",
+  "_trace_name": "The name of the tracing. scarab-infra will create a new folder named containing in-progress collected simpoints/traces in the <ROOT_DIR>/traces/<trace_name> directory. Only successfully collected simpoints and traces will be copied to <TRACE_DIR> and the corresponding information for future simulations will be stored in workloads/workloads_db.json and workloads/suite_db.json.",
+  "trace_name": "trace_dcperf",
+  "_trace_configurations": "A list of [workload, image_name, suite, subsuite, environment variables, binary (server) command, client command, post_processing, clustering_k]. 'env_vars' is list of environment variables required to be set to run 'binary_cmd' and 'client_bincmd'. 'post_processing' is 'false' by default (collect fingerprints, do simpoint clustering, then trace). Set 'true' to do post processing (trace, collect fingerprints, then do simpoint clustering). maxk for clustering will be calculated as the square root of the number of segments if 'clustering_k' is not provided. The workload information will be automatically written to scarab-infra/workloads/workload_db.json and suite_db.json when the trace is successfully collected with simpoints. Provide environment variables, binary command, and client binary command if available by manually figuring out them.",
+  "trace_configurations": [
+    {
+      "workload":"event_base_benchmark",
+      "image_name":"dcperf",
+      "suite":"dcperf",
+      "subsuite":"wdlbench",
+      "env_vars":null,
+      "binary_cmd":"\\$tmpdir/DCPerf/benchmarks/wdl_bench/event_base_benchmark",
+      "client_bincmd":null,
+      "post_processing":true,
+      "dynamorio_args":null,
+      "clustering_k":null
+    },
+    {
+      "workload":"hash_hash_benchmark",
+      "image_name":"dcperf",
+      "suite":"dcperf",
+      "subsuite":"wdlbench",
+      "env_vars":null,
+      "binary_cmd":"\\$tmpdir/DCPerf/benchmarks/wdl_bench/hash_hash_benchmark",
+      "client_bincmd":null,
+      "post_processing":true,
+      "dynamorio_args":null,
+      "clustering_k":null
+    }
+  ]
+}

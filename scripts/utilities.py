@@ -6,9 +6,6 @@ import json
 import os
 import subprocess
 import re
-import docker
-
-client = docker.from_env()
 
 # Print an error message if on right debugging level
 def err(msg: str, level: int):
@@ -38,6 +35,23 @@ def read_descriptor_from_json(filename="experiment.json", dbg_lvl = 1):
     except json.JSONDecodeError as e:
         err(f"Error decoding JSON in file '{filename}': {e}", dbg_lvl)
         return None
+
+# json descriptor writer
+def write_json_descriptor(filename, descriptor_data, dbg_lvl = 1):
+    # Write the descriptor data to a JSON file
+    try:
+        with open(filename, 'w') as json_file:
+            json.dump(descriptor_data, file, indent=2, separators=(",", ":"))
+    except TypeError as e:
+            print(f"TypeError: {e}")
+    except UnicodeEncodeError as e:
+            print(f"UnicodeEncodeError: {e}")
+    except OverflowError as e:
+            print(f"OverflowError: {e}")
+    except ValueError as e:
+            print(f"ValueError: {e}")
+    except json.JSONDecodeError as e:
+            print(f"JSONDecodeError: {e}")
 
 def validate_simulation(workloads_data, suite_data, simulations, dbg_lvl = 2):
     for simulation in simulations:
@@ -85,64 +99,6 @@ def validate_simulation(workloads_data, suite_data, simulations, dbg_lvl = 2):
                 err(f"Cluster ID {cluster_id} is not valid for workload '{workload}'.", dbg_lvl)
                 exit(1)
         print(f"[{suite}, {subsuite}, {workload}, {cluster_id}, {sim_mode}] is a valid simulation option.")
-
-
-# Verify the given descriptor file
-def verify_descriptor(descriptor_data, workloads_data, suite_data, open_shell = False, dbg_lvl = 2):
-    ## Check if the provided json describes all the valid data
-
-    # Check the scarab path
-    if descriptor_data["scarab_path"] == None:
-        err("Need path to scarab path. Set in descriptor file under 'scarab_path'", dbg_lvl)
-        exit(1)
-
-    # Check if a correct architecture spec is provided
-    if descriptor_data["architecture"] == None:
-        err("Need an architecture spec to simulate. Set in descriptor file under 'architecture'. Available architectures are found from PARAMS.<architecture> in scarab repository. e.g) sunny_cove", dbg_lvl)
-        exit(1)
-    elif not os.path.exists(f"{descriptor_data['scarab_path']}/src/PARAMS.{descriptor_data['architecture']}"):
-        err(f"PARAMS.{descriptor_data['architecture']} does not exist. Please provide an available architecture for scarab simulation", dbg_lvl)
-        exit(1)
-
-    # Check experiment doesn't already exists
-    experiment_dir = f"{descriptor_data['root_dir']}/simulations/{descriptor_data['experiment']}"
-    if os.path.exists(experiment_dir) and not open_shell:
-        err(f"Experiment '{experiment_dir}' already exists. Please try a different name or remove the directory if not needed", dbg_lvl)
-        exit(1)
-
-    # Check if each simulation type is valid
-    validate_simulation(workloads_data, suite_data, descriptor_data['simulations'])
-
-    # Check the workload manager
-    if descriptor_data["workload_manager"] != "manual" and descriptor_data["workload_manager"] != "slurm":
-        err("Workload manager options: 'manual' or 'slurm'.", dbg_lvl)
-        exit(1)
-
-    # Check if docker home path is provided
-    if descriptor_data["root_dir"] == None:
-        err("Need path to docker home directory. Set in descriptor file under 'root_dir'", dbg_lvl)
-        exit(1)
-
-    # Check if the provided scarab path exists
-    if descriptor_data["scarab_path"] == None:
-        err("Need path to scarab directory. Set in descriptor file under 'scarab_path'", dbg_lvl)
-        exit(1)
-    elif not os.path.exists(descriptor_data["scarab_path"]):
-        err(f"{descriptor_data['scarab_path']} does not exist.", dbg_lvl)
-        exit(1)
-
-    # Check if trace dir exists
-    if descriptor_data["simpoint_traces_dir"] == None:
-        err("Need path to simpoints/traces. Set in descriptor file under 'simpoint_traces_dir'", dbg_lvl)
-        exit(1)
-    elif not os.path.exists(descriptor_data["simpoint_traces_dir"]):
-        err(f"{descriptor_data['simpoint_traces_dir']} does not exist.", dbg_lvl)
-        exit(1)
-
-    # Check if configurations are provided
-    if descriptor_data["configurations"] == None:
-        error("Need configurations to simulate. Set in descriptor file under 'configurations'", dbg_lvl)
-        exit(1)
 
 # copy_scarab deprecated
 # new API prepare_simulation
@@ -251,7 +207,7 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, experimen
                                  docker_prefix, docker_container_name, simpoint_traces_dir,
                                  docker_home, githash, config_key, config, scarab_mode, scarab_githash,
                                  architecture, cluster_id, trim_type, modules_dir, trace_file,
-                                 env_vars, bincmd, client_bincmd, filename):
+                                 env_vars, bincmd, client_bincmd, filename, infra_dir):
     try:
         scarab_cmd = generate_single_scarab_run_command(user, workload, docker_prefix, experiment_name, config_key, config,
                                                         scarab_mode, architecture, scarab_githash, cluster_id,
@@ -273,8 +229,64 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, experimen
             --mount type=bind,source={docker_home},target=/home/{user} \
             {docker_prefix}:{githash} \
             /bin/bash\n")
+            f.write(f"docker cp {infra_dir}/scripts/utilities.sh {docker_container_name}:/usr/local/bin\n")
+            f.write(f"docker cp {infra_dir}/common/scripts/common_entrypoint.sh {docker_container_name}:/usr/local/bin\n")
+            if scarab_mode == "memtrace":
+                f.write(f"docker cp {infra_dir}/common/scripts/run_memtrace_single_simpoint.sh {docker_container_name}:/usr/local/bin\n")
+            elif scarab_mode == "pt":
+                f.write(f"docker cp {infra_dir}/common/scripts/run_pt_single_simpoint.sh {docker_container_name}:/usr/local/bin\n")
+            elif scarab_mode == "exec":
+                f.write(f"docker cp {infra_dir}/common/scripts/run_exec_single_simpoint.sh {docker_container_name}:/usr/local/bin\n")
             f.write(f"docker exec {docker_container_name} /bin/bash -c '/usr/local/bin/common_entrypoint.sh'\n")
             f.write(f"docker exec --user={user} {docker_container_name} /bin/bash {scarab_cmd}\n")
+            f.write(f"docker rm -f {docker_container_name}\n")
+    except Exception as e:
+        raise e
+
+def generate_single_trace_run_command(user, workload, image_name, trace_name, binary_cmd, client_bincmd, simpoint_mode, drio_args, clustering_k):
+    command = ""
+    if simpoint_mode == "cluster_then_trace":
+        mode = 1
+    elif simpoint_mode == "trace_then_post_process":
+        mode = 2
+    command = f"run_simpoint_trace.sh \"{workload}\" \"{image_name}\" \"/home/{user}/simpoint_flow/{trace_name}\" \"{binary_cmd}\" \"{mode}\" \"{drio_args}\" \"{clustering_k}\""
+    return command
+
+def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_container_name, githash,
+                                       workload, image_name, trace_name, simpoint_traces_dir, docker_home,
+                                       env_vars, binary_cmd, client_bincmd, simpoint_mode, drio_args,
+                                       clustering_k, filename, infra_dir):
+    try:
+        trace_cmd = generate_single_trace_run_command(user, workload, image_name, trace_name, binary_cmd, client_bincmd,
+                                                      simpoint_mode, drio_args, clustering_k)
+        with open(filename, "w") as f:
+            f.write("#!/bin/bash\n")
+            f.write(f"echo \"Tracing {workload}\"\n")
+            f.write("echo \"Running on $(uname -n)\"\n")
+            command = f"docker run --privileged \
+                    -e user_id={local_uid} \
+                    -e group_id={local_gid} \
+                    -e username={user} \
+                    -e HOME=/home/{user} \
+                    -e APP_GROUPNAME={image_name} \
+                    -e APPNAME={workload} "
+            if env_vars:
+                for env in env_vars:
+                    command = command + f"-e {env} "
+            command = command + f"-dit \
+                    --name {docker_container_name} \
+                    --mount type=bind,source={docker_home},target=/home/{user} \
+                    {image_name}:{githash} \
+                    /bin/bash\n"
+            f.write(f"{command}")
+            f.write(f"docker cp {infra_dir}/scripts/utilities.sh {docker_container_name}:/usr/local/bin\n")
+            f.write(f"docker cp {infra_dir}/common/scripts/common_entrypoint.sh {docker_container_name}:/usr/local/bin\n")
+            f.write(f"docker cp {infra_dir}/common/scripts/run_clustering.sh {docker_container_name}:/usr/local/bin\n")
+            f.write(f"docker cp {infra_dir}/common/scripts/run_simpoint_trace.sh {docker_container_name}:/usr/local/bin\n")
+            f.write(f"docker cp {infra_dir}/common/scripts/run_trace_post_processing.sh {docker_container_name}:/usr/local/bin\n")
+            f.write(f"docker exec --privileged {docker_container_name} /bin/bash -c '/usr/local/bin/common_entrypoint.sh'\n")
+            f.write(f"docker exec --privileged {docker_container_name} /bin/bash -c \"echo 0 | sudo tee /proc/sys/kernel/randomize_va_space\"\n")
+            f.write(f"docker exec --privileged --user={user} {docker_container_name} /bin/bash {trace_cmd}\n")
             f.write(f"docker rm -f {docker_container_name}\n")
     except Exception as e:
         raise e
@@ -331,77 +343,10 @@ def get_image_name(workloads_data, suite_data, simulation):
 
     return workloads_data[workload]["simulation"][sim_mode]["image_name"]
 
-def open_interactive_shell(user, descriptor_data, workloads_data, suite_data, dbg_lvl = 1):
-    experiment_name = descriptor_data["experiment"]
-    try:
-        # Get user for commands
-        user = subprocess.check_output("whoami").decode('utf-8')[:-1]
-        info(f"User detected as {user}", dbg_lvl)
-
-        # Get a local user/group ids
-        local_uid = os.getuid()
-        local_gid = os.getgid()
-
-        # Get GitHash
-        try:
-            githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).decode("utf-8").strip()
-            info(f"Git hash: {githash}", dbg_lvl)
-        except FileNotFoundError:
-            err("Error: 'git' command not found. Make sure Git is installed and in your PATH.")
-        except subprocess.CalledProcessError:
-            err("Error: Not in a Git repository or unable to retrieve Git hash.")
-
-        # TODO: always make sure to open the interactive shell on a development node (not worker nodes) if slurm mode
-        # need to maintain the list of nodes for development
-        # currently open it on local
-
-        # Generate commands for executing in users docker and sbatching to nodes with containers
-        scarab_githash = prepare_simulation(user,
-                                            descriptor_data['scarab_path'],
-                                            descriptor_data['root_dir'],
-                                            experiment_name,
-                                            descriptor_data['architecture'],
-                                            dbg_lvl)
-        workload = descriptor_data['simulations'][0]['workload']
-        mode = descriptor_data['simulations'][0]['simulation_type']
-        docker_prefix = get_image_name(workloads_data, suite_data, descriptor_data['simulations'][0])
-
-        docker_container_name = f"{docker_prefix}_{experiment_name}_scarab_{scarab_githash}_{user}"
-        simpoint_traces_dir = descriptor_data["simpoint_traces_dir"]
-        docker_home = descriptor_data["root_dir"]
-        try:
-            os.system(f"docker run \
-                -e user_id={local_uid} \
-                -e group_id={local_gid} \
-                -e username={user} \
-                -e HOME=/home/{user} \
-                -e APP_GROUPNAME={docker_prefix} \
-                -e APPNAME={workload} \
-                -dit \
-                --name {docker_container_name} \
-                --mount type=bind,source={simpoint_traces_dir},target=/simpoint_traces,readonly \
-                --mount type=bind,source={docker_home},target=/home/{user} \
-                {docker_prefix}:{githash} \
-                /bin/bash")
-                # f.write(f"docker start {docker_container_name}\n")
-            os.system(f"docker exec {docker_container_name} /bin/bash -c '/usr/local/bin/common_entrypoint.sh'")
-            subprocess.run(["docker", "exec", "-it", f"--user={user}", f"--workdir=/home/{user}", docker_container_name, "/bin/bash"])
-        except KeyboardInterrupt:
-            os.system(f"docker rm -f {docker_container_name}")
-            exit(0)
-        finally:
-            try:
-                client.containers.get(docker_container_name).remove(force=True)
-                print(f"Container {docker_container_name} removed.")
-            except docker.errors.NotFound:
-                print(f"Container {docker_container_name} not found.")
-    except Exception as e:
-        raise e
-
-def remove_docker_containers(docker_prefix_list, experiment_name, user, dbg_lvl):
+def remove_docker_containers(docker_prefix_list, job_name, user, dbg_lvl):
     try:
         for docker_prefix in docker_prefix_list:
-            pattern = re.compile(fr"^{docker_prefix}_.*_{experiment_name}.*_.*_{user}$")
+            pattern = re.compile(fr"^{docker_prefix}_.*_{job_name}.*_.*_{user}$")
             dockers = subprocess.run(["docker", "ps", "--format", "{{.Names}}"], capture_output=True, text=True, check=True)
             lines = dockers.stdout.strip().split("\n") if dockers.stdout else []
             matching_containers = [line for line in lines if pattern.match(line)]
@@ -453,3 +398,137 @@ def get_weight_by_cluster_id(exp_cluster_id, simpoints):
     for simpoint in simpoints:
         if simpoint["cluster_id"] == exp_cluster_id:
             return simpoint["weight"]
+
+def prepare_trace(user, scarab_path, docker_home, job_name, dbg_lvl=1):
+    try:
+        local_uid = os.getuid()
+        local_gid = os.getgid()
+
+        scarab_githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=scarab_path).decode("utf-8").strip()
+        info(f"Scarab git hash: {scarab_githash}", dbg_lvl)
+
+        # If scarab binary does not exist in the provided scarab path, build the binary first.
+        scarab_bin = f"{scarab_path}/src/build/opt/scarab"
+        if not os.path.isfile(scarab_bin):
+            info(f"Scarab binary not found at '{scarab_bin}', build it first...", dbg_lvl)
+            os.system(f"docker run --rm \
+                    --mount type=bind,source={scarab_path}:/scarab \
+                    /bin/bash -c \"cd /scarab/src && make clean && make && chown -R {local_uid}:{local_gid} /scarab\"")
+
+        trace_dir = f"{docker_home}/simpoint_flow/{job_name}"
+        os.system(f"mkdir -p {trace_dir}/scarab/src/")
+        os.system(f"cp {scarab_bin} {trace_dir}/scarab/src/scarab")
+
+        try:
+            os.symlink(f"{trace_dir}/scarab/src/scarab", f"{trace_dir}/scarab/src/scarab_{scarab_githash}")
+        except FileExistsError:
+            pass
+
+        os.system(f"mkdir -p {trace_dir}/scarab/bin/scarab_globals")
+        os.system(f"cp {scarab_path}/bin/scarab_launch.py  {trace_dir}/scarab/bin/scarab_launch.py ")
+        os.system(f"cp {scarab_path}/bin/scarab_globals/*  {trace_dir}/scarab/bin/scarab_globals/ ")
+        os.system(f"mkdir -p {trace_dir}/scarab/utils/memtrace")
+        os.system(f"cp {scarab_path}/utils/memtrace/portabilize_trace.py  {trace_dir}/scarab/utils/memtrace/portabilize_trace.py ")
+
+        os.system(f"chmod -R 777 {trace_dir}")
+        os.system(f"setfacl -m \"o:rwx\" {trace_dir}")
+    except Exception as e:
+        raise e
+
+def finish_trace(user, descriptor_data, workload_db_path, suite_db_path, dbg_lvl):
+    def read_weight_file(file_path):
+        weights = {}
+        with open(file_path, 'r') as f:
+            for line in f:
+                parts = line.split()
+                weight = float(parts[0])
+                segment_id = int(parts[1])
+                weights[segment_id] = weight
+        return weights
+
+    def read_cluster_file(file_path):
+        clusters = {}
+        with open(file_path, 'r') as f:
+            for line in f:
+                parts = line.split()
+                cluster_id = int(parts[0])
+                segment_id = int(parts[1])
+                clusters[segment_id] = cluster_id
+        return clusters
+
+    def get_modules_dir_and_trace_file(trim_type, workload):
+        modules_dir = ""
+        trace_file = ""
+        if trim_type == 2:
+            modules_dir = f"/simpoint_traces/{workload}/traces_simp/raw/"
+            trace_file = f"/simpoint_traces/{workload}/traces_simp/trace/"
+        elif trim_type == 3:
+            modules_dir = f"/simpoint_traces/{workload}/traces_simp/"
+            trace_file = f"/simpoint_traces/{workload}/traces_simp/"
+        return modules_dir, trace_file
+
+    try:
+        workload_db_data = read_descriptor_from_json(workload_db_path, dbg_lvl)
+        suite_db_data = read_descriptor_from_json(suite_db_path, dbg_lvl)
+        trace_configs = descriptor_data["trace_configurations"]
+        job_name = descriptor_data["trace_name"]
+        trace_dir = f"{descriptor_data['root_dir']}/simpoint_flow/{job_name}"
+        for config in trace_configs:
+            workload = config['workload']
+
+            # Update workload_db_data
+            trace_dict = {}
+            trace_dict['dynamorio_args'] = config['dynamorio_args']
+            trace_dict['clustering_k'] = config['clustering_k']
+
+            simulation_dict = {}
+            exec_dict = {}
+            exec_dict['image_name'] = config['image_name']
+            exec_dict['env_vars'] = config['env_vars']
+            exec_dict['binary_cmd'] = config['binary_cmd']
+            exec_dict['client_bincmd'] = config['client_bincmd']
+            memtrace_dict = {}
+            memtrace_dict['image_name'] = config['image_name']
+            memtrace_dict['trim_type'] = 2
+            memtrace_dict['modules_dir'], memtrace_dict['trace_file'] = get_modules_dir_and_trace_file(2, workload)
+            simulation_dict['exec'] = exec_dict
+            simulation_dict['memtrace'] = memtrace_dict
+
+            weight_file = os.path.join(trace_dir, workload, "simpoints", "opt.w.lpt0.99")
+            cluster_file = os.path.join(trace_dir, workload, "simpoints", "opt.p.lpt0.99")
+            weights = read_weight_file(weight_file)
+            clusters = read_cluster_file(cluster_file)
+            simpoints = []
+            # Match segment IDs between weight and cluster files
+            for segment_id, weight in weights.items():
+                if segment_id in clusters:
+                    simpoints.append({
+                        'cluster_id': clusters[segment_id],
+                        'segment_id': segment_id,
+                        'weight': weight
+                    })
+
+            workload_db_data[workload] = {
+                "trace":trace_dict,
+                "simulation":simulation_dict,
+                "simpoints":simpoints
+            }
+
+            # Update suite_db_data
+            suite = config['suite']
+            subsuite = config['subsuite'] if config['subsuite'] else suite
+            if suite in suite_db_data.keys() and subsuite in suite_db_data[suite].keys():
+                suite_db_data[suite][subsuite]['predefined_simulation_mode'][workload] = "memtrace"
+            else:
+                simulation_mode_dict = {}
+                simulation_mode_dict[workload] = "memtrace"
+                subsuite_dict = {'predefined_simulation_mode':simulation_mode_dict}
+                suite_db_data[suite] = subsuite_dict
+
+        write_json_descriptor(workload_db_path, workload_db_data, dbg_lvl)
+        write_json_descriptor(suite_db_path, suite_db_data, dbg_lvl)
+
+        # TODO: copy successfully collected simpoints and traces to simpoint_traces_dir
+        simpoint_traces_dir = descriptor_data["simpoint_traces_dir"]
+    except Exception as e:
+        raise e

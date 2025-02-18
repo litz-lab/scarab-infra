@@ -1,4 +1,6 @@
 {
+  "_descriptor_type":"A type of descriptor. One of 'simulation' and 'trace'.",
+  "descriptor_type":"simulation",
     "_architecture": "A name of the available architectures (PARAMS.<architecture>) found in scarab repository, which defines the machine parameters of the default configuration.",
     "architecture": "sunny_cove",
     "_experiment": "The name of the experiment. scarab-infra will create a new folder named containing all files needed to execute the simulation in the <ROOT_DIR>/simulations/<experiment> directory. The folder will also contain all generated simulation statistics/outputs.",

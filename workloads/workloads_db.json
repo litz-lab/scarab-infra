@@ -5453,5 +5453,53 @@
         "image_name":"allbench_traces"
       }
     }
+  },
+  "concurrent_hash_map_benchmark":{
+    "description":{
+      "desc":"multiple common operations of the folly::ConcurrentHashMap data structure",
+      "programming_language":"C++",
+      "category":"multi-thread",
+      "library":"folly"
+    },
+    "performance":{
+      "topdown":{
+        "retiring":57.2,
+        "bad_speculation":2.9,
+        "frontend_bound":8.1,
+        "backend_bound":31.9
+      },
+      "execution_time":{
+        "min":5,
+        "sec":20.090
+      }
+    }
+  },
+  "digest_builder_benchmark":{
+  },
+  "event_base_benchmark":{
+  },
+  "fibers_benchmark":{
+  },
+  "function_benchmark":{
+  },
+  "hash_hash_benchmark":{
+  },
+  "hash_maps_bench":{
+  },
+  "iobuf_benchmark":{
+  },
+  "lt_hash_benchmark":{
+  },
+  "memcpy_benchmark":{
+  },
+  "memset_benchmark":{
+  },
+  "random_benchmark":{
+  },
+  "small_locks_benchmark":{
+  },
+  "openssl":{
+  },
+  "lzbench":{
   }
 }
