@@ -145,12 +145,12 @@ run () {
     echo $APP_GROUPNAME
     APP_GROUPNAME=$(echo "$APP_GROUPNAME" | tr -d '"')
 
-#    if [[ -n $(git status --porcelain $INFRA_ROOT/common $INFRA_ROOT/workloads/$APP_GROUPNAME | grep '^ M') ]]; then
-      #echo "There are uncommitted changes."
-      #echo "The repository is not up to date. Make sure to commit all the local changes for the version of the docker image. githash is used to identify the image."
-      #echo "If you have an image already in the system you want to overwrite, remove the image first, then build again."
-      #exit 1
-    #fi
+    if [[ -n $(git status --porcelain $INFRA_ROOT/common $INFRA_ROOT/workloads/$APP_GROUPNAME | grep '^ M') ]]; then
+      echo "There are uncommitted changes."
+      echo "The repository is not up to date. Make sure to commit all the local changes for the version of the docker image. githash is used to identify the image."
+      echo "If you have an image already in the system you want to overwrite, remove the image first, then build again."
+      exit 1
+    fi
 
     # get the latest Git commit hash
     GIT_HASH=$(git rev-parse --short HEAD)
@@ -167,6 +167,28 @@ run () {
     start=`date +%s`
 
     python3 ${INFRA_ROOT}/scripts/run_trace.py -dbg 3 -l -d ${json_file}
+
+    end=`date +%s`
+    report_time "interactive-shell" "$start" "$end"
+  elif [ $value == "perf" ]; then
+    APP_GROUPNAME=$(jq '.image_name' ${json_file})
+    echo $APP_GROUPNAME
+    APP_GROUPNAME=$(echo "$APP_GROUPNAME" | tr -d '"')
+
+    # get the latest Git commit hash
+    GIT_HASH=$(git rev-parse --short HEAD)
+
+    # check if the Docker image '$APP_GROUPNAME:$GIT_HASH' exists
+    if ! docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "$APP_GROUPNAME:$GIT_HASH"; then
+      echo "The image with the current Git commit hash does not exist! Build the image first by using '-b'."
+      exit 1
+    fi
+
+    # open an interactive shell of docker container
+    echo "open an interactive shell.."
+    start=`date +%s`
+
+    python3 ${INFRA_ROOT}/scripts/run_perf.py -dbg 3 -l -d ${json_file}
 
     end=`date +%s`
     report_time "interactive-shell" "$start" "$end"

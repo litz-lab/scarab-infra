@@ -1,5 +1,5 @@
 {
-  "_descriptor_type":"A type of descriptor. One of 'simulation' and 'trace'.",
+  "_descriptor_type":"A type of descriptor. One of 'simulation', 'trace', and 'perf'.",
   "descriptor_type":"trace",
   "_workload_manager": "manual: run each exp scenario with all the simpoints at a time, slurm: Slurm schedules simulations based on its policy",
   "workload_manager": "manual",

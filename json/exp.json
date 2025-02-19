@@ -1,5 +1,5 @@
 {
-  "_descriptor_type":"A type of descriptor. One of 'simulation' and 'trace'.",
+  "_descriptor_type":"A type of descriptor. One of 'simulation', 'trace', and 'perf'.",
   "descriptor_type":"simulation",
     "_architecture": "A name of the available architectures (PARAMS.<architecture>) found in scarab repository, which defines the machine parameters of the default configuration.",
     "architecture": "sunny_cove",
