@@ -1,0 +1,10 @@
+{
+  "_descriptor_type":"A type of descriptor. One of 'simulation', 'trace', and 'perf'.",
+  "descriptor_type":"perf",
+  "_user":"A username to run perf top-down analysis. Some application requires root permission to get running.",
+  "user":"root",
+  "_root_dir": "Root directory mounted into the docker container home, for instance, $tmp_dir as a root home directory",
+  "root_dir": "/home/$USER",
+  "_image_name": "A docker image name required to run a benchmark with Perf.",
+  "image_name":"dcperf"
+}
