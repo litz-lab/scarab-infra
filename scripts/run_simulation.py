@@ -10,11 +10,13 @@ import docker
 
 from utilities import (
         info,
+        err,
         read_descriptor_from_json,
         remove_docker_containers,
         get_image_list,
         prepare_simulation,
-        get_image_name
+        get_image_name,
+        validate_simulation
         )
 import slurm_runner
 import local_runner
