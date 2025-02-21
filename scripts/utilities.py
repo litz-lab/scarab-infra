@@ -124,7 +124,7 @@ def prepare_simulation(user, scarab_path, docker_home, experiment_name, architec
         if not os.path.isfile(scarab_bin):
             info(f"Scarab binary not found at '{scarab_bin}', build it first...", dbg_lvl)
             os.system(f"docker run --rm \
-                    --mount type=bind,source={scarab_path}:/scarab \
+                    --mount type=bind,source={scarab_path}:/scarab,readonly=false \
                     /bin/bash -c \"cd /scarab/src && make clean && make && chown -R {local_uid}:{local_gid} /scarab\"")
 
         experiment_dir = f"{docker_home}/simulations/{experiment_name}"
@@ -147,7 +147,10 @@ def prepare_simulation(user, scarab_path, docker_home, experiment_name, architec
         os.system(f"cp {scarab_path}/bin/scarab_launch.py  {experiment_dir}/scarab/bin/scarab_launch.py ")
         os.system(f"cp {scarab_path}/bin/scarab_globals/*  {experiment_dir}/scarab/bin/scarab_globals/ ")
 
-        # os.system(f"chmod -R 777 {experiment_dir}")
+        if os.path.expanduser("~") == docker_home:
+            os.system(f"cp {docker_home}/.bashrc {docker_home}/.bashrc.bk")
+            # Set the env for simulation again (already set in Dockerfile.common) in case user's bashrc overwrite the existing ones when the home directory is mounted
+            os.system(f"echo 'source /usr/local/bin/user_entrypoint.sh' | tee -a {docker_home}/.bashrc")
 
         return scarab_githash
     except Exception as e:
@@ -196,8 +199,8 @@ def write_docker_command_to_file_run_by_root(user, local_uid, local_gid, workloa
             -e username={user} \
             -e HOME=/home/{user} \
             --name {docker_container_name} \
-            --mount type=bind,source={simpoint_traces_dir},target=/simpoint_traces,readonly \
-            --mount type=bind,source={docker_home},target=/home/{user} \
+            --mount type=bind,source={simpoint_traces_dir},target=/simpoint_traces,readonly=true \
+            --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
             {docker_prefix}:{githash} \
             /bin/bash {scarab_cmd}\n")
     except Exception as e:
@@ -225,19 +228,20 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, experimen
             -e APPNAME={workload} \
             -dit \
             --name {docker_container_name} \
-            --mount type=bind,source={simpoint_traces_dir},target=/simpoint_traces,readonly \
-            --mount type=bind,source={docker_home},target=/home/{user} \
+            --mount type=bind,source={simpoint_traces_dir},target=/simpoint_traces,readonly=true \
+            --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
             {docker_prefix}:{githash} \
             /bin/bash\n")
             f.write(f"docker cp {infra_dir}/scripts/utilities.sh {docker_container_name}:/usr/local/bin\n")
             f.write(f"docker cp {infra_dir}/common/scripts/common_entrypoint.sh {docker_container_name}:/usr/local/bin\n")
+            f.write(f"docker cp {infra_dir}/common/scripts/user_entrypoint.sh {docker_container_name}:/usr/local/bin\n")
             if scarab_mode == "memtrace":
                 f.write(f"docker cp {infra_dir}/common/scripts/run_memtrace_single_simpoint.sh {docker_container_name}:/usr/local/bin\n")
             elif scarab_mode == "pt":
                 f.write(f"docker cp {infra_dir}/common/scripts/run_pt_single_simpoint.sh {docker_container_name}:/usr/local/bin\n")
             elif scarab_mode == "exec":
                 f.write(f"docker cp {infra_dir}/common/scripts/run_exec_single_simpoint.sh {docker_container_name}:/usr/local/bin\n")
-            f.write(f"docker exec {docker_container_name} /bin/bash -c '/usr/local/bin/common_entrypoint.sh'\n")
+            f.write(f"docker exec --privileged {docker_container_name} /bin/bash -c '/usr/local/bin/common_entrypoint.sh'\n")
             f.write(f"docker exec --user={user} {docker_container_name} /bin/bash {scarab_cmd}\n")
             f.write(f"docker rm -f {docker_container_name}\n")
     except Exception as e:
@@ -249,7 +253,9 @@ def generate_single_trace_run_command(user, workload, image_name, trace_name, bi
         mode = 1
     elif simpoint_mode == "trace_then_post_process":
         mode = 2
-    command = f"run_simpoint_trace.sh \"{workload}\" \"{image_name}\" \"/home/{user}/simpoint_flow/{trace_name}\" \"{binary_cmd}\" \"{mode}\" \"{drio_args}\" \"{clustering_k}\""
+    command = f"run_simpoint_trace.sh \"{workload}\" \"{image_name}\" \"/home/{user}/simpoint_flow/{trace_name}\" {binary_cmd} \"{mode}\" \"{drio_args}\""
+    if clustering_k != None:
+        command = f"{command} \"{clustering_k}\""
     return command
 
 def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_container_name, githash,
@@ -275,18 +281,19 @@ def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_contai
                     command = command + f"-e {env} "
             command = command + f"-dit \
                     --name {docker_container_name} \
-                    --mount type=bind,source={docker_home},target=/home/{user} \
+                    --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
                     {image_name}:{githash} \
                     /bin/bash\n"
             f.write(f"{command}")
             f.write(f"docker cp {infra_dir}/scripts/utilities.sh {docker_container_name}:/usr/local/bin\n")
             f.write(f"docker cp {infra_dir}/common/scripts/common_entrypoint.sh {docker_container_name}:/usr/local/bin\n")
+            f.write(f"docker cp {infra_dir}/common/scripts/user_entrypoint.sh {docker_container_name}:/usr/local/bin\n")
             f.write(f"docker cp {infra_dir}/common/scripts/run_clustering.sh {docker_container_name}:/usr/local/bin\n")
             f.write(f"docker cp {infra_dir}/common/scripts/run_simpoint_trace.sh {docker_container_name}:/usr/local/bin\n")
             f.write(f"docker cp {infra_dir}/common/scripts/run_trace_post_processing.sh {docker_container_name}:/usr/local/bin\n")
             f.write(f"docker exec --privileged {docker_container_name} /bin/bash -c '/usr/local/bin/common_entrypoint.sh'\n")
             f.write(f"docker exec --privileged {docker_container_name} /bin/bash -c \"echo 0 | sudo tee /proc/sys/kernel/randomize_va_space\"\n")
-            f.write(f"docker exec --privileged --user={user} {docker_container_name} /bin/bash {trace_cmd}\n")
+            f.write(f"docker exec --privileged --user={user} --workdir=/home/{user} {docker_container_name} /bin/bash {trace_cmd}\n")
             f.write(f"docker rm -f {docker_container_name}\n")
     except Exception as e:
         raise e
@@ -399,7 +406,7 @@ def get_weight_by_cluster_id(exp_cluster_id, simpoints):
         if simpoint["cluster_id"] == exp_cluster_id:
             return simpoint["weight"]
 
-def prepare_trace(user, scarab_path, docker_home, job_name, dbg_lvl=1):
+def prepare_trace(user, scarab_path, docker_home, job_name, infra_dir, dbg_lvl=1):
     try:
         local_uid = os.getuid()
         local_gid = os.getgid()
@@ -412,7 +419,7 @@ def prepare_trace(user, scarab_path, docker_home, job_name, dbg_lvl=1):
         if not os.path.isfile(scarab_bin):
             info(f"Scarab binary not found at '{scarab_bin}', build it first...", dbg_lvl)
             os.system(f"docker run --rm \
-                    --mount type=bind,source={scarab_path}:/scarab \
+                    --mount type=bind,source={scarab_path}:/scarab,readonly=false \
                     /bin/bash -c \"cd /scarab/src && make clean && make && chown -R {local_uid}:{local_gid} /scarab\"")
 
         trace_dir = f"{docker_home}/simpoint_flow/{job_name}"
@@ -429,9 +436,10 @@ def prepare_trace(user, scarab_path, docker_home, job_name, dbg_lvl=1):
         os.system(f"cp {scarab_path}/bin/scarab_globals/*  {trace_dir}/scarab/bin/scarab_globals/ ")
         os.system(f"mkdir -p {trace_dir}/scarab/utils/memtrace")
         os.system(f"cp {scarab_path}/utils/memtrace/portabilize_trace.py  {trace_dir}/scarab/utils/memtrace/portabilize_trace.py ")
-
-        os.system(f"chmod -R 777 {trace_dir}")
-        os.system(f"setfacl -m \"o:rwx\" {trace_dir}")
+        if os.path.expanduser("~") == docker_home:
+            os.system(f"cp {docker_home}/.bashrc {docker_home}/.bashrc.bk")
+            # Set the env for simulation again (already set in Dockerfile.common) in case user's bashrc overwrite the existing ones when the home directory is mounted
+            os.system(f"echo 'source /usr/local/bin/user_entrypoint.sh' | tee -a {docker_home}/.bashrc")
     except Exception as e:
         raise e
 
@@ -473,6 +481,12 @@ def finish_trace(user, descriptor_data, workload_db_path, suite_db_path, dbg_lvl
         trace_configs = descriptor_data["trace_configurations"]
         job_name = descriptor_data["trace_name"]
         trace_dir = f"{descriptor_data['root_dir']}/simpoint_flow/{job_name}"
+        simpoint_traces_dir = descriptor_data["simpoint_traces_dir"]
+        docker_home = descriptor_data["root_dir"]
+
+        if os.path.expanduser("~") == docker_home:
+            os.system(f"mv {docker_home}/.bashrc.bk {docker_home}/.bashrc")
+
         for config in trace_configs:
             workload = config['workload']
 
@@ -525,10 +539,17 @@ def finish_trace(user, descriptor_data, workload_db_path, suite_db_path, dbg_lvl
                 subsuite_dict = {'predefined_simulation_mode':simulation_mode_dict}
                 suite_db_data[suite] = subsuite_dict
 
+            # Copy successfully collected simpoints and traces to simpoint_traces_dir
+            os.system(f"mkdir -p {simpoint_traces_dir}/{suite}/{subsuite}/{workload}/simpoints")
+            os.system(f"mkdir -p {simpoint_traces_dir}/{suite}/{subsuite}/{workload}/traces_simp")
+            os.system(f"cp -r {trace_dir}/{workload}/simpoints/* {simpoint_traces_dir}/{suite}/{subsuite}/{workload}/simpoints/")
+            os.system(f"cp -r {trace_dir}/{workload}/traces_simp/* {simpoint_traces_dir}/{suite}/{subsuite}/{workload}/traces_simp/")
+
         write_json_descriptor(workload_db_path, workload_db_data, dbg_lvl)
         write_json_descriptor(suite_db_path, suite_db_data, dbg_lvl)
 
-        # TODO: copy successfully collected simpoints and traces to simpoint_traces_dir
-        simpoint_traces_dir = descriptor_data["simpoint_traces_dir"]
+        print("Recover the ASLR setting with sudo. Provide password..")
+        os.system("echo 2 | sudo tee /proc/sys/kernel/randomize_va_space")
+
     except Exception as e:
         raise e

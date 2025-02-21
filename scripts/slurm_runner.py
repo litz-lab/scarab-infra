@@ -518,7 +518,7 @@ def run_tracing(user, descriptor_data, workload_db_path, suite_db_path, infra_di
 
         trace_dir = f"{descriptor_data['root_dir']}/simpoint_flow/{trace_name}"
 
-        prepare_trace(user, scarab_path, docker_home, trace_name, dbg_lvl)
+        prepare_trace(user, scarab_path, docker_home, trace_name, infra_dir, dbg_lvl)
 
         # Iterate over each trace configuration
         for config in trace_configs:
@@ -542,8 +542,6 @@ def run_tracing(user, descriptor_data, workload_db_path, suite_db_path, infra_di
             info(f"Removing temporary run script {tmp}", dbg_lvl)
             os.remove(tmp)
 
-        print("Recover the ASLR setting with sudo. Provide password..")
-        os.system("echo 2 | sudo tee /proc/sys/kernel/randomize_va_space")
         finish_trace(user, descriptor_data, workload_db_path, suite_db_path, dbg_lvl)
     except Exception as e:
         print("An exception occurred:", e)
@@ -558,3 +556,6 @@ def run_tracing(user, descriptor_data, workload_db_path, suite_db_path, infra_di
 
         print("Recover the ASLR setting with sudo. Provide password..")
         os.system("echo 2 | sudo tee /proc/sys/kernel/randomize_va_space")
+
+        if os.path.expanduser("~") == docker_home:
+            os.system(f"mv {docker_home}/.bashrc.bk {docker_home}/.bashrc")

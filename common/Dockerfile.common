@@ -28,6 +28,7 @@ COPY ./common/scripts/run_clustering.sh /usr/local/bin/run_clustering.sh
 COPY ./common/scripts/run_trace_post_processing.sh /usr/local/bin/run_trace_post_processing.sh
 COPY ./common/scripts/run_simpoint_trace.sh /usr/local/bin/run_simpoint_trace.sh
 COPY ./common/scripts/common_entrypoint.sh /usr/local/bin/common_entrypoint.sh
+COPY ./common/scripts/user_entrypoint.sh /usr/local/bin/user_entrypoint.sh
 COPY ./common/scripts/run_memtrace_single_simpoint.sh /usr/local/bin/run_memtrace_single_simpoint.sh
 COPY ./common/scripts/run_pt_single_simpoint.sh /usr/local/bin/run_pt_single_simpoint.sh
 COPY ./common/scripts/run_exec_single_simpoint.sh /usr/local/bin/run_exec_single_simpoint.sh

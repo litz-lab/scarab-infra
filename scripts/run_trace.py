@@ -114,7 +114,7 @@ def open_interactive_shell(user, descriptor_data, infra_dir, dbg_lvl = 1):
             err("Error: Not in a Git repository or unable to retrieve Git hash.")
 
         docker_home = descriptor_data["root_dir"]
-        prepare_trace(user, descriptor_data["scarab_path"], docker_home, trace_name, dbg_lvl)
+        prepare_trace(user, descriptor_data["scarab_path"], docker_home, trace_name, infra_dir, dbg_lvl)
         trace_scenario = descriptor_data["trace_configurations"][0]
         workload = trace_scenario["workload"]
         docker_prefix = trace_scenario["image_name"]
@@ -128,7 +128,6 @@ def open_interactive_shell(user, descriptor_data, infra_dir, dbg_lvl = 1):
 
         docker_container_name = f"{docker_prefix}_{trace_name}_scarab_{scarab_githash}_{user}"
         trace_dir = f"{docker_home}/simpoint_flow/{trace_name}"
-        # os.system(f"chmod -R 777 {trace_dir}")
         try:
             command = f"docker run --privileged \
                     -e user_id={local_uid} \
@@ -142,31 +141,38 @@ def open_interactive_shell(user, descriptor_data, infra_dir, dbg_lvl = 1):
                     command = command + f"-e {env} "
             command = command + f"-dit \
                     --name {docker_container_name} \
-                    --mount type=bind,source={docker_home},target=/home/{user} \
+                    --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
                     {docker_prefix}:{githash} \
                     /bin/bash"
             print(command)
             os.system(command)
             os.system(f"docker cp {infra_dir}/scripts/utilities.sh {docker_container_name}:/usr/local/bin")
             os.system(f"docker cp {infra_dir}/common/scripts/common_entrypoint.sh {docker_container_name}:/usr/local/bin")
+            os.system(f"docker cp {infra_dir}/common/scripts/user_entrypoint.sh {docker_container_name}:/usr/local/bin")
             os.system(f"docker cp {infra_dir}/common/scripts/run_clustering.sh {docker_container_name}:/usr/local/bin")
             os.system(f"docker cp {infra_dir}/common/scripts/run_simpoint_trace.sh {docker_container_name}:/usr/local/bin")
             os.system(f"docker cp {infra_dir}/common/scripts/run_trace_post_processing.sh {docker_container_name}:/usr/local/bin")
             os.system(f"docker exec --privileged {docker_container_name} /bin/bash -c '/usr/local/bin/common_entrypoint.sh'")
             os.system(f"docker exec --privileged {docker_container_name} /bin/bash -c \"echo 0 | sudo tee /proc/sys/kernel/randomize_va_space\"")
-            subprocess.run(["docker", "exec", "-it", f"--user={user}", f"--workdir=/home/{user}", docker_container_name, "/bin/bash"])
-            # subprocess.run(["docker", "exec", "-it", f"--workdir=/home/{user}", docker_container_name, "/bin/bash"])
+            subprocess.run(["docker", "exec", "--privileged", "-it", f"--user={user}", f"--workdir=/home/{user}", docker_container_name, "/bin/bash"])
         except KeyboardInterrupt:
+            if os.path.expanduser("~") == docker_home:
+                os.system(f"docker exec --user={user} {docker_container_name} /bin/bash -c 'mv /home/{user}/.bashrc.bk /home/{user}/.bashrc'")
             os.system(f"docker rm -f {docker_container_name}")
             print("Recover the ASLR setting with sudo. Provide password..")
             os.system("echo 2 | sudo tee /proc/sys/kernel/randomize_va_space")
             exit(0)
         finally:
             try:
+                if os.path.expanduser("~") == docker_home:
+                    os.system(f"docker exec --user={user} {docker_container_name} /bin/bash -c 'mv /home/{user}/.bashrc.bk /home/{user}/.bashrc'")
+                os.system("echo 2 | sudo tee /proc/sys/kernel/randomize_va_space")
                 client.containers.get(docker_container_name).remove(force=True)
                 print(f"Container {docker_container_name} removed.")
             except docker.error.NotFound:
                 print(f"Container {docker_container_name} not found.")
+            except Exception as e:
+                raise e
     except Exception as e:
         raise e
 

@@ -499,6 +499,9 @@
     }
   },
   "mysql":{
+    "trace":{
+      "dynamorio_args":"-exit_after_tracing 15200000000"
+    },
     "simulation":{
       "exec":{
         "image_name":"sysbench",
@@ -542,6 +545,9 @@
     }
   },
   "postgres":{
+    "trace":{
+      "dynamorio_args":"-exit_after_tracing 15200000000"
+    },
     "simulation":{
       "exec":{
         "image_name":"sysbench",
