@@ -23,9 +23,13 @@ tar -xzvf simpoint_traces.tar.gz
 ## Set up the environment (Docker image)
 ### Alternative 1. Download a pre-built Docker image where GitHash refers to the short git hash of the current scarab-infra commit.
 ```
-echo "print short git hash within scarab-infra repo"
-git rev-parse --short HEAD
-docker pull ghcr.io/litz-lab/scarab-infra/allbench_traces:<GitHash>
+export GIT_HASH=$(git rev-parse --short HEAD)
+docker pull ghcr.io/litz-lab/scarab-infra/allbench_traces:$GIT_HASH
+docker tag ghcr.io/litz-lab/scarab-infra/allbench_traces:$GIT_HASH allbench_traces:$GIT_HASH
+```
+Make sure the docker image exists on local by running
+```
+docker images
 ```
 ### Alternative 2. Build your own Docker image
 ```
