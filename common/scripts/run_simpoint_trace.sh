@@ -73,9 +73,9 @@ if [ "$SIMPOINT" == "2" ]; then
 
   if [ "$APPNAME" == "mysql" ] || [ "$APPNAME" == "postgres" ]; then
     sudo chown -R $APPNAME:$APPNAME $APPHOME/traces/whole
-    traceCmd="sudo -u $APPNAME $traceCmd -exit_after_tracing 15200000000 -- ${BINCMD}"
+    traceCmd="sudo -u $APPNAME $traceCmd -- ${BINCMD}"
   elif [ "$APPNAME" == "long_multi_update" ]; then
-    traceCmd="sudo -u $APPNAME $traceCmd -exit_after_tracing 68000000000 -- ${BINCMD}"
+    traceCmd="sudo -u $APPNAME $traceCmd -- ${BINCMD}"
   else
     traceCmd="$traceCmd -- ${BINCMD}"
   fi

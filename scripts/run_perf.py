@@ -32,7 +32,7 @@ def open_interactive_shell(user, docker_home, image_name, infra_dir, dbg_lvl = 1
             command = f"docker run --privileged \
                     -dit \
                     --name {docker_container_name} \
-                    --mount type=bind,source={docker_home},target=/home/{user} \
+                    --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
                     {image_name}:{githash} \
                     /bin/bash"
             print(command)

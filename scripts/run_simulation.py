@@ -133,25 +133,29 @@ def open_interactive_shell(user, descriptor_data, workloads_data, suite_data, in
                 -e APPNAME={workload} \
                 -dit \
                 --name {docker_container_name} \
-                --mount type=bind,source={simpoint_traces_dir},target=/simpoint_traces,readonly \
-                --mount type=bind,source={docker_home},target=/home/{user} \
+                --mount type=bind,source={simpoint_traces_dir},target=/simpoint_traces,readonly=true \
+                --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
                 {docker_prefix}:{githash} \
                 /bin/bash")
             os.system(f"docker cp {infra_dir}/scripts/utilities.sh {docker_container_name}:/usr/local/bin")
             os.system(f"docker cp {infra_dir}/common/scripts/common_entrypoint.sh {docker_container_name}:/usr/local/bin")
+            os.system(f"docker cp {infra_dir}/common/scripts/user_entrypoint.sh {docker_container_name}:/usr/local/bin")
             if mode == "memtrace":
                 os.system(f"docker cp {infra_dir}/common/scripts/run_memtrace_single_simpoint.sh {docker_container_name}:/usr/local/bin")
             elif mode == "pt":
                 os.system(f"docker cp {infra_dir}/common/scripts/run_pt_single_simpoint.sh {docker_container_name}:/usr/local/bin")
             elif mode == "exec":
                 os.system(f"docker cp {infra_dir}/common/scripts/run_exec_single_simpoint.sh {docker_container_name}:/usr/local/bin")
-            os.system(f"docker exec {docker_container_name} /bin/bash -c '/usr/local/bin/common_entrypoint.sh'")
-            subprocess.run(["docker", "exec", "-it", f"--user={user}", f"--workdir=/home/{user}", docker_container_name, "/bin/bash"])
+            os.system(f"docker exec --privileged {docker_container_name} /bin/bash -c '/usr/local/bin/common_entrypoint.sh'")
+            subprocess.run(["docker", "exec", "--privileged", "-it", f"--user={user}", f"--workdir=/home/{user}", docker_container_name, "/bin/bash"])
         except KeyboardInterrupt:
+            os.system(f"docker exec --user={user} {docker_container_name} /bin/bash -c 'mv /home/{user}/.bashrc.bk /home/{user}/.bashrc'")
             os.system(f"docker rm -f {docker_container_name}")
             exit(0)
         finally:
             try:
+                if os.path.expanduser("~") == docker_home:
+                    os.system(f"docker exec --user={user} {docker_container_name} /bin/bash -c 'mv /home/{user}/.bashrc.bk /home/{user}/.bashrc'")
                 client.containers.get(docker_container_name).remove(force=True)
                 print(f"Container {docker_container_name} removed.")
             except docker.errors.NotFound:

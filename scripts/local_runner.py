@@ -382,3 +382,6 @@ def run_tracing(user, descriptor_data, workload_db_path, suite_db_path, infra_di
 
         print("Recover the ASLR setting with sudo. Provide password..")
         os.system("echo 2 | sudo tee /proc/sys/kernel/randomize_va_space")
+
+        if os.path.expanduser("~") == docker_home:
+            os.system(f"mv {docker_home}/.bashrc.bk {docker_home}/.bashrc")
