@@ -20,7 +20,8 @@ from utilities import (
         get_docker_prefix,
         prepare_trace,
         finish_trace,
-        write_trace_docker_command_to_file
+        write_trace_docker_command_to_file,
+        get_weight_by_cluster_id
         )
 
 # Check if the docker image exists on available slurm nodes

@@ -21,7 +21,8 @@ from utilities import (
         get_docker_prefix,
         prepare_trace,
         finish_trace,
-        write_trace_docker_command_to_file
+        write_trace_docker_command_to_file,
+        get_weight_by_cluster_id
         )
 
 # Check if a container is running on local

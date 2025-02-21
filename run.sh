@@ -5,7 +5,6 @@
 shopt -s nocasematch
 source ./scripts/utilities.sh
 
-set -x
 # help function
 help () {
   echo "Usage: ./run.sh [ -h | --help ]
