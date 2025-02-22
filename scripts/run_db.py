@@ -17,11 +17,12 @@ def list_workloads(workloads_data, dbg_lvl = 2):
     print("----------------------------------------------------------")
     workloads = workloads_data.keys()
     for workload in workloads:
-        print(f"{workload}")
-        modes = workloads_data[workload]["simulation"].keys()
-        for mode in modes:
-            image_name = workloads_data[workload]["simulation"][mode]["image_name"]
-            print(f"            <\033[92m{mode}\033[0m : \033[31m{image_name}\033[0m>")
+        if "simulation" in workloads_data[workload].keys():
+            print(f"{workload}")
+            modes = workloads_data[workload]["simulation"].keys()
+            for mode in modes:
+                image_name = workloads_data[workload]["simulation"][mode]["image_name"]
+                print(f"            <\033[92m{mode}\033[0m : \033[31m{image_name}\033[0m>")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Query workload database')
