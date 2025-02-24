@@ -403,7 +403,8 @@ def run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir,
 
         # Generate commands for executing in users docker and sbatching to nodes with containers
         experiment_dir = f"{descriptor_data['root_dir']}/simulations/{experiment_name}"
-        scarab_githash = prepare_simulation(user, scarab_path, descriptor_data['root_dir'], experiment_name, architecture, dbg_lvl)
+        docker_prefix = docker_prefix_list[0]
+        scarab_githash = prepare_simulation(user, scarab_path, descriptor_data['root_dir'], experiment_name, architecture, docker_prefix, githash, infra_dir, dbg_lvl)
 
         # Iterate over each workload and config combo
         tmp_files = []
@@ -521,8 +522,8 @@ def run_tracing(user, descriptor_data, workload_db_path, suite_db_path, infra_di
                 exit(1)
 
         trace_dir = f"{descriptor_data['root_dir']}/simpoint_flow/{trace_name}"
-
-        prepare_trace(user, scarab_path, docker_home, trace_name, infra_dir, dbg_lvl)
+        docker_prefix = docker_prefix_list[0]
+        prepare_trace(user, scarab_path, docker_home, trace_name, infra_dir, docker_prefix, githash, dbg_lvl)
 
         # Iterate over each trace configuration
         for config in trace_configs:
