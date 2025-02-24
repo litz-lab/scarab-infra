@@ -9,16 +9,14 @@ APPNAME="$1"
 APP_GROUPNAME="$2"
 SCENARIO="$3"
 SCARABPARAMS="$4"
-# this is fixed/settled for NON trace post-processing flow.
-# for trace post-processing flow, SEGSIZE is read from file
-SEGSIZE=100000000
-SCARABARCH="$5"
-TRACESSIMP="$6"
-SCARABHOME="$7"
-SEGMENT_ID="$8"
-ENVVAR="$9"
-BINCMD="$10"
-CLIENT_BINCMD="$11"
+SEGSIZE="$5"
+SCARABARCH="$6"
+TRACESSIMP="$7"
+SCARABHOME="$8"
+SEGMENT_ID="$9"
+ENVVAR="$10"
+BINCMD="$11"
+CLIENT_BINCMD="$12"
 
 for token in $ENVVAR;
 do

@@ -12,13 +12,13 @@ SCENARIO="$3"
 SCARABPARAMS="$4"
 # this is fixed/settled for NON trace post-processing flow.
 # for trace post-processing flow, SEGSIZE is read from file
-SEGSIZE=100000000
-SCARABARCH="$5"
-TRACESSIMP="$6"
-SCARABHOME="$7"
-SEGMENT_ID="$8"
-MODULESDIR="$9"
-TRACEFILE="$10"
+SEGSIZE="$5"
+SCARABARCH="$6"
+TRACESSIMP="$7"
+SCARABHOME="$8"
+SEGMENT_ID="$9"
+MODULESDIR="$10"
+TRACEFILE="$11"
 
 # 10M warmup for segmented memtraces and 50M warmup for whole memtrace
 if [ "$SEGMENT_ID" == "0" ]; then
@@ -52,16 +52,6 @@ else
     MODULESDIR=/simpoint_traces/$APPNAME/traces_simp/
     TRACEFILE=/simpoint_traces/$APPNAME/traces_simp/
   fi
-
-
-  segmentSizeFile="$TRACEHOME/fingerprint/segment_size"
-  if [ ! -f $segmentSizeFile ]
-  then
-    echo "$segmentSizeFile does not exist"
-    exit
-  fi
-  SEGSIZE=$(cat "$segmentSizeFile")
-  echo "SEGSIZE read from $segmentSizeFile is $SEGSIZE"
 
 
   # if TRACESSIMP is 1, 2, or 3,

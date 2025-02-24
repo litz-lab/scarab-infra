@@ -8,7 +8,6 @@ MODULESDIR=$2
 TRACEFILE=$3
 CHUNKSIZE=$4
 SEGSIZE=$5
-SIMPOINTHOME=$6
 
 cd $OUTDIR
 rm -rf fingerprint
@@ -50,7 +49,7 @@ fi
 if [ "$SEGSIZE" -lt "$CHUNKSIZE" ]; then
   echo "SEGSIZE is $SEGSIZE, less than CHUNKSIZE $CHUNKSIZE, which is too small??"
 
-  if [ "$OUTDIR" == "$SIMPOINTHOME/simpoint_10M" ]; then
+  if [ "$OUTDIR" == "$HOME/simpoint_flow/verilator/simpoint_10M" ]; then
     echo "This is a hard-coded scenario for verilator, which has chunk size > segment size"
     # verilator last chunk chunk.3945 has 35181523 instructions
     # so the total number of instruction is
@@ -74,7 +73,7 @@ do
   mkdir $segmentID
   # do not care about the params file
   cd $segmentID
-  scarabCmd="$SIMPOINTHOME/scarab/src/scarab --frontend memtrace \
+  scarabCmd="$HOME/scarab/src/scarab --frontend memtrace \
             --cbp_trace_r0=$TRACEFILE \
             --memtrace_modules_log=$MODULESDIR \
             --mode=trace_bbv_distributed \

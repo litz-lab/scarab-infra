@@ -21,189 +21,11 @@ SIMPOINT_1_MANUAL_TRACE=${8:-NA}
 
 source utilities.sh
 
-# Get command to run for Spec17
-if [ "$APP_GROUPNAME" == "spec2017" ] && [ "$APPNAME" != "clang" ] && [ "$APPNAME" != "gcc" ]; then
-  # environment
-  cd $HOME/cpu2017
-  source ./shrc
-  # compile and get command for application
-  # TODO: this is just for one input
-  ./bin/specperl ./bin/harness/runcpu --copies=1 --iterations=1 --threads=1 --config=memtrace --action=runsetup --size=ref $APPNAME
-  ogo $APPNAME run
-  cd run_base_ref*
-  BINCMD=$(specinvoke -nn | tail -2 | head -1)
-fi
-
-if [ "$SIMPOINT" == "2" ]; then
-  # dir for all relevant data: fingerprint, traces, log, sim stats...
-  mkdir -p $SIMPOINTHOME/$APPNAME
-  cd $SIMPOINTHOME/$APPNAME
-  mkdir -p traces
-  APPHOME=$SIMPOINTHOME/$APPNAME
-
-
-  ################################################################
-
-  # 1. trace the whole application
-  # 2. drraw2trace
-  # 3. post-process the trace in parallel
-  # 4. aggregate the fingerprint
-  # 5. clustering
-
-  taskPids=()
-  start=`date +%s`
-
-  mkdir -p $APPHOME/traces/whole
-
-  # spec needs to run in its run dir
-  if [ "$APP_GROUPNAME" == "spec2017" ] && [ "$APPNAME" != "clang" ] && [ "$APPNAME" != "gcc" ]; then
-    ogo $APPNAME run
-    cd run_base_ref*
-  else
-    cd $APPHOME/traces/whole
-  fi
-
-  echo ${DRIO_ARGS}
-  echo $BINCMD
-  if [ "$DRIO_ARGS" == "None" ]; then
-    traceCmd="$DYNAMORIO_HOME/bin64/drrun -t drcachesim -jobs 40 -outdir $APPHOME/traces/whole -offline"
-  else
-    traceCmd="$DYNAMORIO_HOME/bin64/drrun -t drcachesim -jobs 40 -outdir $APPHOME/traces/whole -offline $DRIO_ARGS"
-  fi
-
-  if [ "$APPNAME" == "mysql" ] || [ "$APPNAME" == "postgres" ]; then
-    sudo chown -R $APPNAME:$APPNAME $APPHOME/traces/whole
-    traceCmd="sudo -u $APPNAME $traceCmd -- ${BINCMD}"
-  elif [ "$APPNAME" == "long_multi_update" ]; then
-    traceCmd="sudo -u $APPNAME $traceCmd -- ${BINCMD}"
-  else
-    traceCmd="$traceCmd -- ${BINCMD}"
-  fi
-  echo "tracing whole app..."
-  echo "command: ${traceCmd}"
-  # if [ "$APP_GROUPNAME" == "spec2017" ]; then
-  #   # have to go to that dir for the spec app cmd to work
-  #   ogo $APPNAME run
-  #   cd run_base_train*
-  # fi
-  eval $traceCmd &
-  taskPids+=($!)
-
-  wait_for "whole app tracing" "${taskPids[@]}"
-  end=`date +%s`
-  report_time "whole app tracing" "$start" "$end"
-
-  taskPids=()
-  start=`date +%s`
-
-  cd $APPHOME/traces/whole
-  for dr in dr*;
-  do
-    cd $dr
-    mkdir -p bin
-    cp raw/modules.log bin/modules.log
-    cp raw/modules.log raw/modules.log.bak
-    python2 $SIMPOINTHOME/scarab/utils/memtrace/portabilize_trace.py .
-    cp bin/modules.log raw/modules.log
-    $DYNAMORIO_HOME/tools/bin64/drraw2trace -jobs 40 -indir ./raw/ -chunk_instr_count $CHUNKSIZE &
-    taskPids+=($!)
-    cd -
-  done
-
-  wait_for "whole app raw2trace" "${taskPids[@]}"
-  end=`date +%s`
-  report_time "whole app raw2trace" "$start" "$end"
-
-  # continue if only one trace file
-  numTrace=$(find -name "dr*.trace.zip" | grep "drmemtrace.*.trace.zip" | wc -l)
-  numDrFolder=$(find -type d -name "drmemtrace.*.dir" | grep "drmemtrace.*.dir" | wc -l)
-  if [ "$numTrace" == "1" ] && [ "$numDrFolder" == "1" ]; then
-    ###HEERREEE prepare raw dir, trace dir
-    modulesDir=$(dirname $(ls $APPHOME/traces/whole/drmemtrace.*.dir/raw/modules.log))
-    wholeTrace=$(ls $APPHOME/traces/whole/drmemtrace.*.dir/trace/dr*.zip)
-    echo "modulesDIR: $modulesDir"
-    echo "wholeTrace: $wholeTrace"
-    bash run_trace_post_processing.sh $APPHOME $modulesDir $wholeTrace $CHUNKSIZE $SEGSIZE
-  else
-  # otherwise ask the user to run manually
-    echo -e "There are multiple trace files.\n\
-    Decide and run \"/usr/local/bin/run_trace_post_processing.sh <OUTDIR> <MODULESDIR> <TRACEFILE> <CHUNKSIZE> <SEGSIZE>\"\n\
-    Then run /usr/local/bin/run_clustering.sh <FPFILE> <OUTDIR>"
-    exit
-  fi
-
-  # clustering
-  bash run_clustering.sh $APPHOME/fingerprint/bbfp $APPHOME $CLUSTERING_USERK
-
-elif [ "$SIMPOINT" == "1" ]; then
-  # dir for all relevant data: fingerprint, traces, log, sim stats...
-  mkdir -p $SIMPOINTHOME/$APPNAME
-  cd $SIMPOINTHOME/$APPNAME
-  mkdir -p fingerprint traces_simp
-  APPHOME=$SIMPOINTHOME/$APPNAME
-
-
-  ################################################################
-
-  # spec needs to run in its run dir
-  if [ "$APP_GROUPNAME" == "spec2017" ] && [ "$APPNAME" != "clang" ] && [ "$APPNAME" != "gcc" ]; then
-    ogo $APPNAME run
-    cd run_base_ref*
-  else
-    cd $APPHOME/fingerprint
-  fi
-
-  # collect fingerprint
-  # TODO: add parameter: size and warm-up
-  fpCmd="$DYNAMORIO_HOME/bin64/drrun -max_bb_instrs 4096 -opt_cleancall 2 -c $tmpdir/libfpg.so -no_use_bb_pc -no_use_fetched_count -segment_size $SEGSIZE -output $APPHOME/fingerprint/bbfp -pcmap_output $APPHOME/fingerprint/pcmap -- $BINCMD"
-  echo "generate fingerprint..."
-  echo "command: ${fpCmd}"
-  # if [ "$APP_GROUPNAME" == "spec2017" ]; then
-  #   # have to go to that dir for the spec app cmd to work
-  #   ogo $APPNAME run
-  #   cd run_base_train*
-  # fi
-
-  taskPids=()
-  start=`date +%s`
-
-  if [ "$SIMPOINT_1_MANUAL_TRACE" == "NA" ]; then
-    eval $fpCmd &
-    taskPids+=($!)
-  fi
-
-  wait_for "online fingerprint" "${taskPids[@]}"
-  end=`date +%s`
-  report_time "online fingerprint" "$start" "$end"
-
-  if [ "$SIMPOINT_1_MANUAL_TRACE" == "NA" ]; then
-    echo "final SEGSIZE is $SEGSIZE, written to $APPHOME/fingerprint/segment_size"
-    echo "$SEGSIZE" > $APPHOME/fingerprint/segment_size
-  fi
-
-  # continue if only one bbfp file
-  cd $APPHOME/fingerprint
-  numBBFP=$(find -name "bbfp.*" | grep "bbfp.*" | wc -l)
-  if [ "$numBBFP" == "1" ]; then
-    bbfpFile=$(ls $APPHOME/fingerprint/bbfp.*)
-    echo "bbfpFile: $bbfpFile"
-    # run SimPoint clustering
-    if [ "$SIMPOINT_1_MANUAL_TRACE" == "NA" ]; then
-      bash run_clustering.sh $bbfpFile $APPHOME $CLUSTERING_USERK
-    fi
-  else
-  # otherwise ask the user to run manually
-    echo -e "There are multiple or no bbfp files. This simpoint flow would not work."
-    exit
-  fi
-
-  ################################################################
-
-
-  ################################################################
+read_simpoint () {
   # read in simpoint
   # ref: https://stackoverflow.com/q/56005842
   # map of cluster - segment
+  echo "Read simpoints.."
   declare -A clusterMap
   while IFS=" " read -r segID clusterID; do
     if [ "$SIMPOINT_1_MANUAL_TRACE" == "NA" ]; then
@@ -212,8 +34,9 @@ elif [ "$SIMPOINT" == "1" ]; then
       clusterMap[$clusterID]=$segID
     fi
   done < $APPHOME/simpoints/opt.p.lpt0.99
+}
 
-  ################################################################
+collect_simpoint_traces () {
   # collect traces
 
   # tracing, raw2trace
@@ -303,6 +126,8 @@ elif [ "$SIMPOINT" == "1" ]; then
 
     mv dr*/raw/ ./raw
     mkdir -p bin
+    chmod -R 777 raw
+    chmod -R 777 bin
     cp raw/modules.log bin/modules.log
     cp raw/modules.log raw/modules.log.bak
     python2 $SIMPOINTHOME/scarab/utils/memtrace/portabilize_trace.py .
@@ -315,7 +140,9 @@ elif [ "$SIMPOINT" == "1" ]; then
   wait_for "cluster raw2trace" "${taskPids[@]}"
   end=`date +%s`
   report_time "cluster raw2trace" "$start" "$end"
+}
 
+minimize_simpoint_traces () {
   ################################################################
   # minimize traces, rename traces
   # it is possible that SimPoint picks interval zero,
@@ -341,7 +168,229 @@ elif [ "$SIMPOINT" == "1" ]; then
     zip ./trace/$segID.big.zip --copy chunk.0000 chunk.0001 --out ./trace/$segID.zip
     rm ./trace/$segID.big.zip
   done
+}
+
+# Get command to run for Spec17
+if [ "$APP_GROUPNAME" == "spec2017" ] && [ "$APPNAME" != "clang" ] && [ "$APPNAME" != "gcc" ]; then
+  # environment
+  cd $HOME/cpu2017
+  source ./shrc
+  # compile and get command for application
+  # TODO: this is just for one input
+  ./bin/specperl ./bin/harness/runcpu --copies=1 --iterations=1 --threads=1 --config=memtrace --action=runsetup --size=ref $APPNAME
+  ogo $APPNAME run
+  cd run_base_ref*
+  BINCMD=$(specinvoke -nn | tail -2 | head -1)
+fi
+
+if [ "$SIMPOINT" == "2" ]; then
+  # dir for all relevant data: fingerprint, traces, log, sim stats...
+  mkdir -p $SIMPOINTHOME/$APPNAME
+  cd $SIMPOINTHOME/$APPNAME
+  mkdir -p traces
+  APPHOME=$SIMPOINTHOME/$APPNAME
+
 
   ################################################################
+
+  # 1. trace the whole application
+  # 2. drraw2trace
+  # 3. post-process the trace in parallel
+  # 4. aggregate the fingerprint
+  # 5. clustering
+
+  taskPids=()
+  start=`date +%s`
+
+  mkdir -p $APPHOME/traces/whole
+
+  # spec needs to run in its run dir
+  if [ "$APP_GROUPNAME" == "spec2017" ] && [ "$APPNAME" != "clang" ] && [ "$APPNAME" != "gcc" ]; then
+    ogo $APPNAME run
+    cd run_base_ref*
+  else
+    cd $APPHOME/traces/whole
+  fi
+
+  echo ${DRIO_ARGS}
+  echo $BINCMD
+  if [ "$DRIO_ARGS" == "None" ]; then
+    traceCmd="$DYNAMORIO_HOME/bin64/drrun -t drcachesim -jobs 40 -outdir $APPHOME/traces/whole -offline"
+  else
+    traceCmd="$DYNAMORIO_HOME/bin64/drrun -t drcachesim -jobs 40 -outdir $APPHOME/traces/whole -offline $DRIO_ARGS"
+  fi
+
+  if [ "$APPNAME" == "mysql" ] || [ "$APPNAME" == "postgres" ]; then
+    sudo chown -R $APPNAME:$APPNAME $APPHOME/traces/whole
+    traceCmd="sudo -u $APPNAME $traceCmd -- ${BINCMD}"
+  elif [ "$APPNAME" == "long_multi_update" ]; then
+    traceCmd="sudo -u $APPNAME $traceCmd -- ${BINCMD}"
+  else
+    traceCmd="$traceCmd -- ${BINCMD}"
+  fi
+  echo "tracing whole app..."
+  echo "command: ${traceCmd}"
+  # if [ "$APP_GROUPNAME" == "spec2017" ]; then
+  #   # have to go to that dir for the spec app cmd to work
+  #   ogo $APPNAME run
+  #   cd run_base_train*
+  # fi
+  eval $traceCmd &
+  taskPids+=($!)
+
+  wait_for "whole app tracing" "${taskPids[@]}"
+  end=`date +%s`
+  report_time "whole app tracing" "$start" "$end"
+
+  taskPids=()
+  start=`date +%s`
+
+  cd $APPHOME/traces/whole
+  for dr in dr*;
+  do
+    cd $dr
+    mkdir -p bin
+    chmod -R 777 raw
+    chmod -R 777 bin
+    cp raw/modules.log bin/modules.log
+    cp raw/modules.log raw/modules.log.bak
+    python2 $SIMPOINTHOME/scarab/utils/memtrace/portabilize_trace.py .
+    cp bin/modules.log raw/modules.log
+    $DYNAMORIO_HOME/tools/bin64/drraw2trace -jobs 40 -indir ./raw/ -chunk_instr_count $CHUNKSIZE &
+    taskPids+=($!)
+    cd -
+  done
+
+  wait_for "whole app raw2trace" "${taskPids[@]}"
+  end=`date +%s`
+  report_time "whole app raw2trace" "$start" "$end"
+
+  taskPids=()
+  start=`date +%s`
+
+  # continue if only one trace file
+  numTrace=$(find -name "dr*.trace.zip" | grep "drmemtrace.*.trace.zip" | wc -l)
+  numDrFolder=$(find -type d -name "drmemtrace.*.dir" | grep "drmemtrace.*.dir" | wc -l)
+  if [ "$numTrace" == "1" ] && [ "$numDrFolder" == "1" ]; then
+    ###HEERREEE prepare raw dir, trace dir
+    modulesDir=$(dirname $(ls $APPHOME/traces/whole/drmemtrace.*.dir/raw/modules.log))
+    wholeTrace=$(ls $APPHOME/traces/whole/drmemtrace.*.dir/trace/dr*.zip)
+    echo "modulesDIR: $modulesDir"
+    echo "wholeTrace: $wholeTrace"
+    postProcCmd="bash run_trace_post_processing.sh $APPHOME $modulesDir $wholeTrace $CHUNKSIZE $SEGSIZE $SIMPOINTHOME"
+  elif [ "$numTrace" == "$numDrFolder" ]; then
+    # multi-process and each process has one trace (single-threaded)
+    # choose one with the biggest size
+    wholeTrace=$(find $APPHOME/traces/whole/*/trace -type f -name 'dr*.trace.zip' -exec ls -l {} + | sort -k5,5nr | head -n 1 | awk '{print $NF}')
+    drFolder=$(echo "$wholeTrace" | sed 's|/[^/]*$||' | sed 's|/[^/]*$|/|')
+    modulesDir=$(dirname $($drFolder/raw/modules.log))
+    echo "modulesDIR: $modulesDir"
+    echo "wholeTrace: $wholeTrace"
+    postProcCmd="bash run_trace_post_processing.sh $APPHOME $modulesDir $wholeTrace $CHUNKSIZE $SEGSIZE $SIMPOINTHOME"
+  elif [ $numTrace > $numDrFolder ]; then
+    # multi-process and each process is multi-threaded
+    # choose one with the biggest size
+    wholeTrace=$(find $APPHOME/traces/whole/*/trace -type f -name 'dr*.trace.zip' -exec ls -l {} + | sort -k5,5nr | head -n 1 | awk '{print $NF}')
+    drFolder=$(echo "$wholeTrace" | sed 's|/[^/]*$||' | sed 's|/[^/]*$|/|')
+    modulesDir=$(dirname $($drFolder/raw/modules.log))
+    echo "modulesDIR: $modulesDir"
+    echo "wholeTrace: $wholeTrace"
+    postProcCmd="bash run_trace_post_processing.sh $APPHOME $modulesDir $wholeTrace $CHUNKSIZE $SEGSIZE $SIMPOINTHOME"
+  else
+  # otherwise ask the user to run manually
+    echo -e "There are multiple trace files.\n\
+    Decide and run \"/usr/local/bin/run_trace_post_processing.sh <OUTDIR> <MODULESDIR> <TRACEFILE> <CHUNKSIZE> <SEGSIZE> <SIMPOINTHOME>\"\n\
+    Then run /usr/local/bin/run_clustering.sh <FPFILE> <OUTDIR>"
+    exit
+  fi
+
+  eval $postProcCmd &
+  taskPids+=($!)
+
+  wait_for "post processing" "${taskPids[@]}"
+  end=`date +%s`
+  report_time "post processing" "$start" "$end"
+
+  taskPids=()
+  start=`date +%s`
+  # clustering
+  clusteringCmd="bash run_clustering.sh $APPHOME/fingerprint/bbfp $APPHOME $CLUSTERING_USERK"
+  eval $clusteringCmd &
+  taskPids+=($!)
+  wait_for "clustering" "${taskPids[@]}"
+  end=`date +%s`
+  report_time "clustering" "$start" "$end"
+
+  read_simpoint
+  collect_simpoint_traces
+  minimize_simpoint_traces
+  echo "Post processing and trimming traces done!"
+
+elif [ "$SIMPOINT" == "1" ]; then
+  # dir for all relevant data: fingerprint, traces, log, sim stats...
+  mkdir -p $SIMPOINTHOME/$APPNAME
+  cd $SIMPOINTHOME/$APPNAME
+  mkdir -p fingerprint traces_simp
+  APPHOME=$SIMPOINTHOME/$APPNAME
+
+  ################################################################
+
+  # spec needs to run in its run dir
+  if [ "$APP_GROUPNAME" == "spec2017" ] && [ "$APPNAME" != "clang" ] && [ "$APPNAME" != "gcc" ]; then
+    ogo $APPNAME run
+    cd run_base_ref*
+  else
+    cd $APPHOME/fingerprint
+  fi
+
+  # collect fingerprint
+  # TODO: add parameter: size and warm-up
+  fpCmd="$DYNAMORIO_HOME/bin64/drrun -max_bb_instrs 4096 -opt_cleancall 2 -c $tmpdir/libfpg.so -no_use_bb_pc -no_use_fetched_count -segment_size $SEGSIZE -output $APPHOME/fingerprint/bbfp -pcmap_output $APPHOME/fingerprint/pcmap -- $BINCMD"
+  echo "generate fingerprint..."
+  echo "command: ${fpCmd}"
+  # if [ "$APP_GROUPNAME" == "spec2017" ]; then
+  #   # have to go to that dir for the spec app cmd to work
+  #   ogo $APPNAME run
+  #   cd run_base_train*
+  # fi
+
+  taskPids=()
+  start=`date +%s`
+
+  if [ "$SIMPOINT_1_MANUAL_TRACE" == "NA" ]; then
+    eval $fpCmd &
+    taskPids+=($!)
+  fi
+
+  wait_for "online fingerprint" "${taskPids[@]}"
+  end=`date +%s`
+  report_time "online fingerprint" "$start" "$end"
+
+  if [ "$SIMPOINT_1_MANUAL_TRACE" == "NA" ]; then
+    echo "final SEGSIZE is $SEGSIZE, written to $APPHOME/fingerprint/segment_size"
+    echo "$SEGSIZE" > $APPHOME/fingerprint/segment_size
+  fi
+
+  # continue if only one bbfp file
+  cd $APPHOME/fingerprint
+  numBBFP=$(find -name "bbfp.*" | grep "bbfp.*" | wc -l)
+  if [ "$numBBFP" == "1" ]; then
+    bbfpFile=$(ls $APPHOME/fingerprint/bbfp.*)
+    echo "bbfpFile: $bbfpFile"
+    # run SimPoint clustering
+    if [ "$SIMPOINT_1_MANUAL_TRACE" == "NA" ]; then
+      bash run_clustering.sh $bbfpFile $APPHOME $CLUSTERING_USERK
+    fi
+  else
+  # otherwise ask the user to run manually
+    echo -e "There are multiple or no bbfp files. This simpoint flow would not work."
+    exit
+  fi
+
+  ################################################################
+
+  read_simpoint
+  collect_simpoint_traces
+  minimize_simpoint_traces
 fi
 ###############################################################
