@@ -147,7 +147,7 @@ def prepare_simulation(user, scarab_path, docker_home, experiment_name, architec
         if not os.path.isfile(scarab_bin):
             info(f"Scarab binary not found at '{scarab_bin}', build it first...", dbg_lvl)
             os.system(f"docker run --rm \
-                    --mount type=bind,source={scarab_path}:/scarab \
+                    --mount type=bind,source={scarab_path},target=/scarab \
                     /bin/bash -c \"cd /scarab/src && make clean && make && chown -R {local_uid}:{local_gid} /scarab\"")
 
         experiment_dir = f"{docker_home}/simulations/{experiment_name}"
