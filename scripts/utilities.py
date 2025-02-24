@@ -166,13 +166,13 @@ def finish_simulation(user, experiment_dir):
 
 # Generate command to do a single run of scarab
 def generate_single_scarab_run_command(user, workload, group, experiment, config_key, config,
-                                       mode, arch, scarab_githash, cluster_id,
+                                       mode, seg_size, arch, scarab_githash, cluster_id,
                                        trim_type, modules_dir, trace_file,
                                        env_vars, bincmd, client_bincmd):
     if mode == "memtrace":
-        command = f"run_memtrace_single_simpoint.sh \"{workload}\" \"{group}\" \"/home/{user}/simulations/{experiment}/{config_key}\" \"{config}\" \"{arch}\" \"{trim_type}\" /home/{user}/simulations/{experiment}/scarab {cluster_id} {modules_dir} {trace_file}"
+        command = f"run_memtrace_single_simpoint.sh \"{workload}\" \"{group}\" \"/home/{user}/simulations/{experiment}/{config_key}\" \"{config}\" \"{seg_size}\" \"{arch}\" \"{trim_type}\" /home/{user}/simulations/{experiment}/scarab {cluster_id} {modules_dir} {trace_file}"
     elif mode == "pt":
-        command = f"run_pt_single_simpoint.sh \"{workload}\" \"{group}\" \"/home/{user}/simulations/{experiment}/{config_key}\" \"{config}\" \"{arch}\" \"{trim_type}\" /home/{user}/simulations/{experiment}/scarab {cluster_id}"
+        command = f"run_pt_single_simpoint.sh \"{workload}\" \"{group}\" \"/home/{user}/simulations/{experiment}/{config_key}\" \"{config}\" \"{seg_size}\" \"{arch}\" \"{trim_type}\" /home/{user}/simulations/{experiment}/scarab {cluster_id}"
     elif mode == "exec":
         command = f"run_exec_single_simpoint.sh \"{workload}\" \"{group}\" \"/home/{user}/simulations/{experiment}/{config_key}\" \"{config}\" \"{arch}\" /home/{user}/simulations/{experiment}/scarab {env_vars} {bincmd} {client_bincmd}"
     else:
@@ -182,12 +182,12 @@ def generate_single_scarab_run_command(user, workload, group, experiment, config
 
 def write_docker_command_to_file_run_by_root(user, local_uid, local_gid, workload, experiment_name,
                                              docker_prefix, docker_container_name, simpoint_traces_dir,
-                                             docker_home, githash, config_key, config, scarab_mode, scarab_githash,
+                                             docker_home, githash, config_key, config, scarab_mode, seg_size, scarab_githash,
                                              architecture, cluster_id, trim_type, modules_dir, trace_file,
                                              env_vars, bincmd, client_bincmd, filename):
     try:
         scarab_cmd = generate_single_scarab_run_command(user, workload, docker_prefix, experiment_name, config_key, config,
-                                                        scarab_mode, architecture, scarab_githash, cluster_id,
+                                                        scarab_mode, seg_size, architecture, scarab_githash, cluster_id,
                                                         trim_type, modules_dir, trace_file, env_vars, bincmd, client_bincmd)
         with open(filename, "w") as f:
             f.write("#!/bin/bash\n")
@@ -209,11 +209,11 @@ def write_docker_command_to_file_run_by_root(user, local_uid, local_gid, workloa
 def write_docker_command_to_file(user, local_uid, local_gid, workload, experiment_name,
                                  docker_prefix, docker_container_name, simpoint_traces_dir,
                                  docker_home, githash, config_key, config, scarab_mode, scarab_githash,
-                                 architecture, cluster_id, trim_type, modules_dir, trace_file,
+                                 seg_size, architecture, cluster_id, trim_type, modules_dir, trace_file,
                                  env_vars, bincmd, client_bincmd, filename, infra_dir):
     try:
         scarab_cmd = generate_single_scarab_run_command(user, workload, docker_prefix, experiment_name, config_key, config,
-                                                        scarab_mode, architecture, scarab_githash, cluster_id,
+                                                        scarab_mode, seg_size, architecture, scarab_githash, cluster_id,
                                                         trim_type, modules_dir, trace_file, env_vars, bincmd, client_bincmd)
         with open(filename, "w") as f:
             f.write("#!/bin/bash\n")
@@ -291,9 +291,10 @@ def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_contai
             f.write(f"docker cp {infra_dir}/common/scripts/run_clustering.sh {docker_container_name}:/usr/local/bin\n")
             f.write(f"docker cp {infra_dir}/common/scripts/run_simpoint_trace.sh {docker_container_name}:/usr/local/bin\n")
             f.write(f"docker cp {infra_dir}/common/scripts/run_trace_post_processing.sh {docker_container_name}:/usr/local/bin\n")
+            f.write(f"docker cp {infra_dir}/common/scripts/gather_fp_pieces.py {docker_container_name}:/usr/local/bin\n")
             f.write(f"docker exec --privileged {docker_container_name} /bin/bash -c '/usr/local/bin/common_entrypoint.sh'\n")
             f.write(f"docker exec --privileged {docker_container_name} /bin/bash -c \"echo 0 | sudo tee /proc/sys/kernel/randomize_va_space\"\n")
-            f.write(f"docker exec --privileged --user={user} --workdir=/home/{user} {docker_container_name} /bin/bash {trace_cmd}\n")
+            f.write(f"docker exec --privileged --user={user} --workdir=/home/{user} {docker_container_name} /bin/bash -c \"{trace_cmd} && echo 'run_simpoint_trace.sh finished'\"\n")
             f.write(f"docker rm -f {docker_container_name}\n")
     except Exception as e:
         raise e
@@ -435,7 +436,7 @@ def prepare_trace(user, scarab_path, docker_home, job_name, infra_dir, dbg_lvl=1
         os.system(f"cp {scarab_path}/bin/scarab_launch.py  {trace_dir}/scarab/bin/scarab_launch.py ")
         os.system(f"cp {scarab_path}/bin/scarab_globals/*  {trace_dir}/scarab/bin/scarab_globals/ ")
         os.system(f"mkdir -p {trace_dir}/scarab/utils/memtrace")
-        os.system(f"cp {scarab_path}/utils/memtrace/portabilize_trace.py  {trace_dir}/scarab/utils/memtrace/portabilize_trace.py ")
+        os.system(f"cp {scarab_path}/utils/memtrace/* {trace_dir}/scarab/utils/memtrace/ ")
         if os.path.expanduser("~") == docker_home:
             os.system(f"cp {docker_home}/.bashrc {docker_home}/.bashrc.bk")
             # Set the env for simulation again (already set in Dockerfile.common) in case user's bashrc overwrite the existing ones when the home directory is mounted

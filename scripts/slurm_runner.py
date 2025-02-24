@@ -313,15 +313,18 @@ def run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir,
             env_vars = ""
             bincmd = ""
             client_bincmd = ""
+            seg_size = None
             simulation_data = workloads_data[workload]["simulation"][sim_mode]
             if sim_mode == "memtrace":
                 trim_type = simulation_data["trim_type"]
                 modules_dir = simulation_data["modules_dir"]
                 trace_file = simulation_data["trace_file"]
+                seg_size = simulation_data["segment_size"]
             if sim_mode == "exec":
                 env_vars = simulation_data["env_vars"]
                 bincmd = simulation_data["binary_cmd"]
                 client_bincmd = simulation_data["client_bincmd"]
+                seg_size = simulation_data["segment_size"]
 
             if "simpoints" not in workloads_data[workload].keys():
                 weight = 1
@@ -354,7 +357,7 @@ def run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir,
                     write_docker_command_to_file(user, local_uid, local_gid, workload, experiment_name,
                                                  docker_prefix, docker_container_name, simpoint_traces_dir,
                                                  docker_home, githash, config_key, config, scarab_mode, scarab_githash,
-                                                 architecture, cluster_id, trim_type, modules_dir, trace_file,
+                                                 seg_size, architecture, cluster_id, trim_type, modules_dir, trace_file,
                                                  env_vars, bincmd, client_bincmd, filename, infra_dir)
                     tmp_files.append(filename)
 
