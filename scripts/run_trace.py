@@ -80,8 +80,8 @@ def verify_descriptor(descriptor_data, workload_db_path, dbg_lvl = 2):
         exit(1)
 
     # Check if trace dir exists
-    if descriptor_data["simpoint_traces_dir"] == None:
-        err("Need path to write the newly collected simpoints and traces. Set in descriptor file under 'simpoint_traces_dir'", dbg_lvl)
+    if descriptor_data["traces_dir"] == None:
+        err("Need path to write the newly collected simpoints and traces. Set in descriptor file under 'traces_dir'", dbg_lvl)
         exit(1)
 
 def get_image_list(traces):

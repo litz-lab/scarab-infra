@@ -518,7 +518,7 @@ class stat_aggregator:
             return None
 
         simulations_path = json_data["root_dir"]
-        simpoints_path = "/soe/hlitz/lab/traces/" if json_data["simpoint_traces_dir"] == None else json_data["simpoint_traces_dir"]
+        simpoints_path = "/soe/hlitz/lab/traces/" if json_data["traces_dir"] == None else json_data["traces_dir"]
 
         # Make sure simulations and simpoints path has known format
         if simulations_path[-1] != '/': simulations_path += "/"

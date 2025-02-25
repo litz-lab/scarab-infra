@@ -293,7 +293,7 @@ def run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir,
     experiment_name = descriptor_data["experiment"]
     docker_home = descriptor_data["root_dir"]
     scarab_path = descriptor_data["scarab_path"]
-    simpoint_traces_dir = descriptor_data["simpoint_traces_dir"]
+    traces_dir = descriptor_data["traces_dir"]
     configs = descriptor_data["configurations"]
     simulations = descriptor_data["simulations"]
 
@@ -355,7 +355,7 @@ def run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir,
                     # Create temp file with run command and run it
                     filename = f"{docker_container_name}_tmp_run.sh"
                     write_docker_command_to_file(user, local_uid, local_gid, workload, experiment_name,
-                                                 docker_prefix, docker_container_name, simpoint_traces_dir,
+                                                 docker_prefix, docker_container_name, traces_dir,
                                                  docker_home, githash, config_key, config, scarab_mode, scarab_githash,
                                                  seg_size, architecture, cluster_id, trim_type, modules_dir, trace_file,
                                                  env_vars, bincmd, client_bincmd, filename, infra_dir)
@@ -453,7 +453,7 @@ def run_tracing(user, descriptor_data, workload_db_path, suite_db_path, infra_di
     trace_name = descriptor_data["trace_name"]
     docker_home = descriptor_data["root_dir"]
     scarab_path = descriptor_data["scarab_path"]
-    simpoint_traces_dir = descriptor_data["simpoint_traces_dir"]
+    traces_dir = descriptor_data["traces_dir"]
     trace_configs = descriptor_data["trace_configurations"]
 
     docker_prefix_list = []
@@ -478,7 +478,7 @@ def run_tracing(user, descriptor_data, workload_db_path, suite_db_path, infra_di
             docker_container_name = f"{image_name}_{workload}_{trace_name}_{simpoint_mode}_{user}"
             filename = f"{docker_container_name}_tmp_run.sh"
             write_trace_docker_command_to_file(user, local_uid, local_gid, docker_container_name, githash,
-                                               workload, image_name, trace_name, simpoint_traces_dir, docker_home,
+                                               workload, image_name, trace_name, traces_dir, docker_home,
                                                env_vars, binary_cmd, client_bincmd, simpoint_mode, drio_args,
                                                clustering_k, filename, infra_dir)
             tmp_files.append(filename)

@@ -12,8 +12,8 @@
         "image_name":"allbench_traces",
         "trim_type":"1",
         "segment_size":10000000,
-        "modules_dir":"/simpoint_traces/verilator/traces/whole/raw",
-        "trace_file":"/simpoint_traces/verilator/traces/whole/trace/drmemtrace.emulator-freechips.rocketchip.system-DefaultConfigN8.00025.6005.trace.zip"
+        "modules_dir":"\\$trace_home/verilator/traces/whole/raw",
+        "trace_file":"\\$trace_home/verilator/traces/whole/trace/drmemtrace.emulator-freechips.rocketchip.system-DefaultConfigN8.00025.6005.trace.zip"
       },
       "pt":{
         "image_name":"allbench_traces"
@@ -215,8 +215,8 @@
         "image_name":"allbench_traces",
         "trim_type":"1",
         "segment_size":10000000,
-        "modules_dir":"/simpoint_traces/xgboost/traces/whole/drmemtrace.python3.8.00025.6828.dir/raw",
-        "trace_file":"/simpoint_traces/xgboost/traces/whole/drmemtrace.python3.8.00025.6828.dir/trace/drmemtrace.python3.8.00025.0843.trace.zip"
+        "modules_dir":"\\$trace_home/xgboost/traces/whole/drmemtrace.python3.8.00025.6828.dir/raw",
+        "trace_file":"\\$trace_home/xgboost/traces/whole/drmemtrace.python3.8.00025.6828.dir/trace/drmemtrace.python3.8.00025.0843.trace.zip"
       }
     },
     "simpoints":[
@@ -300,8 +300,8 @@
         "image_name":"allbench_traces",
         "trim_type":"1",
         "segment_size":10000000,
-        "modules_dir":"/simpoint_traces/mongodb/traces/whole/drmemtrace.mongod.04280.8169.dir/raw",
-        "trace_file":"/simpoint_traces/mongodb/traces/whole/drmemtrace.mongod.04280.8169.dir/trace/drmemtrace.mongod.04332.7098.trace.zip"
+        "modules_dir":"\\$trace_home/mongodb/traces/whole/drmemtrace.mongod.04280.8169.dir/raw",
+        "trace_file":"\\$trace_home/mongodb/traces/whole/drmemtrace.mongod.04280.8169.dir/trace/drmemtrace.mongod.04332.7098.trace.zip"
       }
     },
     "simpoints":[
@@ -519,8 +519,8 @@
         "image_name":"allbench_traces",
         "trim_type":"1",
         "segment_size":10000000,
-        "modules_dir":"/simpoint_traces/mysql/traces/whole/drmemtrace.mysqld.123776.5088.dir/raw",
-        "trace_file":"/simpoint_traces/mysql/traces/whole/drmemtrace.mysqld.123776.5088.dir/trace/drmemtrace.mysqld.123827.6272.trace.zip"
+        "modules_dir":"\\$trace_home/mysql/traces/whole/drmemtrace.mysqld.123776.5088.dir/raw",
+        "trace_file":"\\$trace_home/mysql/traces/whole/drmemtrace.mysqld.123776.5088.dir/trace/drmemtrace.mysqld.123827.6272.trace.zip"
       },
       "pt":{
         "image_name":"allbench_traces"
@@ -567,8 +567,8 @@
         "image_name":"allbench_traces",
         "trim_type":"1",
         "segment_size":10000000,
-        "modules_dir":"/simpoint_traces/postgres/traces/whole/drmemtrace.postgres.10865.1082.dir/raw",
-        "trace_file":"/simpoint_traces/postgres/traces/whole/drmemtrace.postgres.10865.1082.dir/trace/drmemtrace.postgres.10865.3710.trace.zip"
+        "modules_dir":"\\$trace_home/postgres/traces/whole/drmemtrace.postgres.10865.1082.dir/raw",
+        "trace_file":"\\$trace_home/postgres/traces/whole/drmemtrace.postgres.10865.1082.dir/trace/drmemtrace.postgres.10865.3710.trace.zip"
       },
       "pt":{
         "image_name":"allbench_traces"
@@ -642,8 +642,8 @@
         "image_name":"allbench_traces",
         "trim_type":"1",
         "segment_size":10000000,
-        "modules_dir":"/simpoint_traces/gcc/traces/whole/drmemtrace.cc1.04250.2989.dir/raw",
-        "trace_file":"/simpoint_traces/gcc/traces/whole/drmemtrace.cc1.04250.2989.dir/trace/drmemtrace.cc1.04250.5506.trace.zip"
+        "modules_dir":"\\$trace_home/gcc/traces/whole/drmemtrace.cc1.04250.2989.dir/raw",
+        "trace_file":"\\$trace_home/gcc/traces/whole/drmemtrace.cc1.04250.2989.dir/trace/drmemtrace.cc1.04250.5506.trace.zip"
       }
     },
     "simpoints":[
@@ -769,8 +769,8 @@
         "image_name":"allbench_traces",
         "trim_type":"1",
         "segment_size":10000000,
-        "modules_dir":"/simpoint_traces/clang/traces/whole/drmemtrace.clang.03072.7752.dir/raw",
-        "trace_file":"/simpoint_traces/clang/traces/whole/drmemtrace.clang.03072.7752.dir/trace/drmemtrace.clang.03072.4467.trace.zip"
+        "modules_dir":"\\$trace_home/clang/traces/whole/drmemtrace.clang.03072.7752.dir/raw",
+        "trace_file":"\\$trace_home/clang/traces/whole/drmemtrace.clang.03072.7752.dir/trace/drmemtrace.clang.03072.4467.trace.zip"
       },
       "pt":{
         "image_name":"allbench_traces"
@@ -942,8 +942,8 @@
         "image_name":"allbench_traces",
         "trim_type":"1",
         "segment_size":10000000,
-        "modules_dir":"/simpoint_traces/redis/traces/drmemtrace.redis-server.40792.8757.dir/raw/",
-        "trace_file":"/simpoint_traces/redis/traces/drmemtrace.redis-server.40792.8757.dir/trace/drmemtrace.redis-server.40792.6868.trace.zip"
+        "modules_dir":"\\$trace_home/redis/traces/drmemtrace.redis-server.40792.8757.dir/raw/",
+        "trace_file":"\\$trace_home/redis/traces/drmemtrace.redis-server.40792.8757.dir/trace/drmemtrace.redis-server.40792.6868.trace.zip"
       }
     },
     "simpoints":[
@@ -1017,8 +1017,8 @@
         "image_name":"allbench_traces",
         "trim_type":"1",
         "segment_size":10000000,
-        "modules_dir":"/simpoint_traces/memcached/traces/whole/drmemtrace.memcached.07432.6868.dir/raw",
-        "trace_file":"/simpoint_traces/memcached/traces/whole/drmemtrace.memcached.07432.6868.dir/trace/drmemtrace.memcached.07434.0028.trace.zip"
+        "modules_dir":"\\$trace_home/memcached/traces/whole/drmemtrace.memcached.07432.6868.dir/raw",
+        "trace_file":"\\$trace_home/memcached/traces/whole/drmemtrace.memcached.07432.6868.dir/trace/drmemtrace.memcached.07434.0028.trace.zip"
       }
     },
     "simpoints":[
@@ -1064,8 +1064,8 @@
         "image_name":"allbench_traces",
         "trim_type":"1",
         "segment_size":10000000,
-        "modules_dir":"/simpoint_traces/old_rocksdb/traces_simp/raw/",
-        "trace_file":"/simpoint_traces/old_rocksdb/traces_simp/trace/"
+        "modules_dir":"\\$trace_home/old_rocksdb/traces_simp/raw/",
+        "trace_file":"\\$trace_home/old_rocksdb/traces_simp/trace/"
       }
     },
     "simpoints":[
@@ -1286,8 +1286,8 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"/simpoint_traces/502.gcc_r/traces_simp/",
-        "trace_file":"/simpoint_traces/502.gcc_r/traces_simp/"
+        "modules_dir":"\\$trace_home/502.gcc_r/traces_simp/",
+        "trace_file":"\\$trace_home/502.gcc_r/traces_simp/"
       }
     },
     "simpoints":[
@@ -1601,8 +1601,8 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"/simpoint_traces/507.cactuBSSN_r/traces_simp/",
-        "trace_file":"/simpoint_traces/507.cactuBSSN_r/traces_simp/"
+        "modules_dir":"\\$trace_home/507.cactuBSSN_r/traces_simp/",
+        "trace_file":"\\$trace_home/507.cactuBSSN_r/traces_simp/"
       }
     },
     "simpoints":[
@@ -1676,8 +1676,8 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"/simpoint_traces/505.mcf_r/traces_simp/",
-        "trace_file":"/simpoint_traces/505.mcf_r/traces_simp/"
+        "modules_dir":"\\$trace_home/505.mcf_r/traces_simp/",
+        "trace_file":"\\$trace_home/505.mcf_r/traces_simp/"
       }
     },
     "simpoints":[
@@ -1751,8 +1751,8 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"/simpoint_traces/500.perlbench_r/traces_simp/",
-        "trace_file":"/simpoint_traces/500.perlbench_r/traces_simp/"
+        "modules_dir":"\\$trace_home/500.perlbench_r/traces_simp/",
+        "trace_file":"\\$trace_home/500.perlbench_r/traces_simp/"
       }
     },
     "simpoints":[
@@ -1836,8 +1836,8 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"/simpoint_traces/503.bwaves_r/traces_simp/",
-        "trace_file":"/simpoint_traces/503.bwaves_r/traces_simp/"
+        "modules_dir":"\\$trace_home/503.bwaves_r/traces_simp/",
+        "trace_file":"\\$trace_home/503.bwaves_r/traces_simp/"
       }
     },
     "simpoints":[
@@ -1926,8 +1926,8 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"/simpoint_traces/510.parest_r/traces_simp/",
-        "trace_file":"/simpoint_traces/510.parest_r/traces_simp/"
+        "modules_dir":"\\$trace_home/510.parest_r/traces_simp/",
+        "trace_file":"\\$trace_home/510.parest_r/traces_simp/"
       }
     },
     "simpoints":[
@@ -2331,8 +2331,8 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"/simpoint_traces/520.omnetpp_r/traces_simp/",
-        "trace_file":"/simpoint_traces/520.omnetpp_r/traces_simp/"
+        "modules_dir":"\\$trace_home/520.omnetpp_r/traces_simp/",
+        "trace_file":"\\$trace_home/520.omnetpp_r/traces_simp/"
       }
     },
     "simpoints":[
@@ -2406,8 +2406,8 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"/simpoint_traces/511.povray_r/traces_simp/",
-        "trace_file":"/simpoint_traces/511.povray_r/traces_simp/"
+        "modules_dir":"\\$trace_home/511.povray_r/traces_simp/",
+        "trace_file":"\\$trace_home/511.povray_r/traces_simp/"
       }
     },
     "simpoints":[
@@ -2486,8 +2486,8 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"/simpoint_traces/508.namd_r/traces_simp/",
-        "trace_file":"/simpoint_traces/508.namd_r/traces_simp/"
+        "modules_dir":"\\$trace_home/508.namd_r/traces_simp/",
+        "trace_file":"\\$trace_home/508.namd_r/traces_simp/"
       }
     },
     "simpoints":[
@@ -2686,8 +2686,8 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"/simpoint_traces/519.lbm_r/traces_simp/",
-        "trace_file":"/simpoint_traces/519.lbm_r/traces_simp/"
+        "modules_dir":"\\$trace_home/519.lbm_r/traces_simp/",
+        "trace_file":"\\$trace_home/519.lbm_r/traces_simp/"
       }
     },
     "simpoints":[
@@ -2741,8 +2741,8 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"/simpoint_traces/521.wrf_r/traces_simp/",
-        "trace_file":"/simpoint_traces/521.wrf_r/traces_simp/"
+        "modules_dir":"\\$trace_home/521.wrf_r/traces_simp/",
+        "trace_file":"\\$trace_home/521.wrf_r/traces_simp/"
       }
     },
     "simpoints":[
@@ -3476,8 +3476,8 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"/simpoint_traces/525.x264_r/traces_simp/",
-        "trace_file":"/simpoint_traces/525.x264_r/traces_simp/"
+        "modules_dir":"\\$trace_home/525.x264_r/traces_simp/",
+        "trace_file":"\\$trace_home/525.x264_r/traces_simp/"
       }
     },
     "simpoints":[
@@ -3561,8 +3561,8 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"/simpoint_traces/531.deepsjeng_r/traces_simp/",
-        "trace_file":"/simpoint_traces/531.deepsjeng_r/traces_simp/"
+        "modules_dir":"\\$trace_home/531.deepsjeng_r/traces_simp/",
+        "trace_file":"\\$trace_home/531.deepsjeng_r/traces_simp/"
       }
     },
     "simpoints":[
@@ -3641,8 +3641,8 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"/simpoint_traces/523.xalancbmk_r/traces_simp/",
-        "trace_file":"/simpoint_traces/523.xalancbmk_r/traces_simp/"
+        "modules_dir":"\\$trace_home/523.xalancbmk_r/traces_simp/",
+        "trace_file":"\\$trace_home/523.xalancbmk_r/traces_simp/"
       }
     },
     "simpoints":[
@@ -3726,8 +3726,8 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"/simpoint_traces/538.imagick_r/traces_simp/",
-        "trace_file":"/simpoint_traces/538.imagick_r/traces_simp/"
+        "modules_dir":"\\$trace_home/538.imagick_r/traces_simp/",
+        "trace_file":"\\$trace_home/538.imagick_r/traces_simp/"
       }
     },
     "simpoints":[
@@ -3771,8 +3771,8 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"/simpoint_traces/526.blender_r/traces_simp/",
-        "trace_file":"/simpoint_traces/526.blender_r/traces_simp/"
+        "modules_dir":"\\$trace_home/526.blender_r/traces_simp/",
+        "trace_file":"\\$trace_home/526.blender_r/traces_simp/"
       }
     },
     "simpoints":[
@@ -3871,8 +3871,8 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"/simpoint_traces/527.cam4_r/traces_simp/",
-        "trace_file":"/simpoint_traces/527.cam4_r/traces_simp/"
+        "modules_dir":"\\$trace_home/527.cam4_r/traces_simp/",
+        "trace_file":"\\$trace_home/527.cam4_r/traces_simp/"
       }
     },
     "simpoints":[
@@ -4196,8 +4196,8 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"/simpoint_traces/557.xz_r/traces_simp/",
-        "trace_file":"/simpoint_traces/557.xz_r/traces_simp/"
+        "modules_dir":"\\$trace_home/557.xz_r/traces_simp/",
+        "trace_file":"\\$trace_home/557.xz_r/traces_simp/"
       }
     },
     "simpoints":[
@@ -4271,8 +4271,8 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"/simpoint_traces/541.leela_r/traces_simp/",
-        "trace_file":"/simpoint_traces/541.leela_r/traces_simp/"
+        "modules_dir":"\\$trace_home/541.leela_r/traces_simp/",
+        "trace_file":"\\$trace_home/541.leela_r/traces_simp/"
       }
     },
     "simpoints":[
@@ -4356,8 +4356,8 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"/simpoint_traces/548.exchange2_r/traces_simp/",
-        "trace_file":"/simpoint_traces/548.exchange2_r/traces_simp/"
+        "modules_dir":"\\$trace_home/548.exchange2_r/traces_simp/",
+        "trace_file":"\\$trace_home/548.exchange2_r/traces_simp/"
       }
     },
     "simpoints":[
@@ -4436,8 +4436,8 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"/simpoint_traces/554.roms_r/traces_simp/",
-        "trace_file":"/simpoint_traces/554.roms_r/traces_simp/"
+        "modules_dir":"\\$trace_home/554.roms_r/traces_simp/",
+        "trace_file":"\\$trace_home/554.roms_r/traces_simp/"
       }
     },
     "simpoints":[
@@ -4801,8 +4801,8 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"/simpoint_traces/544.nab_r/traces_simp/",
-        "trace_file":"/simpoint_traces/544.nab_r/traces_simp/"
+        "modules_dir":"\\$trace_home/544.nab_r/traces_simp/",
+        "trace_file":"\\$trace_home/544.nab_r/traces_simp/"
       }
     },
     "simpoints":[
@@ -4861,8 +4861,8 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"/simpoint_traces/549.fotonik3d_r/traces_simp/",
-        "trace_file":"/simpoint_traces/549.fotonik3d_r/traces_simp/"
+        "modules_dir":"\\$trace_home/549.fotonik3d_r/traces_simp/",
+        "trace_file":"\\$trace_home/549.fotonik3d_r/traces_simp/"
       }
     },
     "simpoints":[
@@ -4979,8 +4979,8 @@
         "image_name":"allbench_traces",
         "trim_type":"3",
         "segment_size":10000000,
-        "modules_dir":"/simpoint_traces/MPC/traces_simp/",
-        "trace_file":"/simpoint_traces/MPC/traces_simp/"
+        "modules_dir":"\\$trace_home/MPC/traces_simp/",
+        "trace_file":"\\$trace_home/MPC/traces_simp/"
       }
     },
     "simpoints":[

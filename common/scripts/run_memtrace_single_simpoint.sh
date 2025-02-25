@@ -29,7 +29,6 @@ fi
 
 SIMHOME=$SCENARIO/$APPNAME
 mkdir -p $SIMHOME
-TRACEHOME=/simpoint_traces/$APPNAME
 OUTDIR=$SIMHOME
 
 segID=$SEGMENT_ID
@@ -41,16 +40,16 @@ cd $OUTDIR/$segID
 # SEGMENT_ID = 0 represents whole trace simulation
 # SEGMENT_ID > 0 represents segmented trace (simpoint) simulation
 if [ "$SEGMENT_ID" == "0" ]; then
-  traceMap=$(ls $TRACEHOME/traces/whole/)
-  scarabCmd="$SCARABHOME/src/scarab --frontend memtrace --cbp_trace_r0=$TRACEHOME/traces/whole/${traceMap} --memtrace_modules_log=$TRACEHOME/traces/raw/ $SCARABPARAMS &> sim.log"
+  traceMap=$(ls $TRACE_HOME/$APPNAME/traces/whole/)
+  scarabCmd="$SCARABHOME/src/scarab --frontend memtrace --cbp_trace_r0=$TRACE_HOME/$APPNAME/traces/whole/${traceMap} --memtrace_modules_log=$TRACE_HOME/$APPNAME/traces/raw/ $SCARABPARAMS &> sim.log"
 else
   # overwriting
   if [ "$TRACESSIMP" == "1" ]; then
-    MODULESDIR=/simpoint_traces/$APPNAME/traces_simp/bin
-    TRACEFILE=/simpoint_traces/$APPNAME/traces_simp/trace
+    MODULESDIR=$TRACE_HOME/$APPNAME/traces_simp/bin
+    TRACEFILE=$TRACE_HOME/$APPNAME/traces_simp/trace
   elif [ "$TRACESSIMP" == "2" ] || [ "$TRACESSIMP" == "3" ]; then
-    MODULESDIR=/simpoint_traces/$APPNAME/traces_simp/
-    TRACEFILE=/simpoint_traces/$APPNAME/traces_simp/
+    MODULESDIR=$TRACE_HOME/$APPNAME/traces_simp/
+    TRACEFILE=$TRACE_HOME/$APPNAME/traces_simp/
   fi
 
 
@@ -167,5 +166,5 @@ eval $scarabCmd &
 wait $!
 
 # Issues. See sim.log in new_experiment20.
-# Failed to open /simpoint_traces/postgres/traces_simp/trace/postgres0.zip
+# Failed to open $TRACE_HOME/postgres/traces_simp/trace/postgres0.zip
 # CMD:  docker exec --user aesymons --workdir /home/aesymons --privileged allbench_traces_aesymons slurm_payload.sh "postgres" "allbench_traces" "" "new_experiment20/fe_ftq_block_num.16" "--inst_limit 99900000 --fdip_enable 1 --fe_ftq_block_num 16" "4" "sunny_cove" "1" /home/aesymons/new_experiment20/scarab "3954"

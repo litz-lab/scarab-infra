@@ -219,7 +219,7 @@ def generate_single_scarab_run_command(user, workload, group, experiment, config
     return command
 
 def write_docker_command_to_file_run_by_root(user, local_uid, local_gid, workload, experiment_name,
-                                             docker_prefix, docker_container_name, simpoint_traces_dir,
+                                             docker_prefix, docker_container_name, traces_dir,
                                              docker_home, githash, config_key, config, scarab_mode, seg_size, scarab_githash,
                                              architecture, cluster_id, trim_type, modules_dir, trace_file,
                                              env_vars, bincmd, client_bincmd, filename):
@@ -237,7 +237,7 @@ def write_docker_command_to_file_run_by_root(user, local_uid, local_gid, workloa
             -e username={user} \
             -e HOME=/home/{user} \
             --name {docker_container_name} \
-            --mount type=bind,source={simpoint_traces_dir},target=/simpoint_traces,readonly=true \
+            --mount type=bind,source={traces_dir},target=/traces,readonly=true \
             --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
             {docker_prefix}:{githash} \
             /bin/bash {scarab_cmd}\n")
@@ -245,7 +245,7 @@ def write_docker_command_to_file_run_by_root(user, local_uid, local_gid, workloa
         raise e
 
 def write_docker_command_to_file(user, local_uid, local_gid, workload, experiment_name,
-                                 docker_prefix, docker_container_name, simpoint_traces_dir,
+                                 docker_prefix, docker_container_name, traces_dir,
                                  docker_home, githash, config_key, config, scarab_mode, scarab_githash,
                                  seg_size, architecture, cluster_id, trim_type, modules_dir, trace_file,
                                  env_vars, bincmd, client_bincmd, filename, infra_dir):
@@ -266,7 +266,7 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, experimen
             -e APPNAME={workload} \
             -dit \
             --name {docker_container_name} \
-            --mount type=bind,source={simpoint_traces_dir},target=/simpoint_traces,readonly=true \
+            --mount type=bind,source={traces_dir},target=/traces,readonly=true \
             --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
             {docker_prefix}:{githash} \
             /bin/bash\n")
@@ -297,7 +297,7 @@ def generate_single_trace_run_command(user, workload, image_name, trace_name, bi
     return command
 
 def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_container_name, githash,
-                                       workload, image_name, trace_name, simpoint_traces_dir, docker_home,
+                                       workload, image_name, trace_name, traces_dir, docker_home,
                                        env_vars, binary_cmd, client_bincmd, simpoint_mode, drio_args,
                                        clustering_k, filename, infra_dir):
     try:
@@ -345,9 +345,9 @@ def get_simpoints (workload_data, dbg_lvl = 2):
     return simpoints
 
 # Get workload simpoint ids and their associated weights
-def get_simpoints_from_simpoints_file (simpoint_traces_dir, workload, dbg_lvl = 2):
-    read_simp_weight_command = f"cat /{simpoint_traces_dir}/{workload}/simpoints/opt.w.lpt0.99"
-    read_simp_simpid_command = f"cat /{simpoint_traces_dir}/{workload}/simpoints/opt.p.lpt0.99"
+def get_simpoints_from_simpoints_file (traces_dir, workload, dbg_lvl = 2):
+    read_simp_weight_command = f"cat /{traces_dir}/{workload}/simpoints/opt.w.lpt0.99"
+    read_simp_simpid_command = f"cat /{traces_dir}/{workload}/simpoints/opt.p.lpt0.99"
 
     info(f"Executing '{read_simp_weight_command}'", dbg_lvl)
     weight_out = subprocess.check_output(read_simp_weight_command.split(" ")).decode("utf-8").split("\n")[:-1]
@@ -533,11 +533,11 @@ def finish_trace(user, descriptor_data, workload_db_path, suite_db_path, dbg_lvl
         modules_dir = ""
         trace_file = ""
         if trim_type == 2:
-            modules_dir = f"/simpoint_traces/{workload}/traces_simp/raw/"
-            trace_file = f"/simpoint_traces/{workload}/traces_simp/trace/"
+            modules_dir = f"/traces/{workload}/traces_simp/raw/"
+            trace_file = f"/traces/{workload}/traces_simp/trace/"
         elif trim_type == 3:
-            modules_dir = f"/simpoint_traces/{workload}/traces_simp/"
-            trace_file = f"/simpoint_traces/{workload}/traces_simp/"
+            modules_dir = f"/traces/{workload}/traces_simp/"
+            trace_file = f"/traces/{workload}/traces_simp/"
         return modules_dir, trace_file
 
     try:
@@ -546,7 +546,7 @@ def finish_trace(user, descriptor_data, workload_db_path, suite_db_path, dbg_lvl
         trace_configs = descriptor_data["trace_configurations"]
         job_name = descriptor_data["trace_name"]
         trace_dir = f"{descriptor_data['root_dir']}/simpoint_flow/{job_name}"
-        simpoint_traces_dir = descriptor_data["simpoint_traces_dir"]
+        target_traces_dir = descriptor_data["traces_dir"]
         docker_home = descriptor_data["root_dir"]
 
         if os.path.expanduser("~") == docker_home:
@@ -604,11 +604,11 @@ def finish_trace(user, descriptor_data, workload_db_path, suite_db_path, dbg_lvl
                 subsuite_dict = {'predefined_simulation_mode':simulation_mode_dict}
                 suite_db_data[suite] = subsuite_dict
 
-            # Copy successfully collected simpoints and traces to simpoint_traces_dir
-            os.system(f"mkdir -p {simpoint_traces_dir}/{suite}/{subsuite}/{workload}/simpoints")
-            os.system(f"mkdir -p {simpoint_traces_dir}/{suite}/{subsuite}/{workload}/traces_simp")
-            os.system(f"cp -r {trace_dir}/{workload}/simpoints/* {simpoint_traces_dir}/{suite}/{subsuite}/{workload}/simpoints/")
-            os.system(f"cp -r {trace_dir}/{workload}/traces_simp/* {simpoint_traces_dir}/{suite}/{subsuite}/{workload}/traces_simp/")
+            # Copy successfully collected simpoints and traces to target_traces_dir
+            os.system(f"mkdir -p {target_traces_dir}/{suite}/{subsuite}/{workload}/simpoints")
+            os.system(f"mkdir -p {target_traces_dir}/{suite}/{subsuite}/{workload}/traces_simp")
+            os.system(f"cp -r {trace_dir}/{workload}/simpoints/* {target_traces_dir}/{suite}/{subsuite}/{workload}/simpoints/")
+            os.system(f"cp -r {trace_dir}/{workload}/traces_simp/* {target_traces_dir}/{suite}/{subsuite}/{workload}/traces_simp/")
 
         write_json_descriptor(workload_db_path, workload_db_data, dbg_lvl)
         write_json_descriptor(suite_db_path, suite_db_data, dbg_lvl)
