@@ -154,7 +154,7 @@ cp json/trace.json json/your_trace.json
 ```
 ./run.sh --trace your_trace
 ```
-The script will launch all tracings in parallel. The collected simpoint information and traces will be copied to the destination `simpoint_traces_dir` described in the json. The information for exec-driven/memtrace simulation will be automatically added to the workload DB and suite DB.
+The script will launch all tracings in parallel. The collected simpoint information and traces will be copied to the destination `traces_dir` described in the json. The information for exec-driven/memtrace simulation will be automatically added to the workload DB and suite DB.
 
 ## Check the info/status of the tracing
 ```

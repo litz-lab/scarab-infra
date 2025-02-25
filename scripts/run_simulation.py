@@ -73,11 +73,11 @@ def verify_descriptor(descriptor_data, workloads_data, suite_data, open_shell = 
         exit(1)
 
     # Check if trace dir exists
-    if descriptor_data["simpoint_traces_dir"] == None:
-        err("Need path to simpoints and traces. Set in descriptor file under 'simpoint_traces_dir'", dbg_lvl)
+    if descriptor_data["traces_dir"] == None:
+        err("Need path to simpoints and traces. Set in descriptor file under 'traces_dir'", dbg_lvl)
         exit(1)
-    elif not os.path.exists(descriptor_data["simpoint_traces_dir"]):
-        err(f"{descriptor_data['simpoint_traces_dir']} does not exist.", dbg_lvl)
+    elif not os.path.exists(descriptor_data["traces_dir"]):
+        err(f"{descriptor_data['traces_dir']} does not exist.", dbg_lvl)
         exit(1)
 
     # Check if configurations are provided
@@ -121,7 +121,7 @@ def open_interactive_shell(user, descriptor_data, workloads_data, suite_data, in
         docker_prefix = get_image_name(workloads_data, suite_data, descriptor_data['simulations'][0])
 
         docker_container_name = f"{docker_prefix}_{experiment_name}_scarab_{scarab_githash}_{user}"
-        simpoint_traces_dir = descriptor_data["simpoint_traces_dir"]
+        traces_dir = descriptor_data["traces_dir"]
         docker_home = descriptor_data["root_dir"]
         try:
             os.system(f"docker run \
@@ -133,7 +133,7 @@ def open_interactive_shell(user, descriptor_data, workloads_data, suite_data, in
                 -e APPNAME={workload} \
                 -dit \
                 --name {docker_container_name} \
-                --mount type=bind,source={simpoint_traces_dir},target=/simpoint_traces,readonly=true \
+                --mount type=bind,source={traces_dir},target=/traces,readonly=true \
                 --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
                 {docker_prefix}:{githash} \
                 /bin/bash")
