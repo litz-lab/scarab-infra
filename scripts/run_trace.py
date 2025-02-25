@@ -114,10 +114,10 @@ def open_interactive_shell(user, descriptor_data, infra_dir, dbg_lvl = 1):
             err("Error: Not in a Git repository or unable to retrieve Git hash.")
 
         docker_home = descriptor_data["root_dir"]
-        prepare_trace(user, descriptor_data["scarab_path"], docker_home, trace_name, infra_dir, dbg_lvl)
         trace_scenario = descriptor_data["trace_configurations"][0]
-        workload = trace_scenario["workload"]
         docker_prefix = trace_scenario["image_name"]
+        workload = trace_scenario["workload"]
+        prepare_trace(user, descriptor_data["scarab_path"], docker_home, trace_name, infra_dir, docker_prefix, githash, dbg_lvl)
         if trace_scenario["env_vars"] != None:
             env_vars = trace_scenario["env_vars"].split()
         else:
@@ -151,22 +151,23 @@ def open_interactive_shell(user, descriptor_data, infra_dir, dbg_lvl = 1):
             os.system(f"docker cp {infra_dir}/common/scripts/user_entrypoint.sh {docker_container_name}:/usr/local/bin")
             os.system(f"docker cp {infra_dir}/common/scripts/run_clustering.sh {docker_container_name}:/usr/local/bin")
             os.system(f"docker cp {infra_dir}/common/scripts/run_simpoint_trace.sh {docker_container_name}:/usr/local/bin")
+            os.system(f"docker cp {infra_dir}/common/scripts/minimize_trace.sh {docker_container_name}:/usr/local/bin")
             os.system(f"docker cp {infra_dir}/common/scripts/run_trace_post_processing.sh {docker_container_name}:/usr/local/bin")
             os.system(f"docker cp {infra_dir}/common/scripts/gather_fp_pieces.py {docker_container_name}:/usr/local/bin")
             os.system(f"docker exec --privileged {docker_container_name} /bin/bash -c '/usr/local/bin/common_entrypoint.sh'")
             os.system(f"docker exec --privileged {docker_container_name} /bin/bash -c \"echo 0 | sudo tee /proc/sys/kernel/randomize_va_space\"")
             subprocess.run(["docker", "exec", "--privileged", "-it", f"--user={user}", f"--workdir=/home/{user}", docker_container_name, "/bin/bash"])
         except KeyboardInterrupt:
-            if os.path.expanduser("~") == docker_home:
-                os.system(f"docker exec --user={user} {docker_container_name} /bin/bash -c 'mv /home/{user}/.bashrc.bk /home/{user}/.bashrc'")
+            subprocess.run(["docker", "exec", "--privileged", f"--user={user}", f"--workdir=/home/{user}", docker_container_name,
+                            "sed", "-i", "/source \\/usr\\/local\\/bin\\/user_entrypoint.sh/d", f"/home/{user}/.bashrc"], check=True, capture_output=True, text=True)
             os.system(f"docker rm -f {docker_container_name}")
             print("Recover the ASLR setting with sudo. Provide password..")
             os.system("echo 2 | sudo tee /proc/sys/kernel/randomize_va_space")
             exit(0)
         finally:
             try:
-                if os.path.expanduser("~") == docker_home:
-                    os.system(f"docker exec --user={user} {docker_container_name} /bin/bash -c 'mv /home/{user}/.bashrc.bk /home/{user}/.bashrc'")
+                subprocess.run(["docker", "exec", "--privileged", f"--user={user}", f"--workdir=/home/{user}", docker_container_name,
+                                "sed", "-i", "/source \\/usr\\/local\\/bin\\/user_entrypoint.sh/d", f"/home/{user}/.bashrc"], check=True, capture_output=True, text=True)
                 os.system("echo 2 | sudo tee /proc/sys/kernel/randomize_va_space")
                 client.containers.get(docker_container_name).remove(force=True)
                 print(f"Container {docker_container_name} removed.")

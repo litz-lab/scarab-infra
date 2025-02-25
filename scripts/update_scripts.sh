@@ -6,6 +6,7 @@ user=$(whoami)
 docker cp ./utilities.sh $CONTAINERID:/usr/local/bin
 docker cp ../common/scripts/run_clustering.sh $CONTAINERID:/usr/local/bin
 docker cp ../common/scripts/run_simpoint_trace.sh $CONTAINERID:/usr/local/bin
+docker cp ../common/scripts/minimize_trace.sh $CONTAINERID:/usr/local/bin
 docker cp ../common/scripts/run_trace_post_processing.sh $CONTAINERID:/usr/local/bin
 docker cp ../common/scripts/gather_fp_pieces.py $CONTAINERID:/usr/local/bin
 docker cp ../common/scripts/common_entrypoint.sh $CONTAINERID:/usr/local/bin

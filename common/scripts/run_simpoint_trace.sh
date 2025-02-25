@@ -275,6 +275,7 @@ if [ "$SIMPOINT" == "2" ]; then
     ###HEERREEE prepare raw dir, trace dir
     modulesDir=$(dirname $(ls $APPHOME/traces/whole/drmemtrace.*.dir/raw/modules.log))
     wholeTrace=$(ls $APPHOME/traces/whole/drmemtrace.*.dir/trace/dr*.zip)
+    drFolder=$(echo "$wholeTrace" | sed 's|/[^/]*$||' | sed 's|/[^/]*$|/|')
     echo "modulesDIR: $modulesDir"
     echo "wholeTrace: $wholeTrace"
     postProcCmd="bash run_trace_post_processing.sh $APPHOME $modulesDir $wholeTrace $CHUNKSIZE $SEGSIZE $SIMPOINTHOME"
@@ -321,10 +322,17 @@ if [ "$SIMPOINT" == "2" ]; then
   end=`date +%s`
   report_time "clustering" "$start" "$end"
 
-  read_simpoint
-  collect_simpoint_traces
-  minimize_simpoint_traces
-  echo "Post processing and trimming traces done!"
+  echo "Post processing done!"
+
+  taskPids=()
+  start=`date +%s`
+  mkdir -p $APPHOME/traces_simp
+  trimCmd="bash minimize.sh $drFolder/bin $wholeTrace $APPHOME/simpoints 1 $APPHOME/traces_simp"
+  eval $trimCmd &
+  taskPids+=($!)
+  wait_for "trimming traces.." "${taskPids[@]}"
+  end=`date +%s`
+  report_time "trimming traces.." "$start" "$end"
 
 elif [ "$SIMPOINT" == "1" ]; then
   # dir for all relevant data: fingerprint, traces, log, sim stats...
