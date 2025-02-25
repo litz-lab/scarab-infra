@@ -185,10 +185,8 @@ def prepare_simulation(user, scarab_path, docker_home, experiment_name, architec
         os.system(f"cp {scarab_path}/bin/scarab_launch.py  {experiment_dir}/scarab/bin/scarab_launch.py ")
         os.system(f"cp {scarab_path}/bin/scarab_globals/*  {experiment_dir}/scarab/bin/scarab_globals/ ")
 
-        if os.path.expanduser("~") == docker_home:
-            os.system(f"cp {docker_home}/.bashrc {docker_home}/.bashrc.bk")
-            # Set the env for simulation again (already set in Dockerfile.common) in case user's bashrc overwrite the existing ones when the home directory is mounted
-            os.system(f"echo 'source /usr/local/bin/user_entrypoint.sh' | tee -a {docker_home}/.bashrc")
+        # Set the env for simulation again (already set in Dockerfile.common) in case user's bashrc overwrite the existing ones when the home directory is mounted
+        os.system(f"echo 'source /usr/local/bin/user_entrypoint.sh' | tee -a {docker_home}/.bashrc")
 
         return scarab_githash
     except Exception as e:
@@ -328,6 +326,7 @@ def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_contai
             f.write(f"docker cp {infra_dir}/common/scripts/user_entrypoint.sh {docker_container_name}:/usr/local/bin\n")
             f.write(f"docker cp {infra_dir}/common/scripts/run_clustering.sh {docker_container_name}:/usr/local/bin\n")
             f.write(f"docker cp {infra_dir}/common/scripts/run_simpoint_trace.sh {docker_container_name}:/usr/local/bin\n")
+            f.write(f"docker cp {infra_dir}/common/scripts/minimize_trace.sh {docker_container_name}:/usr/local/bin\n")
             f.write(f"docker cp {infra_dir}/common/scripts/run_trace_post_processing.sh {docker_container_name}:/usr/local/bin\n")
             f.write(f"docker cp {infra_dir}/common/scripts/gather_fp_pieces.py {docker_container_name}:/usr/local/bin\n")
             f.write(f"docker exec --privileged {docker_container_name} /bin/bash -c '/usr/local/bin/common_entrypoint.sh'\n")
@@ -501,10 +500,8 @@ def prepare_trace(user, scarab_path, docker_home, job_name, infra_dir, docker_pr
         os.system(f"cp {scarab_path}/bin/scarab_globals/*  {trace_dir}/scarab/bin/scarab_globals/ ")
         os.system(f"mkdir -p {trace_dir}/scarab/utils/memtrace")
         os.system(f"cp {scarab_path}/utils/memtrace/* {trace_dir}/scarab/utils/memtrace/ ")
-        if os.path.expanduser("~") == docker_home:
-            os.system(f"cp {docker_home}/.bashrc {docker_home}/.bashrc.bk")
-            # Set the env for simulation again (already set in Dockerfile.common) in case user's bashrc overwrite the existing ones when the home directory is mounted
-            os.system(f"echo 'source /usr/local/bin/user_entrypoint.sh' | tee -a {docker_home}/.bashrc")
+        # Set the env for simulation again (already set in Dockerfile.common) in case user's bashrc overwrite the existing ones when the home directory is mounted
+        os.system(f"echo 'source /usr/local/bin/user_entrypoint.sh' | tee -a {docker_home}/.bashrc")
     except Exception as e:
         raise e
 
@@ -549,8 +546,7 @@ def finish_trace(user, descriptor_data, workload_db_path, suite_db_path, dbg_lvl
         target_traces_dir = descriptor_data["traces_dir"]
         docker_home = descriptor_data["root_dir"]
 
-        if os.path.expanduser("~") == docker_home:
-            os.system(f"mv {docker_home}/.bashrc.bk {docker_home}/.bashrc")
+        subprocess.run(["sed", "-i", "/source \\/usr\\/local\\/bin\\/user_entrypoint.sh/d", f"{docker_home}/.bashrc"], check=True, capture_output=True, text=True)
 
         for config in trace_configs:
             workload = config['workload']

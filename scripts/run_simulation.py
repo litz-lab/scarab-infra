@@ -109,53 +109,62 @@ def open_interactive_shell(user, descriptor_data, workloads_data, suite_data, in
         # need to maintain the list of nodes for development
         # currently open it on local
 
+        docker_prefix = get_image_name(workloads_data, suite_data, descriptor_data['simulations'][0])
         # Generate commands for executing in users docker and sbatching to nodes with containers
         scarab_githash = prepare_simulation(user,
                                             descriptor_data['scarab_path'],
                                             descriptor_data['root_dir'],
                                             experiment_name,
                                             descriptor_data['architecture'],
+                                            docker_prefix,
+                                            githash,
+                                            infra_dir,
                                             dbg_lvl)
         workload = descriptor_data['simulations'][0]['workload']
         mode = descriptor_data['simulations'][0]['simulation_type']
-        docker_prefix = get_image_name(workloads_data, suite_data, descriptor_data['simulations'][0])
 
         docker_container_name = f"{docker_prefix}_{experiment_name}_scarab_{scarab_githash}_{user}"
         traces_dir = descriptor_data["traces_dir"]
         docker_home = descriptor_data["root_dir"]
         try:
-            os.system(f"docker run \
-                -e user_id={local_uid} \
-                -e group_id={local_gid} \
-                -e username={user} \
-                -e HOME=/home/{user} \
-                -e APP_GROUPNAME={docker_prefix} \
-                -e APPNAME={workload} \
-                -dit \
-                --name {docker_container_name} \
-                --mount type=bind,source={traces_dir},target=/simpoint_traces,readonly=true \
-                --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
-                {docker_prefix}:{githash} \
-                /bin/bash")
-            os.system(f"docker cp {infra_dir}/scripts/utilities.sh {docker_container_name}:/usr/local/bin")
-            os.system(f"docker cp {infra_dir}/common/scripts/common_entrypoint.sh {docker_container_name}:/usr/local/bin")
-            os.system(f"docker cp {infra_dir}/common/scripts/user_entrypoint.sh {docker_container_name}:/usr/local/bin")
+            subprocess.run(["docker", "run",
+                            "-e", f"user_id={local_uid}",
+                            "-e", f"group_id={local_gid}",
+                            "-e", f"username={user}",
+                            "-e", f"HOME=/home/{user}",
+                            "-e", f"APP_GROUPNAME={docker_prefix}",
+                            "-e", f"APPNAME={workload}",
+                            "-dit", "--name", f"{docker_container_name}",
+                            "--mount", f"type=bind,source={traces_dir},target=/simpoint_traces,readonly=true",
+                            "--mount", f"type=bind,source={docker_home},target=/home/{user},readonly=false",
+                            f"{docker_prefix}:{githash}", "/bin/bash"], check=True, capture_output=True, text=True)
+            subprocess.run(["docker", "cp", f"{infra_dir}/scripts/utilities.sh", f"{docker_container_name}:/usr/local/bin"],
+                           check=True, capture_output=True, text=True)
+            subprocess.run(["docker", "cp", f"{infra_dir}/common/scripts/common_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
+                           check=True, capture_output=True, text=True)
+            subprocess.run(["docker", "cp", f"{infra_dir}/common/scripts/user_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
+                           check=True, capture_output=True, text=True)
             if mode == "memtrace":
-                os.system(f"docker cp {infra_dir}/common/scripts/run_memtrace_single_simpoint.sh {docker_container_name}:/usr/local/bin")
+                subprocess.run(["docker", "cp", f"{infra_dir}/common/scripts/run_memtrace_single_simpoint.sh", f"{docker_container_name}:/usr/local_bin"],
+                               check=True, capture_output=True, text=True)
             elif mode == "pt":
-                os.system(f"docker cp {infra_dir}/common/scripts/run_pt_single_simpoint.sh {docker_container_name}:/usr/local/bin")
+                subprocess.run(["docker", "cp", f"{infra_dir}/common/scripts/run_pt_single_simpoint.sh", f"{docker_container_name}:/usr/local/bin"],
+                               check=True, capture_output=True, text=True)
             elif mode == "exec":
-                os.system(f"docker cp {infra_dir}/common/scripts/run_exec_single_simpoint.sh {docker_container_name}:/usr/local/bin")
-            os.system(f"docker exec --privileged {docker_container_name} /bin/bash -c '/usr/local/bin/common_entrypoint.sh'")
+                subprocess.run(["docker", "cp", f"{infra_dir}/common/scripts/run_exec_single_simpoint.sh", f"{docker_container_name}:/usr/local/bin"],
+                               check=True, capture_output=True, text=True)
+            subprocess.run(["docker", "exec", "--privileged", f"{docker_container_name}", "/bin/bash", "-c", "/usr/local/bin/common_entrypoint.sh"],
+                           check=True, capture_output=True, text=True)
             subprocess.run(["docker", "exec", "--privileged", "-it", f"--user={user}", f"--workdir=/home/{user}", docker_container_name, "/bin/bash"])
         except KeyboardInterrupt:
-            os.system(f"docker exec --user={user} {docker_container_name} /bin/bash -c 'mv /home/{user}/.bashrc.bk /home/{user}/.bashrc'")
-            os.system(f"docker rm -f {docker_container_name}")
+            subprocess.run(["docker", "exec", "--privileged", f"--user={user}", f"--workdir=/home/{user}", docker_container_name,
+                            "sed", "-i", "/source \\/usr\\/local\\/bin\\/user_entrypoint.sh/d", f"/home/{user}/.bashrc"], check=True, capture_output=True, text=True)
+            subprocess.run(["docker", "rm", "-f", f"{docker_container_name}"], check=True, capture_output=True, text=True)
             exit(0)
         finally:
             try:
-                if os.path.expanduser("~") == docker_home:
-                    os.system(f"docker exec --user={user} {docker_container_name} /bin/bash -c 'mv /home/{user}/.bashrc.bk /home/{user}/.bashrc'")
+                subprocess.run(["docker", "exec", "--privileged", f"--user={user}", f"--workdir=/home/{user}", docker_container_name,
+                                "sed", "-i", "/source \\/usr\\/local\\/bin\\/user_entrypoint.sh/d", f"/home/{user}/.bashrc"], check=True, capture_output=True, text=True)
                 client.containers.get(docker_container_name).remove(force=True)
                 print(f"Container {docker_container_name} removed.")
             except docker.errors.NotFound:
