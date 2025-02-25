@@ -324,15 +324,8 @@ if [ "$SIMPOINT" == "2" ]; then
 
   echo "Post processing done!"
 
-  taskPids=()
-  start=`date +%s`
   mkdir -p $APPHOME/traces_simp
-  trimCmd="bash minimize.sh $drFolder/bin $wholeTrace $APPHOME/simpoints 1 $APPHOME/traces_simp"
-  eval $trimCmd &
-  taskPids+=($!)
-  wait_for "trimming traces.." "${taskPids[@]}"
-  end=`date +%s`
-  report_time "trimming traces.." "$start" "$end"
+  bash minimize_trace.sh $drFolder/bin $wholeTrace $APPHOME/simpoints 1 $APPHOME/traces_simp
 
 elif [ "$SIMPOINT" == "1" ]; then
   # dir for all relevant data: fingerprint, traces, log, sim stats...
