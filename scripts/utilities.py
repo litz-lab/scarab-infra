@@ -506,6 +506,11 @@ def prepare_trace(user, scarab_path, docker_home, job_name, infra_dir, docker_pr
         raise e
 
 def finish_trace(user, descriptor_data, workload_db_path, suite_db_path, dbg_lvl):
+    def read_segment_size(file_path):
+        with open(file_pathm 'r') as f:
+            segment_size = f.read()
+        return segment_size
+
     def read_weight_file(file_path):
         weights = {}
         with open(file_path, 'r') as f:
@@ -530,11 +535,11 @@ def finish_trace(user, descriptor_data, workload_db_path, suite_db_path, dbg_lvl
         modules_dir = ""
         trace_file = ""
         if trim_type == 2:
-            modules_dir = f"/simpoint_traces/{workload}/traces_simp/raw/"
-            trace_file = f"/simpoint_traces/{workload}/traces_simp/trace/"
+            modules_dir = f"\\$trace_home/{workload}/traces_simp/raw/"
+            trace_file = f"\\$trace_home/{workload}/traces_simp/trace/"
         elif trim_type == 3:
-            modules_dir = f"/simpoint_traces/{workload}/traces_simp/"
-            trace_file = f"/simpoint_traces/{workload}/traces_simp/"
+            modules_dir = f"\\$trace_home/{workload}/traces_simp/"
+            trace_file = f"\\$trace_home/{workload}/traces_simp/"
         return modules_dir, trace_file
 
     try:
@@ -559,12 +564,15 @@ def finish_trace(user, descriptor_data, workload_db_path, suite_db_path, dbg_lvl
             simulation_dict = {}
             exec_dict = {}
             exec_dict['image_name'] = config['image_name']
+            segment_size_file = os.path.join(trace_dir, workload, "fingerprint", "segment_size")
+            exec_dict['segment_size'] = read_segment_size(segment_size_file)
             exec_dict['env_vars'] = config['env_vars']
             exec_dict['binary_cmd'] = config['binary_cmd']
             exec_dict['client_bincmd'] = config['client_bincmd']
             memtrace_dict = {}
             memtrace_dict['image_name'] = config['image_name']
             memtrace_dict['trim_type'] = 2
+            memtrace_dict['segment_size'] = read_segment_size(segment_size_file)
             memtrace_dict['modules_dir'], memtrace_dict['trace_file'] = get_modules_dir_and_trace_file(2, workload)
             simulation_dict['exec'] = exec_dict
             simulation_dict['memtrace'] = memtrace_dict
