@@ -34,8 +34,8 @@ COPY ./common/scripts/run_memtrace_single_simpoint.sh /usr/local/bin/run_memtrac
 COPY ./common/scripts/run_pt_single_simpoint.sh /usr/local/bin/run_pt_single_simpoint.sh
 COPY ./common/scripts/run_exec_single_simpoint.sh /usr/local/bin/run_exec_single_simpoint.sh
 
-RUN mkdir -p /traces
-ENV trace_home="/traces"
+RUN mkdir -p /simpoint_traces
+ENV trace_home="/simpoint_traces"
 
 # Set the working directory
 ENV tmpdir="/tmp_home"

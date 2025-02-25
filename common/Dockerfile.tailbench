@@ -38,8 +38,8 @@ COPY ./common/scripts/gather_cluster_results.py /usr/local/bin/gather_cluster_re
 COPY ./common/scripts/gather_cluster_results_using_descriptor.py /usr/local/bin/gather_cluster_results_using_descriptor.py
 COPY ./common/scripts/common_entrypoint.sh /usr/local/bin/common_entrypoint.sh
 
-RUN mkdir -p /traces
-ENV trace_home="/traces"
+RUN mkdir -p /simpoint_traces
+ENV trace_home="/simpoint_traces"
 
 # Set the working directory
 ENV tmpdir="/tmp_home"
