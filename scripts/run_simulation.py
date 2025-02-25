@@ -133,7 +133,7 @@ def open_interactive_shell(user, descriptor_data, workloads_data, suite_data, in
                 -e APPNAME={workload} \
                 -dit \
                 --name {docker_container_name} \
-                --mount type=bind,source={traces_dir},target=/traces,readonly=true \
+                --mount type=bind,source={traces_dir},target=/simpoint_traces,readonly=true \
                 --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
                 {docker_prefix}:{githash} \
                 /bin/bash")

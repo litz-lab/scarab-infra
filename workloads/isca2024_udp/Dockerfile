@@ -9,7 +9,7 @@ USER root
 RUN pip install gdown
 COPY ./workloads/isca2024_udp/entrypoint.sh /usr/local/bin/entrypoint.sh
 
-WORKDIR /traces
+WORKDIR /simpoint_traces
 RUN gdown https://drive.google.com/uc?id=1tfKL7wYK1mUqpCH8yPaPVvxk2UIAJrOX && tar -xzvf simpoint_traces.tar.gz
 
 WORKDIR $tmpdir

@@ -237,7 +237,7 @@ def write_docker_command_to_file_run_by_root(user, local_uid, local_gid, workloa
             -e username={user} \
             -e HOME=/home/{user} \
             --name {docker_container_name} \
-            --mount type=bind,source={traces_dir},target=/traces,readonly=true \
+            --mount type=bind,source={traces_dir},target=/simpoint_traces,readonly=true \
             --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
             {docker_prefix}:{githash} \
             /bin/bash {scarab_cmd}\n")
@@ -266,7 +266,7 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, experimen
             -e APPNAME={workload} \
             -dit \
             --name {docker_container_name} \
-            --mount type=bind,source={traces_dir},target=/traces,readonly=true \
+            --mount type=bind,source={traces_dir},target=/simpoint_traces,readonly=true \
             --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
             {docker_prefix}:{githash} \
             /bin/bash\n")
@@ -533,11 +533,11 @@ def finish_trace(user, descriptor_data, workload_db_path, suite_db_path, dbg_lvl
         modules_dir = ""
         trace_file = ""
         if trim_type == 2:
-            modules_dir = f"/traces/{workload}/traces_simp/raw/"
-            trace_file = f"/traces/{workload}/traces_simp/trace/"
+            modules_dir = f"/simpoint_traces/{workload}/traces_simp/raw/"
+            trace_file = f"/simpoint_traces/{workload}/traces_simp/trace/"
         elif trim_type == 3:
-            modules_dir = f"/traces/{workload}/traces_simp/"
-            trace_file = f"/traces/{workload}/traces_simp/"
+            modules_dir = f"/simpoint_traces/{workload}/traces_simp/"
+            trace_file = f"/simpoint_traces/{workload}/traces_simp/"
         return modules_dir, trace_file
 
     try:
