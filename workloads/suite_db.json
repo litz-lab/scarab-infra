@@ -52,5 +52,13 @@
         "554.roms_r":"memtrace"
       }
     }
+  },
+  "dcperf":{
+    "wdlbench":{
+      "predefined_simulation_mode":{
+        "fibers_benchmark":"memtrace",
+        "random_benchmark":"memtrace"
+      }
+    }
   }
 }

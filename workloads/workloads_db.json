@@ -12,8 +12,7 @@
         "image_name":"allbench_traces",
         "trim_type":"1",
         "segment_size":10000000,
-        "modules_dir":"\\$trace_home/verilator/traces/whole/raw",
-        "trace_file":"\\$trace_home/verilator/traces/whole/trace/drmemtrace.emulator-freechips.rocketchip.system-DefaultConfigN8.00025.6005.trace.zip"
+        "whole_trace_file":"drmemtrace.emulator-freechips.rocketchip.system-DefaultConfigN8.00025.6005.trace.zip"
       },
       "pt":{
         "image_name":"allbench_traces"
@@ -215,8 +214,7 @@
         "image_name":"allbench_traces",
         "trim_type":"1",
         "segment_size":10000000,
-        "modules_dir":"\\$trace_home/xgboost/traces/whole/drmemtrace.python3.8.00025.6828.dir/raw",
-        "trace_file":"\\$trace_home/xgboost/traces/whole/drmemtrace.python3.8.00025.6828.dir/trace/drmemtrace.python3.8.00025.0843.trace.zip"
+        "whole_trace_file":"drmemtrace.python3.8.00025.0843.trace.zip"
       }
     },
     "simpoints":[
@@ -300,8 +298,7 @@
         "image_name":"allbench_traces",
         "trim_type":"1",
         "segment_size":10000000,
-        "modules_dir":"\\$trace_home/mongodb/traces/whole/drmemtrace.mongod.04280.8169.dir/raw",
-        "trace_file":"\\$trace_home/mongodb/traces/whole/drmemtrace.mongod.04280.8169.dir/trace/drmemtrace.mongod.04332.7098.trace.zip"
+        "whole_trace_file":"drmemtrace.mongod.04332.7098.trace.zip"
       }
     },
     "simpoints":[
@@ -519,8 +516,7 @@
         "image_name":"allbench_traces",
         "trim_type":"1",
         "segment_size":10000000,
-        "modules_dir":"\\$trace_home/mysql/traces/whole/drmemtrace.mysqld.123776.5088.dir/raw",
-        "trace_file":"\\$trace_home/mysql/traces/whole/drmemtrace.mysqld.123776.5088.dir/trace/drmemtrace.mysqld.123827.6272.trace.zip"
+        "whole_trace_file":"drmemtrace.mysqld.123827.6272.trace.zip"
       },
       "pt":{
         "image_name":"allbench_traces"
@@ -567,8 +563,7 @@
         "image_name":"allbench_traces",
         "trim_type":"1",
         "segment_size":10000000,
-        "modules_dir":"\\$trace_home/postgres/traces/whole/drmemtrace.postgres.10865.1082.dir/raw",
-        "trace_file":"\\$trace_home/postgres/traces/whole/drmemtrace.postgres.10865.1082.dir/trace/drmemtrace.postgres.10865.3710.trace.zip"
+        "whole_trace_file":"drmemtrace.postgres.10865.3710.trace.zip"
       },
       "pt":{
         "image_name":"allbench_traces"
@@ -642,8 +637,7 @@
         "image_name":"allbench_traces",
         "trim_type":"1",
         "segment_size":10000000,
-        "modules_dir":"\\$trace_home/gcc/traces/whole/drmemtrace.cc1.04250.2989.dir/raw",
-        "trace_file":"\\$trace_home/gcc/traces/whole/drmemtrace.cc1.04250.2989.dir/trace/drmemtrace.cc1.04250.5506.trace.zip"
+        "whole_trace_file":"drmemtrace.cc1.04250.5506.trace.zip"
       }
     },
     "simpoints":[
@@ -769,8 +763,7 @@
         "image_name":"allbench_traces",
         "trim_type":"1",
         "segment_size":10000000,
-        "modules_dir":"\\$trace_home/clang/traces/whole/drmemtrace.clang.03072.7752.dir/raw",
-        "trace_file":"\\$trace_home/clang/traces/whole/drmemtrace.clang.03072.7752.dir/trace/drmemtrace.clang.03072.4467.trace.zip"
+        "whole_trace_file":"drmemtrace.clang.03072.4467.trace.zip"
       },
       "pt":{
         "image_name":"allbench_traces"
@@ -942,8 +935,7 @@
         "image_name":"allbench_traces",
         "trim_type":"1",
         "segment_size":10000000,
-        "modules_dir":"\\$trace_home/redis/traces/drmemtrace.redis-server.40792.8757.dir/raw/",
-        "trace_file":"\\$trace_home/redis/traces/drmemtrace.redis-server.40792.8757.dir/trace/drmemtrace.redis-server.40792.6868.trace.zip"
+        "whole_trace_file":"drmemtrace.redis-server.40792.6868.trace.zip"
       }
     },
     "simpoints":[
@@ -1017,8 +1009,7 @@
         "image_name":"allbench_traces",
         "trim_type":"1",
         "segment_size":10000000,
-        "modules_dir":"\\$trace_home/memcached/traces/whole/drmemtrace.memcached.07432.6868.dir/raw",
-        "trace_file":"\\$trace_home/memcached/traces/whole/drmemtrace.memcached.07432.6868.dir/trace/drmemtrace.memcached.07434.0028.trace.zip"
+        "whole_trace_file":"drmemtrace.memcached.07434.0028.trace.zip"
       }
     },
     "simpoints":[
@@ -1040,10 +1031,10 @@
     ],
     "performance":{
       "topdown":{
-        "retiring":20.90,
-        "bad_speculation":2.00,
-        "frontend_bound":24.90,
-        "backend_bound":52.10
+        "retiring":20.9,
+        "bad_speculation":2.0,
+        "frontend_bound":24.9,
+        "backend_bound":52.1
       },
       "execution_time":{
         "min":0,
@@ -1064,8 +1055,7 @@
         "image_name":"allbench_traces",
         "trim_type":"1",
         "segment_size":10000000,
-        "modules_dir":"\\$trace_home/old_rocksdb/traces_simp/raw/",
-        "trace_file":"\\$trace_home/old_rocksdb/traces_simp/trace/"
+        "whole_trace_file":"drmemtrace.db_bench.01669.6627.trace.zip"
       }
     },
     "simpoints":[
@@ -1286,8 +1276,7 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"\\$trace_home/502.gcc_r/traces_simp/",
-        "trace_file":"\\$trace_home/502.gcc_r/traces_simp/"
+        "whole_trace_file":null
       }
     },
     "simpoints":[
@@ -1601,8 +1590,7 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"\\$trace_home/507.cactuBSSN_r/traces_simp/",
-        "trace_file":"\\$trace_home/507.cactuBSSN_r/traces_simp/"
+        "whole_trace_file":null
       }
     },
     "simpoints":[
@@ -1676,8 +1664,7 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"\\$trace_home/505.mcf_r/traces_simp/",
-        "trace_file":"\\$trace_home/505.mcf_r/traces_simp/"
+        "whole_trace_file":null
       }
     },
     "simpoints":[
@@ -1751,8 +1738,7 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"\\$trace_home/500.perlbench_r/traces_simp/",
-        "trace_file":"\\$trace_home/500.perlbench_r/traces_simp/"
+        "whole_trace_file":null
       }
     },
     "simpoints":[
@@ -1836,8 +1822,7 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"\\$trace_home/503.bwaves_r/traces_simp/",
-        "trace_file":"\\$trace_home/503.bwaves_r/traces_simp/"
+        "whole_trace_file":null
       }
     },
     "simpoints":[
@@ -1926,8 +1911,7 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"\\$trace_home/510.parest_r/traces_simp/",
-        "trace_file":"\\$trace_home/510.parest_r/traces_simp/"
+        "whole_trace_file":null
       }
     },
     "simpoints":[
@@ -2331,8 +2315,7 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"\\$trace_home/520.omnetpp_r/traces_simp/",
-        "trace_file":"\\$trace_home/520.omnetpp_r/traces_simp/"
+        "whole_trace_file":null
       }
     },
     "simpoints":[
@@ -2406,8 +2389,7 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"\\$trace_home/511.povray_r/traces_simp/",
-        "trace_file":"\\$trace_home/511.povray_r/traces_simp/"
+        "whole_trace_file":null
       }
     },
     "simpoints":[
@@ -2486,8 +2468,7 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"\\$trace_home/508.namd_r/traces_simp/",
-        "trace_file":"\\$trace_home/508.namd_r/traces_simp/"
+        "whole_trace_file":null
       }
     },
     "simpoints":[
@@ -2686,8 +2667,7 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"\\$trace_home/519.lbm_r/traces_simp/",
-        "trace_file":"\\$trace_home/519.lbm_r/traces_simp/"
+        "whole_trace_file":null
       }
     },
     "simpoints":[
@@ -2741,8 +2721,7 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"\\$trace_home/521.wrf_r/traces_simp/",
-        "trace_file":"\\$trace_home/521.wrf_r/traces_simp/"
+        "whole_trace_file":null
       }
     },
     "simpoints":[
@@ -3476,8 +3455,7 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"\\$trace_home/525.x264_r/traces_simp/",
-        "trace_file":"\\$trace_home/525.x264_r/traces_simp/"
+        "whole_trace_file":null
       }
     },
     "simpoints":[
@@ -3561,8 +3539,7 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"\\$trace_home/531.deepsjeng_r/traces_simp/",
-        "trace_file":"\\$trace_home/531.deepsjeng_r/traces_simp/"
+        "whole_trace_file":null
       }
     },
     "simpoints":[
@@ -3641,8 +3618,7 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"\\$trace_home/523.xalancbmk_r/traces_simp/",
-        "trace_file":"\\$trace_home/523.xalancbmk_r/traces_simp/"
+        "whole_trace_file":null
       }
     },
     "simpoints":[
@@ -3726,8 +3702,7 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"\\$trace_home/538.imagick_r/traces_simp/",
-        "trace_file":"\\$trace_home/538.imagick_r/traces_simp/"
+        "whole_trace_file":null
       }
     },
     "simpoints":[
@@ -3771,8 +3746,7 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"\\$trace_home/526.blender_r/traces_simp/",
-        "trace_file":"\\$trace_home/526.blender_r/traces_simp/"
+        "whole_trace_file":null
       }
     },
     "simpoints":[
@@ -3871,8 +3845,7 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"\\$trace_home/527.cam4_r/traces_simp/",
-        "trace_file":"\\$trace_home/527.cam4_r/traces_simp/"
+        "whole_trace_file":null
       }
     },
     "simpoints":[
@@ -4196,8 +4169,7 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"\\$trace_home/557.xz_r/traces_simp/",
-        "trace_file":"\\$trace_home/557.xz_r/traces_simp/"
+        "whole_trace_file":null
       }
     },
     "simpoints":[
@@ -4271,8 +4243,7 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"\\$trace_home/541.leela_r/traces_simp/",
-        "trace_file":"\\$trace_home/541.leela_r/traces_simp/"
+        "whole_trace_file":null
       }
     },
     "simpoints":[
@@ -4356,8 +4327,7 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"\\$trace_home/548.exchange2_r/traces_simp/",
-        "trace_file":"\\$trace_home/548.exchange2_r/traces_simp/"
+        "whole_trace_file":null
       }
     },
     "simpoints":[
@@ -4436,8 +4406,7 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"\\$trace_home/554.roms_r/traces_simp/",
-        "trace_file":"\\$trace_home/554.roms_r/traces_simp/"
+        "whole_trace_file":null
       }
     },
     "simpoints":[
@@ -4801,8 +4770,7 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"\\$trace_home/544.nab_r/traces_simp/",
-        "trace_file":"\\$trace_home/544.nab_r/traces_simp/"
+        "whole_trace_file":null
       }
     },
     "simpoints":[
@@ -4861,8 +4829,7 @@
         "image_name":"allbench_traces",
         "trim_type":"2",
         "segment_size":10000000,
-        "modules_dir":"\\$trace_home/549.fotonik3d_r/traces_simp/",
-        "trace_file":"\\$trace_home/549.fotonik3d_r/traces_simp/"
+        "whole_trace_file":null
       }
     },
     "simpoints":[
@@ -4979,8 +4946,7 @@
         "image_name":"allbench_traces",
         "trim_type":"3",
         "segment_size":10000000,
-        "modules_dir":"\\$trace_home/MPC/traces_simp/",
-        "trace_file":"\\$trace_home/MPC/traces_simp/"
+        "whole_trace_file":null
       }
     },
     "simpoints":[
@@ -5541,36 +5507,161 @@
       },
       "execution_time":{
         "min":5,
-        "sec":20.090
+        "sec":20.09
       }
     }
   },
-  "digest_builder_benchmark":{
-  },
-  "event_base_benchmark":{
-  },
+  "digest_builder_benchmark":{},
+  "event_base_benchmark":{},
   "fibers_benchmark":{
+    "trace":{
+      "dynamorio_args":null,
+      "clustering_k":null
+    },
+    "simulation":{
+      "exec":{
+        "image_name":"dcperf",
+        "segment_size":10000000,
+        "env_vars":null,
+        "binary_cmd":"\\$tmpdir/DCPerf/benchmarks/wdl_bench/fibers_fibers_benchmark",
+        "client_bincmd":null
+      },
+      "memtrace":{
+        "image_name":"allbench_traces",
+        "trim_type":1,
+        "segment_size":10000000,
+        "whole_trace_file":"drmemtrace.fibers_fibers_benchmark.00051.0149.trace.zip"
+      }
+    },
+    "simpoints":[
+      {
+        "cluster_id":198,
+        "segment_id":0,
+        "weight":0.192301
+      },
+      {
+        "cluster_id":92,
+        "segment_id":1,
+        "weight":0.0369912
+      },
+      {
+        "cluster_id":4,
+        "segment_id":2,
+        "weight":0.0368236
+      },
+      {
+        "cluster_id":2,
+        "segment_id":3,
+        "weight":0.0163661
+      },
+      {
+        "cluster_id":54,
+        "segment_id":4,
+        "weight":0.196393
+      },
+      {
+        "cluster_id":229,
+        "segment_id":5,
+        "weight":0.0956071
+      },
+      {
+        "cluster_id":158,
+        "segment_id":8,
+        "weight":0.0859218
+      },
+      {
+        "cluster_id":76,
+        "segment_id":9,
+        "weight":0.102288
+      },
+      {
+        "cluster_id":141,
+        "segment_id":10,
+        "weight":0.196393
+      },
+      {
+        "cluster_id":151,
+        "segment_id":11,
+        "weight":0.0409152
+      }
+    ]
   },
-  "function_benchmark":{
-  },
-  "hash_hash_benchmark":{
-  },
-  "hash_maps_bench":{
-  },
-  "iobuf_benchmark":{
-  },
-  "lt_hash_benchmark":{
-  },
-  "memcpy_benchmark":{
-  },
-  "memset_benchmark":{
-  },
+  "function_benchmark":{},
+  "hash_hash_benchmark":{},
+  "hash_maps_bench":{},
+  "iobuf_benchmark":{},
+  "lt_hash_benchmark":{},
+  "memcpy_benchmark":{},
+  "memset_benchmark":{},
   "random_benchmark":{
+    "trace":{
+      "dynamorio_args":null,
+      "clustering_k":null
+    },
+    "simulation":{
+      "exec":{
+        "image_name":"dcperf",
+        "segment_size":10000000,
+        "env_vars":null,
+        "binary_cmd":"\\$tmpdir/DCPerf/benchmarks/wdl_bench/random_benchmark",
+        "client_bincmd":null
+      },
+      "memtrace":{
+        "image_name":"allbench_traces",
+        "trim_type":1,
+        "segment_size":10000000,
+        "whole_trace_file":"drmemtrace.random_benchmark.00038.7140.trace.zip"
+      }
+    },
+    "simpoints":[
+      {
+        "cluster_id":325,
+        "segment_id":0,
+        "weight":0.0397807
+      },
+      {
+        "cluster_id":65,
+        "segment_id":1,
+        "weight":0.139233
+      },
+      {
+        "cluster_id":332,
+        "segment_id":2,
+        "weight":0.110615
+      },
+      {
+        "cluster_id":220,
+        "segment_id":3,
+        "weight":0.0795626
+      },
+      {
+        "cluster_id":87,
+        "segment_id":4,
+        "weight":0.28699
+      },
+      {
+        "cluster_id":243,
+        "segment_id":5,
+        "weight":0.156281
+      },
+      {
+        "cluster_id":289,
+        "segment_id":6,
+        "weight":0.0539881
+      },
+      {
+        "cluster_id":10,
+        "segment_id":7,
+        "weight":0.0596711
+      },
+      {
+        "cluster_id":190,
+        "segment_id":8,
+        "weight":0.0738785
+      }
+    ]
   },
-  "small_locks_benchmark":{
-  },
-  "openssl":{
-  },
-  "lzbench":{
-  }
+  "small_locks_benchmark":{},
+  "openssl":{},
+  "lzbench":{}
 }

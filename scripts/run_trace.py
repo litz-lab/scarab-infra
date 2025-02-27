@@ -150,7 +150,7 @@ def open_interactive_shell(user, descriptor_data, infra_dir, dbg_lvl = 1):
             os.system(f"docker cp {infra_dir}/common/scripts/common_entrypoint.sh {docker_container_name}:/usr/local/bin")
             os.system(f"docker cp {infra_dir}/common/scripts/user_entrypoint.sh {docker_container_name}:/usr/local/bin")
             os.system(f"docker cp {infra_dir}/common/scripts/run_clustering.sh {docker_container_name}:/usr/local/bin")
-            os.system(f"docker cp {infra_dir}/common/scripts/run_simpoint_trace.sh {docker_container_name}:/usr/local/bin")
+            os.system(f"docker cp {infra_dir}/common/scripts/run_simpoint_trace.py {docker_container_name}:/usr/local/bin")
             os.system(f"docker cp {infra_dir}/common/scripts/minimize_trace.sh {docker_container_name}:/usr/local/bin")
             os.system(f"docker cp {infra_dir}/common/scripts/run_trace_post_processing.sh {docker_container_name}:/usr/local/bin")
             os.system(f"docker cp {infra_dir}/common/scripts/gather_fp_pieces.py {docker_container_name}:/usr/local/bin")
