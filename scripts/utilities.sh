@@ -139,6 +139,10 @@ set_app_groupname () {
       echo "example"
       APP_GROUPNAME="example"
       ;;
+    autoware)
+      echo "autoware"
+      APP_GROUPNAME="autoware"
+      ;;
     allbench)
       echo "allbench"
       APP_GROUPNAME="allbench_traces"
@@ -276,6 +280,9 @@ set_app_bincmd () {
       ;;
     example)
       BINCMD="/home/$USER/scarab/utils/qsort/test_qsort"
+      ;;
+    autoware)
+      BINCMD="ros2 bag play /autoware/result_bag/ --rate 0.5 --clock 200"
       ;;
     allbench)
       echo "No BINCMD available for allbench"

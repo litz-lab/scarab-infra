@@ -1,0 +1,26 @@
+{
+    "_architecture": "A name of the available architectures (PARAMS.<architecture>) found in scarab repository, which defines the machine parameters of the default configuration.",
+    "architecture": "sunny_cove",
+    "_workload_group": "A directory name in workloads",
+    "workload_group": "allbench_traces",
+    "_workloads_list": "List of workloads to run scarab simulation",
+    "workloads_list": [
+        "500.perlbench_r"
+    ],
+    "_experiment": "The name of the experiment. scarab-infra will create a new folder named containing all files needed to execute the simulation in the <ROOT_DIR>/simulations/<experiment> directory. The folder will also contain all generated simulation statistics/outputs.",
+    "experiment": "seop8",
+    "_simulation_mode": "1: execution-driven simulation w/o SimPoint, 2: trace-based simulation w/o SimPoint, 3: execution-driven simulation w/ SimPoint, 4: trace-based simulation w/ SimPoint, 5: PT-trace-based simulation w/ SimPoint",
+    "simulation_mode": "3",
+    "_workload_manager": "manual: run each exp scenario with all the simpoints at a time, slurm: Slurm schedules simulations based on its policy",
+    "workload_manager": "manual",
+    "_root_dir": "Root directory mounted into the docker container home, for instance, the user's home directory",
+    "root_dir": "/soe/mkim293/seop/scarab-infra",
+    "_scarab_path": "The path to the scarab repository that contains the scarab binary used to run the experiment.",
+    "scarab_path": "/soe/mkim293/seop/scarab",
+    "_simpoint_traces_dir": "The local directory containing all simpointed traces",
+    "simpoint_traces_dir": "/soe/mkim293/seop/scarab-infra/simpoint_traces",
+    "_configurations": "scarab configurations to sweep",
+    "configurations": {
+        "test": "--bp_mech tage64k --fdip_enable 1 --btb_entries 8192 --perfect_crs 1 --wp_collect_stats 1 --mem_req_buffer_entries 64 --ramulator_readq_entries 64 --fe_ftq_block_num 32"
+    }
+}

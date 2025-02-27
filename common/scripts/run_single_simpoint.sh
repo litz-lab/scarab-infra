@@ -41,6 +41,11 @@ set_app_tracefile () {
       MODULESDIR=/simpoint_traces/redis/traces/drmemtrace.redis-server.40792.8757.dir/raw/
       TRACEFILE=/simpoint_traces/redis/traces/drmemtrace.redis-server.40792.8757.dir/trace/drmemtrace.redis-server.40792.6868.trace.zip
       ;;
+    autoware)
+      MODULESDIR=/simpoint_traces/autoware/traces_simp/raw/
+      TRACEFILE=/simpoint_traces/autoware/traces_simp/trace/
+      mode="1"
+      ;;
     rocksdb)
       MODULESDIR=/simpoint_traces/rocksdb/traces_simp/raw/
       TRACEFILE=/simpoint_traces/rocksdb/traces_simp/trace/
