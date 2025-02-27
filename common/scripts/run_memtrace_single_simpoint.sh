@@ -17,8 +17,7 @@ SCARABARCH="$6"
 TRACESSIMP="$7"
 SCARABHOME="$8"
 SEGMENT_ID="$9"
-MODULESDIR="$10"
-TRACEFILE="$11"
+TRACEFILE="$10"
 
 # 10M warmup for segmented memtraces and 50M warmup for whole memtrace
 if [ "$SEGMENT_ID" == "0" ]; then
@@ -40,26 +39,19 @@ cd $OUTDIR/$segID
 # SEGMENT_ID = 0 represents whole trace simulation
 # SEGMENT_ID > 0 represents segmented trace (simpoint) simulation
 if [ "$SEGMENT_ID" == "0" ]; then
-  traceMap=$(ls $TRACE_HOME/$APPNAME/traces/whole/)
-  scarabCmd="$SCARABHOME/src/scarab --frontend memtrace --cbp_trace_r0=$TRACE_HOME/$APPNAME/traces/whole/${traceMap} --memtrace_modules_log=$TRACE_HOME/$APPNAME/traces/raw/ $SCARABPARAMS &> sim.log"
+  traceMap=$(ls $trace_home/$APPNAME/traces/whole/)
+  scarabCmd="$SCARABHOME/src/scarab --frontend memtrace --cbp_trace_r0=$trace_home/$APPNAME/traces/whole/${traceMap} --memtrace_modules_log=$trace_home/$APPNAME/traces/raw/ $SCARABPARAMS &> sim.log"
 else
   # overwriting
-  if [ "$TRACESSIMP" == "1" ]; then
-    MODULESDIR=$TRACE_HOME/$APPNAME/traces_simp/bin
-    TRACEFILE=$TRACE_HOME/$APPNAME/traces_simp/trace
+  if [ "$TRACESSIMP" == "0" ]; then
+    MODULESDIR=$trace_home/$APPNAME/traces/whole/raw/modules.log
+    TRACEFILE=$trace_home/$APPNAME/traces/whole/trace/$TRACEFILE
+  elif [ "$TRACESSIMP" == "1" ]; then
+    MODULESDIR=$trace_home/$APPNAME/traces_simp/bin
+    TRACEFILE=$trace_home/$APPNAME/traces_simp/trace
   elif [ "$TRACESSIMP" == "2" ] || [ "$TRACESSIMP" == "3" ]; then
-    MODULESDIR=$TRACE_HOME/$APPNAME/traces_simp/
-    TRACEFILE=$TRACE_HOME/$APPNAME/traces_simp/
-  fi
-
-
-  # if TRACESSIMP is 1, 2, or 3,
-  # TRACEFILE is supposed to be traces_simp FOLDER
-  if [ "$TRACESSIMP" != "0" ]; then
-    if [ ! -d $TRACEFILE ]; then
-      echo "TRACEFILE is supposed to be a FOLDER"
-      exit
-    fi
+    MODULESDIR=$trace_home/$APPNAME/traces_simp/
+    TRACEFILE=$trace_home/$APPNAME/traces_simp/
   fi
 
   # roi is initialized by original segment boundary without warmup
@@ -166,5 +158,5 @@ eval $scarabCmd &
 wait $!
 
 # Issues. See sim.log in new_experiment20.
-# Failed to open $TRACE_HOME/postgres/traces_simp/trace/postgres0.zip
+# Failed to open $trace_home/postgres/traces_simp/trace/postgres0.zip
 # CMD:  docker exec --user aesymons --workdir /home/aesymons --privileged allbench_traces_aesymons slurm_payload.sh "postgres" "allbench_traces" "" "new_experiment20/fe_ftq_block_num.16" "--inst_limit 99900000 --fdip_enable 1 --fe_ftq_block_num 16" "4" "sunny_cove" "1" /home/aesymons/new_experiment20/scarab "3954"

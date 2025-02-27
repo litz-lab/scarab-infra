@@ -308,8 +308,7 @@ def run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir,
             info(f"Excluding following nodes: {', '.join(excludes)}", dbg_lvl)
             sbatch_cmd = generate_sbatch_command(excludes, experiment_dir)
             trim_type = None
-            modules_dir = ""
-            trace_file = ""
+            trace_file = None
             env_vars = ""
             bincmd = ""
             client_bincmd = ""
@@ -317,8 +316,8 @@ def run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir,
             simulation_data = workloads_data[workload]["simulation"][sim_mode]
             if sim_mode == "memtrace":
                 trim_type = simulation_data["trim_type"]
-                modules_dir = simulation_data["modules_dir"]
-                trace_file = simulation_data["trace_file"]
+                if trim_type == 0:
+                    trace_file = simulation_data["whole_trace_file"]
                 seg_size = simulation_data["segment_size"]
             if sim_mode == "exec":
                 env_vars = simulation_data["env_vars"]
@@ -357,7 +356,7 @@ def run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir,
                     write_docker_command_to_file(user, local_uid, local_gid, workload, experiment_name,
                                                  docker_prefix, docker_container_name, traces_dir,
                                                  docker_home, githash, config_key, config, scarab_mode, scarab_githash,
-                                                 seg_size, architecture, cluster_id, trim_type, modules_dir, trace_file,
+                                                 seg_size, architecture, cluster_id, trim_type, trace_file,
                                                  env_vars, bincmd, client_bincmd, filename, infra_dir)
                     tmp_files.append(filename)
 
@@ -433,7 +432,7 @@ def run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir,
             info(f"Removing temporary run script {tmp}", dbg_lvl)
             os.remove(tmp)
 
-        finish_simulation(user, f"{docker_home}/simulations/{experiment_name}")
+        finish_simulation(user, docker_home)
 
         # TODO: check resource capping policies, add kill/info options
 

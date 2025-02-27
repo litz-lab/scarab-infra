@@ -41,7 +41,7 @@ def write_json_descriptor(filename, descriptor_data, dbg_lvl = 1):
     # Write the descriptor data to a JSON file
     try:
         with open(filename, 'w') as json_file:
-            json.dump(descriptor_data, file, indent=2, separators=(",", ":"))
+            json.dump(descriptor_data, json_file, indent=2, separators=(",", ":"))
     except TypeError as e:
             print(f"TypeError: {e}")
     except UnicodeEncodeError as e:
@@ -186,27 +186,31 @@ def prepare_simulation(user, scarab_path, docker_home, experiment_name, architec
         os.system(f"cp {scarab_path}/bin/scarab_globals/*  {experiment_dir}/scarab/bin/scarab_globals/ ")
 
         # Set the env for simulation again (already set in Dockerfile.common) in case user's bashrc overwrite the existing ones when the home directory is mounted
-        os.system(f"echo 'source /usr/local/bin/user_entrypoint.sh' | tee -a {docker_home}/.bashrc")
+        bashrc_path = f"{docker_home}/.bashrc"
+        entry = "source /usr/local/bin/user_entrypoint.sh"
+        with open(bashrc_path, "a+") as f:
+            f.seek(0)
+            if entry not in f.read():
+                f.write(f"\n{entry}\n")
 
         return scarab_githash
     except Exception as e:
         raise e
 
-def finish_simulation(user, experiment_dir):
+def finish_simulation(user, docker_home):
     try:
         print("Finish simulation..")
-        # TODO: do some cleanup or sanity check
-        # os.system(f"chmod -R 755 {experiment_dir}")
+        subprocess.run(["sed", "-i", "/source \\/usr\\/local\\/bin\\/user_entrypoint.sh/d", f"{docker_home}/.bashrc"], check=True, capture_output=True, text=True)
     except Exception as e:
         raise e
 
 # Generate command to do a single run of scarab
 def generate_single_scarab_run_command(user, workload, group, experiment, config_key, config,
                                        mode, seg_size, arch, scarab_githash, cluster_id,
-                                       trim_type, modules_dir, trace_file,
+                                       trim_type, trace_file,
                                        env_vars, bincmd, client_bincmd):
     if mode == "memtrace":
-        command = f"run_memtrace_single_simpoint.sh \"{workload}\" \"{group}\" \"/home/{user}/simulations/{experiment}/{config_key}\" \"{config}\" \"{seg_size}\" \"{arch}\" \"{trim_type}\" /home/{user}/simulations/{experiment}/scarab {cluster_id} {modules_dir} {trace_file}"
+        command = f"run_memtrace_single_simpoint.sh \"{workload}\" \"{group}\" \"/home/{user}/simulations/{experiment}/{config_key}\" \"{config}\" \"{seg_size}\" \"{arch}\" \"{trim_type}\" /home/{user}/simulations/{experiment}/scarab {cluster_id} {trace_file}"
     elif mode == "pt":
         command = f"run_pt_single_simpoint.sh \"{workload}\" \"{group}\" \"/home/{user}/simulations/{experiment}/{config_key}\" \"{config}\" \"{seg_size}\" \"{arch}\" \"{trim_type}\" /home/{user}/simulations/{experiment}/scarab {cluster_id}"
     elif mode == "exec":
@@ -219,12 +223,12 @@ def generate_single_scarab_run_command(user, workload, group, experiment, config
 def write_docker_command_to_file_run_by_root(user, local_uid, local_gid, workload, experiment_name,
                                              docker_prefix, docker_container_name, traces_dir,
                                              docker_home, githash, config_key, config, scarab_mode, seg_size, scarab_githash,
-                                             architecture, cluster_id, trim_type, modules_dir, trace_file,
+                                             architecture, cluster_id, trim_type, trace_file,
                                              env_vars, bincmd, client_bincmd, filename):
     try:
         scarab_cmd = generate_single_scarab_run_command(user, workload, docker_prefix, experiment_name, config_key, config,
                                                         scarab_mode, seg_size, architecture, scarab_githash, cluster_id,
-                                                        trim_type, modules_dir, trace_file, env_vars, bincmd, client_bincmd)
+                                                        trim_type, trace_file, env_vars, bincmd, client_bincmd)
         with open(filename, "w") as f:
             f.write("#!/bin/bash\n")
             f.write(f"echo \"Running {config_key} {workload} {cluster_id}\"\n")
@@ -245,12 +249,12 @@ def write_docker_command_to_file_run_by_root(user, local_uid, local_gid, workloa
 def write_docker_command_to_file(user, local_uid, local_gid, workload, experiment_name,
                                  docker_prefix, docker_container_name, traces_dir,
                                  docker_home, githash, config_key, config, scarab_mode, scarab_githash,
-                                 seg_size, architecture, cluster_id, trim_type, modules_dir, trace_file,
+                                 seg_size, architecture, cluster_id, trim_type, trace_file,
                                  env_vars, bincmd, client_bincmd, filename, infra_dir):
     try:
         scarab_cmd = generate_single_scarab_run_command(user, workload, docker_prefix, experiment_name, config_key, config,
                                                         scarab_mode, seg_size, architecture, scarab_githash, cluster_id,
-                                                        trim_type, modules_dir, trace_file, env_vars, bincmd, client_bincmd)
+                                                        trim_type, trace_file, env_vars, bincmd, client_bincmd)
         with open(filename, "w") as f:
             f.write("#!/bin/bash\n")
             f.write(f"echo \"Running {config_key} {workload} {cluster_id}\"\n")
@@ -289,9 +293,11 @@ def generate_single_trace_run_command(user, workload, image_name, trace_name, bi
         mode = 1
     elif simpoint_mode == "trace_then_post_process":
         mode = 2
-    command = f"run_simpoint_trace.sh \"{workload}\" \"{image_name}\" \"/home/{user}/simpoint_flow/{trace_name}\" {binary_cmd} \"{mode}\" \"{drio_args}\""
+    command = f"python3 -u /usr/local/bin/run_simpoint_trace.py --workload {workload} --suite {image_name} --simpoint_home \"/home/{user}/simpoint_flow/{trace_name}\" --bincmd {binary_cmd} --simpoint_mode {mode}"
+    if drio_args != None:
+        command = f"{command} --drio_args {drio_args}"
     if clustering_k != None:
-        command = f"{command} \"{clustering_k}\""
+        command = f"{command} -userk {clustering_k}"
     return command
 
 def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_container_name, githash,
@@ -325,13 +331,13 @@ def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_contai
             f.write(f"docker cp {infra_dir}/common/scripts/common_entrypoint.sh {docker_container_name}:/usr/local/bin\n")
             f.write(f"docker cp {infra_dir}/common/scripts/user_entrypoint.sh {docker_container_name}:/usr/local/bin\n")
             f.write(f"docker cp {infra_dir}/common/scripts/run_clustering.sh {docker_container_name}:/usr/local/bin\n")
-            f.write(f"docker cp {infra_dir}/common/scripts/run_simpoint_trace.sh {docker_container_name}:/usr/local/bin\n")
+            f.write(f"docker cp {infra_dir}/common/scripts/run_simpoint_trace.py {docker_container_name}:/usr/local/bin\n")
             f.write(f"docker cp {infra_dir}/common/scripts/minimize_trace.sh {docker_container_name}:/usr/local/bin\n")
             f.write(f"docker cp {infra_dir}/common/scripts/run_trace_post_processing.sh {docker_container_name}:/usr/local/bin\n")
             f.write(f"docker cp {infra_dir}/common/scripts/gather_fp_pieces.py {docker_container_name}:/usr/local/bin\n")
             f.write(f"docker exec --privileged {docker_container_name} /bin/bash -c '/usr/local/bin/common_entrypoint.sh'\n")
             f.write(f"docker exec --privileged {docker_container_name} /bin/bash -c \"echo 0 | sudo tee /proc/sys/kernel/randomize_va_space\"\n")
-            f.write(f"docker exec --privileged --user={user} --workdir=/home/{user} {docker_container_name} /bin/bash -c \"{trace_cmd} && echo 'run_simpoint_trace.sh finished'\"\n")
+            f.write(f"docker exec --privileged --user={user} --workdir=/home/{user} {docker_container_name} {trace_cmd}\n")
             f.write(f"docker rm -f {docker_container_name}\n")
     except Exception as e:
         raise e
@@ -340,31 +346,6 @@ def get_simpoints (workload_data, dbg_lvl = 2):
     simpoints = {}
     for simpoint in workload_data["simpoints"]:
         simpoints[f"{simpoint['cluster_id']}"] = simpoint["weight"]
-
-    return simpoints
-
-# Get workload simpoint ids and their associated weights
-def get_simpoints_from_simpoints_file (traces_dir, workload, dbg_lvl = 2):
-    read_simp_weight_command = f"cat /{traces_dir}/{workload}/simpoints/opt.w.lpt0.99"
-    read_simp_simpid_command = f"cat /{traces_dir}/{workload}/simpoints/opt.p.lpt0.99"
-
-    info(f"Executing '{read_simp_weight_command}'", dbg_lvl)
-    weight_out = subprocess.check_output(read_simp_weight_command.split(" ")).decode("utf-8").split("\n")[:-1]
-
-    info(f"Executing '{read_simp_simpid_command}'", dbg_lvl)
-    simpid_out = subprocess.check_output(read_simp_simpid_command.split(" ")).decode("utf-8").split("\n")[:-1]
-
-    # Make lut for the weight for each 'index' id
-    weights = {}
-    for weight_id in weight_out:
-        weight, id = weight_id.split(" ")
-        weights[id] = float(weight)
-
-    # Make final dictionary associated each simpoint id to its weight
-    simpoints = {}
-    for simpid_id in simpid_out:
-        simpid, id = simpid_id.split(" ")
-        simpoints[int(simpid)] = weights[id]
 
     return simpoints
 
@@ -501,15 +482,20 @@ def prepare_trace(user, scarab_path, docker_home, job_name, infra_dir, docker_pr
         os.system(f"mkdir -p {trace_dir}/scarab/utils/memtrace")
         os.system(f"cp {scarab_path}/utils/memtrace/* {trace_dir}/scarab/utils/memtrace/ ")
         # Set the env for simulation again (already set in Dockerfile.common) in case user's bashrc overwrite the existing ones when the home directory is mounted
-        os.system(f"echo 'source /usr/local/bin/user_entrypoint.sh' | tee -a {docker_home}/.bashrc")
+        bashrc_path = f"{docker_home}/.bashrc"
+        entry = "source /usr/local/bin/user_entrypoint.sh"
+        with open(bashrc_path, "a+") as f:
+            f.seek(0)
+            if entry not in f.read():
+                f.write(f"\n{entry}\n")
     except Exception as e:
         raise e
 
 def finish_trace(user, descriptor_data, workload_db_path, suite_db_path, dbg_lvl):
-    def read_segment_size(file_path):
-        with open(file_pathm 'r') as f:
-            segment_size = f.read()
-        return segment_size
+    def read_first_line(file_path):
+        with open(file_path, 'r') as f:
+            value = f.readline().rstrip('\n')
+        return value
 
     def read_weight_file(file_path):
         weights = {}
@@ -531,17 +517,6 @@ def finish_trace(user, descriptor_data, workload_db_path, suite_db_path, dbg_lvl
                 clusters[segment_id] = cluster_id
         return clusters
 
-    def get_modules_dir_and_trace_file(trim_type, workload):
-        modules_dir = ""
-        trace_file = ""
-        if trim_type == 2:
-            modules_dir = f"\\$trace_home/{workload}/traces_simp/raw/"
-            trace_file = f"\\$trace_home/{workload}/traces_simp/trace/"
-        elif trim_type == 3:
-            modules_dir = f"\\$trace_home/{workload}/traces_simp/"
-            trace_file = f"\\$trace_home/{workload}/traces_simp/"
-        return modules_dir, trace_file
-
     try:
         workload_db_data = read_descriptor_from_json(workload_db_path, dbg_lvl)
         suite_db_data = read_descriptor_from_json(suite_db_path, dbg_lvl)
@@ -552,6 +527,7 @@ def finish_trace(user, descriptor_data, workload_db_path, suite_db_path, dbg_lvl
         docker_home = descriptor_data["root_dir"]
 
         subprocess.run(["sed", "-i", "/source \\/usr\\/local\\/bin\\/user_entrypoint.sh/d", f"{docker_home}/.bashrc"], check=True, capture_output=True, text=True)
+        print("Copying the successfully collected traces and update workloads_db.json/suite_db.json...")
 
         for config in trace_configs:
             workload = config['workload']
@@ -565,15 +541,20 @@ def finish_trace(user, descriptor_data, workload_db_path, suite_db_path, dbg_lvl
             exec_dict = {}
             exec_dict['image_name'] = config['image_name']
             segment_size_file = os.path.join(trace_dir, workload, "fingerprint", "segment_size")
-            exec_dict['segment_size'] = read_segment_size(segment_size_file)
+            exec_dict['segment_size'] = int(read_first_line(segment_size_file))
             exec_dict['env_vars'] = config['env_vars']
             exec_dict['binary_cmd'] = config['binary_cmd']
             exec_dict['client_bincmd'] = config['client_bincmd']
             memtrace_dict = {}
-            memtrace_dict['image_name'] = config['image_name']
-            memtrace_dict['trim_type'] = 2
-            memtrace_dict['segment_size'] = read_segment_size(segment_size_file)
-            memtrace_dict['modules_dir'], memtrace_dict['trace_file'] = get_modules_dir_and_trace_file(2, workload)
+            memtrace_dict['image_name'] = "allbench_traces"
+            if config['post_processing']:
+                trim_type = 1
+            else:
+                trim_type = 2
+            memtrace_dict['trim_type'] = trim_type
+            memtrace_dict['segment_size'] = int(read_first_line(segment_size_file))
+            trace_clustering_info = read_descriptor_from_json(f"{docker_home}/simpoint_flow/{job_name}/{workload}/trace_clustering_info.json", dbg_lvl)
+            memtrace_dict['whole_trace_file'] = trace_clustering_info['trace_file']
             simulation_dict['exec'] = exec_dict
             simulation_dict['memtrace'] = memtrace_dict
 
@@ -605,14 +586,32 @@ def finish_trace(user, descriptor_data, workload_db_path, suite_db_path, dbg_lvl
             else:
                 simulation_mode_dict = {}
                 simulation_mode_dict[workload] = "memtrace"
-                subsuite_dict = {'predefined_simulation_mode':simulation_mode_dict}
-                suite_db_data[suite] = subsuite_dict
+                subsuite_dict = {}
+                subsuite_dict['predefined_simulation_mode'] = simulation_mode_dict
+                suite_dict = {}
+                suite_dict[subsuite] = subsuite_dict
+                suite_db_data[suite] = suite_dict
 
+            # TODO: switch to a hierarchical path
+            # target_traces_path = f"{target_traces_dir}/{suite}/{subsuite}/{workload}"
+            target_traces_path = f"{target_traces_dir}/{workload}"
             # Copy successfully collected simpoints and traces to target_traces_dir
-            os.system(f"mkdir -p {target_traces_dir}/{suite}/{subsuite}/{workload}/simpoints")
-            os.system(f"mkdir -p {target_traces_dir}/{suite}/{subsuite}/{workload}/traces_simp")
-            os.system(f"cp -r {trace_dir}/{workload}/simpoints/* {target_traces_dir}/{suite}/{subsuite}/{workload}/simpoints/")
-            os.system(f"cp -r {trace_dir}/{workload}/traces_simp/* {target_traces_dir}/{suite}/{subsuite}/{workload}/traces_simp/")
+            os.system(f"mkdir -p {target_traces_path}/simpoints")
+            os.system(f"mkdir -p {target_traces_path}/traces_simp")
+            os.system(f"cp -r {trace_dir}/{workload}/simpoints/* {target_traces_path}/simpoints/")
+            os.system(f"cp -r {trace_dir}/{workload}/traces_simp/* {target_traces_path}/traces_simp/")
+            os.system(f"mkdir -p {target_traces_path}/traces/whole/trace")
+            os.system(f"mkdir -p {target_traces_path}/traces/whole/raw")
+            os.system(f"mkdir -p {target_traces_path}/traces/whole/bin")
+            os.system(f"mkdir -p {target_traces_path}/traces_simp/bin")
+            trace_clustering_info = read_descriptor_from_json(os.path.join(trace_dir, workload, "trace_clustering_info.json"), dbg_lvl)
+            whole_trace_dir = trace_clustering_info['dr_folder']
+            trace_file = trace_clustering_info['trace_file']
+            subprocess.run([f"cp {trace_dir}/{workload}/traces/whole/{whole_trace_dir}/trace/{trace_file} {target_traces_path}/traces/whole/trace"], check=True, shell=True)
+            subprocess.run([f"cp {trace_dir}/{workload}/traces/whole/{whole_trace_dir}/raw/modules.log {target_traces_path}/traces/whole/raw/modules.log"], check=True, shell=True)
+            subprocess.run([f"cp {trace_dir}/{workload}/traces/whole/{whole_trace_dir}/raw/modules.log {target_traces_path}/traces_simp/raw/modules.log"], check=True, shell=True)
+            subprocess.run([f"cp {trace_dir}/{workload}/traces/whole/{whole_trace_dir}/bin/* {target_traces_path}/traces/whole/bin"], check=True, shell=True)
+            subprocess.run([f"cp {trace_dir}/{workload}/traces/whole/{whole_trace_dir}/bin/* {target_traces_path}/traces_simp/bin"], check=True, shell=True)
 
         write_json_descriptor(workload_db_path, workload_db_data, dbg_lvl)
         write_json_descriptor(suite_db_path, suite_db_data, dbg_lvl)

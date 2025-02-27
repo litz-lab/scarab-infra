@@ -12,7 +12,7 @@ apt-get install python3-docker
 sudo chmod 666 /var/run/docker.sock
 ```
 3. Add the SSH key of the machine(s) running the Docker container to your GitHub account ([link](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent?platform=linux)).
-4. Place simpointed instruction traces into $TRACE_HOME. scarab-infra offers prepackaged traces that can be downloaded as follows:
+4. Place simpointed instruction traces into $trace_home. scarab-infra offers prepackaged traces that can be downloaded as follows:
 ```
 cd /home/$USER/traces
 gdown https://drive.google.com/uc?id=1tfKL7wYK1mUqpCH8yPaPVvxk2UIAJrOX

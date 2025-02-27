@@ -128,8 +128,7 @@ def run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir,
             docker_prefix = get_docker_prefix(sim_mode, workloads_data[workload]["simulation"])
             info(f"Using docker image with name {docker_prefix}:{githash}", dbg_lvl)
             trim_type = None
-            modules_dir = ""
-            trace_file = ""
+            trace_file = None
             env_vars = ""
             bincmd = ""
             client_bincmd = ""
@@ -137,8 +136,8 @@ def run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir,
             simulation_data = workloads_data[workload]["simulation"][sim_mode]
             if sim_mode == "memtrace":
                 trim_type = simulation_data["trim_type"]
-                modules_dir = simulation_data["modules_dir"]
-                trace_file = simulation_data["trace_file"]
+                if trim_type == 0:
+                    trace_file = simulation_data["whole_trace_file"]
                 seg_size = simulation_data["segment_size"]
             if sim_mode == "exec":
                 env_vars = simulation_data["env_vars"]
@@ -169,7 +168,7 @@ def run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir,
                     write_docker_command_to_file(user, local_uid, local_gid, workload, experiment_name,
                                                  docker_prefix, docker_container_name, traces_dir,
                                                  docker_home, githash, config_key, config, sim_mode, scarab_githash,
-                                                 seg_size, architecture, cluster_id, trim_type, modules_dir, trace_file,
+                                                 seg_size, architecture, cluster_id, trim_type, trace_file,
                                                  env_vars, bincmd, client_bincmd, filename, infra_dir)
                     tmp_files.append(filename)
                     command = '/bin/bash ' + filename
@@ -249,7 +248,7 @@ def run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir,
             info(f"Removing temporary run script {tmp}", dbg_lvl)
             os.remove(tmp)
 
-        finish_simulation(user, f"{docker_home}/simulations/{experiment_name}")
+        finish_simulation(user, docker_home)
 
     except Exception as e:
         print("An exception occurred:", e)
@@ -283,6 +282,7 @@ def run_tracing(user, descriptor_data, workload_db_path, suite_db_path, infra_di
     max_processes = int(available_cores * 0.9)
     processes = set()
     tmp_files = []
+    log_files = []
 
     def run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd, post_processing, drio_args, clustering_k):
         try:
@@ -298,16 +298,14 @@ def run_tracing(user, descriptor_data, workload_db_path, suite_db_path, infra_di
                                                clustering_k, filename, infra_dir)
             tmp_files.append(filename)
             command = '/bin/bash ' + filename
-            process = subprocess.Popen("exec " + command, stdout=subprocess.PIPE, shell=True)
+            log_out = f"{docker_home}/simpoint_flow/{trace_name}/{workload}/log.out"
+            log_err = f"{docker_home}/simpoint_flow/{trace_name}/{workload}/log.err"
+            out = open(log_out, "w")
+            err = open(log_err, "w")
+            log_files.append((out, err))
+            process = subprocess.Popen(command, stdout=out, stderr=err, shell=True, preexec_fn=os.setsid)
             processes.add(process)
             info(f"Running command '{command}'", dbg_lvl)
-            while len(processes) >= max_processes:
-                # Loop through the processes and wait for one to finish
-                for p in processes.copy():
-                    if p.poll() is not None: # This process has finished
-                        p.wait() # Make sure it's really finished
-                        processes.remove(p) # Remove from set of active processes
-                        break # Exit the loop after removing one process
         except Exception as e:
             raise e
 
@@ -365,19 +363,25 @@ def run_tracing(user, descriptor_data, workload_db_path, suite_db_path, infra_di
         for p in processes:
             p.wait()
 
+        for out, err in log_files:
+            out.close()
+            err.close()
+
         # Clean up temp files
         for tmp in tmp_files:
             info(f"Removing temporary run script {tmp}", dbg_lvl)
             os.remove(tmp)
 
-        print("Recover the ASLR setting with sudo. Provide password..")
-        os.system("echo 2 | sudo tee /proc/sys/kernel/randomize_va_space")
         finish_trace(user, descriptor_data, workload_db_path, suite_db_path, dbg_lvl)
     except Exception as e:
         print("An exception occurred:", e)
         traceback.print_exc()  # Print the full stack trace
         for p in processes:
             p.kill()
+
+        for out, err in log_files:
+            out.close()
+            err.close()
 
         # Clean up temp files
         for tmp in tmp_files:
