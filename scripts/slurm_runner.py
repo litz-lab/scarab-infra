@@ -15,13 +15,7 @@ from utilities import (
         get_simpoints,
         write_docker_command_to_file,
         prepare_simulation,
-        finish_simulation,
-        get_image_list,
-        get_docker_prefix,
-        prepare_trace,
-        finish_trace,
-        write_trace_docker_command_to_file,
-        get_weight_by_cluster_id
+        finish_simulation
         )
 
 # Check if the docker image exists on available slurm nodes
@@ -57,15 +51,8 @@ def prepare_docker_image(nodes, docker_prefix, githash, dbg_lvl = 1):
             info(f"{image}", dbg_lvl)
             if image == []:
                 info(f"Couldn't find image {docker_prefix}:{githash} on {node}", dbg_lvl)
-                subprocess.check_output(["srun", f"--nodelist={node}", "docker", "pull", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}"])
-                image = subprocess.check_output(["srun", f"--nodelist={node}", "docker", "images", "-q", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}"])
-                if image != []:
-                    subprocess.check_output(["srun", f"--nodelist={node}", "docker", "tag", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}", f"{docker_prefix}:{githash}"])
-                    subprocess.check_output(["srun", f"--nodelist={node}", "docker", "rmi", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}"])
-                    available_nodes.append(node)
-                    continue
-
-                # build the image if a pre-built image is not found
+                # TODO: user prebuilt image
+                # build the image for now
                 subprocess.check_output(["srun", f"--nodelist={node}", "./run.sh", "-b", docker_prefix])
 
                 image = subprocess.check_output(["srun", f"--nodelist={node}", "docker", "images", "-q", f"{docker_prefix}:{githash}"])
@@ -82,28 +69,24 @@ def prepare_docker_image(nodes, docker_prefix, githash, dbg_lvl = 1):
         raise e
 
 # Check if a container is running on the provided nodes, return those that are
-# Inputs: list of nodes, docker_prefix, job_name, user
+# Inputs: list of nodes, docker_prefix, experiment_name, user
 # Output: dictionary of node-containers
-def check_docker_container_running(nodes, docker_prefix_list, job_name, user, dbg_lvl = 1):
+def check_docker_container_running(nodes, docker_prefix, experiment_name, user, dbg_lvl = 1):
+    pattern = re.compile(fr"^{docker_prefix}_.*_{experiment_name}.*_.*_{user}$")
     try:
         running_nodes_dockers = {}
         for node in nodes:
-            running_nodes_dockers[node] = []
+            # Check container is running and no errors
+            try:
+                dockers = subprocess.run(["srun", f"--nodelist={node}", "docker", "ps", "--format", "{{.Names}}"], capture_output=True, text=True, check=True)
+                lines = dockers.stdout.strip().split("\n") if dockers.stdout else []
+                matching_containers = [line for line in lines if pattern.match(line)]
+            except:
+                err(f"Error while checking a running docker container named {docker_prefix}_.*_{experiment_name}_.*_.*_{user} on node {node}", dbg_lvl)
 
-        for docker_prefix in docker_prefix_list:
-            pattern = re.compile(fr"^{docker_prefix}_.*_{job_name}.*_.*_{user}$")
-            for node in nodes:
-                # Check container is running and no errors
-                try:
-                    dockers = subprocess.run(["srun", f"--nodelist={node}", "docker", "ps", "--format", "{{.Names}}"], capture_output=True, text=True, check=True)
-                    lines = dockers.stdout.strip().split("\n") if dockers.stdout else []
-                    for line in lines:
-                        if pattern.match(line):
-                            running_nodes_dockers[node].append(line)
-                except:
-                    err(f"Error while checking a running docker container named {docker_prefix}_.*_{job_name}_.*_.*_{user} on node {node}", dbg_lvl)
+                continue
 
-                    continue
+            running_nodes_dockers[node] = matching_containers
         return running_nodes_dockers
     except Exception as e:
         raise e
@@ -216,7 +199,7 @@ def launch_docker(infra_dir, docker_home, available_nodes, node=None, dbg_lvl=1)
         raise
 
 # Print info of docker/slurm nodes and running experiment
-def print_status(user, job_name, docker_prefix_list, dbg_lvl = 1):
+def print_status(user, experiment_name, docker_prefix, dbg_lvl = 1):
     # Get GitHash
     try:
         githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).decode("utf-8").strip()
@@ -236,17 +219,16 @@ def print_status(user, job_name, docker_prefix_list, dbg_lvl = 1):
         else:
             print(f"\033[31mUNAVAILABLE: {node}\033[0m")
 
-    for docker_prefix in docker_prefix_list:
-        print(f"\nChecking what nodes have {docker_prefix}:{githash} image:")
-        available_slurm_nodes = check_docker_image(available_slurm_nodes, docker_prefix, githash, dbg_lvl)
-        for node in all_nodes:
-            if node in available_slurm_nodes:
-                print(f"\033[92mAVAILABLE:   {node}\033[0m")
-            else:
-                print(f"\033[31mUNAVAILABLE: {node}\033[0m")
+    print(f"\nChecking what nodes have the corresponding image:")
+    available_slurm_nodes = check_docker_image(available_slurm_nodes, docker_prefix, githash, dbg_lvl)
+    for node in all_nodes:
+        if node in available_slurm_nodes:
+            print(f"\033[92mAVAILABLE:   {node}\033[0m")
+        else:
+            print(f"\033[31mUNAVAILABLE: {node}\033[0m")
 
-    print(f"\nChecking what nodes have a running container with name {docker_prefix}_*_{job_name}_*_*_{user}")
-    node_docker_running = check_docker_container_running(available_slurm_nodes, docker_prefix_list, job_name, user, dbg_lvl)
+    print(f"\nChecking what nodes have a running container with name {docker_prefix}_*_{experiment_name}_*_*_{user}")
+    node_docker_running = check_docker_container_running(available_slurm_nodes, docker_prefix, experiment_name, user, dbg_lvl)
 
     for node in all_nodes:
         if node in node_docker_running.keys():
@@ -257,17 +239,17 @@ def print_status(user, job_name, docker_prefix_list, dbg_lvl = 1):
             print(f"\033[31mNOT RUNNING: {node}\033[0m")
 
 
-# Kills all jobs for job_name, if associated with user
-def kill_jobs(user, job_name, docker_prefix_list, dbg_lvl = 2):
+# Kills all jobs for experiment_name, if associated with user
+def kill_jobs(user, experiment_name, docker_prefix, dbg_lvl = 2):
     # Kill and exit if killing jobs
-    info(f"Killing all slurm jobs associated with {job_name}", dbg_lvl)
+    info(f"Killing all slurm jobs associated with {experiment_name}", dbg_lvl)
 
     # Format is JobID Name
     response = subprocess.check_output(["squeue", "-u", user, "--Format=JobID,Name:90"]).decode("utf-8")
     lines = [r.split() for r in response.split('\n') if r != ''][1:]
 
-    # Filter to entries assocaited with this job (experiment or trace), and get job ids
-    lines = list(filter(lambda x:job_name in x[1], lines))
+    # Filter to entries assocaited with this experiment, and get job ids
+    lines = list(filter(lambda x:experiment_name in x[1], lines))
     job_ids = list(map(lambda x:int(x[0]), lines))
 
     if lines:
@@ -288,61 +270,73 @@ def kill_jobs(user, job_name, docker_prefix_list, dbg_lvl = 2):
     else:
         print("No job found.")
 
-def run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir, dbg_lvl = 1):
+def run_simulation(user, descriptor_data, dbg_lvl = 1):
     architecture = descriptor_data["architecture"]
+    docker_prefix = descriptor_data["workload_group"]
+    workloads = descriptor_data["workloads_list"]
     experiment_name = descriptor_data["experiment"]
+    scarab_mode = descriptor_data["simulation_mode"]
     docker_home = descriptor_data["root_dir"]
     scarab_path = descriptor_data["scarab_path"]
-    traces_dir = descriptor_data["traces_dir"]
+    simpoint_traces_dir = descriptor_data["simpoint_traces_dir"]
     configs = descriptor_data["configurations"]
-    simulations = descriptor_data["simulations"]
 
-    docker_prefix_list = get_image_list(simulations, workloads_data, suite_data)
+    try:
+        # Get user for commands
+        user = subprocess.check_output("whoami").decode('utf-8')[:-1]
+        info(f"User detected as {user}", dbg_lvl)
 
-    def run_single_workload(workload, exp_cluster_id, sim_mode):
+        # Get a local user/group ids
+        local_uid = os.getuid()
+        local_gid = os.getgid()
+
+        # Get GitHash
         try:
-            docker_prefix = get_docker_prefix(sim_mode, workloads_data[workload]["simulation"])
-            info(f"Using docker image with name {docker_prefix}:{githash}", dbg_lvl)
-            docker_running = check_docker_image(all_nodes, docker_prefix, githash, dbg_lvl)
-            excludes = set(all_nodes) - set(docker_running)
-            info(f"Excluding following nodes: {', '.join(excludes)}", dbg_lvl)
-            sbatch_cmd = generate_sbatch_command(excludes, experiment_dir)
-            trim_type = None
-            trace_file = None
-            env_vars = ""
-            bincmd = ""
-            client_bincmd = ""
-            seg_size = None
-            simulation_data = workloads_data[workload]["simulation"][sim_mode]
-            if sim_mode == "memtrace":
-                trim_type = simulation_data["trim_type"]
-                if trim_type == 0:
-                    trace_file = simulation_data["whole_trace_file"]
-                seg_size = simulation_data["segment_size"]
-            if sim_mode == "exec":
-                env_vars = simulation_data["env_vars"]
-                bincmd = simulation_data["binary_cmd"]
-                client_bincmd = simulation_data["client_bincmd"]
-                seg_size = simulation_data["segment_size"]
+            githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).decode("utf-8").strip()
+            info(f"Git hash: {githash}", dbg_lvl)
+        except FileNotFoundError:
+            err("Error: 'git' command not found. Make sure Git is installed and in your PATH.")
+        except subprocess.CalledProcessError:
+            err("Error: Not in a Git repository or unable to retrieve Git hash.")
 
-            if "simpoints" not in workloads_data[workload].keys():
-                weight = 1
-                simpoints = {}
-                simpoints["0"] = weight
-            elif exp_cluster_id == None:
-                simpoints = get_simpoints(workloads_data[workload], dbg_lvl)
-            elif exp_cluster_id > 0:
-                weight = get_weight_by_cluster_id(exp_cluster_id, workloads_data[workload]["simpoints"])
-                simpoints = {}
-                simpoints[exp_cluster_id] = weight
 
+        # Get avlailable nodes. Error if none available
+        available_slurm_nodes, all_nodes = check_available_nodes(dbg_lvl)
+        info(f"Available nodes: {', '.join(available_slurm_nodes)}", dbg_lvl)
+
+        if available_slurm_nodes == []:
+            err("Cannot find any running slurm nodes", dbg_lvl)
+            exit(1)
+
+        docker_running = prepare_docker_image(available_slurm_nodes, docker_prefix, githash, dbg_lvl)
+        # If docker image still does not exist, exit
+        if docker_running == []:
+            err("Error with launched container. Could not detect it after launching", dbg_lvl)
+            exit(1)
+
+        info(f"Using docker image with name {docker_prefix}:{githash}", dbg_lvl)
+
+        # Determine nodes without running containers. Launch a container if none found
+        excludes = set(all_nodes) - set(docker_running)
+        info(f"Excluding following nodes: {', '.join(excludes)}", dbg_lvl)
+
+        # Generate commands for executing in users docker and sbatching to nodes with containers
+        experiment_dir = f"{descriptor_data['root_dir']}/simulations/{experiment_name}"
+        scarab_githash = prepare_simulation(user, scarab_path, descriptor_data['root_dir'], experiment_name, architecture, dbg_lvl)
+        sbatch_cmd = generate_sbatch_command(excludes, experiment_dir)
+
+        # Iterate over each workload and config combo
+        tmp_files = []
+        for workload in workloads:
+            # Only needed for modes 3 and 4
+            simpoints = get_simpoints(simpoint_traces_dir, workload, dbg_lvl)
             for config_key in configs:
                 config = configs[config_key]
 
-                for cluster_id, weight in simpoints.items():
-                    print(cluster_id, weight)
+                for simpoint, weight in simpoints.items():
+                    print(simpoint, weight)
 
-                    docker_container_name = f"{docker_prefix}_{workload}_{experiment_name}_{config_key.replace("/", "-")}_{cluster_id}_{sim_mode}_{user}"
+                    docker_container_name = f"{docker_prefix}_{workload}_{experiment_name}_{config_key}_{simpoint}_{user}"
 
                     # TODO: Notification when a run fails, point to output file and command that caused failure
                     # Add help (?)
@@ -352,213 +346,26 @@ def run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir,
                     # TODO: Rewrite with sbatch arrays
 
                     # Create temp file with run command and run it
-                    filename = f"{docker_container_name}_tmp_run.sh"
+                    filename = f"{experiment_name}_{workload}_{config_key.replace("/", "-")}_{simpoint}_tmp_run.sh"
                     write_docker_command_to_file(user, local_uid, local_gid, workload, experiment_name,
-                                                 docker_prefix, docker_container_name, traces_dir,
+                                                 docker_prefix, docker_container_name, simpoint_traces_dir,
                                                  docker_home, githash, config_key, config, scarab_mode, scarab_githash,
-                                                 seg_size, architecture, cluster_id, trim_type, trace_file,
-                                                 env_vars, bincmd, client_bincmd, filename, infra_dir)
+                                                 architecture, simpoint, filename)
                     tmp_files.append(filename)
 
                     os.system(sbatch_cmd + filename)
                     info(f"Running sbatch command '{sbatch_cmd + filename}'", dbg_lvl)
-        except Exception as e:
-            raise e
-
-    try:
-        # Get user for commands
-        user = subprocess.check_output("whoami").decode('utf-8')[:-1]
-        info(f"User detected as {user}", dbg_lvl)
-
-        # Get a local user/group ids
-        local_uid = os.getuid()
-        local_gid = os.getgid()
-
-        # Get GitHash
-        try:
-            githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).decode("utf-8").strip()
-            info(f"Git hash: {githash}", dbg_lvl)
-        except FileNotFoundError:
-            err("Error: 'git' command not found. Make sure Git is installed and in your PATH.")
-        except subprocess.CalledProcessError:
-            err("Error: Not in a Git repository or unable to retrieve Git hash.")
-
-
-        # Get avlailable nodes. Error if none available
-        available_slurm_nodes, all_nodes = check_available_nodes(dbg_lvl)
-        info(f"Available nodes: {', '.join(available_slurm_nodes)}", dbg_lvl)
-
-        if available_slurm_nodes == []:
-            err("Cannot find any running slurm nodes", dbg_lvl)
-            exit(1)
-
-        for docker_prefix in docker_prefix_list:
-            docker_running = prepare_docker_image(available_slurm_nodes, docker_prefix, githash, dbg_lvl)
-            # If docker image still does not exist, exit
-            if docker_running == []:
-                err(f"Error with preparing docker image for {docker_prefix}:{githash}", dbg_lvl)
-                exit(1)
-
-
-        # Generate commands for executing in users docker and sbatching to nodes with containers
-        experiment_dir = f"{descriptor_data['root_dir']}/simulations/{experiment_name}"
-        docker_prefix = docker_prefix_list[0]
-        scarab_githash = prepare_simulation(user, scarab_path, descriptor_data['root_dir'], experiment_name, architecture, docker_prefix, githash, infra_dir, dbg_lvl)
-
-        # Iterate over each workload and config combo
-        tmp_files = []
-        for simulation in simulations:
-            suite = simulation["suite"]
-            subsuite = simulation["subsuite"]
-            workload = simulation["workload"]
-            exp_cluster_id = simulation["cluster_id"]
-            sim_mode = simulation["simulation_type"]
-
-            # Run all the workloads within suite
-            if workload == None and subsuite == None:
-                for subsuite in suite_data[suite].keys():
-                    for workload in suite_data[suite][subsuite]["predefined_simulation_mode"].keys():
-                        sim_mode = suite_data[suite][subsuite]["predefined_simulation_mode"][workload]
-                        run_single_workload(workload, exp_cluster_id, sim_mode)
-            elif workload == None and subsuite != None:
-                for workload in suite_data[suite][subsuite]["predefined_simulation_mode"].keys():
-                    sim_mode = suite_data[suite][subsuite]["predefined_simulation_mode"][workload]
-                    run_single_workload(workload, exp_cluster_id, sim_mode)
-            else:
-                run_single_workload(workload, exp_cluster_id, sim_mode)
 
         # Clean up temp files
         for tmp in tmp_files:
             info(f"Removing temporary run script {tmp}", dbg_lvl)
             os.remove(tmp)
 
-        finish_simulation(user, docker_home)
+        finish_simulation(user, f"{docker_home}/simulations/{experiment_name}")
 
         # TODO: check resource capping policies, add kill/info options
 
         # TODO: (long term) add evalstats to json descriptor to run stats library with PMU counters
     except Exception as e:
         print("An exception occurred:", e)
-        traceback.print_exc()  # Print the full stack trace
-
-        # Clean up temp files
-        for tmp in tmp_files:
-            info(f"Removing temporary run script {tmp}", dbg_lvl)
-            os.remove(tmp)
-
-        kill_jobs(user, experiment_name, docker_prefix_list, dbg_lvl)
-
-def run_tracing(user, descriptor_data, workload_db_path, suite_db_path, infra_dir, dbg_lvl = 2):
-    trace_name = descriptor_data["trace_name"]
-    docker_home = descriptor_data["root_dir"]
-    scarab_path = descriptor_data["scarab_path"]
-    traces_dir = descriptor_data["traces_dir"]
-    trace_configs = descriptor_data["trace_configurations"]
-
-    docker_prefix_list = []
-    for config in trace_configs:
-        image_name = config["image_name"]
-        if image_name not in docker_prefix_list:
-            docker_prefix_list.append(image_name)
-
-    tmp_files = []
-
-    def run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd, post_processing, drio_args, clustering_k):
-        try:
-            docker_running = check_docker_image(all_nodes, image_name, githash, dbg_lvl)
-            excludes = set(all_nodes) - set(docker_running)
-            info(f"Excluding following nodes: {', '.join(excludes)}", dbg_lvl)
-            sbatch_cmd = generate_sbatch_command(excludes, trace_dir)
-
-            simpoint_mode = "cluster_then_trace"
-            if post_processing:
-                simpoint_mode = "trace_then_post_process"
-            info(f"Using docker image with name {image_name}:{githash}", dbg_lvl)
-            docker_container_name = f"{image_name}_{workload}_{trace_name}_{simpoint_mode}_{user}"
-            filename = f"{docker_container_name}_tmp_run.sh"
-            write_trace_docker_command_to_file(user, local_uid, local_gid, docker_container_name, githash,
-                                               workload, image_name, trace_name, traces_dir, docker_home,
-                                               env_vars, binary_cmd, client_bincmd, simpoint_mode, drio_args,
-                                               clustering_k, filename, infra_dir)
-            tmp_files.append(filename)
-
-            os.system(sbatch_cmd + filename)
-        except Exception as e:
-            raise e
-
-    try:
-        # Get user for commands
-        user = subprocess.check_output("whoami").decode('utf-8')[:-1]
-        info(f"User detected as {user}", dbg_lvl)
-
-        # Get a local user/group ids
-        local_uid = os.getuid()
-        local_gid = os.getgid()
-
-        # Get GitHash
-        try:
-            githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).decode("utf-8").strip()
-            info(f"Git hash: {githash}", dbg_lvl)
-        except FileNotFoundError:
-            err("Error: 'git' command not found. Make sure Git is installed and in your PATH.")
-        except subprocess.CalledProcessError:
-            err("Error: Not in a Git repository or unable to retrieve Git hash.")
-
-
-        # Get avlailable nodes. Error if none available
-        available_slurm_nodes, all_nodes = check_available_nodes(dbg_lvl)
-        info(f"Available nodes: {', '.join(available_slurm_nodes)}", dbg_lvl)
-
-        if available_slurm_nodes == []:
-            err("Cannot find any running slurm nodes", dbg_lvl)
-            exit(1)
-
-        for docker_prefix in docker_prefix_list:
-            docker_running = prepare_docker_image(available_slurm_nodes, docker_prefix, githash, dbg_lvl)
-            # If docker image still does not exist, exit
-            if docker_running == []:
-                err(f"Error with preparing docker image for {docker_prefix}:{githash}", dbg_lvl)
-                exit(1)
-
-        trace_dir = f"{descriptor_data['root_dir']}/simpoint_flow/{trace_name}"
-        docker_prefix = docker_prefix_list[0]
-        prepare_trace(user, scarab_path, docker_home, trace_name, infra_dir, docker_prefix, githash, dbg_lvl)
-
-        # Iterate over each trace configuration
-        for config in trace_configs:
-            workload = config["workload"]
-            image_name = config["image_name"]
-            if config["env_vars"] != None:
-                env_vars = config["env_vars"].split()
-            else:
-                env_vars = config["env_vars"]
-            binary_cmd = config["binary_cmd"]
-            client_bincmd = config["client_bincmd"]
-            post_processing = config["post_processing"]
-            drio_args = config["dynamorio_args"]
-            clustering_k = config["clustering_k"]
-
-            run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd,
-                             post_processing, drio_args, clustering_k)
-
-        # Clean up temp files
-        for tmp in tmp_files:
-            info(f"Removing temporary run script {tmp}", dbg_lvl)
-            os.remove(tmp)
-
-        finish_trace(user, descriptor_data, workload_db_path, suite_db_path, dbg_lvl)
-    except Exception as e:
-        print("An exception occurred:", e)
-        traceback.print_exc()  # Print the full stack trace
-
-        # Clean up temp files
-        for tmp in tmp_files:
-            info(f"Removing temporary run script {tmp}", dbg_lvl)
-            os.remove(tmp)
-
-        kill_jobs(user, trace_name, docker_prefix_list, dbg_lvl)
-
-        print("Recover the ASLR setting with sudo. Provide password..")
-        os.system("echo 2 | sudo tee /proc/sys/kernel/randomize_va_space")
-
-        subprocess.run(["sed", "-i", "/source \\/usr\\/local\\/bin\\/user_entrypoint.sh/d", f"{docker_home}/.bashrc"], check=True, capture_output=True, text=True)
+        traceback.print_exec()  # Print the full stack trace

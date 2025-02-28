@@ -93,4 +93,3 @@ rm "./chunk.0000"
 # then run update modules log,
 # and copy bin modules log into raw folder since
 # sometimes people just assume modules log is also there
-exit

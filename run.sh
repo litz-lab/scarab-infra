@@ -4,6 +4,7 @@
 # code to ignore case restrictions
 shopt -s nocasematch
 source ./scripts/utilities.sh
+declare -A WL_LIST
 
 # help function
 help () {
@@ -11,45 +12,61 @@ help () {
                 [ --list ]
                 [ -b | --build ]
                 [ --run ]
-                [ --trace ]
+                [ -w | --workloads ]
+                [ -t | --trace ]
                 [ --simulation ]
-                [ -k | --kill ]
                 [ --status ]
+                [ -k | --kill ]
                 [ -c | --cleanup ]"
   echo
   echo "!! Modify '<experiment_name>.json' to specify the workloads to run Scarab simulations and Scarab parameters before run !!"
   echo "scarab-infra is an infrastructure that serves an environment where a user analyzes CPU metrics of a datacenter workload, applies SimPoint method to exploit program phase behavior, collects execution traces, and simulates the workload by using scarab microprocessor simulator."
+  echo "This script serves three a center workload is the following."
   echo "1) workload setup by building a docker image and launching a docker container"
-  echo "2) collect traces with different simpoint workflows for trace-based simulation"
+  echo "2) collect traces with different simpoint workflows for trace-based simulation; **this will turn off ASLR; the user needs to recover the ASLR setting afterwards manually by running on host**: \`echo 2 | sudo tee /proc/sys/kernel/randomize_va_space\`"
   echo "3) run Scarab simulation in different modes"
   echo "To perform the later step, the previous steps must be performed first, meaning all the necessary options should be set at the same time. However, you can only run earlier step(s) by unsetting the later steps for debugging purposes."
 
   echo "Options:"
   echo "h           Print this Help."
-  echo "list        List workload group names and workload names."
+  echo "l           List workload group names and workload names."
   echo "b           Build a docker image with application setup. The workload group name should be specified. For the available docker image name (workload group name), use -l. e.g) -b allbench_traces"
-  echo "run         Run an interactive shell for a docker container. Provide a name of a json file in ./json to provide workload group name. e.g) --run exp (for exp.json)"
-  echo "trace       Collect traces. Provide a name of a json file name in ./json. e.g.) --trace trace (for trace.json)"
-  echo "simulation  Scarab simulation. Provide a name of a json file name in ./json. e.g) --simulation exp (for exp.json)"
+  echo "r           Run an interactive shell for a docker container. Provide a name of a json file in ./json to provide workload group name. e.g) -r exp (for exp.json)"
+  echo "w           List of workloads for simpoint/tracing. Should be used with -t."
+  echo "t           Collect traces with different SimPoint workflows. 0: Do not collect traces, 1: Collect traces based on SimPoint workflow - collect fingerprints, do simpoint clustering, trace, 2: Collect traces based on SimPoint post-processing workflow - trace, collect fingerprints, do simpoint clustering, 3: Only collect traces without simpoint clustering. e.g) -t 2"
+  echo "s           Scarab simulation. Provide a name of a json file name in ./json. e.g) -s exp (for exp.json)"
   echo "k           Kill Scarab simulation related to the experiment of a json file. e.g) -k exp (for exp.json)"
-  echo "status      Print status of docker/slurm nodes and running experiments/tracing jobs related to a json. Provide a name of a json file name in ./json. e.g) --status exp (for exp.json)"
+  echo "i           Print status of docker/slurm nodes and running experiments related to json. e.g) -i exp (for exp.json)"
   echo "c           Clean up all the containers related to an experiment. e.g) -c exp (for exp.json)"
 }
 
 # list function: list all the available docker image names
 list () {
-  workload_db_json_file="${INFRA_ROOT}/workloads/workloads_db.json"
-  suite_db_json_file="${INFRA_ROOT}/workloads/suite_db.json"
+  WORKLOAD_PATH="./workloads"
+  WL_GROUPS=()
+  WL_GROUPS=($(find "$WORKLOAD_PATH" -mindepth 1 -maxdepth 1 -type d -exec basename {} \;))
 
-  python3 ${INFRA_ROOT}/scripts/run_db.py -dbg 3 -l -wdb ${workload_db_json_file} -sdb ${suite_db_json_file}
+  for GROUP_NAME in "${WL_GROUPS[@]}"; do
+    file="$WORKLOAD_PATH/$GROUP_NAME/apps.list"
+    if [[ ! -f $file ]]; then
+      echo "apps.list not found in $WORKLOAD_PATH/$GROUP_NAME"
+      continue
+    fi
+
+    WORKLOAD_NAMES=()
+    while IFS= read -r line; do
+      WORKLOAD_NAMES+=("$line")
+    done < "$file"
+
+    WL_LIST["$GROUP_NAME"]="${WORKLOAD_NAMES[@]}"
+  done
 }
 
 # build function
 build () {
-  GROUP_LIST=$(ls -d ${INFRA_ROOT}/workloads/*/ | xargs -n 1 basename)
-
+  list
   FOUND=false
-  for APP_GROUPNAME in ${GROUP_LIST}; do
+  for APP_GROUPNAME in "${!WL_LIST[@]}"; do
     if [[ "$APP_GROUPNAME" == "$BUILD" ]]; then
       FOUND=true
       break
@@ -77,136 +94,134 @@ build () {
     exit 1
   fi
 
-  start=`date +%s`
-
   # Local image not found. Trying to pull pre-built image from GitHub Packages...
   if docker pull ghcr.io/litz-lab/scarab-infra/"$APP_GROUPNAME:$GIT_HASH"; then
     echo "Successfully pulled pre-built image."
     docker tag ghcr.io/litz-lab/scarab-infra/"$APP_GROUPNAME:$GIT_HASH" "$APP_GROUPNAME:$GIT_HASH"
     echo "Tagged pulled image as $APP_GROUPNAME:$GIT_HASH"
     docker rmi ghcr.io/litz-lab/scarab-infra/"$APP_GROUPNAME:$GIT_HASH"
+    exit 1
   else
     echo "No pre-built image found for $APP_GROUPNAME:$GIT_HASH (or pull failed)."
-    echo "Build docker image locally..."
-    # build from the beginning and overwrite whatever image with the same name
-    docker build . -f ./workloads/$APP_GROUPNAME/Dockerfile --no-cache -t $APP_GROUPNAME:$GIT_HASH
+    echo "Will build locally..."
   fi
 
+  # build a docker image
+  echo "build docker image.."
+  start=`date +%s`
+  # build from the beginning and overwrite whatever image with the same name
+  docker build . -f ./workloads/$APP_GROUPNAME/Dockerfile --no-cache -t $APP_GROUPNAME:$GIT_HASH
   end=`date +%s`
-  report_time "pull/build-image" "$start" "$end"
+  report_time "build-image" "$start" "$end"
 }
 
 run () {
-  json_file="${INFRA_ROOT}/json/${RUN}.json"
-
-  # Key to extract
-  key="descriptor_type"
-
-  # Extract the value using fq
-  value=$(jq -r ".$key" "$json_file")
-
-  if [ $value == "simulation" ]; then
-    workload_db_json_file="${INFRA_ROOT}/workloads/workloads_db.json"
-    suite_db_json_file="${INFRA_ROOT}/workloads/suite_db.json"
-
-    python3 ${INFRA_ROOT}/scripts/run_db.py -dbg 3 -val ${json_file} -wdb ${workload_db_json_file} -sdb ${suite_db_json_file}
-
-    APP_GROUPNAME=$(python3 ${INFRA_ROOT}/scripts/run_db.py -dbg 1 -g ${json_file} -wdb ${workload_db_json_file} -sdb ${suite_db_json_file})
-    echo $APP_GROUPNAME
-
-    if [[ -n $(git status --porcelain $INFRA_ROOT/common $INFRA_ROOT/workloads/$APP_GROUPNAME | grep '^ M') ]]; then
-      echo "There are uncommitted changes."
-      echo "The repository is not up to date. Make sure to commit all the local changes for the version of the docker image. githash is used to identify the image."
-      echo "If you have an image already in the system you want to overwrite, remove the image first, then build again."
-      exit 1
-    fi
-
-    # get the latest Git commit hash
-    GIT_HASH=$(git rev-parse --short HEAD)
-
-    # check if the Docker image '$APP_GROUPNAME:$GIT_HASH' exists
-    if ! docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "$APP_GROUPNAME:$GIT_HASH"; then
-      echo "The image with the current Git commit hash does not exist! Build the image first by using '-b'."
-      exit 1
-    fi
-
-
-    # open an interactive shell of docker container
-    echo "open an interactive shell.."
-    start=`date +%s`
-
-    python3 ${INFRA_ROOT}/scripts/run_simulation.py -dbg 3 -l -d ${json_file}
-
-    end=`date +%s`
-    report_time "interactive-shell" "$start" "$end"
-  elif [ $value == "trace" ]; then
-    APP_GROUPNAME=$(jq '.trace_configurations[0].image_name' ${json_file})
-    echo $APP_GROUPNAME
-    APP_GROUPNAME=$(echo "$APP_GROUPNAME" | tr -d '"')
-
-    if [[ -n $(git status --porcelain $INFRA_ROOT/common $INFRA_ROOT/workloads/$APP_GROUPNAME | grep '^ M') ]]; then
-      echo "There are uncommitted changes."
-      echo "The repository is not up to date. Make sure to commit all the local changes for the version of the docker image. githash is used to identify the image."
-      echo "If you have an image already in the system you want to overwrite, remove the image first, then build again."
-      exit 1
-    fi
-
-    # get the latest Git commit hash
-    GIT_HASH=$(git rev-parse --short HEAD)
-
-    # check if the Docker image '$APP_GROUPNAME:$GIT_HASH' exists
-    if ! docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "$APP_GROUPNAME:$GIT_HASH"; then
-      echo "The image with the current Git commit hash does not exist! Build the image first by using '-b'."
-      exit 1
-    fi
-
-
-    # open an interactive shell of docker container
-    echo "open an interactive shell.."
-    start=`date +%s`
-
-    python3 ${INFRA_ROOT}/scripts/run_trace.py -dbg 3 -l -d ${json_file}
-
-    end=`date +%s`
-    report_time "interactive-shell" "$start" "$end"
-  elif [ $value == "perf" ]; then
-    APP_GROUPNAME=$(jq '.image_name' ${json_file})
-    echo $APP_GROUPNAME
-    APP_GROUPNAME=$(echo "$APP_GROUPNAME" | tr -d '"')
-
-    # get the latest Git commit hash
-    GIT_HASH=$(git rev-parse --short HEAD)
-
-    # check if the Docker image '$APP_GROUPNAME:$GIT_HASH' exists
-    if ! docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "$APP_GROUPNAME:$GIT_HASH"; then
-      echo "The image with the current Git commit hash does not exist! Build the image first by using '-b'."
-      exit 1
-    fi
-
-    # open an interactive shell of docker container
-    echo "open an interactive shell.."
-    start=`date +%s`
-
-    python3 ${INFRA_ROOT}/scripts/run_perf.py -dbg 3 -l -d ${json_file}
-
-    end=`date +%s`
-    report_time "interactive-shell" "$start" "$end"
+  # WL_LIST is filled if build is executed within a single run
+  if [ ${#WL_LIST[@]} -eq 0 ]; then
+    list
   fi
+
+  json_file="${INFRA_ROOT}/json/${RUN}.json"
+  key="workloads_list"
+  APP_LIST=$(jq -r ".$key" "$json_file")
+  size=${#APP_LIST[@]}
+  if (( size > 1 )); then
+    echo "Only one workload should be provided for an interactive shell of docker container."
+    exit 1
+  fi
+
+  NAME=${APP_LIST[0]}
+  FOUND=false
+  for GROUPNAME in "${!WL_LIST[@]}"; do
+    for APPNAME in "${WL_LIST[$GROUPNAME]}"; do
+      if [[ "$APPNAME" == "$NAME" ]]; then
+        set_app_groupname
+        if [[ "$APP_GROUPNAME" == "$GROUPNAME" ]]; then
+          FOUND=true
+          break
+        fi
+      fi
+    done
+  done
+
+  if [ ! -n "$FOUND" ]; then
+    echo "Workload name should be provided correctly within the correct workload group (e.g. '-r mysql' within workload group 'sysbench')."
+    exit 1
+  fi
+
+  if [[ -n $(git status --porcelain $INFRA_ROOT/common $INFRA_ROOT/workloads/$APP_GROUPNAME | grep '^ M') ]]; then
+    echo "There are uncommitted changes."
+    echo "The repository is not up to date. Make sure to commit all the local changes for the version of the docker image. githash is used to identify the image."
+    echo "If you have an image already in the system you want to overwrite, remove the image first, then build again."
+    exit 1
+  fi
+
+  # get the latest Git commit hash
+  GIT_HASH=$(git rev-parse --short HEAD)
+
+  # check if the Docker image '$APP_GROUPNAME:$GIT_HASH' exists
+  if ! docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "$APP_GROUPNAME:$GIT_HASH"; then
+    echo "The image with the current Git commit hash does not exist! Build the image first by using '-b'."
+    exit 1
+  fi
+
+
+  # open an interactive shell of docker container
+  echo "open an interactive shell.."
+  start=`date +%s`
+
+  python3 ${INFRA_ROOT}/scripts/run_simulation.py -dbg 3 -l -d ${INFRA_ROOT}/json/${RUN}.json
+
+  end=`date +%s`
+  report_time "interactive-shell" "$start" "$end"
 }
 
 simpoint_trace () {
-  # run clustering and tracing
-  echo "run clustering and tracing.."
+  if [[ ${#WORKLOADS[@]} -eq 0 ]]; then
+    echo "Workloads not provided with -w."
+    exit 1
+  fi
+
+  # tokenize multiple environment variables
+  ENVVARS=""
+  echo $ENVVARS
+  for token in $ENVVAR; do
+    ENVVARS+=" -e ";
+    ENVVARS+=$token;
+  done
+
+  # run simpoint/trace
+  echo "run simpoint/trace.."
   taskPids=()
   start=`date +%s`
 
-  cmd="python3 ${INFRA_ROOT}/scripts/run_trace.py -dbg 3 -d ${INFRA_ROOT}/json/${SIMPOINT}.json"
-  eval $cmd &
-  taskPids+=($!)
+  for APPNAME in "${WORKLOADS[@]}"; do
+    if [ "$APPNAME" == "allbench" ]; then
+      echo "allbench is only for trace-based simulations with the traces from UCSC NFS"
+      exit 1
+    fi
+    set_app_groupname
+    set_app_bincmd
+
+    # update the script
+    docker cp $INFRA_ROOT/common/scripts/run_simpoint_trace.sh $APP_GROUPNAME\_$USER:/usr/local/bin
+    # disable ASLR;
+    # the user needs to recover the ASLR setting afterwards manually by running on host:
+    # echo 2 | sudo tee /proc/sys/kernel/randomize_va_space
+    docker exec --privileged $APP_GROUPNAME\_$USER /bin/bash -c "echo 0 | sudo tee /proc/sys/kernel/randomize_va_space"
+    docker exec $ENVVARS --user $USER --workdir /home/$USER --privileged $APP_GROUPNAME\_$USER run_simpoint_trace.sh "$APPNAME" "$APP_GROUPNAME" "$BINCMD" "$SIMPOINT" "$DRIO_ARGS" &
+    sleep 2
+    while read -r line ;do
+      IFS=" " read PID CMD <<< $line
+      if [ "$CMD" == "/bin/bash /usr/local/bin/run_simpoint_trace.sh $APPNAME $APP_GROUPNAME $BINCMD $SIMPOINT $DRIO_ARGS" ]; then
+        taskPids+=($PID)
+      fi
+    done < <(docker top $APP_GROUPNAME\_$USER -eo pid,cmd)
+  done
 
   wait_for_non_child "simpoint/tracing" "${taskPids[@]}"
   end=`date +%s`
-  report_time "simpoint/tracing" "$start" "$end"
+  report_time "post-processing" "$start" "$end"
 }
 
 run_scarab () {
@@ -225,87 +240,52 @@ run_scarab () {
 }
 
 kill () {
-  json_file="${INFRA_ROOT}/json/${KILL}.json"
+  # kill Scarab simulation
+  echo "kill scarab simulation of experiment $KILL .."
+  start=`date +%s`
 
-  # Key to extract
-  key="descriptor_type"
+  python3 ${INFRA_ROOT}/scripts/run_simulation.py -dbg 3 -k -d ${INFRA_ROOT}/json/${KILL}.json
 
-  # Extract the value using jq
-  value=$(jq -r ".$key" "$json_file")
-
-  if [ $value == "simulation" ]; then
-    # kill Scarab simulation
-    echo "kill scarab simulation of experiment $KILL .."
-    start=`date +%s`
-    python3 ${INFRA_ROOT}/scripts/run_simulation.py -dbg 3 -k -d ${INFRA_ROOT}/json/${KILL}.json
-    end=`date +%s`
-    report_time "kill-Scarab-simulation" "$start" "$end"
-  elif [ $value == "trace" ]; then
-    # kill running clustering+tracing
-    echo "kill tracing of $KILL.json .."
-    start=`date +%s`
-    python3 ${INFRA_ROOT}/scripts/run_trace.py -dbg 3 -k -d ${INFRA_ROOT}/json/${KILL}.json
-    end=`date +%s`
-    report_time "kill-Tracing" "$start" "$end"
-  fi
+  end=`date +%s`
+  report_time "kill-Scarab-simulation" "$start" "$end"
 }
 
 status () {
-  json_file="${INFRA_ROOT}/json/${STATUS}.json"
+  # print status of Scarab simulation or docker/slurm nodes
+  echo "print docker/slurm node info and status of scarab simulation of experiment $KILL .."
+  start=`date +%s`
 
-  # Key to extract
-  key="descriptor_type"
+  python3 ${INFRA_ROOT}/scripts/run_simulation.py -dbg 3 -i -d ${INFRA_ROOT}/json/${STATUS}.json
 
-  # Extract the value using jq
-  value=$(jq -r ".$key" "$json_file")
-
-  if [ $value == "simulation" ]; then
-    # print status of Scarab simulation or docker/slurm nodes
-    echo "print docker/slurm node info and status of scarab simulation of experiment ${STATUS} .."
-    start=`date +%s`
-
-    python3 ${INFRA_ROOT}/scripts/run_simulation.py -dbg 3 -i -d ${json_file}
-
-    end=`date +%s`
-    report_time "print-status" "$start" "$end"
-  elif [ $value == "trace" ]; then
-    # print status of Trace jobs or docker/slurm nodes
-    echo "print docker/slurm node info and status of tracing jobs of trace ${STATUS} .."
-    start=`date +%s`
-
-    python3 ${INFRA_ROOT}/scripts/run_trace.py -dbg 3 -i -d ${json_file}
-
-    end=`date +%s`
-    report_time "print-status" "$start" "$end"
-  fi
+  end=`date +%s`
+  report_time "print-status" "$start" "$end"
 }
 
 cleanup () {
-  json_file="${INFRA_ROOT}/json/${CLEANUP}.json"
+  echo "clean up the containers.."
+  start=`date +%s`
+#  for APPNAME in "${WORKLOADS[@]}"; do
+    #set_app_groupname
+    #case $APPNAME in
+      # solr requires extra cleanup
+      #solr)
+        #rmCmd="docker rm web_search_client"
+        #eval $rmCmd &
+        #taskPids+=($!)
+        #sleep 2
+        #;;
+    #esac
+    #docker stop $APP_GROUPNAME\_$USER
+    #rmCmd="docker rm $APP_GROUPNAME\_$USER"
+    #eval $rmCmd &
+    #taskPids+=($!)
+    #sleep 2
+  #done
 
-  # Key to extract
-  key="descriptor_type"
+  python3 ${INFRA_ROOT}/scripts/run_simulation.py -dbg 3 -c -d ${INFRA_ROOT}/json/${CLEANUP}.json
 
-  # Extract the value using jq
-  value=$(jq -r ".$key" "$json_file")
-
-  if [ $value == "simulation" ]; then
-    echo "clean up the containers running simulations from ${CLEANUP}.json .."
-    start=`date +%s`
-
-    python3 ${INFRA_ROOT}/scripts/run_simulation.py -dbg 3 -c -d ${json_file}
-
-    end=`date +%s`
-    report_time "container-cleanup" "$start" "$end"
-  elif [ $value == "trace" ]; then
-    echo "clean up the containers running tracing from ${CLEANUP}.json .."
-    start=`date +%s`
-
-    python3 ${INFRA_ROOT}/scripts/run_trace.py -dbg 3 -c -d ${json_file}
-
-    end=`date +%s`
-    report_time "container-cleanup" "$start" "$end"
-  fi
+  end=`date +%s`
+  report_time "container-cleanup" "$start" "$end"
 }
 
 if [ -f "README.md" ]; then
@@ -315,8 +295,8 @@ else
   exit 1
 fi
 
-SHORT=h,b:,k:,c:
-LONG=help,list,build:,run:,trace:,simulation:,kill:,status:,cleanup:
+SHORT=h,b:,w:,t:,k:,c:
+LONG=help,list,build:,run:,workload:,trace:,simulation:,kill:,status:,cleanup:
 OPTS=$(getopt -a -n "$(basename "$0")" --options $SHORT --longoptions $LONG -- "$@")
 
 if [ $? -ne 0 ]; then
@@ -341,6 +321,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --list) # list all the workload groups
       list
+      echo "WORKLOAD_GROUPNAME: WORKLOAD_NAME1 WORKLOAD_NAME2 ..."
+      for GROUP_NAME in "${!WL_LIST[@]}"; do
+        echo "$GROUP_NAME: ${WL_LIST[$GROUP_NAME]}"
+      done
       exit 0
       ;;
     -k|--kill) # kill scarab simulation
@@ -361,8 +345,16 @@ while [[ $# -gt 0 ]]; do
       RUN="$2"
       shift 2
       ;;
+    -w|--workload) # list of workloads for simpoint/tracing
+      WORKLOADS=()
+      shift
+      while [[ $# -gt 0 && $1 != -* ]]; do
+        WORKLOADS+=("$1")
+        shift
+      done
+      ;;
     -t|--trace) # collect traces with simpoint workflows
-      SIMPOINT="$2"
+      SIMPOINT=$2
       shift 2
       ;;
     --simulation) # scarab simulation

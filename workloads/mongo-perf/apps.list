@@ -1,0 +1,8 @@
+dv_insert
+dv_update
+long_multi_update
+simple_insert
+simple_multi_update
+simple_update
+wildcard_index_insert
+wildcard_index_query

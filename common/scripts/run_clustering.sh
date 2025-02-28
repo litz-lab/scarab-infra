@@ -26,13 +26,7 @@ spCmd="$tmpdir/simpoint -maxK $maxK -fixedLength off -numInitSeeds 10 -loadFVFil
 # spCmd="$tmpdir/simpoint -k 1:$maxK -fixedLength off -numInitSeeds 1000 -loadFVFile $FPFILE -saveSimpoints $OUTDIR/simpoints/opt.p -saveSimpointWeights $OUTDIR/simpoints/opt.w -saveVectorWeights $OUTDIR/simpoints/vector.w -saveLabels $OUTDIR/simpoints/opt.l -coveragePct .99 &> $OUTDIR/simpoints/simp.opt.log"
 echo "cluster fingerprint..."
 echo "command: ${spCmd}"
-
-taskPids=()
 start=`date +%s`
-eval $spCmd &
-taskPids+=($!)
-wait_for "simpointing" "${taskPids[@]}"
+eval $spCmd
 end=`date +%s`
-report_time "simpointing" "$start" "$end"
-
-exit
+report_time "clustering" "$start" "$end"

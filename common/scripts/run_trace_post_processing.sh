@@ -1,6 +1,5 @@
 #!/bin/bash
 
-#set -x #echo on
 source utilities.sh
 
 OUTDIR=$1
@@ -8,7 +7,6 @@ MODULESDIR=$2
 TRACEFILE=$3
 CHUNKSIZE=$4
 SEGSIZE=$5
-SIMPOINTHOME=$6
 
 cd $OUTDIR
 rm -rf fingerprint
@@ -41,7 +39,7 @@ echo "total number of instructions ~$numInsts"
 
 numSegment=$(echo "1 + (($numInsts - 1) / $SEGSIZE)" | bc)
 echo "with SEGSIZE $SEGSIZE, number of segments is $numSegment"
-if [ $numSegment -lt 1000 ]; then
+if [ "$numSegment" -lt 1000 ]; then
   echo "WARNING: with SEGSIZE $SEGSIZE, number of segments is less than 1000. Might be to few for clustering."
 fi
 
@@ -50,7 +48,7 @@ fi
 if [ "$SEGSIZE" -lt "$CHUNKSIZE" ]; then
   echo "SEGSIZE is $SEGSIZE, less than CHUNKSIZE $CHUNKSIZE, which is too small??"
 
-  if [ "$OUTDIR" == "$SIMPOINTHOME/simpoint_10M" ]; then
+  if [ "$OUTDIR" == "$HOME/simpoint_flow/verilator/simpoint_10M" ]; then
     echo "This is a hard-coded scenario for verilator, which has chunk size > segment size"
     # verilator last chunk chunk.3945 has 35181523 instructions
     # so the total number of instruction is
@@ -74,7 +72,7 @@ do
   mkdir $segmentID
   # do not care about the params file
   cd $segmentID
-  scarabCmd="$SIMPOINTHOME/scarab/src/scarab --frontend memtrace \
+  scarabCmd="$HOME/scarab/src/scarab --frontend memtrace \
             --cbp_trace_r0=$TRACEFILE \
             --memtrace_modules_log=$MODULESDIR \
             --mode=trace_bbv_distributed \
@@ -111,4 +109,3 @@ report_time "post-processing" "$start" "$end"
 # aggregate the fingerprint pieces
 python3 /usr/local/bin/gather_fp_pieces.py $OUTDIR/fingerprint/pieces $numSegment segment
 cp $OUTDIR/fingerprint/pieces/bbfp $OUTDIR/fingerprint/bbfp
-exit
