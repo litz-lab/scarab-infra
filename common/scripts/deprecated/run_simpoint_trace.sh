@@ -1,30 +1,26 @@
 #!/bin/bash
 
-set -x #echo on
-
-echo "Running on $(hostname)"
-
+# TODO: for other apps?
 APPNAME="$1"
 APP_GROUPNAME="$2"
-SIMPOINTHOME="$3"
-BINCMD="$4"
+BINCMD="$3"
 SEGSIZE=10000000
 # chunk size within trace file. Use 10M due to conversion issue.
 CHUNKSIZE=10000000
-SIMPOINT="$5"
-DRIO_ARGS="$6"
+SIMPOINT="$4"
+DRIO_ARGS="$5"
 # if specified, maxk will use the user provided value;
 # if not specified, maxk will be calculated as the square root of the number of segments
-CLUSTERING_USERK=${7:-0}
+CLUSTERING_USERK=${6:-0}
 # used by simpoint flow 1 to manually re-trace a simpoint (when the previous one does not have enough instrs)
-SIMPOINT_1_MANUAL_TRACE=${8:-NA}
+SIMPOINT_1_MANUAL_TRACE=${7:-NA}
 
 source utilities.sh
 
 # Get command to run for Spec17
 if [ "$APP_GROUPNAME" == "spec2017" ] && [ "$APPNAME" != "clang" ] && [ "$APPNAME" != "gcc" ]; then
   # environment
-  cd $HOME/cpu2017
+  cd /home/$username/cpu2017
   source ./shrc
   # compile and get command for application
   # TODO: this is just for one input
@@ -36,10 +32,10 @@ fi
 
 if [ "$SIMPOINT" == "2" ]; then
   # dir for all relevant data: fingerprint, traces, log, sim stats...
-  mkdir -p $SIMPOINTHOME/$APPNAME
-  cd $SIMPOINTHOME/$APPNAME
+  mkdir -p $HOME/simpoint_flow/$APPNAME
+  cd $HOME/simpoint_flow/$APPNAME
   mkdir -p traces
-  APPHOME=$SIMPOINTHOME/$APPNAME
+  APPHOME=$HOME/simpoint_flow/$APPNAME
 
 
   ################################################################
@@ -65,12 +61,7 @@ if [ "$SIMPOINT" == "2" ]; then
 
   echo ${DRIO_ARGS}
   echo $BINCMD
-  if [ "$DRIO_ARGS" == "None" ]; then
-    traceCmd="$DYNAMORIO_HOME/bin64/drrun -t drcachesim -jobs 40 -outdir $APPHOME/traces/whole -offline"
-  else
-    traceCmd="$DYNAMORIO_HOME/bin64/drrun -t drcachesim -jobs 40 -outdir $APPHOME/traces/whole -offline $DRIO_ARGS"
-  fi
-
+  traceCmd="$DYNAMORIO_HOME/bin64/drrun -t drcachesim -jobs 40 -outdir $APPHOME/traces/whole -offline $DRIO_ARGS"
   if [ "$APPNAME" == "mysql" ] || [ "$APPNAME" == "postgres" ]; then
     sudo chown -R $APPNAME:$APPNAME $APPHOME/traces/whole
     traceCmd="sudo -u $APPNAME $traceCmd -exit_after_tracing 15200000000 -- ${BINCMD}"
@@ -91,6 +82,9 @@ if [ "$SIMPOINT" == "2" ]; then
 
   wait_for "whole app tracing" "${taskPids[@]}"
   end=`date +%s`
+  if [ "$APPNAME" == "mysql" ] || [ "$APPNAME" == "postgres" ]; then
+    sudo chown -R $username:$username $APPHOME/traces/whole
+  fi
   report_time "whole app tracing" "$start" "$end"
 
   taskPids=()
@@ -103,7 +97,7 @@ if [ "$SIMPOINT" == "2" ]; then
     mkdir -p bin
     cp raw/modules.log bin/modules.log
     cp raw/modules.log raw/modules.log.bak
-    python2 $SIMPOINTHOME/scarab/utils/memtrace/portabilize_trace.py .
+    python2 $HOME/scarab/utils/memtrace/portabilize_trace.py .
     cp bin/modules.log raw/modules.log
     $DYNAMORIO_HOME/tools/bin64/drraw2trace -jobs 40 -indir ./raw/ -chunk_instr_count $CHUNKSIZE &
     taskPids+=($!)
@@ -137,10 +131,10 @@ if [ "$SIMPOINT" == "2" ]; then
 
 elif [ "$SIMPOINT" == "1" ]; then
   # dir for all relevant data: fingerprint, traces, log, sim stats...
-  mkdir -p $SIMPOINTHOME/$APPNAME
-  cd $SIMPOINTHOME/$APPNAME
+  mkdir -p $HOME/simpoint_flow/$APPNAME
+  cd $HOME/simpoint_flow/$APPNAME
   mkdir -p fingerprint traces_simp
-  APPHOME=$SIMPOINTHOME/$APPNAME
+  APPHOME=$HOME/simpoint_flow/$APPNAME
 
 
   ################################################################
@@ -305,7 +299,7 @@ elif [ "$SIMPOINT" == "1" ]; then
     mkdir -p bin
     cp raw/modules.log bin/modules.log
     cp raw/modules.log raw/modules.log.bak
-    python2 $SIMPOINTHOME/scarab/utils/memtrace/portabilize_trace.py .
+    python2 $HOME/scarab/utils/memtrace/portabilize_trace.py .
     cp bin/modules.log raw/modules.log
     $DYNAMORIO_HOME/tools/bin64/drraw2trace -jobs 40 -indir ./raw/ -chunk_instr_count $CHUNKSIZE &
     taskPids+=($!)
@@ -341,6 +335,95 @@ elif [ "$SIMPOINT" == "1" ]; then
     zip ./trace/$segID.big.zip --copy chunk.0000 chunk.0001 --out ./trace/$segID.zip
     rm ./trace/$segID.big.zip
   done
+
+  ################################################################
+else # non-simpoint
+  # dir for all relevant data: traces, log, sim stats...
+  mkdir -p $HOME/nonsimpoint_flow/$APPNAME
+  cd $HOME/nonsimpoint_flow/$APPNAME
+  mkdir -p traces
+  APPHOME=$HOME/nonsimpoint_flow/$APPNAME
+
+  ################################################################
+  # collect traces
+
+  # tracing, raw2trace
+  taskPids=()
+  start=`date +%s`
+  mkdir -p $APPHOME/traces
+  cd $APPHOME/traces
+  start_inst=$(( 20 * $SEGSIZE ))
+  SEGSIZE=$(( 50 * $SEGSIZE ))
+
+  case $APPNAME in
+    cassandra | kafka | tomcat)
+      # TODO: Java does not work under DynamoRIO : tried -disable_traces -no_hw_cache_consistency -no_sandbox_writes -no_enable_reset -sandbox2ro_threshold 0 -ro2sandbox_threshold 0
+      traceCmd="$DYNAMORIO_HOME/bin64/drrun -t drcachesim -jobs 40 -outdir $APPHOME/traces -offline -trace_after_instrs $start_inst -exit_after_tracing $SEGSIZE -- ${BINCMD}"
+      ;;
+    chirper | http)
+      # TODO: Java does not work under DynamoRIO : tried -disable_traces -no_hw_cache_consistency -no_sandbox_writes -no_enable_reset -sandbox2ro_threshold 0 -ro2sandbox_threshold 0
+      traceCmd="$DYNAMORIO_HOME/bin64/drrun -t drcachesim -jobs 40 -outdir $APPHOME/traces -offline -trace_after_instrs $start_inst -exit_after_tracing $SEGSIZE -- ${BINCMD}"
+      ;;
+    solr)
+      # TODO: Java does not work under DynamoRIO : tried -disable_traces -no_hw_cache_consistency -no_sandbox_writes -no_enable_reset -sandbox2ro_threshold 0 -ro2sandbox_threshold 0
+      # https://github.com/DynamoRIO/dynamorio/commits/i3733-jvm-bug-fixes does not work: "DynamoRIO Cache Simulator Tracer interval crash at PC 0x00007fe16d8e8fdb. Please report this at https://dynamorio.org/issues"
+      # Scarab does not work either: "setarch: failed to set personality to x86_64: Operation not permitted"
+      # Solr uses many threads and seems to run too long on simpoint's fingerprint collection
+      traceCmd="$DYNAMORIO_HOME/bin64/drrun -t drcachesim -jobs 40 -outdir $APPHOME/traces -offline -trace_after_instrs $start_inst -exit_after_tracing $SEGSIZE -- ${BINCMD}"
+      ;;
+    *)
+      traceCmd="$DYNAMORIO_HOME/bin64/drrun -t drcachesim -jobs 40 -outdir $APPHOME/traces -offline -trace_after_instrs $start_inst -exit_after_tracing $SEGSIZE -- ${BINCMD}"
+      ;;
+  esac
+  echo "tracing ..."
+  echo "command: ${traceCmd}"
+  eval $traceCmd &
+  taskPids+=($!)
+  sleep 2
+
+  echo "wait for all tracing to finish..."
+  # ref: https://stackoverflow.com/a/29535256
+  for taskPid in ${taskPids[@]}; do
+    if wait $taskPid; then
+      echo "tracing process $taskPid success"
+    else
+      echo "tracing process $taskPid fail"
+      # # ref: https://serverfault.com/questions/479460/find-command-from-pid
+      # cat /proc/${taskPid}/cmdline | xargs -0 echo
+      exit
+    fi
+  done
+
+  taskPids=()
+  # TODO: which dynamorio to use, release or scarab submodule?
+  cd $APPHOME/traces
+  mv dr*/raw/ ./raw
+  mkdir -p bin
+  cp raw/modules.log bin/modules.log
+  cp raw/modules.log raw/modules.log.bak
+  python2 $HOME/scarab/utils/memtrace/portabilize_trace.py .
+  cp bin/modules.log raw/modules.log
+  $DYNAMORIO_HOME/tools/bin64/drraw2trace -indir ./raw/ &
+  taskPids+=($!)
+  sleep 2
+
+  echo "wait for all raw2trace to finish..."
+  for taskPid in ${taskPids[@]}; do
+    if wait $taskPid; then
+      echo "raw2trace process $taskPid success"
+    else
+      echo "raw2trace process $taskPid fail"
+      # # ref https://serverfault.com/questions/479460/find-command-from-pid
+      # cat /proc/${taskPid}/cmdline | xargs -0 echo
+      exit
+    fi
+  done
+  end=`date +%s`
+  runtime=$((end-start))
+  hours=$((runtime / 3600));
+  minutes=$(( (runtime % 3600) / 60 ));
+  seconds=$(( (runtime % 3600) % 60 ));
+  echo "tracing Runtime: $hours:$minutes:$seconds (hh:mm:ss)"
 
   ################################################################
 fi

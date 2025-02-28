@@ -17,7 +17,10 @@ from utilities import (
         prepare_simulation,
         finish_simulation,
         get_image_list,
-        get_docker_prefix
+        get_docker_prefix,
+        prepare_trace,
+        finish_trace,
+        write_trace_docker_command_to_file
         )
 
 # Check if the docker image exists on available slurm nodes
@@ -78,16 +81,16 @@ def prepare_docker_image(nodes, docker_prefix, githash, dbg_lvl = 1):
         raise e
 
 # Check if a container is running on the provided nodes, return those that are
-# Inputs: list of nodes, docker_prefix, experiment_name, user
+# Inputs: list of nodes, docker_prefix, job_name, user
 # Output: dictionary of node-containers
-def check_docker_container_running(nodes, docker_prefix_list, experiment_name, user, dbg_lvl = 1):
+def check_docker_container_running(nodes, docker_prefix_list, job_name, user, dbg_lvl = 1):
     try:
         running_nodes_dockers = {}
         for node in nodes:
             running_nodes_dockers[node] = []
 
         for docker_prefix in docker_prefix_list:
-            pattern = re.compile(fr"^{docker_prefix}_.*_{experiment_name}.*_.*_{user}$")
+            pattern = re.compile(fr"^{docker_prefix}_.*_{job_name}.*_.*_{user}$")
             for node in nodes:
                 # Check container is running and no errors
                 try:
@@ -97,7 +100,7 @@ def check_docker_container_running(nodes, docker_prefix_list, experiment_name, u
                         if pattern.match(line):
                             running_nodes_dockers[node].append(line)
                 except:
-                    err(f"Error while checking a running docker container named {docker_prefix}_.*_{experiment_name}_.*_.*_{user} on node {node}", dbg_lvl)
+                    err(f"Error while checking a running docker container named {docker_prefix}_.*_{job_name}_.*_.*_{user} on node {node}", dbg_lvl)
 
                     continue
         return running_nodes_dockers
@@ -212,7 +215,7 @@ def launch_docker(infra_dir, docker_home, available_nodes, node=None, dbg_lvl=1)
         raise
 
 # Print info of docker/slurm nodes and running experiment
-def print_status(user, experiment_name, docker_prefix_list, dbg_lvl = 1):
+def print_status(user, job_name, docker_prefix_list, dbg_lvl = 1):
     # Get GitHash
     try:
         githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).decode("utf-8").strip()
@@ -241,8 +244,8 @@ def print_status(user, experiment_name, docker_prefix_list, dbg_lvl = 1):
             else:
                 print(f"\033[31mUNAVAILABLE: {node}\033[0m")
 
-    print(f"\nChecking what nodes have a running container with name {docker_prefix}_*_{experiment_name}_*_*_{user}")
-    node_docker_running = check_docker_container_running(available_slurm_nodes, docker_prefix_list, experiment_name, user, dbg_lvl)
+    print(f"\nChecking what nodes have a running container with name {docker_prefix}_*_{job_name}_*_*_{user}")
+    node_docker_running = check_docker_container_running(available_slurm_nodes, docker_prefix_list, job_name, user, dbg_lvl)
 
     for node in all_nodes:
         if node in node_docker_running.keys():
@@ -253,17 +256,17 @@ def print_status(user, experiment_name, docker_prefix_list, dbg_lvl = 1):
             print(f"\033[31mNOT RUNNING: {node}\033[0m")
 
 
-# Kills all jobs for experiment_name, if associated with user
-def kill_jobs(user, experiment_name, docker_prefix_list, dbg_lvl = 2):
+# Kills all jobs for job_name, if associated with user
+def kill_jobs(user, job_name, docker_prefix_list, dbg_lvl = 2):
     # Kill and exit if killing jobs
-    info(f"Killing all slurm jobs associated with {experiment_name}", dbg_lvl)
+    info(f"Killing all slurm jobs associated with {job_name}", dbg_lvl)
 
     # Format is JobID Name
     response = subprocess.check_output(["squeue", "-u", user, "--Format=JobID,Name:90"]).decode("utf-8")
     lines = [r.split() for r in response.split('\n') if r != ''][1:]
 
     # Filter to entries assocaited with this experiment, and get job ids
-    lines = list(filter(lambda x:experiment_name in x[1], lines))
+    lines = list(filter(lambda x:job_name in x[1], lines))
     job_ids = list(map(lambda x:int(x[0]), lines))
 
     if lines:
@@ -284,7 +287,7 @@ def kill_jobs(user, experiment_name, docker_prefix_list, dbg_lvl = 2):
     else:
         print("No job found.")
 
-def run_simulation(user, descriptor_data, workloads_data, suite_data, dbg_lvl = 1):
+def run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir, dbg_lvl = 1):
     architecture = descriptor_data["architecture"]
     experiment_name = descriptor_data["experiment"]
     docker_home = descriptor_data["root_dir"]
@@ -351,7 +354,7 @@ def run_simulation(user, descriptor_data, workloads_data, suite_data, dbg_lvl = 
                                                  docker_prefix, docker_container_name, simpoint_traces_dir,
                                                  docker_home, githash, config_key, config, scarab_mode, scarab_githash,
                                                  architecture, cluster_id, trim_type, modules_dir, trace_file,
-                                                 env_vars, bincmd, client_bincmd, filename)
+                                                 env_vars, bincmd, client_bincmd, filename, infra_dir)
                     tmp_files.append(filename)
 
                     os.system(sbatch_cmd + filename)
