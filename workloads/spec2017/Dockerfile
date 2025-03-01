@@ -24,6 +24,7 @@ COPY ./workloads/spec2017/compile-538-clang.sh $tmpdir
 COPY ./workloads/spec2017/memtrace.cfg $tmpdir
 
 RUN mkdir -p $tmpdir/cpu2017_install
+RUN chmod 777 $tmpdir/cpu2017_install
 RUN mount -t iso9660 -o ro,exec,loop $tmpdir/cpu2017-1_0_5.iso $tmpdir/cpu2017_install
 
 RUN mkdir -p $tmpdir/cpu2017
