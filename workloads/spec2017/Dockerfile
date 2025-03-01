@@ -24,13 +24,13 @@ COPY ./workloads/spec2017/compile-538-clang.sh $tmpdir
 COPY ./workloads/spec2017/memtrace.cfg $tmpdir
 
 RUN mkdir -p $tmpdir/cpu2017_install
-RUN chmod 777 $tmpdir/cpu2017_install
+# RUN chmod -R 777 $tmpdir
 # RUN sudo mount -t iso9660 -o ro,exec,loop $tmpdir/cpu2017-1_0_5.iso $tmpdir/cpu2017_install
 
 RUN mkdir -p $tmpdir/cpu2017
 # RUN cd $tmpdir/cpu2017_install && echo "yes" | ./install.sh -d $tmpdir/cpu2017
-RUN cp $tmpdir/memtrace.cfg $tmpdir/cpu2017/config/memtrace.cfg
-RUN cp $tmpdir/compile-538-clang.sh $tmpdir/cpu2017/benchspec/CPU
+# RUN cp $tmpdir/memtrace.cfg $tmpdir/cpu2017/config/memtrace.cfg
+# RUN cp $tmpdir/compile-538-clang.sh $tmpdir/cpu2017/benchspec/CPU
 
 # Start your application
 CMD ["/bin/bash"]
