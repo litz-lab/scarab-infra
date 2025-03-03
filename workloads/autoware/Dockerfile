@@ -54,6 +54,10 @@ WORKDIR $tmpdir/autoware
 RUN cat simulator_append.txt >> simulator.repos
 RUN mkdir -p src
 
+# Autoware model
+RUN cd $tmpdir/autoware && /root/.local/bin/ansible-galaxy collection install -f -r "ansible-galaxy-requirements.yaml"
+RUN /root/.local/bin/ansible-playbook autoware.dev_env.download_artifacts -e "data_dir=$tmpdir/autoware_data"
+
 # Import repos
 RUN vcs import src < autoware.repos
 RUN vcs import src < simulator.repos
