@@ -20,7 +20,8 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
     bc \
     unzip \
     zip \
-    gosu
+    gosu \
+    linux-tools-generic
 
 # Copy workflow simpoint/no_simpoint script
 COPY ./scripts/utilities.sh /usr/local/bin/utilities.sh
@@ -76,6 +77,9 @@ RUN cd $tmpdir/ && \
 
 RUN cd $tmpdir/ && git clone https://github.com/litz-lab/scarab
 RUN pip3 install -r $tmpdir/scarab/bin/requirements.txt
+
+# Install PMU tools
+RUN cd $tmpdir && git clone https://github.com/andikleen/pmu-tools.git
 
 ENV DOCKER_BUILDKIT 1
 ENV COMPOSE_DOCKER_CLI_BUILD 1

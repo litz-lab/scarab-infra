@@ -5,6 +5,7 @@ SHELL ["/bin/bash", "-c"]
 
 INCLUDE+ ./common/Dockerfile.common
 
+USER root
 # Switch to the temporary working directory
 RUN mv /autoware $tmpdir/
 WORKDIR $tmpdir
@@ -29,13 +30,6 @@ RUN apt-get update && \
       zstd \
       unzip \
     && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
-
-RUN cd $tmpdir && git clone https://github.com/andikleen/pmu-tools.git
-
-USER root
-RUN apt-get update && apt-get -y install linux-tools-generic
-RUN alias perf=$(find /usr/lib/linux-tools/*/perf | head -1)
-RUN echo "alias perf=\"\$(find /usr/lib/linux-tools/*/perf | head -1)\"" >> /root/.bashrc
 
 RUN rosdep init || true  && rosdep fix-permissions && rosdep update
 
