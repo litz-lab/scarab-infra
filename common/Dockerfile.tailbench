@@ -36,7 +36,7 @@ COPY ./common/scripts/run_scarab_mode_4.sh /usr/local/bin/run_scarab_mode_4.sh
 COPY ./common/scripts/run_scarab_mode_4_allbench.sh /usr/local/bin/run_scarab_mode_4_allbench.sh
 COPY ./common/scripts/gather_cluster_results.py /usr/local/bin/gather_cluster_results.py
 COPY ./common/scripts/gather_cluster_results_using_descriptor.py /usr/local/bin/gather_cluster_results_using_descriptor.py
-COPY ./common/scripts/common_entrypoint.sh /usr/local/bin/common_entrypoint.sh
+COPY ./common/scripts/root_entrypoint.sh /usr/local/bin/root_entrypoint.sh
 
 RUN mkdir -p /simpoint_traces
 ENV trace_home="/simpoint_traces"

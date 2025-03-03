@@ -38,9 +38,9 @@ def open_interactive_shell(user, docker_home, image_name, infra_dir, dbg_lvl = 1
             print(command)
             os.system(command)
             os.system(f"docker cp {infra_dir}/scripts/utilities.sh {docker_container_name}:/usr/local/bin")
-            os.system(f"docker cp {infra_dir}/common/scripts/common_entrypoint.sh {docker_container_name}:/usr/local/bin")
+            os.system(f"docker cp {infra_dir}/common/scripts/root_entrypoint.sh {docker_container_name}:/usr/local/bin")
             os.system(f"docker cp {infra_dir}/common/scripts/perf_entrypoint.sh {docker_container_name}:/usr/local/bin")
-            os.system(f"docker exec --privileged {docker_container_name} /bin/bash -c '/usr/local/bin/common_entrypoint.sh'")
+            os.system(f"docker exec --privileged {docker_container_name} /bin/bash -c '/usr/local/bin/root_entrypoint.sh'")
             os.system(f"docker exec --privileged {docker_container_name} /bin/bash -c '/usr/local/bin/perf_entrypoint.sh'")
             subprocess.run(["docker", "exec", "-it", f"--user={user}", f"--workdir=/tmp_home", docker_container_name, "/bin/bash"])
         except KeyboardInterrupt:

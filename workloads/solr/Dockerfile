@@ -50,8 +50,8 @@ RUN     cd $SOLR_HOME \
 #INSTALL DOCKER
 RUN apt-get update && apt-get install -y curl && curl -sSL https://get.docker.com/ | sh
 
-COPY ./workloads/solr/docker-entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
+COPY ./workloads/solr/workload_user_entrypoint.sh /usr/local/bin/workload_user_entrypoint.sh
+RUN chmod +x /usr/local/bin/workload_user_entrypoint.sh
 
 EXPOSE $SOLR_PORT
 

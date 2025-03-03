@@ -7,7 +7,7 @@ INCLUDE+ ./common/Dockerfile.common
 
 USER root
 RUN pip install gdown
-COPY ./workloads/isca2024_udp/entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY ./workloads/isca2024_udp/workload_root_entrypoint.sh /usr/local/bin/workload_root_entrypoint.sh
 
 WORKDIR /simpoint_traces
 RUN gdown https://drive.google.com/uc?id=1tfKL7wYK1mUqpCH8yPaPVvxk2UIAJrOX && tar -xzvf simpoint_traces.tar.gz

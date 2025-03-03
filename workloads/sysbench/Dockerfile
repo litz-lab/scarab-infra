@@ -19,7 +19,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y \
     postgresql
 
 RUN chmod -R 755 /var/run/mysqld
-COPY ./workloads/sysbench/entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY ./workloads/sysbench/workload_root_entrypoint.sh /usr/local/bin/workload_root_entrypoint.sh
 
 WORKDIR $tmpdir
 RUN cd $tmpdir && git clone https://github.com/akopytov/sysbench.git

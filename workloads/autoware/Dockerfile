@@ -111,5 +111,7 @@ RUN source /opt/ros/$ROS_DISTRO/setup.bash && \
     source $tmpdir/autoware/install/setup.bash && \
     env HOME="$tmpdir" dlr simulation run -p yabloc -l play_rate:=0.5
 
+COPY ./workloads/autoware/workload_user_entrypoint.sh /usr/local/bin/workload_user_entrypoint.sh
+
 # Default command
 CMD ["/bin/bash"]
