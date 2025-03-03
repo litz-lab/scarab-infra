@@ -378,9 +378,9 @@ def run_tracing(user, descriptor_data, workload_db_path, suite_db_path, infra_di
             err.close()
 
         # Clean up temp files
-        # for tmp in tmp_files:
-            # info(f"Removing temporary run script {tmp}", dbg_lvl)
-            # os.remove(tmp)
+        for tmp in tmp_files:
+            info(f"Removing temporary run script {tmp}", dbg_lvl)
+            os.remove(tmp)
 
         finish_trace(user, descriptor_data, workload_db_path, suite_db_path, dbg_lvl)
     except Exception as e:
@@ -394,9 +394,9 @@ def run_tracing(user, descriptor_data, workload_db_path, suite_db_path, infra_di
             err.close()
 
         # Clean up temp files
-        # for tmp in tmp_files:
-            # info(f"Removing temporary run script {tmp}", dbg_lvl)
-            # os.remove(tmp)
+        for tmp in tmp_files:
+            info(f"Removing temporary run script {tmp}", dbg_lvl)
+            os.remove(tmp)
 
         kill_jobs(user, "trace", trace_name, docker_prefix_list, infra_dir, dbg_lvl)
 
