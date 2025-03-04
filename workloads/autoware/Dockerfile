@@ -47,8 +47,8 @@ RUN rm -rf /tmp/autoware_repos
 
 # Copy simulator_append.txt to $tmpdir/autoware
 COPY ./workloads/autoware/simulator_append.txt $tmpdir/autoware/
-COPY ./workloads/autoware/test.sh $tmpdir/autoware/
-RUN chmod +x $tmpdir/autoware/test.sh
+COPY ./workloads/autoware/play_next $tmpdir/autoware/
+RUN chmod +x $tmpdir/autoware/play_next
 
 WORKDIR $tmpdir/autoware
 RUN cat simulator_append.txt >> simulator.repos
@@ -109,6 +109,9 @@ RUN cp $tmpdir/autoware/src/simulator/driving_log_replayer/sample/.driving_log_r
 RUN mkdir -p $tmpdir/driving_log_replayer_data/yabloc/sample
 RUN cp -r $tmpdir/autoware/src/simulator/driving_log_replayer/sample/yabloc/scenario.yaml $tmpdir/driving_log_replayer_data/yabloc/sample
 RUN cp -r $tmpdir/driving_log_replayer_data/sample_bag/yabloc/input_bag $tmpdir/driving_log_replayer_data/yabloc/sample
+
+# Prepare simpoint result
+RUN mkdir -p $tmpdir/simpoint_flow/trace_autoware/result_bag/traces/whole
 
 # Collect simulation data
 RUN source /opt/ros/$ROS_DISTRO/setup.bash && \
