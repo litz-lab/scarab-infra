@@ -1904,7 +1904,7 @@
         "image_name":"spec2017",
         "segment_size":10000000,
         "env_vars":null,
-        "binary_cmd":null,
+        "binary_cmd":"$tmpdir/cpu2017/benchspec/CPU/510.parest_r/run/run_base_train_memtrace-m64.0000/parest_r_base.memtrace-m64 $tmpdir/cpu2017/benchspec/CPU/510.parest_r/run/run_base_train_memtrace-m64.0000/train.prm",
         "client_bincmd":null
       },
       "memtrace":{
