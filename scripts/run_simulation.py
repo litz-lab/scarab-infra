@@ -139,10 +139,16 @@ def open_interactive_shell(user, descriptor_data, workloads_data, suite_data, in
                             f"{docker_prefix}:{githash}", "/bin/bash"], check=True, capture_output=True, text=True)
             subprocess.run(["docker", "cp", f"{infra_dir}/scripts/utilities.sh", f"{docker_container_name}:/usr/local/bin"],
                            check=True, capture_output=True, text=True)
-            subprocess.run(["docker", "cp", f"{infra_dir}/common/scripts/common_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
+            subprocess.run(["docker", "cp", f"{infra_dir}/common/scripts/root_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
                            check=True, capture_output=True, text=True)
             subprocess.run(["docker", "cp", f"{infra_dir}/common/scripts/user_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
                            check=True, capture_output=True, text=True)
+            if os.path.exists(f"{infra_dir}/workloads/{docker_prefix}/workload_root_entrypoint.sh"):
+                subprocess.run(["docker", "cp", f"{infra_dir}/workloads/{docker_prefix}/workload_root_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
+                               check=True, capture_output=True, text=True)
+            if os.path.exists(f"{infra_dir}/workloads/{docker_prefix}/workload_user_entrypoint.sh"):
+                subprocess.run(["docker", "cp", f"{infra_dir}/workloads/{docker_prefix}/workload_user_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
+                               check=True, capture_output=True, text=True)
             if mode == "memtrace":
                 subprocess.run(["docker", "cp", f"{infra_dir}/common/scripts/run_memtrace_single_simpoint.sh", f"{docker_container_name}:/usr/local_bin"],
                                check=True, capture_output=True, text=True)
@@ -152,7 +158,7 @@ def open_interactive_shell(user, descriptor_data, workloads_data, suite_data, in
             elif mode == "exec":
                 subprocess.run(["docker", "cp", f"{infra_dir}/common/scripts/run_exec_single_simpoint.sh", f"{docker_container_name}:/usr/local/bin"],
                                check=True, capture_output=True, text=True)
-            subprocess.run(["docker", "exec", "--privileged", f"{docker_container_name}", "/bin/bash", "-c", "/usr/local/bin/common_entrypoint.sh"],
+            subprocess.run(["docker", "exec", "--privileged", f"{docker_container_name}", "/bin/bash", "-c", "/usr/local/bin/root_entrypoint.sh"],
                            check=True, capture_output=True, text=True)
             subprocess.run(["docker", "exec", "--privileged", "-it", f"--user={user}", f"--workdir=/home/{user}", docker_container_name, "/bin/bash"])
         except KeyboardInterrupt:

@@ -11,3 +11,7 @@ export LD_LIBRARY_PATH=$DYNAMORIO_HOME/lib64/release:$LD_LIBRARY_PATH
 
 export DOCKER_BUILDKIT=1
 export COMPOSE_DOCKER_CLI_BUILD=1
+
+if [ -f "/usr/local/bin/workload_user_entrypoint.sh" ]; then
+  source /usr/local/bin/workload_user_entrypoint.sh
+fi

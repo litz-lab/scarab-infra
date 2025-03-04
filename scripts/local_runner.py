@@ -298,6 +298,7 @@ def run_tracing(user, descriptor_data, workload_db_path, suite_db_path, infra_di
                                                clustering_k, filename, infra_dir)
             tmp_files.append(filename)
             command = '/bin/bash ' + filename
+            subprocess.run(["mkdir", "-p", f"{docker_home}/simpoint_flow/{trace_name}/{workload}"], check=True, capture_output=True, text=True)
             log_out = f"{docker_home}/simpoint_flow/{trace_name}/{workload}/log.out"
             log_err = f"{docker_home}/simpoint_flow/{trace_name}/{workload}/log.err"
             out = open(log_out, "w")

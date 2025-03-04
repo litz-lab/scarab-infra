@@ -11,8 +11,8 @@ if ! getent group "$username" &>/dev/null; then
   groupmod -g "$group_id" "$username"
 fi
 
-if [ -f "/usr/local/bin/entrypoint.sh" ]; then
-  bash /usr/local/bin/entrypoint.sh $APPNAME
+if [ -f "/usr/local/bin/workload_root_entrypoint.sh" ]; then
+  bash /usr/local/bin/workload_root_entrypoint.sh $APPNAME
 fi
 
 chmod 777 $DYNAMORIO_HOME/lib64/release/libdynamorio.so
