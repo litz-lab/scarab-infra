@@ -151,6 +151,8 @@ def open_interactive_shell(user, descriptor_data, workloads_data, suite_data, in
                             "-e", f"HOME=/home/{user}",
                             "-e", f"APP_GROUPNAME={docker_prefix}",
                             "-e", f"APPNAME={workload}",
+                            f"--privileged",
+                            "--cap-add", "SYS_ADMIN",  
                             "-dit", "--name", f"{docker_container_name}",
                             "--mount", f"type=bind,source={traces_dir},target=/simpoint_traces,readonly=true",
                             "--mount", f"type=bind,source={docker_home},target=/home/{user},readonly=false",
@@ -179,13 +181,16 @@ def open_interactive_shell(user, descriptor_data, workloads_data, suite_data, in
                                check=True, capture_output=True, text=True)
             subprocess.run(["docker", "exec", "--privileged", f"{docker_container_name}", "/bin/bash", "-c", "/usr/local/bin/root_entrypoint.sh"],
                            check=True, capture_output=True, text=True)
-            subprocess.run(["docker", "exec", "--privileged", "-it", f"--user={user}", f"--workdir=/home/{user}", docker_container_name, "/bin/bash"])
+            print("Ran entrypoint")
+            subprocess.run(["docker", "exec", "-it", f"--user=root", f"--workdir=/home/{user}", docker_container_name, "/bin/bash"])
+            
         except KeyboardInterrupt:
             subprocess.run(["docker", "exec", "--privileged", f"--user={user}", f"--workdir=/home/{user}", docker_container_name,
                             "sed", "-i", "/source \\/usr\\/local\\/bin\\/user_entrypoint.sh/d", f"/home/{user}/.bashrc"], check=True, capture_output=True, text=True)
             subprocess.run(["docker", "rm", "-f", f"{docker_container_name}"], check=True, capture_output=True, text=True)
-            exit(0)
+            # exit(0)
         finally:
+            # exit(0)
             try:
                 subprocess.run(["docker", "exec", "--privileged", f"--user={user}", f"--workdir=/home/{user}", docker_container_name,
                                 "sed", "-i", "/source \\/usr\\/local\\/bin\\/user_entrypoint.sh/d", f"/home/{user}/.bashrc"], check=True, capture_output=True, text=True)

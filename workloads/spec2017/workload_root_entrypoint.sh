@@ -13,4 +13,4 @@ cp $tmpdir/compile-538-clang.sh $tmpdir/cpu2017/benchspec/CPU
 cd ../cpu2017
 source shrc
 
-runcpu --config=memtrace --action=build $APPNAME
+./bin/specperl ./bin/harness/runcpu --copies=1 --iterations=1 --threads=1 --config=memtrace --action=runsetup --size=train $APPNAME
