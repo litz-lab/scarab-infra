@@ -47,8 +47,10 @@ RUN rm -rf /tmp/autoware_repos
 
 # Copy simulator_append.txt to $tmpdir/autoware
 COPY ./workloads/autoware/simulator_append.txt $tmpdir/autoware/
-COPY ./workloads/autoware/play_next $tmpdir/autoware/
-RUN chmod +x $tmpdir/autoware/play_next
+COPY ./workloads/autoware/ros2_play_next $tmpdir/autoware/ros2_play_next
+RUN cd $tmpdir/autoware/ros2_play_next && source /opt/ros/$ROS_DISTRO/setup.bash && colcon build
+RUN chmod +x $tmpdir/autoware/ros2_play_next/build/my_play_next_pkg/play_next
+RUN mv $tmpdir/autoware/ros2_play_next/build/my_play_next_pkg/play_next $tmpdir/autoware/
 
 WORKDIR $tmpdir/autoware
 RUN cat simulator_append.txt >> simulator.repos
