@@ -32,7 +32,7 @@ RUN mkdir -p $tmpdir/cpu2017
 # RUN cp $tmpdir/compile-538-clang.sh $tmpdir/cpu2017/benchspec/CPU
 
 # Copy in specific entrypoint, since mounting doesn't work without privileged and add-cap SYS_ADMIN
-COPY ./workloads/spec2017/entrypoint.sh /usr/local/bin/entrypoint.sh
+# COPY ./workloads/spec2017/workload_root_entrypoint.sh /usr/local/bin/entrypoint.sh
 
 # Start your application
 CMD ["/bin/bash"]
