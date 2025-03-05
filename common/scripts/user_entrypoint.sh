@@ -3,7 +3,7 @@
 
 export tmpdir="/tmp_home"
 export DYNAMORIO_HOME=$tmpdir/DynamoRIO-Linux-10.0.0/
-export PIN_ROOT=$tmpdir/pin-3.15-98253-gb56e429b1-gcc-linux:$PIN_ROOT
+export PIN_ROOT=$tmpdir/pin-3.15-98253-gb56e429b1-gcc-linux
 export SCARAB_ENABLE_PT_MEMTRACE=1
 export LD_LIBRARY_PATH=$tmpdir/pin-3.15-98253-gb56e429b1-gcc-linux/extras/xed-intel64/lib
 export LD_LIBRARY_PATH=$tmpdir/pin-3.15-98253-gb56e429b1-gcc-linux/intel64/runtime/pincrt:$LD_LIBRARY_PATH

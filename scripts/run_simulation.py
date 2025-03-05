@@ -37,6 +37,11 @@ def verify_descriptor(descriptor_data, workloads_data, suite_data, open_shell = 
         err("Need path to scarab path. Set in descriptor file under 'scarab_path'", dbg_lvl)
         exit(1)
 
+    # Check the scarab build mode
+    if descriptor_data["scarab_build"] != None and descriptor_data["scarab_build"] != 'opt' and descriptor_data["scarab_build"] != 'dbg':
+        err("Need a valid scarab build mode (\'opt\' or \'dbg\' or null). Set in descriptor file under 'scarab_build'", dbg_lvl)
+        exit(1)
+
     # Check if a correct architecture spec is provided
     if descriptor_data["architecture"] == None:
         err("Need an architecture spec to simulate. Set in descriptor file under 'architecture'. Available architectures are found from PARAMS.<architecture> in scarab repository. e.g) sunny_cove", dbg_lvl)
@@ -48,7 +53,7 @@ def verify_descriptor(descriptor_data, workloads_data, suite_data, open_shell = 
     # Check experiment doesn't already exists
     experiment_dir = f"{descriptor_data['root_dir']}/simulations/{descriptor_data['experiment']}"
     if os.path.exists(experiment_dir) and not open_shell:
-        print("Experiment '{experiment_dir}' already exists. It will overwrite the existing simulation results!", dbg_lvl)
+        print("Experiment '{experiment_dir}' already exists. It will overwrite the existing simulation results!")
 
     # Check if each simulation type is valid
     validate_simulation(workloads_data, suite_data, descriptor_data['simulations'])
@@ -86,6 +91,7 @@ def verify_descriptor(descriptor_data, workloads_data, suite_data, open_shell = 
 
 def open_interactive_shell(user, descriptor_data, workloads_data, suite_data, infra_dir, dbg_lvl = 1):
     experiment_name = descriptor_data["experiment"]
+    scarab_path = descriptor_data["scarab_path"]
     try:
         # Get user for commands
         user = subprocess.check_output("whoami").decode('utf-8')[:-1]
@@ -111,13 +117,15 @@ def open_interactive_shell(user, descriptor_data, workloads_data, suite_data, in
         docker_prefix = get_image_name(workloads_data, suite_data, descriptor_data['simulations'][0])
         # Generate commands for executing in users docker and sbatching to nodes with containers
         scarab_githash = prepare_simulation(user,
-                                            descriptor_data['scarab_path'],
+                                            scarab_path,
+                                            descriptor_data['scarab_build'],
                                             descriptor_data['root_dir'],
                                             experiment_name,
                                             descriptor_data['architecture'],
                                             docker_prefix,
                                             githash,
                                             infra_dir,
+                                            True,
                                             dbg_lvl)
         workload = descriptor_data['simulations'][0]['workload']
         mode = descriptor_data['simulations'][0]['simulation_type']
@@ -136,6 +144,7 @@ def open_interactive_shell(user, descriptor_data, workloads_data, suite_data, in
                             "-dit", "--name", f"{docker_container_name}",
                             "--mount", f"type=bind,source={traces_dir},target=/simpoint_traces,readonly=true",
                             "--mount", f"type=bind,source={docker_home},target=/home/{user},readonly=false",
+                            "--mount", f"type=bind,source={scarab_path},target=/scarab,readonly=false",
                             f"{docker_prefix}:{githash}", "/bin/bash"], check=True, capture_output=True, text=True)
             subprocess.run(["docker", "cp", f"{infra_dir}/scripts/utilities.sh", f"{docker_container_name}:/usr/local/bin"],
                            check=True, capture_output=True, text=True)
