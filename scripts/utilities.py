@@ -139,40 +139,39 @@ def prepare_simulation(user, scarab_path, docker_home, experiment_name, architec
         scarab_githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=scarab_path).decode("utf-8").strip()
         info(f"Scarab git hash: {scarab_githash}", dbg_lvl)
 
-        # If scarab binary does not exist in the provided scarab path, build the binary first.
+        # (Re)build the scarab binary first.
         scarab_bin = f"{scarab_path}/src/build/opt/scarab"
-        if not os.path.isfile(scarab_bin):
-            info(f"Scarab binary not found at '{scarab_bin}', build it first...", dbg_lvl)
-            docker_container_name = f"{docker_prefix}_{user}_scarab_build"
+        info(f"Scarab binary at '{scarab_bin}', building it first...", dbg_lvl)
+        docker_container_name = f"{docker_prefix}_{user}_scarab_build"
+        subprocess.run(
+                ["docker", "run", "-e", f"user_id={local_uid}",
+                 "-e", f"group_id={local_gid}",
+                 "-e", f"username={user}",
+                 "-dit", "--name", f"{docker_container_name}",
+                 "--mount", f"type=bind,source={scarab_path},target=/scarab,readonly=false",
+                 f"{docker_prefix}:{githash}", "/bin/bash"], check=True, capture_output=True, text=True)
+        subprocess.run(
+                ["docker", "cp", f"{infra_dir}/common/scripts/root_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
+                check=True, capture_output=True, text=True)
+        subprocess.run(
+                ["docker", "cp", f"{infra_dir}/common/scripts/user_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
+                check=True, capture_output=True, text=True)
+        if os.path.isfile(f"{infra_dir}/workloads/{docker_prefix}/workload_root_entrypoint.sh"):
             subprocess.run(
-                    ["docker", "run", "-e", f"user_id={local_uid}",
-                     "-e", f"group_id={local_gid}",
-                     "-e", f"username={user}",
-                     "-dit", "--name", f"{docker_container_name}",
-                     "--mount", f"type=bind,source={scarab_path},target=/scarab,readonly=false",
-                     f"{docker_prefix}:{githash}", "/bin/bash"], check=True, capture_output=True, text=True)
-            subprocess.run(
-                    ["docker", "cp", f"{infra_dir}/common/scripts/root_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
+                    ["docker", "cp", f"{infra_dir}/workloads/{docker_prefix}/workload_root_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
                     check=True, capture_output=True, text=True)
+        if os.path.isfile(f"{infra_dir}/workloads/{docker_prefix}/workload_user_entrypoint.sh"):
             subprocess.run(
-                    ["docker", "cp", f"{infra_dir}/common/scripts/user_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
+                    ["docker", "cp", f"{infra_dir}/workloads/{docker_prefix}/workload_user_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
                     check=True, capture_output=True, text=True)
-            if os.path.isfile(f"{infra_dir}/workloads/{docker_prefix}/workload_root_entrypoint.sh"):
-                subprocess.run(
-                        ["docker", "cp", f"{infra_dir}/workloads/{docker_prefix}/workload_root_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
-                        check=True, capture_output=True, text=True)
-            if os.path.isfile(f"{infra_dir}/workloads/{docker_prefix}/workload_user_entrypoint.sh"):
-                subprocess.run(
-                        ["docker", "cp", f"{infra_dir}/workloads/{docker_prefix}/workload_user_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
-                        check=True, capture_output=True, text=True)
 
-            subprocess.run(
-                    ["docker", "exec", "--privileged", f"{docker_container_name}", "/bin/bash", "-c", "\'/usr/local/bin/root_entrypoint.sh\'"],
-                    check=True, capture_output=True, text=True)
-            subprocess.run(
-                    ["docker", "exec", f"--user={user}", f"{docker_container_name}", "/bin/bash", "-c", "cd /scarab/src && make clean && make"],
-                    check=True, capture_output=True, text=True)
-            subprocess.run(["docker", "rm", "-f", f"{docker_container_name}"], check=True, capture_output=True, text=True)
+        subprocess.run(
+                ["docker", "exec", "--privileged", f"{docker_container_name}", "/bin/bash", "-c", "\'/usr/local/bin/root_entrypoint.sh\'"],
+                check=True, capture_output=True, text=True)
+        subprocess.run(
+                ["docker", "exec", f"--user={user}", f"{docker_container_name}", "/bin/bash", "-c", "cd /scarab/src && make clean && make"],
+                check=True, capture_output=True, text=True)
+        subprocess.run(["docker", "rm", "-f", f"{docker_container_name}"], check=True, capture_output=True, text=True)
 
         experiment_dir = f"{docker_home}/simulations/{experiment_name}"
         os.system(f"mkdir -p {experiment_dir}/logs/")
@@ -204,6 +203,8 @@ def prepare_simulation(user, scarab_path, docker_home, experiment_name, architec
 
         return scarab_githash
     except Exception as e:
+        subprocess.run(["docker", "rm", "-f", docker_container_name], check=True)
+        info(f"Removed container: {docker_container_name}", dbg_lvl)
         raise e
 
 def finish_simulation(user, docker_home):
@@ -458,41 +459,40 @@ def prepare_trace(user, scarab_path, docker_home, job_name, infra_dir, docker_pr
         scarab_githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=scarab_path).decode("utf-8").strip()
         info(f"Scarab git hash: {scarab_githash}", dbg_lvl)
 
-        # If scarab binary does not exist in the provided scarab path, build the binary first.
+        # (Re)build the scarab binary first.
         scarab_bin = f"{scarab_path}/src/build/opt/scarab"
-        if not os.path.isfile(scarab_bin):
-            info(f"Scarab binary not found at '{scarab_bin}', build it first...", dbg_lvl)
-            docker_container_name = f"{docker_prefix}_{user}_scarab_build"
+        info(f"Scarab binary at '{scarab_bin}', building it first...", dbg_lvl)
+        docker_container_name = f"{docker_prefix}_{user}_scarab_build"
+        subprocess.run(
+                ["docker", "run", "-e", f"user_id={local_uid}",
+                 "-e", f"group_id={local_gid}",
+                 "-e", f"username={user}",
+                 "-dit", "--name", f"{docker_container_name}",
+                 "--mount", f"type=bind,source={scarab_path},target=/scarab,readonly=false",
+                 f"{docker_prefix}:{githash}", "/bin/bash"], check=True, capture_output=True, text=True)
+        subprocess.run(
+                ["docker", "cp", f"{infra_dir}/common/scripts/root_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
+                check=True, capture_output=True, text=True)
+        subprocess.run(
+                ["docker", "cp", f"{infra_dir}/common/scripts/user_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
+                check=True, capture_output=True, text=True)
+        if os.path.exists(f"{infra_dir}/workloads/{docker_prefix}/workload_root_entrypoint.sh"):
+            print("workload_root_entrypoint.sh exist!")
             subprocess.run(
-                    ["docker", "run", "-e", f"user_id={local_uid}",
-                     "-e", f"group_id={local_gid}",
-                     "-e", f"username={user}",
-                     "-dit", "--name", f"{docker_container_name}",
-                     "--mount", f"type=bind,source={scarab_path},target=/scarab,readonly=false",
-                     f"{docker_prefix}:{githash}", "/bin/bash"], check=True, capture_output=True, text=True)
-            subprocess.run(
-                    ["docker", "cp", f"{infra_dir}/common/scripts/root_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
+                    ["docker", "cp", f"{infra_dir}/workloads/{docker_prefix}/workload_root_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
                     check=True, capture_output=True, text=True)
+        if os.path.exists(f"{infra_dir}/workloads/{docker_prefix}/workload_user_entrypoint.sh"):
+            print("workload_user_entrypoint.sh exist!")
             subprocess.run(
-                    ["docker", "cp", f"{infra_dir}/common/scripts/user_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
+                    ["docker", "cp", f"{infra_dir}/workloads/{docker_prefix}/workload_user_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
                     check=True, capture_output=True, text=True)
-            if os.path.exists(f"{infra_dir}/workloads/{docker_prefix}/workload_root_entrypoint.sh"):
-                print("workload_root_entrypoint.sh exist!")
-                subprocess.run(
-                        ["docker", "cp", f"{infra_dir}/workloads/{docker_prefix}/workload_root_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
-                        check=True, capture_output=True, text=True)
-            if os.path.exists(f"{infra_dir}/workloads/{docker_prefix}/workload_user_entrypoint.sh"):
-                print("workload_user_entrypoint.sh exist!")
-                subprocess.run(
-                        ["docker", "cp", f"{infra_dir}/workloads/{docker_prefix}/workload_user_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
-                        check=True, capture_output=True, text=True)
-            subprocess.run(
-                    ["docker", "exec", "--privileged", f"{docker_container_name}", "/bin/bash", "-c", "\'/usr/local/bin/root_entrypoint.sh\'"],
-                    check=True, capture_output=True, text=True)
-            subprocess.run(
-                    ["docker", "exec", f"--user={user}", f"{docker_container_name}", "/bin/bash", "-c", "cd /scarab/src && make clean && make"],
-                    check=True, capture_output=True, text=True)
-            subprocess.run(["docker", "rm", "-f", f"{docker_container_name}"], check=True, capture_output=True, text=True)
+        subprocess.run(
+                ["docker", "exec", "--privileged", f"{docker_container_name}", "/bin/bash", "-c", "\'/usr/local/bin/root_entrypoint.sh\'"],
+                check=True, capture_output=True, text=True)
+        subprocess.run(
+                ["docker", "exec", f"--user={user}", f"{docker_container_name}", "/bin/bash", "-c", "cd /scarab/src && make clean && make"],
+                check=True, capture_output=True, text=True)
+        subprocess.run(["docker", "rm", "-f", f"{docker_container_name}"], check=True, capture_output=True, text=True)
 
         trace_dir = f"{docker_home}/simpoint_flow/{job_name}"
         os.system(f"mkdir -p {trace_dir}/scarab/src/")
@@ -516,6 +516,8 @@ def prepare_trace(user, scarab_path, docker_home, job_name, infra_dir, docker_pr
             if entry not in f.read():
                 f.write(f"\n{entry}\n")
     except Exception as e:
+        subprocess.run(["docker", "rm", "-f", docker_container_name], check=True)
+        info(f"Removed container: {docker_container_name}", dbg_lvl)
         raise e
 
 def finish_trace(user, descriptor_data, workload_db_path, suite_db_path, dbg_lvl):
