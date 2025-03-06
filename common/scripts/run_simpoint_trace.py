@@ -84,7 +84,7 @@ def minimize_simpoint_traces(cluster_map, workload_home):
     except Exception as e:
         raise e
 
-def trace_then_cluster(workload, suite, simpoint_home, bincmd, simpoint_mode, drio_args, clustering_userk):
+def trace_then_cluster(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mode, drio_args, clustering_userk):
     # 1. trace the whole application
     # 2. drraw2trace
     # 3. post-process the trace in parallel
@@ -104,6 +104,8 @@ def trace_then_cluster(workload, suite, simpoint_home, bincmd, simpoint_mode, dr
         trace_cmd_list = shlex.split(trace_cmd)
 
         print("whole app tracing..")
+        if client_bincmd:
+            subprocess.Popen("exec " + client_bincmd, stdout=subprocess.PIPE, shell=True)
         subprocess.run(trace_cmd_list, check=True, capture_output=True, text=True)
         end_time = time.perf_counter()
         report_time("whole app tracing done", start_time, end_time)
@@ -192,7 +194,7 @@ def trace_then_cluster(workload, suite, simpoint_home, bincmd, simpoint_mode, dr
     except Exception as e:
         raise e
 
-def cluster_then_trace(workload, suite, simpoint_home, bincmd, simpoint_mode, drio_args, clustering_userk, manual_trace=False):
+def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mode, drio_args, clustering_userk, manual_trace=False):
     # 1. collect fingerprints
     # 2. clustering
     # 2. trace segments of the workload
@@ -206,6 +208,8 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, simpoint_mode, dr
         workload_home = f"{simpoint_home}/{workload}"
         dynamorio_home = os.environ.get('DYNAMORIO_HOME')
         print("generate fingerprint..")
+        if client_bincmd:
+            subprocess.Popen("exec " + client_bincmd, stdout=subprocess.PIPE, shell=True)
         start_time = time.perf_counter()
         fp_cmd = f"{dynamorio_home}/bin64/drrun -max_bb_instrs 4096 -opt_cleancall 2 -c $tmpdir/libfpg.so -no_use_bb_pc -no_use_fetched_count -segment_size {seg_size} -output {workload_home}/fingerprint/bbfp -pcmap_output {workload_home}/fingerprint/pcmap -- {bincmd}"
         subprocess.run([fp_cmd], check=True, capture_output=True, text=True)
@@ -328,6 +332,7 @@ if __name__ == "__main__":
     parser.add_argument('-simph', '--simpoint_home', required=True, help='Path to the simpoint_flow home of the tracing. Usage: --simpoint_home /home/surim/simpoint_flow/trace_dcperf')
     parser.add_argument('-b', '--bincmd', required=True, help='A Binary command to run the workload. Usage: --bincmd \$tmpdir/DCPerf/benchmarks/wdl_bench/fibers_fibers_benchmark')
     parser.add_argument('-m', '--simpoint_mode', required=True, help='Simpoint mode. 1 for non-post-processing, 2 for post-processing. Usage: --simpoint_mode 2')
+    parser.add_argument('-clb', '--client_bincmd', required=False, default=None, help='A Binary command to run a background client for the workload. Usage: --client_bincmd "nohup /opt/ros/\$ROS_DISTRO/bin/ros2 bag play "$tmpdir/driving_log_replayer_output/yabloc/latest/sample/result_bag" --rate "')
     parser.add_argument('-dr', '--drio_args', required=False, default=None, help='Dynamorio arguments. Usage: --drio_args "-exit_after_tracing 1520000000000"')
     parser.add_argument('-userk', '--clustering_userk', required=False, default=None, help='maxk will use the user provided value if specified. If not specified, maxk will be calculated as the square root of the number of segments.')
     parser.add_argument('-man', '--manual_trace', required=False, default=None, help='manual trace. Usage --manual_trace True')
@@ -339,6 +344,7 @@ if __name__ == "__main__":
     suite = args.suite
     simpoint_home = args.simpoint_home
     bincmd = os.path.expandvars(args.bincmd)
+    client_bincmd = os.path.expandvars(args.client_bincmd)
     simpoint_mode = args.simpoint_mode
     drio_args = args.drio_args
     clustering_userk = args.clustering_userk
@@ -347,8 +353,8 @@ if __name__ == "__main__":
     try:
         print("running run_simpoint_trace.py...")
         if simpoint_mode == "1": # clustering then tracing
-            cluster_then_trace(workload, suite, simpoint_home, bincmd, simpoint_mode, drio_args, clustering_userk, manual_trace)
+            cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mode, drio_args, clustering_userk, manual_trace)
         elif simpoint_mode == "2": # trace then post-process
-            trace_then_cluster(workload, suite, simpoint_home, bincmd, simpoint_mode, drio_args, clustering_userk)
+            trace_then_cluster(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mode, drio_args, clustering_userk)
     except Exception as e:
         traceback.print_exc() # Print the full stack trace
