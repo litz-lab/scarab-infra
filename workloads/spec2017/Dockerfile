@@ -34,5 +34,8 @@ RUN mkdir -p $tmpdir/cpu2017
 # Copy in specific entrypoint, since mounting doesn't work without privileged and add-cap SYS_ADMIN
 # COPY ./workloads/spec2017/workload_root_entrypoint.sh /usr/local/bin/entrypoint.sh
 
+# For debugging
+COPY ./workloads/spec2017/exec_fixed.sh $tmpdir
+
 # Start your application
 CMD ["/bin/bash"]
