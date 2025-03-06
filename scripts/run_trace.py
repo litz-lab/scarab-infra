@@ -60,6 +60,11 @@ def verify_descriptor(descriptor_data, workload_db_path, dbg_lvl = 2):
         err("Need path to scarab path. Set in descriptor file under 'scarab_path'", dbg_lvl)
         exit(1)
 
+    # Check the scarab build mode
+    if descriptor_data["scarab_build"] != None and descriptor_data["scarab_build"] != 'opt' and descriptor_data["scarab_build"] != 'dbg':
+        err("Need a valid scarab build mode (\'opt\' or \'dbg\' or null). Set in descriptor file under 'scarab_build'", dbg_lvl)
+        exit(1)
+
     # Check trace doesn't already exists
     trace_dir = f"{descriptor_data['root_dir']}/traces/{descriptor_data['trace_name']}"
     if os.path.exists(trace_dir) and not open_shell:
@@ -93,6 +98,8 @@ def get_image_list(traces):
 
 def open_interactive_shell(user, descriptor_data, infra_dir, dbg_lvl = 1):
     trace_name = descriptor_data["trace_name"]
+    scarab_path = descriptor_data["scarab_path"]
+    scarab_build = descriptor_data["scarab_build"]
     try:
         # Get user for commands
         user = subprocess.check_output("whoami").decode('utf-8')[:-1]
@@ -117,13 +124,13 @@ def open_interactive_shell(user, descriptor_data, infra_dir, dbg_lvl = 1):
         trace_scenario = descriptor_data["trace_configurations"][0]
         docker_prefix = trace_scenario["image_name"]
         workload = trace_scenario["workload"]
-        prepare_trace(user, descriptor_data["scarab_path"], docker_home, trace_name, infra_dir, docker_prefix, githash, dbg_lvl)
+        prepare_trace(user, scarab_path, scarab_build, docker_home, trace_name, infra_dir, docker_prefix, githash, True, dbg_lvl)
         if trace_scenario["env_vars"] != None:
             env_vars = trace_scenario["env_vars"].split()
         else:
             env_vars = trace_scenario["env_vars"]
 
-        scarab_githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=descriptor_data['scarab_path']).decode("utf-8").strip()
+        scarab_githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=scarab_path).decode("utf-8").strip()
         info(f"Scarab git hash: {scarab_githash}", dbg_lvl)
 
         docker_container_name = f"{docker_prefix}_{trace_name}_scarab_{scarab_githash}_{user}"
@@ -142,6 +149,7 @@ def open_interactive_shell(user, descriptor_data, infra_dir, dbg_lvl = 1):
             command = command + f"-dit \
                     --name {docker_container_name} \
                     --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
+                    --mount type=bind,source={scarab_path},target=/scarab,readonly=false \
                     {docker_prefix}:{githash} \
                     /bin/bash"
             print(command)

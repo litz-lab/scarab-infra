@@ -130,7 +130,7 @@ def validate_simulation(workloads_data, suite_data, simulations, dbg_lvl = 2):
 #           architecture - Architecture name
 #
 # Outputs:  scarab githash
-def prepare_simulation(user, scarab_path, docker_home, experiment_name, architecture, docker_prefix, githash, infra_dir, dbg_lvl=1):
+def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_name, architecture, docker_prefix, githash, infra_dir, interactive_shell=False, dbg_lvl=1):
     ## Copy required scarab files into the experiment folder
     try:
         local_uid = os.getuid()
@@ -139,16 +139,29 @@ def prepare_simulation(user, scarab_path, docker_home, experiment_name, architec
         scarab_githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=scarab_path).decode("utf-8").strip()
         info(f"Scarab git hash: {scarab_githash}", dbg_lvl)
 
-        # If scarab binary does not exist in the provided scarab path, build the binary first.
-        scarab_bin = f"{scarab_path}/src/build/opt/scarab"
-        if not os.path.isfile(scarab_bin):
-            info(f"Scarab binary not found at '{scarab_bin}', build it first...", dbg_lvl)
+        # Set the env for simulation again (already set in Dockerfile.common) in case user's bashrc overwrite the existing ones when the home directory is mounted
+        bashrc_path = f"{docker_home}/.bashrc"
+        entry = "source /usr/local/bin/user_entrypoint.sh"
+        with open(bashrc_path, "a+") as f:
+            f.seek(0)
+            if entry not in f.read():
+                f.write(f"\n{entry}\n")
+
+        # (Re)build the scarab binary first.
+        if not interactive_shell and scarab_build == None and not os.path.isfile(f"{scarab_path}/src/build/opt/scarab"):
+            info(F"Scarab binary not found at '{scarab_path}/src/build/opt/scarab', build with opt", dbg_lvl)
+            scarab_build = 'opt'
+
+        scarab_bin = f"{scarab_path}/src/build/{scarab_build}/scarab"
+        if scarab_build != None:
+            info(f"Scarab binary at '{scarab_bin}', building it first, please wait...", dbg_lvl)
             docker_container_name = f"{docker_prefix}_{user}_scarab_build"
             subprocess.run(
                     ["docker", "run", "-e", f"user_id={local_uid}",
                      "-e", f"group_id={local_gid}",
                      "-e", f"username={user}",
                      "-dit", "--name", f"{docker_container_name}",
+                     "--mount", f"type=bind,source={docker_home},target=/home/{user},readonly=false",
                      "--mount", f"type=bind,source={scarab_path},target=/scarab,readonly=false",
                      f"{docker_prefix}:{githash}", "/bin/bash"], check=True, capture_output=True, text=True)
             subprocess.run(
@@ -170,7 +183,7 @@ def prepare_simulation(user, scarab_path, docker_home, experiment_name, architec
                     ["docker", "exec", "--privileged", f"{docker_container_name}", "/bin/bash", "-c", "\'/usr/local/bin/root_entrypoint.sh\'"],
                     check=True, capture_output=True, text=True)
             subprocess.run(
-                    ["docker", "exec", f"--user={user}", f"{docker_container_name}", "/bin/bash", "-c", "cd /scarab/src && make clean && make"],
+                    ["docker", "exec", f"--user={user}", f"--workdir=/home/{user}", f"{docker_container_name}", "/bin/bash", "-c", f"cd /scarab/src && make clean && make {scarab_build}"],
                     check=True, capture_output=True, text=True)
             subprocess.run(["docker", "rm", "-f", f"{docker_container_name}"], check=True, capture_output=True, text=True)
 
@@ -180,7 +193,8 @@ def prepare_simulation(user, scarab_path, docker_home, experiment_name, architec
         # Copy binary and architectural params to scarab/src
         arch_params = f"{scarab_path}/src/PARAMS.{architecture}"
         os.system(f"mkdir -p {experiment_dir}/scarab/src/")
-        os.system(f"cp {scarab_bin} {experiment_dir}/scarab/src/scarab")
+        if not interactive_shell:
+            os.system(f"cp {scarab_bin} {experiment_dir}/scarab/src/scarab")
         try:
             os.symlink(f"{experiment_dir}/scarab/src/scarab", f"{experiment_dir}/scarab/src/scarab_{scarab_githash}")
         except FileExistsError:
@@ -194,16 +208,10 @@ def prepare_simulation(user, scarab_path, docker_home, experiment_name, architec
         os.system(f"cp {scarab_path}/bin/scarab_launch.py  {experiment_dir}/scarab/bin/scarab_launch.py ")
         os.system(f"cp {scarab_path}/bin/scarab_globals/*  {experiment_dir}/scarab/bin/scarab_globals/ ")
 
-        # Set the env for simulation again (already set in Dockerfile.common) in case user's bashrc overwrite the existing ones when the home directory is mounted
-        bashrc_path = f"{docker_home}/.bashrc"
-        entry = "source /usr/local/bin/user_entrypoint.sh"
-        with open(bashrc_path, "a+") as f:
-            f.seek(0)
-            if entry not in f.read():
-                f.write(f"\n{entry}\n")
-
         return scarab_githash
     except Exception as e:
+        subprocess.run(["docker", "rm", "-f", docker_container_name], check=True)
+        info(f"Removed container: {docker_container_name}", dbg_lvl)
         raise e
 
 def finish_simulation(user, docker_home):
@@ -450,7 +458,7 @@ def get_weight_by_cluster_id(exp_cluster_id, simpoints):
         if simpoint["cluster_id"] == exp_cluster_id:
             return simpoint["weight"]
 
-def prepare_trace(user, scarab_path, docker_home, job_name, infra_dir, docker_prefix, githash, dbg_lvl=1):
+def prepare_trace(user, scarab_path, scarab_build, docker_home, job_name, infra_dir, docker_prefix, githash, interactive_shell=False, dbg_lvl=1):
     try:
         local_uid = os.getuid()
         local_gid = os.getgid()
@@ -458,16 +466,29 @@ def prepare_trace(user, scarab_path, docker_home, job_name, infra_dir, docker_pr
         scarab_githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=scarab_path).decode("utf-8").strip()
         info(f"Scarab git hash: {scarab_githash}", dbg_lvl)
 
-        # If scarab binary does not exist in the provided scarab path, build the binary first.
-        scarab_bin = f"{scarab_path}/src/build/opt/scarab"
-        if not os.path.isfile(scarab_bin):
-            info(f"Scarab binary not found at '{scarab_bin}', build it first...", dbg_lvl)
+        # Set the env for simulation again (already set in Dockerfile.common) in case user's bashrc overwrite the existing ones when the home directory is mounted
+        bashrc_path = f"{docker_home}/.bashrc"
+        entry = "source /usr/local/bin/user_entrypoint.sh"
+        with open(bashrc_path, "a+") as f:
+            f.seek(0)
+            if entry not in f.read():
+                f.write(f"\n{entry}\n")
+
+        # (Re)build the scarab binary first.
+        if not interactive_shell and scarab_build == None and not os.path.isfile(f"{scarab_path}/src/build/opt/scarab"):
+            info(F"Scarab binary not found at '{scarab_path}/src/build/opt/scarab', build with opt", dbg_lvl)
+            scarab_build = 'opt'
+
+        scarab_bin = f"{scarab_path}/src/build/{scarab_build}/scarab"
+        if scarab_build != None:
+            info(f"Scarab binary at '{scarab_bin}', building it first, please wait...", dbg_lvl)
             docker_container_name = f"{docker_prefix}_{user}_scarab_build"
             subprocess.run(
                     ["docker", "run", "-e", f"user_id={local_uid}",
                      "-e", f"group_id={local_gid}",
                      "-e", f"username={user}",
                      "-dit", "--name", f"{docker_container_name}",
+                     "--mount", f"type=bind,source={docker_home},target=/home/{user},readonly=false",
                      "--mount", f"type=bind,source={scarab_path},target=/scarab,readonly=false",
                      f"{docker_prefix}:{githash}", "/bin/bash"], check=True, capture_output=True, text=True)
             subprocess.run(
@@ -477,12 +498,10 @@ def prepare_trace(user, scarab_path, docker_home, job_name, infra_dir, docker_pr
                     ["docker", "cp", f"{infra_dir}/common/scripts/user_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
                     check=True, capture_output=True, text=True)
             if os.path.exists(f"{infra_dir}/workloads/{docker_prefix}/workload_root_entrypoint.sh"):
-                print("workload_root_entrypoint.sh exist!")
                 subprocess.run(
                         ["docker", "cp", f"{infra_dir}/workloads/{docker_prefix}/workload_root_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
                         check=True, capture_output=True, text=True)
             if os.path.exists(f"{infra_dir}/workloads/{docker_prefix}/workload_user_entrypoint.sh"):
-                print("workload_user_entrypoint.sh exist!")
                 subprocess.run(
                         ["docker", "cp", f"{infra_dir}/workloads/{docker_prefix}/workload_user_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
                         check=True, capture_output=True, text=True)
@@ -490,13 +509,14 @@ def prepare_trace(user, scarab_path, docker_home, job_name, infra_dir, docker_pr
                     ["docker", "exec", "--privileged", f"{docker_container_name}", "/bin/bash", "-c", "\'/usr/local/bin/root_entrypoint.sh\'"],
                     check=True, capture_output=True, text=True)
             subprocess.run(
-                    ["docker", "exec", f"--user={user}", f"{docker_container_name}", "/bin/bash", "-c", "cd /scarab/src && make clean && make"],
+                    ["docker", "exec", f"--user={user}", f"--workdir=/home/{user}", f"{docker_container_name}", "/bin/bash", "-c", f"cd /scarab/src && make clean && make {scarab_build}"],
                     check=True, capture_output=True, text=True)
             subprocess.run(["docker", "rm", "-f", f"{docker_container_name}"], check=True, capture_output=True, text=True)
 
         trace_dir = f"{docker_home}/simpoint_flow/{job_name}"
         os.system(f"mkdir -p {trace_dir}/scarab/src/")
-        os.system(f"cp {scarab_bin} {trace_dir}/scarab/src/scarab")
+        if not interactive_shell:
+            os.system(f"cp {scarab_bin} {trace_dir}/scarab/src/scarab")
 
         try:
             os.symlink(f"{trace_dir}/scarab/src/scarab", f"{trace_dir}/scarab/src/scarab_{scarab_githash}")
@@ -508,14 +528,9 @@ def prepare_trace(user, scarab_path, docker_home, job_name, infra_dir, docker_pr
         os.system(f"cp {scarab_path}/bin/scarab_globals/*  {trace_dir}/scarab/bin/scarab_globals/ ")
         os.system(f"mkdir -p {trace_dir}/scarab/utils/memtrace")
         os.system(f"cp {scarab_path}/utils/memtrace/* {trace_dir}/scarab/utils/memtrace/ ")
-        # Set the env for simulation again (already set in Dockerfile.common) in case user's bashrc overwrite the existing ones when the home directory is mounted
-        bashrc_path = f"{docker_home}/.bashrc"
-        entry = "source /usr/local/bin/user_entrypoint.sh"
-        with open(bashrc_path, "a+") as f:
-            f.seek(0)
-            if entry not in f.read():
-                f.write(f"\n{entry}\n")
     except Exception as e:
+        subprocess.run(["docker", "rm", "-f", docker_container_name], check=True)
+        info(f"Removed container: {docker_container_name}", dbg_lvl)
         raise e
 
 def finish_trace(user, descriptor_data, workload_db_path, suite_db_path, dbg_lvl):

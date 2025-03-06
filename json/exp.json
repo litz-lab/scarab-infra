@@ -1,54 +1,56 @@
 {
   "_descriptor_type":"A type of descriptor. One of 'simulation', 'trace', and 'perf'.",
   "descriptor_type":"simulation",
-    "_architecture": "A name of the available architectures (PARAMS.<architecture>) found in scarab repository, which defines the machine parameters of the default configuration.",
-    "architecture": "sunny_cove",
-    "_experiment": "The name of the experiment. scarab-infra will create a new folder named containing all files needed to execute the simulation in the <ROOT_DIR>/simulations/<experiment> directory. The folder will also contain all generated simulation statistics/outputs.",
-    "experiment": "exp",
-    "_workload_manager": "manual: run each exp scenario with all the simpoints at a time, slurm: Slurm schedules simulations based on its policy",
-    "workload_manager": "manual",
-    "_root_dir": "Root directory mounted into the docker container home, for instance, the user's home directory",
-    "root_dir": "/home/$USER",
-    "_scarab_path": "The path to the scarab repository that contains the scarab binary used to run the experiment.",
-    "scarab_path": "/home/$USER/allbench_home/scarab",
-    "_traces_dir": "The local directory containing all simpointed traces",
-    "traces_dir": "/home/$USER/traces",
-    "_simulations": "A list of [suite, subsuite, workload, simpoint's cluster #, simulation type]. Available suite and subsuite are found in workloads/suite_db.json and workload's available cluster_id and simulation_type are found in workloads/workloads_db.json where it runs all the simpoints if cluster_id is null and simulation type is one of 'exec', 'memtrace', 'pt'. When only 'suite' or 'suite'+'subsuite' is given and the rest are null, it launches simulations for all the workloads, all the simpoints if available, and in predefined simulation mode in workloads/suite_db.json.",
-    "simulations": [
-      {
-        "suite":"datacenter",
-        "subsuite":null,
-        "workload":null,
-        "cluster_id":null,
-        "simulation_type":null
-      },
-      {
-        "suite":"spec2017",
-        "subsuite":"rate_int",
-        "workload":null,
-        "cluster_id":null,
-        "simulation_type":null
-      },
-      {
-        "suite":"spec2017",
-        "subsuite":"rate_fp",
-        "workload":"503.bwaves_r",
-        "cluster_id":null,
-        "simulation_type":"exec"
-      },
-      {
-        "suite":"datacenter",
-        "subsuite":null,
-        "workload":"mongodb",
-        "cluster_id":4118,
-        "simulation_type":"memtrace"
-      }
-    ],
-    "_configurations": "scarab configurations to sweep",
-    "configurations": {
-        "baseline": "--bp_mech tage64k --fdip_enable 1 --btb_entries 8192 --perfect_crs 1 --wp_collect_stats 1 --mem_req_buffer_entries 64 --ramulator_readq_entries 64 --fe_ftq_block_num 32",
-        "perfect_fdip_lookahead_10000": "--bp_mech tage64k --fdip_enable 1 --btb_entries 8192 --perfect_crs 1 --wp_collect_stats 1 --mem_req_buffer_entries 64 --ramulator_readq_entries 64 --fe_ftq_block_num 32 --fdip_perfect_prefetch 1 --memtrace_buf_size 10000",
-        "perfect_fdip_lookahead_50000": "--bp_mech tage64k --fdip_enable 1 --btb_entries 8192 --perfect_crs 1 --wp_collect_stats 1 --mem_req_buffer_entries 64 --ramulator_readq_entries 64 --fe_ftq_block_num 32 --fdip_perfect_prefetch 1 --memtrace_buf_size 50000",
-        "perfect_fdip_lookahead_100000": "--bp_mech tage64k --fdip_enable 1 --btb_entries 8192 --perfect_crs 1 --wp_collect_stats 1 --mem_req_buffer_entries 64 --ramulator_readq_entries 64 --fe_ftq_block_num 32 --fdip_perfect_prefetch 1 --memtrace_buf_size 100000"
+  "_architecture":"A name of the available architectures (PARAMS.<architecture>) found in scarab repository, which defines the machine parameters of the default configuration.",
+  "architecture":"sunny_cove",
+  "_experiment":"The name of the experiment. scarab-infra will create a new folder named containing all files needed to execute the simulation in the <ROOT_DIR>/simulations/<experiment> directory. The folder will also contain all generated simulation statistics/outputs.",
+  "experiment":"exp",
+  "_workload_manager":"manual: run each exp scenario with all the simpoints at a time, slurm: Slurm schedules simulations based on its policy",
+  "workload_manager":"manual",
+  "_root_dir":"Root directory mounted into the docker container home, for instance, the user's home directory",
+  "root_dir":"/home/$USER",
+  "_scarab_path":"The path to the scarab repository that contains the scarab binary used to run the experiment.",
+  "scarab_path":"/home/$USER/allbench_home/scarab",
+  "_scarab_build":"scarab build mode. 'opt', 'dbg', or null",
+  "scarab_build":"opt",
+  "_traces_dir":"The local directory containing all simpointed traces",
+  "traces_dir":"/home/$USER/traces",
+  "_simulations":"A list of [suite, subsuite, workload, simpoint's cluster #, simulation type]. Available suite and subsuite are found in workloads/suite_db.json and workload's available cluster_id and simulation_type are found in workloads/workloads_db.json where it runs all the simpoints if cluster_id is null and simulation type is one of 'exec', 'memtrace', 'pt'. When only 'suite' or 'suite'+'subsuite' is given and the rest are null, it launches simulations for all the workloads, all the simpoints if available, and in predefined simulation mode in workloads/suite_db.json.",
+  "simulations":[
+    {
+      "suite":"datacenter",
+      "subsuite":null,
+      "workload":null,
+      "cluster_id":null,
+      "simulation_type":null
+    },
+    {
+      "suite":"spec2017",
+      "subsuite":"rate_int",
+      "workload":null,
+      "cluster_id":null,
+      "simulation_type":null
+    },
+    {
+      "suite":"spec2017",
+      "subsuite":"rate_fp",
+      "workload":"503.bwaves_r",
+      "cluster_id":null,
+      "simulation_type":"exec"
+    },
+    {
+      "suite":"datacenter",
+      "subsuite":null,
+      "workload":"mongodb",
+      "cluster_id":4118,
+      "simulation_type":"memtrace"
     }
+  ],
+  "_configurations":"scarab configurations to sweep",
+  "configurations":{
+    "baseline":"--bp_mech tage64k --fdip_enable 1 --btb_entries 8192 --perfect_crs 1 --wp_collect_stats 1 --mem_req_buffer_entries 64 --ramulator_readq_entries 64 --fe_ftq_block_num 32",
+    "perfect_fdip_lookahead_10000":"--bp_mech tage64k --fdip_enable 1 --btb_entries 8192 --perfect_crs 1 --wp_collect_stats 1 --mem_req_buffer_entries 64 --ramulator_readq_entries 64 --fe_ftq_block_num 32 --fdip_perfect_prefetch 1 --memtrace_buf_size 10000",
+    "perfect_fdip_lookahead_50000":"--bp_mech tage64k --fdip_enable 1 --btb_entries 8192 --perfect_crs 1 --wp_collect_stats 1 --mem_req_buffer_entries 64 --ramulator_readq_entries 64 --fe_ftq_block_num 32 --fdip_perfect_prefetch 1 --memtrace_buf_size 50000",
+    "perfect_fdip_lookahead_100000":"--bp_mech tage64k --fdip_enable 1 --btb_entries 8192 --perfect_crs 1 --wp_collect_stats 1 --mem_req_buffer_entries 64 --ramulator_readq_entries 64 --fe_ftq_block_num 32 --fdip_perfect_prefetch 1 --memtrace_buf_size 100000"
+  }
 }

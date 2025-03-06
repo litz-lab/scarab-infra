@@ -112,6 +112,7 @@ def run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir,
     experiment_name = descriptor_data["experiment"]
     docker_home = descriptor_data["root_dir"]
     scarab_path = descriptor_data["scarab_path"]
+    scarab_build = descriptor_data["scarab_build"]
     traces_dir = descriptor_data["traces_dir"]
     configs = descriptor_data["configurations"]
     simulations = descriptor_data["simulations"]
@@ -216,7 +217,7 @@ def run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir,
                     exit(1)
 
         docker_prefix = docker_prefix_list[0]
-        scarab_githash = prepare_simulation(user, scarab_path, descriptor_data['root_dir'], experiment_name, architecture, docker_prefix, githash, infra_dir, dbg_lvl)
+        scarab_githash = prepare_simulation(user, scarab_path, scarab_build, descriptor_data['root_dir'], experiment_name, architecture, docker_prefix, githash, infra_dir, False, dbg_lvl)
 
         # Iterate over each workload and config combo
         for simulation in simulations:
@@ -269,6 +270,7 @@ def run_tracing(user, descriptor_data, workload_db_path, suite_db_path, infra_di
     trace_name = descriptor_data["trace_name"]
     docker_home = descriptor_data["root_dir"]
     scarab_path = descriptor_data["scarab_path"]
+    scarab_build = descriptor_data["scarab_build"]
     traces_dir = descriptor_data["traces_dir"]
     trace_configs = descriptor_data["trace_configurations"]
 
@@ -341,7 +343,7 @@ def run_tracing(user, descriptor_data, workload_db_path, suite_db_path, infra_di
                     exit(1)
 
         docker_prefix = docker_prefix_list[0]
-        prepare_trace(user, scarab_path, docker_home, trace_name, infra_dir, docker_prefix, githash, dbg_lvl)
+        prepare_trace(user, scarab_path, scarab_build, docker_home, trace_name, infra_dir, docker_prefix, githash, False, dbg_lvl)
 
         # Iterate over each trace configuration
         for config in trace_configs:
