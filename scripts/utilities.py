@@ -148,9 +148,11 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
                 f.write(f"\n{entry}\n")
 
         # (Re)build the scarab binary first.
-        if not interactive_shell and scarab_build == None and not os.path.isfile(f"{scarab_path}/src/build/opt/scarab"):
-            info(F"Scarab binary not found at '{scarab_path}/src/build/opt/scarab', build with opt", dbg_lvl)
-            scarab_build = 'opt'
+        if not interactive_shell and scarab_build == None:
+            scarab_bin = f"{scarab_path}/src/build/opt/scarab"
+            if not os.path.isfile(scarab_bin):
+                scarab_build = 'opt'
+                info(F"Scarab binary not found at '{scarab_bin}', build with {scarab_build}", dbg_lvl)
 
         scarab_bin = f"{scarab_path}/src/build/{scarab_build}/scarab"
         if scarab_build != None:
@@ -314,7 +316,7 @@ def generate_single_trace_run_command(user, workload, image_name, trace_name, bi
         mode = 1
     elif simpoint_mode == "trace_then_post_process":
         mode = 2
-    command = f"python3 -u /usr/local/bin/run_simpoint_trace.py --workload {workload} --suite {image_name} --simpoint_home \"/home/{user}/simpoint_flow/{trace_name}\" --bincmd \"{binary_cmd}\" --simpoint_mode {mode}"
+    command = f"python3 -u /usr/local/bin/run_simpoint_trace.py --workload {workload} --suite {image_name} --simpoint_mode {mode} --simpoint_home \"/home/{user}/simpoint_flow/{trace_name}\" --bincmd \"{binary_cmd}\" --client_bincmd \"{client_bincmd}\""
     if drio_args != None:
         command = f"{command} --drio_args {drio_args}"
     if clustering_k != None:
@@ -362,7 +364,7 @@ def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_contai
             f.write(f"docker cp {infra_dir}/common/scripts/gather_fp_pieces.py {docker_container_name}:/usr/local/bin\n")
             f.write(f"docker exec --privileged {docker_container_name} /bin/bash -c '/usr/local/bin/root_entrypoint.sh'\n")
             f.write(f"docker exec --privileged {docker_container_name} /bin/bash -c \"echo 0 | sudo tee /proc/sys/kernel/randomize_va_space\"\n")
-            f.write(f"docker exec --privileged --user={user} --workdir=/home/{user} {docker_container_name} {trace_cmd}\n")
+            f.write(f"docker exec --privileged --user={user} --workdir=/home/{user} {docker_container_name} /bin/bash -c \"source /usr/local/bin/user_entrypoint.sh && {trace_cmd}\"\n")
             f.write(f"docker rm -f {docker_container_name}\n")
     except Exception as e:
         raise e
@@ -475,9 +477,11 @@ def prepare_trace(user, scarab_path, scarab_build, docker_home, job_name, infra_
                 f.write(f"\n{entry}\n")
 
         # (Re)build the scarab binary first.
-        if not interactive_shell and scarab_build == None and not os.path.isfile(f"{scarab_path}/src/build/opt/scarab"):
-            info(F"Scarab binary not found at '{scarab_path}/src/build/opt/scarab', build with opt", dbg_lvl)
-            scarab_build = 'opt'
+        if not interactive_shell and scarab_build == None:
+            scarab_bin = f"{scarab_path}/src/build/opt/scarab"
+            if not os.path.isfile(scarab_bin):
+                scarab_build = 'opt'
+                info(F"Scarab binary not found at '{scarab_bin}', build with {scarab_build}", dbg_lvl)
 
         scarab_bin = f"{scarab_path}/src/build/{scarab_build}/scarab"
         if scarab_build != None:
