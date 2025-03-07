@@ -6,10 +6,14 @@ from functools import reduce
 import numpy as np
 import matplotlib
 import matplotlib.patches as mpatches
-
 import json
 import os
 import math
+import importlib
+import sys
+sys.path.append("../") # go to parent dir
+import scripts.utilities as utilities
+importlib.reload(utilities)
 
 def get_elem(l, i):
     return list(map(lambda x:x[i], l))
@@ -59,6 +63,7 @@ class Experiment:
         column.append(c_id)
         column.append(weight)
 
+        self.data = self.data.copy()
         self.data[f"{config} {workload} {c_id}"] = column
 
     def retrieve_stats(self, config: List[str], stats: List[str], workload: List[str], 
@@ -274,9 +279,13 @@ class Experiment:
 
         errs = 0
 
+        # TODO: It takes more than 40 minutes for 523 groups for 15 workloads x 5 configurations
+        # Performance improvement required
+        print(f"INFO: Calculate distribution stats for {len(groups)} groups")
         # Do calculations for each group
         for group in groups:
 
+            print(f"INFO: group {group}..")
             remove_columns = ["write_protect", "groups"]
             group_df = self.data[(self.data["groups"] == group)].drop(columns=remove_columns)
 
@@ -294,7 +303,7 @@ class Experiment:
             # Replace NaN values where all values are zero
             if float(0) in list(count_sums) or float(0) in list(total_count_sums):
                 # print("ERR: NULL. Skipping due to sum of 0 in distribution", group)
-                new_stats = [f"group_{group}_total_mean", f"group_{group}_mean", 
+                new_stats = [f"group_{group}_total_mean", f"group_{group}_mean",
                              f"group_{group}_total_stddev", f"group_{group}_stddev"]
 
                 for stat in total_count_percentages.index:
@@ -421,8 +430,8 @@ class stat_aggregator:
 
     # Load simpoint from csv file as pandas dataframe
     def load_simpoint(self, path, load_ramulator=True, ignore_duplicates = True, return_stats = False, order = None):
-        data = pd.Series()
-        group = pd.Series()
+        data = pd.Series(dtype="float64")
+        group = pd.Series(dtype="float64")
         all_stats = []
 
         for file in stat_files:
@@ -523,7 +532,7 @@ class stat_aggregator:
         # Make sure simulations and simpoints path has known format
         if simulations_path[-1] != '/': simulations_path += "/"
         if simpoints_path[-1] != '/': simpoints_path += "/"
-        
+
         # Asking user can provide simulations directory or docker home folder
         if not simulations_path.endswith("simulations/"):
             simulations_path += "simulations/"
@@ -536,12 +545,26 @@ class stat_aggregator:
 
         known_stats = None
 
+        current_path = os.getcwd()
+        infra_dir = os.path.dirname(current_path)
+        workload_db_path = f"{infra_dir}/workloads/workloads_db.json"
+        suite_db_path = f"{infra_dir}/workloads/suite_db.json"
+        workloads_data = utilities.read_descriptor_from_json(workload_db_path)
+        suite_data = utilities.read_descriptor_from_json(suite_db_path)
+
         # Set set of all stats. Should only differ by config
         for config in json_data["configurations"]:
             config = config.replace("/", "-")
 
             # Use first workload
-            workload = json_data["workloads_list"][0]
+            simulation = json_data["simulations"][0]
+            suite = simulation["suite"]
+            subsuite = simulation["subsuite"]
+            workload = simulation["workload"]
+            if workload == None:
+                if subsuite == None:
+                    subsuite = list(suite_data[suite].keys())[0]
+                workload = list(suite_data[suite][subsuite]["predefined_simulation_mode"].keys())[0]
 
             # Get path to the simpoint metadata
             metadata_path = f"{simpoints_path}{workload}/simpoints/"
@@ -584,29 +607,66 @@ class stat_aggregator:
 
         # Create initial experiment object
         experiment = None
+        simulations = json_data["simulations"]
 
         # Load each configuration
         for config in json_data["configurations"]:
             config = config.replace("/", "-")
 
-            # Load each workload for each configuration
-            for workload in json_data["workloads_list"]:
+            for simulation in simulations:
+                suite = simulation["suite"]
+                subsuite = simulation["subsuite"]
+                workload = simulation["workload"]
+                cluster_id = simulation["cluster_id"]
+                sim_mode = simulation["simulation_type"]
+                if workload == None and subsuite == None:
+                    for subsuite_ in suite_data[suite].keys():
+                        for workload_ in suite_data[suite][subsuite_]["predefined_simulation_mode"].keys():
+                            sim_mode_ = sim_mode
+                            if sim_mode_ == None:
+                                sim_mode_ = suite_data[suite][subsuite_]["predefined_simulation_mode"][workload_]
+                            simpoints = utilities.get_simpoints(workloads_data[workload_], sim_mode_)
+                            for cluster_id, weight in simpoints.items():
+                                directory = f"{simulations_path}{experiment_name}/{config}/{workload_}/{str(cluster_id)}/"
+                                if experiment == None:
+                                    experiment = Experiment(known_stats)
 
-                # Get path to the simpoint metadata
-                metadata_path = f"{simpoints_path}{workload}/simpoints/"
-                with open(f"{metadata_path}opt.p.lpt0.99", "r") as cluster_ids, open(f"{metadata_path}opt.w.lpt0.99", "r") as weights:
+                                print(f"LOAD {directory}")
+                                data, groups = self.load_simpoint(directory, order=known_stats)
 
-                    for cluster_id, weight in zip(cluster_ids.readlines(), weights.readlines()):
-                        cluster_id, seg_id_1 = [int(i) for i in cluster_id.split()]
-                        weight, seg_id_2 = float(weight.split()[0]), int(weight.split()[1])
+                                if not experiment.has_group_data():
+                                    print("INFO: Added group data")
+                                    experiment.set_groups(groups)
 
-                        if seg_id_1 != seg_id_2:
-                            print(f"ERROR: Simpoints listed out of order in {metadata_path}opt.p.lpt0.99 and opt.w.lpt0.99.")
-                            print(f"       Encountered {seg_id_1} in .p and {seg_id_2} in .w")
-                            exit(1)
+                                experiment.add_simpoint(data, experiment_name, architecture, config, workload, seg_id_1, cluster_id, weight)
+                                print(f"LOADED")
+                elif workload == None and subsuite != None:
+                    for workload_ in suite_data[suite][subsuite]["predefined_simulation_mode"].keys():
+                        sim_mode_ = sim_mode
+                        if sim_mode_ == None:
+                            sim_mode_ = suite_data[suite][subsuite]["predefined_simulation_mode"][workload_]
+                        simpoints = utilities.get_simpoints(workloads_data[workload_], sim_mode_)
+                        for cluster_id, weight in simpoints.items():
+                            directory = f"{simulations_path}{experiment_name}/{config}/{workload_}/{str(cluster_id)}/"
+                            if experiment == None:
+                                experiment = Experiment(known_stats)
 
+                            print(f"LOAD {directory}")
+                            data, groups = self.load_simpoint(directory, order=known_stats)
+
+                            if not experiment.has_group_data():
+                                print("INFO: Added group data")
+                                experiment.set_groups(groups)
+
+                            experiment.add_simpoint(data, experiment_name, architecture, config, workload, seg_id_1, cluster_id, weight)
+                            print(f"LOADED")
+                else:
+                    sim_mode_ = sim_mode
+                    if sim_mode_ == None:
+                        sim_mode_ = suite_data[suite][subsuite]["predefined_simulation_mode"][workload]
+                    simpoints = utilities.get_simpoints(workloads_data[workload_], sim_mode_)
+                    for cluster_id, weight in simpoints.items():
                         directory = f"{simulations_path}{experiment_name}/{config}/{workload}/{str(cluster_id)}/"
-
                         if experiment == None:
                             experiment = Experiment(known_stats)
 
@@ -627,10 +687,12 @@ class stat_aggregator:
 
         # Derive IPC
         experiment.derive_stat("Cumulative_IPC = Cumulative_Instructions / Cumulative_Cycles", write_prot = True)
+        print("INFO: Cumulative_IPC calculated.")
         experiment.derive_stat("Periodic_IPC = Periodic_Instructions / Periodic_Cycles", write_prot = True)
+        print("INFO: Periodic_IPC calculated.")
 
         # Derive distribution stats for each group
-        # 'Group' 0 is no group 
+        # 'Group' 0 is no group
         experiment.calculate_distribution_stats()
 
         return experiment

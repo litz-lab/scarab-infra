@@ -388,10 +388,13 @@ def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_contai
     except Exception as e:
         raise e
 
-def get_simpoints (workload_data, dbg_lvl = 2):
+def get_simpoints (workload_data, sim_mode, dbg_lvl = 2):
     simpoints = {}
-    for simpoint in workload_data["simpoints"]:
-        simpoints[f"{simpoint['cluster_id']}"] = simpoint["weight"]
+    if sim_mode == "memtrace":
+        for simpoint in workload_data["simpoints"]:
+            simpoints[f"{simpoint['cluster_id']}"] = simpoint["weight"]
+    else:
+        simpoints["0"] = 1.0
 
     return simpoints
 
