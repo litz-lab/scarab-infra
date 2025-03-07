@@ -242,7 +242,10 @@ def run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir,
                         sim_mode_ = suite_data[suite][subsuite]["predefined_simulation_mode"][workload_]
                     run_single_workload(workload_, exp_cluster_id, sim_mode_)
             else:
-                run_single_workload(workload, exp_cluster_id, sim_mode)
+                sim_mode_ = sim_mode
+                if sim_mode_ == None:
+                    sim_mode_ = suite_data[suite][subsuite]["predefined_simulation_mode"][workload]
+                run_single_workload(workload, exp_cluster_id, sim_mode_)
 
         print("Wait processes...")
         for p in processes:

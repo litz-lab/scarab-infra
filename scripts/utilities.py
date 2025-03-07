@@ -250,7 +250,7 @@ def generate_single_scarab_run_command(user, workload, group, experiment, config
     if mode == "memtrace":
         command = f"run_memtrace_single_simpoint.sh \"{workload}\" \"{group}\" \"/home/{user}/simulations/{experiment}/{config_key}\" \"{config}\" \"{seg_size}\" \"{arch}\" \"{trim_type}\" /home/{user}/simulations/{experiment}/scarab {cluster_id} {trace_file}"
     elif mode == "pt":
-        command = f"run_pt_single_simpoint.sh \"{workload}\" \"{group}\" \"/home/{user}/simulations/{experiment}/{config_key}\" \"{config}\" \"{seg_size}\" \"{arch}\" \"{trim_type}\" /home/{user}/simulations/{experiment}/scarab"
+        command = f"run_pt_single_simpoint.sh \"{workload}\" \"{group}\" \"/home/{user}/simulations/{experiment}/{config_key}\" \"{config}\" \"{arch}\" \"{trim_type}\" /home/{user}/simulations/{experiment}/scarab"
     elif mode == "exec":
         command = f"run_exec_single_simpoint.sh \"{workload}\" \"{group}\" \"/home/{user}/simulations/{experiment}/{config_key}\" \"{config}\" \"{arch}\" /home/{user}/simulations/{experiment}/scarab {env_vars} {bincmd} {client_bincmd}"
     else:
