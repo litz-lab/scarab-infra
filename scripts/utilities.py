@@ -79,21 +79,23 @@ def validate_simulation(workloads_data, suite_data, simulations, dbg_lvl = 2):
 
         if workload == None:
             if subsuite == None:
-                for subsuite in suite_data[suite].keys():
-                    for workload in suite_data[suite][subsuite]["predefined_simulation_mode"].keys():
-                        predef_mode = suite_data[suite][subsuite]["predefined_simulation_mode"][workload]
-                        if sim_mode == None:
-                            sim_mode = predef_mode
-                        if sim_mode not in workloads_data[workload]["simulation"].keys():
-                            err(f"{sim_mode} is not a valid simulation mode for workload {workload}.", dbg_lvl)
+                for subsuite_ in suite_data[suite].keys():
+                    for workload_ in suite_data[suite][subsuite_]["predefined_simulation_mode"].keys():
+                        predef_mode = suite_data[suite][subsuite_]["predefined_simulation_mode"][workload_]
+                        sim_mode_ = sim_mode
+                        if sim_mode_ == None:
+                            sim_mode_ = predef_mode
+                        if sim_mode_ not in workloads_data[workload_]["simulation"].keys():
+                            err(f"{sim_mode_} is not a valid simulation mode for workload {workload_}.", dbg_lvl)
                             exit(1)
             else:
-                for workload in suite_data[suite][subsuite]["predefined_simulation_mode"].keys():
-                    predef_mode = suite_data[suite][subsuite]["predefined_simulation_mode"][workload]
-                    if sim_mode == None:
-                        sim_mode = predef_mode
-                    if sim_mode not in workloads_data[workload]["simulation"].keys():
-                        err(f"{sim_mode} is not a valid simulation mode for workload {workload}.", dbg_lvl)
+                for workload_ in suite_data[suite][subsuite]["predefined_simulation_mode"].keys():
+                    predef_mode = suite_data[suite][subsuite]["predefined_simulation_mode"][workload_]
+                    sim_mode_ = sim_mode
+                    if sim_mode_ == None:
+                        sim_mode_ = predef_mode
+                    if sim_mode_ not in workloads_data[workload_]["simulation"].keys():
+                        err(f"{sim_mode_} is not a valid simulation mode for workload {workload_}.", dbg_lvl)
                         exit(1)
 
         if workload != None and workload not in workloads_data.keys():
@@ -425,27 +427,29 @@ def get_image_list(simulations, workloads_data, suite_data):
         subsuite = simulation["subsuite"]
         workload = simulation["workload"]
         exp_cluster_id = simulation["cluster_id"]
-        mode = simulation["simulation_type"]
+        sim_mode = simulation["simulation_type"]
 
         if workload == None:
             if subsuite == None:
-                for subsuite in suite_data[suite].keys():
-                    for workload in suite_data[suite][subsuite]["predefined_simulation_mode"].keys():
-                        predef_mode = suite_data[suite][subsuite]["predefined_simulation_mode"][workload]
-                        if mode == None:
-                            mode = predef_mode
-                        if mode in workloads_data[workload]["simulation"].keys() and workloads_data[workload]["simulation"][mode]["image_name"] not in image_list:
-                            image_list.append(workloads_data[workload]["simulation"][mode]["image_name"])
+                for subsuite_ in suite_data[suite].keys():
+                    for workload_ in suite_data[suite][subsuite_]["predefined_simulation_mode"].keys():
+                        predef_mode = suite_data[suite][subsuite_]["predefined_simulation_mode"][workload_]
+                        sim_mode_ = sim_mode
+                        if sim_mode_ == None:
+                            sim_mode_ = predef_mode
+                        if sim_mode_ in workloads_data[workload_]["simulation"].keys() and workloads_data[workload_]["simulation"][sim_mode_]["image_name"] not in image_list:
+                            image_list.append(workloads_data[workload_]["simulation"][sim_mode_]["image_name"])
             else:
-                for workload in suite_data[suite][subsuite]["predefined_simulation_mode"].keys():
-                    predef_mode = suite_data[suite][subsuite]["predefined_simulation_mode"][workload]
-                    if mode == None:
-                        mode = predef_mode
-                    if mode in workloads_data[workload]["simulation"].keys() and workloads_data[workload]["simulation"][mode]["image_name"] not in image_list:
-                        image_list.append(workloads_data[workload]["simulation"][mode]["image_name"])
+                for workload_ in suite_data[suite][subsuite]["predefined_simulation_mode"].keys():
+                    predef_mode = suite_data[suite][subsuite]["predefined_simulation_mode"][workload_]
+                    sim_mode_ = sim_mode
+                    if sim_mode_ == None:
+                        sim_mode_ = predef_mode
+                    if sim_mode_ in workloads_data[workload_]["simulation"].keys() and workloads_data[workload_]["simulation"][sim_mode_]["image_name"] not in image_list:
+                        image_list.append(workloads_data[workload_]["simulation"][sim_mode_]["image_name"])
         else:
-            if mode in workloads_data[workload]["simulation"].keys() and workloads_data[workload]["simulation"][mode]["image_name"] not in image_list:
-                image_list.append(workloads_data[workload]["simulation"][mode]["image_name"])
+            if sim_mode in workloads_data[workload]["simulation"].keys() and workloads_data[workload]["simulation"][sim_mode]["image_name"] not in image_list:
+                image_list.append(workloads_data[workload]["simulation"][sim_mode]["image_name"])
 
     return image_list
 
