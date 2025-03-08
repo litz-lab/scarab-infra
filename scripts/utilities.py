@@ -173,8 +173,8 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
                 scarab_build = 'opt'
                 info(F"Scarab binary not found at '{scarab_bin}', build with {scarab_build}", dbg_lvl)
 
-        scarab_bin = f"{scarab_path}/src/build/{scarab_build}/scarab"
         if scarab_build != None:
+            scarab_bin = f"{scarab_path}/src/build/{scarab_build}/scarab"
             info(f"Scarab binary at '{scarab_bin}', building it first, please wait...", dbg_lvl)
             docker_container_name = f"{docker_prefix}_{user}_scarab_build"
             subprocess.run(
@@ -215,6 +215,10 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
         arch_params = f"{scarab_path}/src/PARAMS.{architecture}"
         os.system(f"mkdir -p {experiment_dir}/scarab/src/")
         if not interactive_shell:
+            if scarab_build:
+                scarab_bin = f"{scarab_path}/src/build/{scarab_build}/scarab"
+            else:
+                scarab_bin = f"{scarab_path}/src/build/opt/scarab"
             os.system(f"cp {scarab_bin} {experiment_dir}/scarab/src/scarab")
         try:
             os.symlink(f"{experiment_dir}/scarab/src/scarab", f"{experiment_dir}/scarab/src/scarab_{scarab_githash}")
@@ -522,8 +526,8 @@ def prepare_trace(user, scarab_path, scarab_build, docker_home, job_name, infra_
                 scarab_build = 'opt'
                 info(F"Scarab binary not found at '{scarab_bin}', build with {scarab_build}", dbg_lvl)
 
-        scarab_bin = f"{scarab_path}/src/build/{scarab_build}/scarab"
         if scarab_build != None:
+            scarab_bin = f"{scarab_path}/src/build/{scarab_build}/scarab"
             info(f"Scarab binary at '{scarab_bin}', building it first, please wait...", dbg_lvl)
             docker_container_name = f"{docker_prefix}_{user}_scarab_build"
             subprocess.run(
@@ -559,6 +563,10 @@ def prepare_trace(user, scarab_path, scarab_build, docker_home, job_name, infra_
         trace_dir = f"{docker_home}/simpoint_flow/{job_name}"
         os.system(f"mkdir -p {trace_dir}/scarab/src/")
         if not interactive_shell:
+            if scarab_build:
+                scarab_bin = f"{scarab_path}/src/build/{scarab_build}/scarab"
+            else:
+                scarab_bin = f"{scarab_path}/src/build/opt/scarab"
             os.system(f"cp {scarab_bin} {trace_dir}/scarab/src/scarab")
 
         try:
