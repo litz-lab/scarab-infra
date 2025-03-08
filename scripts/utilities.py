@@ -139,14 +139,6 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
         scarab_githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=scarab_path).decode("utf-8").strip()
         info(f"Scarab git hash: {scarab_githash}", dbg_lvl)
 
-        # Set the env for simulation again (already set in Dockerfile.common) in case user's bashrc overwrite the existing ones when the home directory is mounted
-        bashrc_path = f"{docker_home}/.bashrc"
-        entry = "source /usr/local/bin/user_entrypoint.sh"
-        with open(bashrc_path, "a+") as f:
-            f.seek(0)
-            if entry not in f.read():
-                f.write(f"\n{entry}\n")
-
         # (Re)build the scarab binary first.
         if not interactive_shell and scarab_build == None:
             scarab_bin = f"{scarab_path}/src/build/opt/scarab"
@@ -219,7 +211,6 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
 def finish_simulation(user, docker_home):
     try:
         print("Finish simulation..")
-        subprocess.run(["sed", "-i", "/source \\/usr\\/local\\/bin\\/user_entrypoint.sh/d", f"{docker_home}/.bashrc"], check=True, capture_output=True, text=True)
     except Exception as e:
         raise e
 
@@ -229,11 +220,11 @@ def generate_single_scarab_run_command(user, workload, group, experiment, config
                                        trim_type, trace_file,
                                        env_vars, bincmd, client_bincmd):
     if mode == "memtrace":
-        command = f"run_memtrace_single_simpoint.sh \"{workload}\" \"{group}\" \"/home/{user}/simulations/{experiment}/{config_key}\" \"{config}\" \"{seg_size}\" \"{arch}\" \"{trim_type}\" /home/{user}/simulations/{experiment}/scarab {cluster_id} {trace_file}"
+        command = f"run_memtrace_single_simpoint.sh \\\"{workload}\\\" \\\"{group}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{seg_size}\\\" \\\"{arch}\\\" \\\"{trim_type}\\\" /home/{user}/simulations/{experiment}/scarab {cluster_id} {trace_file}"
     elif mode == "pt":
-        command = f"run_pt_single_simpoint.sh \"{workload}\" \"{group}\" \"/home/{user}/simulations/{experiment}/{config_key}\" \"{config}\" \"{seg_size}\" \"{arch}\" \"{trim_type}\" /home/{user}/simulations/{experiment}/scarab {cluster_id}"
+        command = f"run_pt_single_simpoint.sh \\\"{workload}\\\" \\\"{group}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{seg_size}\\\" \\\"{arch}\\\" \\\"{trim_type}\\\" /home/{user}/simulations/{experiment}/scarab {cluster_id}"
     elif mode == "exec":
-        command = f"run_exec_single_simpoint.sh \"{workload}\" \"{group}\" \"/home/{user}/simulations/{experiment}/{config_key}\" \"{config}\" \"{arch}\" /home/{user}/simulations/{experiment}/scarab {env_vars} {bincmd} {client_bincmd}"
+        command = f"run_exec_single_simpoint.sh \\\"{workload}\\\" \\\"{group}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{arch}\\\" /home/{user}/simulations/{experiment}/scarab {env_vars} {bincmd} {client_bincmd}"
     else:
         command = ""
 
@@ -305,7 +296,7 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, experimen
             elif scarab_mode == "exec":
                 f.write(f"docker cp {infra_dir}/common/scripts/run_exec_single_simpoint.sh {docker_container_name}:/usr/local/bin\n")
             f.write(f"docker exec --privileged {docker_container_name} /bin/bash -c '/usr/local/bin/root_entrypoint.sh'\n")
-            f.write(f"docker exec --user={user} {docker_container_name} /bin/bash {scarab_cmd}\n")
+            f.write(f"docker exec --user={user} {docker_container_name} /bin/bash -c \"source /usr/local/bin/user_entrypoint.sh && {scarab_cmd}\"\n")
             f.write(f"docker rm -f {docker_container_name}\n")
     except Exception as e:
         raise e
@@ -468,14 +459,6 @@ def prepare_trace(user, scarab_path, scarab_build, docker_home, job_name, infra_
         scarab_githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=scarab_path).decode("utf-8").strip()
         info(f"Scarab git hash: {scarab_githash}", dbg_lvl)
 
-        # Set the env for simulation again (already set in Dockerfile.common) in case user's bashrc overwrite the existing ones when the home directory is mounted
-        bashrc_path = f"{docker_home}/.bashrc"
-        entry = "source /usr/local/bin/user_entrypoint.sh"
-        with open(bashrc_path, "a+") as f:
-            f.seek(0)
-            if entry not in f.read():
-                f.write(f"\n{entry}\n")
-
         # (Re)build the scarab binary first.
         if not interactive_shell and scarab_build == None:
             scarab_bin = f"{scarab_path}/src/build/opt/scarab"
@@ -572,7 +555,6 @@ def finish_trace(user, descriptor_data, workload_db_path, suite_db_path, dbg_lvl
         target_traces_dir = descriptor_data["traces_dir"]
         docker_home = descriptor_data["root_dir"]
 
-        subprocess.run(["sed", "-i", "/source \\/usr\\/local\\/bin\\/user_entrypoint.sh/d", f"{docker_home}/.bashrc"], check=True, capture_output=True, text=True)
         print("Copying the successfully collected traces and update workloads_db.json/suite_db.json...")
 
         for config in trace_configs:
