@@ -281,11 +281,11 @@ class Experiment:
 
         # TODO: It takes more than 40 minutes for 523 groups for 15 workloads x 5 configurations
         # Performance improvement required
-        print(f"INFO: Calculate distribution stats for {len(groups)} groups")
+        num_groups = len(groups)
+        print(f"INFO: Calculate distribution stats for {num_groups} groups")
         # Do calculations for each group
         for group in groups:
-
-            print(f"INFO: group {group}..")
+            print(f"INFO: group {group}/{num_groups}..")
             remove_columns = ["write_protect", "groups"]
             group_df = self.data[(self.data["groups"] == group)].drop(columns=remove_columns)
 
@@ -430,8 +430,8 @@ class stat_aggregator:
 
     # Load simpoint from csv file as pandas dataframe
     def load_simpoint(self, path, load_ramulator=True, ignore_duplicates = True, return_stats = False, order = None):
-        data = pd.Series(dtype="float64")
-        group = pd.Series(dtype="float64")
+        data = pd.Series()
+        group = pd.Series()
         all_stats = []
 
         for file in stat_files:
@@ -638,7 +638,7 @@ class stat_aggregator:
                                     print("INFO: Added group data")
                                     experiment.set_groups(groups)
 
-                                experiment.add_simpoint(data, experiment_name, architecture, config, workload, seg_id_1, cluster_id, weight)
+                                experiment.add_simpoint(data, experiment_name, architecture, config, workload_, seg_id_1, cluster_id, weight)
                                 print(f"LOADED")
                 elif workload == None and subsuite != None:
                     for workload_ in suite_data[suite][subsuite]["predefined_simulation_mode"].keys():
@@ -658,7 +658,7 @@ class stat_aggregator:
                                 print("INFO: Added group data")
                                 experiment.set_groups(groups)
 
-                            experiment.add_simpoint(data, experiment_name, architecture, config, workload, seg_id_1, cluster_id, weight)
+                            experiment.add_simpoint(data, experiment_name, architecture, config, workload_, seg_id_1, cluster_id, weight)
                             print(f"LOADED")
                 else:
                     sim_mode_ = sim_mode
