@@ -79,44 +79,63 @@ def validate_simulation(workloads_data, suite_data, simulations, dbg_lvl = 2):
 
         if workload == None:
             if subsuite == None:
-                for subsuite in suite_data[suite].keys():
-                    for workload in suite_data[suite][subsuite]["predefined_simulation_mode"].keys():
-                        predef_mode = suite_data[suite][subsuite]["predefined_simulation_mode"][workload]
-                        if sim_mode == None:
-                            sim_mode = predef_mode
-                        if sim_mode not in workloads_data[workload]["simulation"].keys():
-                            err(f"{sim_mode} is not a valid simulation mode for workload {workload}.", dbg_lvl)
+                for subsuite_ in suite_data[suite].keys():
+                    for workload_ in suite_data[suite][subsuite_]["predefined_simulation_mode"].keys():
+                        predef_mode = suite_data[suite][subsuite_]["predefined_simulation_mode"][workload_]
+                        sim_mode_ = sim_mode
+                        if sim_mode_ == None:
+                            sim_mode_ = predef_mode
+                        if sim_mode_ not in workloads_data[workload_]["simulation"].keys():
+                            err(f"{sim_mode_} is not a valid simulation mode for workload {workload_}.", dbg_lvl)
                             exit(1)
             else:
-                for workload in suite_data[suite][subsuite]["predefined_simulation_mode"].keys():
-                    predef_mode = suite_data[suite][subsuite]["predefined_simulation_mode"][workload]
-                    if sim_mode == None:
-                        sim_mode = predef_mode
-                    if sim_mode not in workloads_data[workload]["simulation"].keys():
-                        err(f"{sim_mode} is not a valid simulation mode for workload {workload}.", dbg_lvl)
+                for workload_ in suite_data[suite][subsuite]["predefined_simulation_mode"].keys():
+                    predef_mode = suite_data[suite][subsuite]["predefined_simulation_mode"][workload_]
+                    sim_mode_ = sim_mode
+                    if sim_mode_ == None:
+                        sim_mode_ = predef_mode
+                    if sim_mode_ not in workloads_data[workload_]["simulation"].keys():
+                        err(f"{sim_mode_} is not a valid simulation mode for workload {workload_}.", dbg_lvl)
                         exit(1)
-
-        if workload != None and workload not in workloads_data.keys():
-            err(f"Workload '{workload}' is not valid.", dbg_lvl)
-            exit(1)
-
-        if workload != None and sim_mode not in workloads_data[workload]["simulation"].keys():
-            err(f"Simulation mode '{sim_mode}' is not an valid option for workload '{workload}'.", dbg_lvl)
-            exit(1)
-
-        if workload != None and cluster_id == None and "simpoints" not in workloads_data[workload].keys():
-            err(f"Simpoints are not available. Choose '0' for cluster id.", dbg_lvl)
-            exit(1)
-
-        if workload != None and cluster_id != None and cluster_id > 0:
-            found = False
-            for simpoint in workloads_data[workload]["simpoints"]:
-                if cluster_id == simpoint["cluster_id"]:
-                    found = True
-                    break
-            if not found:
-                err(f"Cluster ID {cluster_id} is not valid for workload '{workload}'.", dbg_lvl)
+        else:
+            if workload not in workloads_data.keys():
+                err(f"Workload '{workload}' is not valid.", dbg_lvl)
                 exit(1)
+
+            if subsuite == None:
+                for subsuite_ in suite_data[suite].keys():
+                    predef_mode = suite_data[suite][subsuite_]["predefined_simulation_mode"][workload]
+                    sim_mode_ = sim_mode
+                    if sim_mode_ == None:
+                        sim_mode_ = predef_mode
+                    if sim_mode_ not in workloads_data[workload]["simulation"].keys():
+                        err(f"{sim_mode_} is not a valid simulation mode for workload {workload}.", dbg_lvl)
+                        exit(1)
+            else:
+                predef_mode = suite_data[suite][subsuite]["predefined_simulation_mode"][workload]
+                sim_mode_ = sim_mode
+                if sim_mode_ == None:
+                    sim_mode_ = predef_mode
+                if sim_mode_ not in workloads_data[workload]["simulation"].keys():
+                    err(f"{sim_mode_} is not a valid simulation mode for workload {workload}.", dbg_lvl)
+                    exit(1)
+
+            if cluster_id != None:
+                if "simpoints" not in workloads_data[workload].keys():
+                    err(f"Simpoints are not available for workload {workload}. Choose 'null' for cluster id.", dbg_lvl)
+                    exit(1)
+                if cluster_id > 0:
+                    found = False
+                    for simpoint in workloads_data[workload]["simpoints"]:
+                        if cluster_id == simpoint["cluster_id"]:
+                            found = True
+                            break
+                    if not found:
+                        err(f"Cluster ID {cluster_id} is not valid for workload '{workload}'.", dbg_lvl)
+                        exit(1)
+                elif cluster_id < 0:
+                    err(f"Cluster ID should be greater than 0. {cluster_id} is not valid.", dbg_lvl)
+                    exit(1)
 
         print(f"[{suite}, {subsuite}, {workload}, {cluster_id}, {sim_mode}] is a valid simulation option.")
 
@@ -146,8 +165,8 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
                 scarab_build = 'opt'
                 info(F"Scarab binary not found at '{scarab_bin}', build with {scarab_build}", dbg_lvl)
 
-        scarab_bin = f"{scarab_path}/src/build/{scarab_build}/scarab"
         if scarab_build != None:
+            scarab_bin = f"{scarab_path}/src/build/{scarab_build}/scarab"
             info(f"Scarab binary at '{scarab_bin}', building it first, please wait...", dbg_lvl)
             docker_container_name = f"{docker_prefix}_{user}_scarab_build"
             subprocess.run(
@@ -188,6 +207,10 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
         arch_params = f"{scarab_path}/src/PARAMS.{architecture}"
         os.system(f"mkdir -p {experiment_dir}/scarab/src/")
         if not interactive_shell:
+            if scarab_build:
+                scarab_bin = f"{scarab_path}/src/build/{scarab_build}/scarab"
+            else:
+                scarab_bin = f"{scarab_path}/src/build/opt/scarab"
             os.system(f"cp {scarab_bin} {experiment_dir}/scarab/src/scarab")
         try:
             os.symlink(f"{experiment_dir}/scarab/src/scarab", f"{experiment_dir}/scarab/src/scarab_{scarab_githash}")
@@ -222,7 +245,7 @@ def generate_single_scarab_run_command(user, workload, group, experiment, config
     if mode == "memtrace":
         command = f"run_memtrace_single_simpoint.sh \\\"{workload}\\\" \\\"{group}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{seg_size}\\\" \\\"{arch}\\\" \\\"{trim_type}\\\" /home/{user}/simulations/{experiment}/scarab {cluster_id} {trace_file}"
     elif mode == "pt":
-        command = f"run_pt_single_simpoint.sh \\\"{workload}\\\" \\\"{group}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{seg_size}\\\" \\\"{arch}\\\" \\\"{trim_type}\\\" /home/{user}/simulations/{experiment}/scarab {cluster_id}"
+        command = f"run_pt_single_simpoint.sh \\\"{workload}\\\" \\\"{group}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{arch}\\\" \\\"{trim_type}\\\" /home/{user}/simulations/{experiment}/scarab"
     elif mode == "exec":
         command = f"run_exec_single_simpoint.sh \\\"{workload}\\\" \\\"{group}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{arch}\\\" /home/{user}/simulations/{experiment}/scarab {env_vars} {bincmd} {client_bincmd}"
     else:
@@ -360,10 +383,13 @@ def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_contai
     except Exception as e:
         raise e
 
-def get_simpoints (workload_data, dbg_lvl = 2):
+def get_simpoints (workload_data, sim_mode, dbg_lvl = 2):
     simpoints = {}
-    for simpoint in workload_data["simpoints"]:
-        simpoints[f"{simpoint['cluster_id']}"] = simpoint["weight"]
+    if sim_mode == "memtrace":
+        for simpoint in workload_data["simpoints"]:
+            simpoints[f"{simpoint['cluster_id']}"] = simpoint["weight"]
+    else:
+        simpoints["0"] = 1.0
 
     return simpoints
 
@@ -375,6 +401,11 @@ def get_image_name(workloads_data, suite_data, simulation):
     sim_mode = simulation["simulation_type"]
 
     if workload != None:
+        if subsuite == None:
+            subsuite = next(iter(suite_data[suite]))
+        predef_sim_mode = suite_data[suite][subsuite]["predefined_simulation_mode"][workload]
+        if sim_mode == None:
+            sim_mode = predef_sim_mode
         return workloads_data[workload]["simulation"][sim_mode]["image_name"]
 
     if subsuite != None:
@@ -416,27 +447,42 @@ def get_image_list(simulations, workloads_data, suite_data):
         subsuite = simulation["subsuite"]
         workload = simulation["workload"]
         exp_cluster_id = simulation["cluster_id"]
-        mode = simulation["simulation_type"]
+        sim_mode = simulation["simulation_type"]
 
         if workload == None:
             if subsuite == None:
-                for subsuite in suite_data[suite].keys():
-                    for workload in suite_data[suite][subsuite]["predefined_simulation_mode"].keys():
-                        predef_mode = suite_data[suite][subsuite]["predefined_simulation_mode"][workload]
-                        if mode == None:
-                            mode = predef_mode
-                        if mode in workloads_data[workload]["simulation"].keys() and workloads_data[workload]["simulation"][mode]["image_name"] not in image_list:
-                            image_list.append(workloads_data[workload]["simulation"][mode]["image_name"])
+                for subsuite_ in suite_data[suite].keys():
+                    for workload_ in suite_data[suite][subsuite_]["predefined_simulation_mode"].keys():
+                        predef_mode = suite_data[suite][subsuite_]["predefined_simulation_mode"][workload_]
+                        sim_mode_ = sim_mode
+                        if sim_mode_ == None:
+                            sim_mode_ = predef_mode
+                        if sim_mode_ in workloads_data[workload_]["simulation"].keys() and workloads_data[workload_]["simulation"][sim_mode_]["image_name"] not in image_list:
+                            image_list.append(workloads_data[workload_]["simulation"][sim_mode_]["image_name"])
             else:
-                for workload in suite_data[suite][subsuite]["predefined_simulation_mode"].keys():
-                    predef_mode = suite_data[suite][subsuite]["predefined_simulation_mode"][workload]
-                    if mode == None:
-                        mode = predef_mode
-                    if mode in workloads_data[workload]["simulation"].keys() and workloads_data[workload]["simulation"][mode]["image_name"] not in image_list:
-                        image_list.append(workloads_data[workload]["simulation"][mode]["image_name"])
+                for workload_ in suite_data[suite][subsuite]["predefined_simulation_mode"].keys():
+                    predef_mode = suite_data[suite][subsuite]["predefined_simulation_mode"][workload_]
+                    sim_mode_ = sim_mode
+                    if sim_mode_ == None:
+                        sim_mode_ = predef_mode
+                    if sim_mode_ in workloads_data[workload_]["simulation"].keys() and workloads_data[workload_]["simulation"][sim_mode_]["image_name"] not in image_list:
+                        image_list.append(workloads_data[workload_]["simulation"][sim_mode_]["image_name"])
         else:
-            if mode in workloads_data[workload]["simulation"].keys() and workloads_data[workload]["simulation"][mode]["image_name"] not in image_list:
-                image_list.append(workloads_data[workload]["simulation"][mode]["image_name"])
+            if subsuite == None:
+                for subsuite_ in suite_data[suite].keys():
+                    predef_mode = suite_data[suite][subsuite_]["predefined_simulation_mode"][workload]
+                    sim_mode_ = sim_mode
+                    if sim_mode_ == None:
+                        sim_mode_ = predef_mode
+                    if sim_mode_ in workloads_data[workload]["simulation"].keys() and workloads_data[workload]["simulation"][sim_mode_]["image_name"] not in image_list:
+                        image_list.append(workloads_data[workload]["simulation"][sim_mode_]["image_name"])
+            else:
+                predef_mode = suite_data[suite][subsuite]["predefined_simulation_mode"][workload]
+                sim_mode_ = sim_mode
+                if sim_mode_ == None:
+                    sim_mode_ = predef_mode
+                if sim_mode_ in workloads_data[workload]["simulation"].keys() and workloads_data[workload]["simulation"][sim_mode_]["image_name"] not in image_list:
+                    image_list.append(workloads_data[workload]["simulation"][sim_mode_]["image_name"])
 
     return image_list
 
@@ -466,8 +512,8 @@ def prepare_trace(user, scarab_path, scarab_build, docker_home, job_name, infra_
                 scarab_build = 'opt'
                 info(F"Scarab binary not found at '{scarab_bin}', build with {scarab_build}", dbg_lvl)
 
-        scarab_bin = f"{scarab_path}/src/build/{scarab_build}/scarab"
         if scarab_build != None:
+            scarab_bin = f"{scarab_path}/src/build/{scarab_build}/scarab"
             info(f"Scarab binary at '{scarab_bin}', building it first, please wait...", dbg_lvl)
             docker_container_name = f"{docker_prefix}_{user}_scarab_build"
             subprocess.run(
@@ -503,6 +549,10 @@ def prepare_trace(user, scarab_path, scarab_build, docker_home, job_name, infra_
         trace_dir = f"{docker_home}/simpoint_flow/{job_name}"
         os.system(f"mkdir -p {trace_dir}/scarab/src/")
         if not interactive_shell:
+            if scarab_build:
+                scarab_bin = f"{scarab_path}/src/build/{scarab_build}/scarab"
+            else:
+                scarab_bin = f"{scarab_path}/src/build/opt/scarab"
             os.system(f"cp {scarab_bin} {trace_dir}/scarab/src/scarab")
 
         try:

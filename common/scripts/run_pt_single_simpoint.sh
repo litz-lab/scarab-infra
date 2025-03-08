@@ -12,7 +12,7 @@ SCARABPARAMS="$4"
 SCARABARCH="$5"
 TRACESSIMP="$6"
 SCARABHOME="$7"
-SEGMENT_ID="$8"
+SEGMENT_ID=0
 
 if [ "$SEGMENT_ID" != "0" ]; then
   echo -e "PT trace simulation does not support simpoints currently. cluster id should always be 0."
