@@ -124,6 +124,15 @@ def open_interactive_shell(user, descriptor_data, infra_dir, dbg_lvl = 1):
         trace_scenario = descriptor_data["trace_configurations"][0]
         docker_prefix = trace_scenario["image_name"]
         workload = trace_scenario["workload"]
+
+        # Set the env for simulation again (already set in Dockerfile.common) in case user's bashrc overwrite the existing ones when the home directory is mounted
+        bashrc_path = f"{docker_home}/.bashrc"
+        entry = "source /usr/local/bin/user_entrypoint.sh"
+        with open(bashrc_path, "a+") as f:
+            f.seek(0)
+            if entry not in f.read():
+                f.write(f"\n{entry}\n")
+
         prepare_trace(user, scarab_path, scarab_build, docker_home, trace_name, infra_dir, docker_prefix, githash, True, dbg_lvl)
         if trace_scenario["env_vars"] != None:
             env_vars = trace_scenario["env_vars"].split()

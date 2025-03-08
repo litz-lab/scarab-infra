@@ -115,11 +115,21 @@ def open_interactive_shell(user, descriptor_data, workloads_data, suite_data, in
         # currently open it on local
 
         docker_prefix = get_image_name(workloads_data, suite_data, descriptor_data['simulations'][0])
+        docker_home = descriptor_data['root_dir']
+
+        # Set the env for simulation again (already set in Dockerfile.common) in case user's bashrc overwrite the existing ones when the home directory is mounted
+        bashrc_path = f"{docker_home}/.bashrc"
+        entry = "source /usr/local/bin/user_entrypoint.sh"
+        with open(bashrc_path, "a+") as f:
+            f.seek(0)
+            if entry not in f.read():
+                f.write(f"\n{entry}\n")
+
         # Generate commands for executing in users docker and sbatching to nodes with containers
         scarab_githash = prepare_simulation(user,
                                             scarab_path,
                                             descriptor_data['scarab_build'],
-                                            descriptor_data['root_dir'],
+                                            docker_home,
                                             experiment_name,
                                             descriptor_data['architecture'],
                                             docker_prefix,
