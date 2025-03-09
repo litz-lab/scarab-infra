@@ -286,11 +286,16 @@ def run_tracing(user, descriptor_data, workload_db_path, suite_db_path, infra_di
     tmp_files = []
     log_files = []
 
-    def run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd, post_processing, drio_args, clustering_k):
+    def run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd, trace_type, drio_args, clustering_k):
         try:
-            simpoint_mode = "cluster_then_trace"
-            if post_processing:
+            if trace_type == "cluster":
+                simpoint_mode = "cluster_then_trace"
+            elif trace_type == "post_proc":
                 simpoint_mode = "trace_then_post_process"
+            elif trace_type == "timestep":
+                simpoint_mode = "timestep"
+            else:
+                raise Exception(f"Invalid trace type: {trace_type}")
             info(f"Using docker image with name {image_name}:{githash}", dbg_lvl)
             docker_container_name = f"{image_name}_{workload}_{trace_name}_{simpoint_mode}_{user}"
             filename = f"{docker_container_name}_tmp_run.sh"
@@ -355,12 +360,12 @@ def run_tracing(user, descriptor_data, workload_db_path, suite_db_path, infra_di
                 env_vars = config["env_vars"]
             binary_cmd = config["binary_cmd"]
             client_bincmd = config["client_bincmd"]
-            post_processing = config["post_processing"]
+            trace_type = config["trace_type"]
             drio_args = config["dynamorio_args"]
             clustering_k = config["clustering_k"]
 
             run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd,
-                             post_processing, drio_args, clustering_k)
+                             trace_type, drio_args, clustering_k)
 
         print("Wait processes...")
         for p in processes:
@@ -371,9 +376,9 @@ def run_tracing(user, descriptor_data, workload_db_path, suite_db_path, infra_di
             err.close()
 
         # Clean up temp files
-        for tmp in tmp_files:
-            info(f"Removing temporary run script {tmp}", dbg_lvl)
-            os.remove(tmp)
+        # for tmp in tmp_files:
+        #     info(f"Removing temporary run script {tmp}", dbg_lvl)
+        #     os.remove(tmp)
 
         finish_trace(user, descriptor_data, workload_db_path, suite_db_path, dbg_lvl)
     except Exception as e:
@@ -387,9 +392,9 @@ def run_tracing(user, descriptor_data, workload_db_path, suite_db_path, infra_di
             err.close()
 
         # Clean up temp files
-        for tmp in tmp_files:
-            info(f"Removing temporary run script {tmp}", dbg_lvl)
-            os.remove(tmp)
+        # for tmp in tmp_files:
+        #     info(f"Removing temporary run script {tmp}", dbg_lvl)
+        #     os.remove(tmp)
 
         kill_jobs(user, "trace", trace_name, docker_prefix_list, infra_dir, dbg_lvl)
 

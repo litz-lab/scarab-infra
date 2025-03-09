@@ -307,7 +307,9 @@ def generate_single_trace_run_command(user, workload, image_name, trace_name, bi
         mode = 1
     elif simpoint_mode == "trace_then_post_process":
         mode = 2
-    command = f"python3 -u /usr/local/bin/run_simpoint_trace.py --workload {workload} --suite {image_name} --simpoint_mode {mode} --simpoint_home \"/home/{user}/simpoint_flow/{trace_name}\" --bincmd \"{binary_cmd}\" --client_bincmd \"{client_bincmd}\""
+    elif simpoint_mode == "timestep":
+        mode = 3
+    command = f"python3 -u /usr/local/bin/run_simpoint_trace.py --workload {workload} --suite {image_name} --simpoint_mode {mode} --simpoint_home \\\"/home/{user}/simpoint_flow/{trace_name}\\\" --bincmd \\\"{binary_cmd}\\\" --client_bincmd \\\"{client_bincmd}\\\""
     if drio_args != None:
         command = f"{command} --drio_args {drio_args}"
     if clustering_k != None:
@@ -575,10 +577,14 @@ def finish_trace(user, descriptor_data, workload_db_path, suite_db_path, dbg_lvl
             exec_dict['client_bincmd'] = config['client_bincmd']
             memtrace_dict = {}
             memtrace_dict['image_name'] = "allbench_traces"
-            if config['post_processing']:
+            if config['trace_type'] == "cluster":
                 trim_type = 1
-            else:
+            elif config['trace_type'] == "post_proc":
                 trim_type = 2
+            elif config['trace_type'] == "timestep":
+                trim_type = 3
+            else:
+                raise Exception(f"Invalid trace type: {config['trace_type']}")
             memtrace_dict['trim_type'] = trim_type
             memtrace_dict['segment_size'] = int(read_first_line(segment_size_file))
             trace_clustering_info = read_descriptor_from_json(f"{docker_home}/simpoint_flow/{job_name}/{workload}/trace_clustering_info.json", dbg_lvl)

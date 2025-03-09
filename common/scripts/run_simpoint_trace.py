@@ -323,6 +323,117 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
     except Exception as e:
         raise e
 
+def trace_timestep(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mode, drio_args, clustering_userk):
+    # 1. trace timestep event from application
+    # 2. drraw2trace
+    chunk_size = 10000000
+    for i in range(1, 2):
+        try:
+            timestep_dir = os.path.join(simpoint_home, workload, f"Timestep_{i}")
+            os.makedirs(timestep_dir, exist_ok=True)
+
+            start_time = time.perf_counter()
+            dynamorio_home = os.environ.get('DYNAMORIO_HOME')
+            if not dynamorio_home:
+                raise EnvironmentError("DYNAMORIO_HOME not set")
+
+            trace_cmd = (f"{dynamorio_home}/bin64/drrun -t drcachesim -jobs 40 -outdir {timestep_dir} -offline")
+            if drio_args is not None:
+                trace_cmd = f"{trace_cmd} {drio_args}"
+            trace_cmd = f"{trace_cmd} -- {bincmd}"
+            trace_cmd_list = shlex.split(trace_cmd)
+
+            print(f"[Timestep {i}] tracing..")
+            if i == 1 and client_bincmd:
+                subprocess.Popen("exec " + client_bincmd, stdout=subprocess.PIPE, shell=True)
+            subprocess.run(trace_cmd_list, check=True, capture_output=True, text=True)
+
+            end_time = time.perf_counter()
+            report_time(f"[Timestep {i}] tracing done", start_time, end_time)
+
+            print(f"[Timestep {i}] raw2trace..")
+            start_time = time.perf_counter()
+
+            raw2trace_processes = set()
+            for root, dirs, files in os.walk(timestep_dir):
+                for directory in dirs:
+                    if re.match(r"^dr.*", directory):
+                        dr_path = os.path.join(root, directory)
+                        bin_path = os.path.join(root, directory, "bin")
+                        raw_path = os.path.join(root, directory, "raw")
+                        os.makedirs(bin_path, exist_ok=True)
+                        os.chmod(bin_path, 0o777)
+                        os.chmod(raw_path, 0o777)
+                        subprocess.run(f"cp {raw_path}/modules.log {bin_path}/modules.log", check=True, shell=True)
+                        subprocess.run(f"cp {raw_path}/modules.log {raw_path}/modules.log.bak", check=True, shell=True)
+                        subprocess.run(["python2", f"{simpoint_home}/scarab/utils/memtrace/portabilize_trace.py", f"{dr_path}"], capture_output=True, text=True, check=True)
+                        subprocess.run(f"cp {bin_path}/modules.log {raw_path}/modules.log", check=True, shell=True)
+                        raw2trace_cmd = f"{dynamorio_home}/tools/bin64/drraw2trace -jobs 40 -indir {raw_path} -chunk_instr_count {chunk_size}"
+                        process = subprocess.Popen("exec " + raw2trace_cmd, stdout=subprocess.PIPE, shell=True)
+                        raw2trace_processes.add(process)
+
+            for p in raw2trace_processes:
+                p.wait()
+
+            end_time = time.perf_counter()
+            report_time(f"[Timestep {i}] raw2trace done", start_time, end_time)
+
+            print(f"[Timestep {i}] post processing..")
+            start_time = time.perf_counter()
+            trace_files, dr_folders = find_trace_files(timestep_dir)
+            num_traces = len(trace_files)
+            num_dr_folder = len(dr_folders)
+
+            if num_traces == 1 and num_dr_folder == 1:
+                modules_dir = os.path.dirname(glob.glob(os.path.join(timestep_dir, "drmemtrace.*.dir/raw/modules.log"))[0])
+                whole_trace = glob.glob(os.path.join(timestep_dir, "drmemtrace.*.dir/trace/dr*.zip"))[0]
+                dr_folder = os.path.dirname(os.path.dirname(whole_trace))
+            elif num_traces == num_dr_folder:
+                whole_trace = get_largest_trace(timestep_dir)
+                dr_folder = os.path.dirname(os.path.dirname(whole_trace))
+                modules_dir = os.path.dirname(os.path.join(dr_folder, "raw/modules.log"))
+            elif num_traces > num_dr_folder:
+                whole_trace = get_largest_trace(timestep_dir)
+                dr_folder = os.path.dirname(os.path.dirname(whole_trace))
+                modules_dir = os.path.dirname(os.path.join(dr_folder, "raw/modules.log"))
+            else:
+                raise Exception("There are multiple trace files. Decide one manually.")
+
+            # remove unnecessary .trace.zip files
+            trace_dir = os.path.dirname(whole_trace)  # drmemtrace.*.dir/trace
+            keep_files = {
+                os.path.basename(whole_trace),
+                "cpu_schedule.bin.zip",
+                "serial_schedule.bin.gz",
+            }
+
+            for fname in os.listdir(trace_dir):
+                if fname not in keep_files:
+                    remove_path = os.path.join(trace_dir, fname)
+                    if os.path.isfile(remove_path):
+                        os.remove(remove_path)
+
+            # remove /raw folder
+            raw_folder = os.path.join(os.path.dirname(trace_dir), "raw") # drmemtrace.*.dir/raw
+            if os.path.isdir(raw_folder):
+                subprocess.run(f"rm -rf {raw_folder}", shell=True, check=True)
+                print(f"Removed raw folder: {raw_folder}")
+
+            end_time = time.perf_counter()
+            report_time(f"[Timestep {i}] post processing done", start_time, end_time)
+
+            # generate segment_size file
+            fingerprint_dir = os.path.join(simpoint_home, workload, "fingerprint")
+            os.makedirs(fingerprint_dir, exist_ok=True)
+            segment_size_path = os.path.join(fingerprint_dir, "segment_size")
+            with open(segment_size_path, 'w') as f:
+                f.write(f"{chunk_size}\n")
+            print(f"Saved chunk_size={chunk_size} to {segment_size_path}")
+
+        except Exception as e:
+            print(f"[Timestep {i}] failed: {str(e)}")
+            raise e
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Runs clustering/tracing on local or a slurm network')
 
@@ -352,9 +463,14 @@ if __name__ == "__main__":
 
     try:
         print("running run_simpoint_trace.py...")
+        print(simpoint_mode)
         if simpoint_mode == "1": # clustering then tracing
             cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mode, drio_args, clustering_userk, manual_trace)
         elif simpoint_mode == "2": # trace then post-process
             trace_then_cluster(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mode, drio_args, clustering_userk)
+        elif simpoint_mode == "3": # trace each timestep
+            trace_timestep(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mode, drio_args, clustering_userk)
+        else:
+            raise Exception("Invalid simpoint mode")
     except Exception as e:
         traceback.print_exc() # Print the full stack trace
