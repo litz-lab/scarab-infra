@@ -12,6 +12,8 @@ import re
 import glob
 import json
 import shlex
+import shutil
+import zipfile
 
 def find_trace_files(base_path):
     trace_files = glob.glob(os.path.join(base_path, "drmemtrace.*.dir/trace/dr*.trace.zip"))
@@ -331,14 +333,13 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
 def iterative(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mode, drio_args, clustering_userk):
     # 1. trace timestep event from application
     # 2. drraw2trace
-    # 3. post_processing for bbfp
-    # 4. clustering
-    # 5. minimize traces
     chunk_size = 10000000
     seg_size = 10000000
+    max_retries = 3
+
     try:
         workload_home = f"{simpoint_home}/{workload}"
-        for i in range(1, 11):
+        for i in range(1, 101):
             timestep_dir = os.path.join(workload_home, "traces", "whole")
             os.makedirs(timestep_dir, exist_ok=True)
 
@@ -356,13 +357,36 @@ def iterative(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mo
             print(f"[Timestep {i}] tracing..")
             if i == 1 and client_bincmd:
                 subprocess.Popen("exec " + client_bincmd, stdout=subprocess.PIPE, shell=True)
-            subprocess.run(trace_cmd_list, check=True, capture_output=True, text=True, timeout=60)
+
+            for attempt in range(max_retries):
+                try:
+                    subprocess.run(trace_cmd_list, check=True, capture_output=True, text=True, timeout=30)
+                    break
+                except subprocess.TimeoutExpired as e:
+                    print(f"[Timestep {i}] tracing attempt {attempt+1} timed out: {e}")
+                    if attempt == max_retries - 1:
+                        raise e 
+                    else:
+                        subdirs = [os.path.join(timestep_dir, d) for d in os.listdir(timestep_dir) 
+                                   if os.path.isdir(os.path.join(timestep_dir, d))]
+                        if subdirs:
+                            latest_dir = max(subdirs, key=os.path.getmtime)
+                            print(f"[Timestep {i}] removing the most recent folder: {latest_dir}")
+                            shutil.rmtree(latest_dir, ignore_errors=True)
+                        else:
+                            print(f"[Timestep {i}] no subfolder found in {timestep_dir} to remove.")
+                        
+                        print(f"[Timestep {i}] retrying tracing (attempt {attempt+2})...")
+                        time.sleep(5)
+                except Exception as e:
+                    print(f"[Timestep {i}] tracing failed with error: {e}")
+                    raise e
 
             end_time = time.perf_counter()
             report_time(f"[Timestep {i}] tracing done", start_time, end_time)
 
             # sleep 1sec for every iteration
-            os.system("sleep 1")
+            time.sleep(10)
 
         print(f"raw2trace..")
         start_time = time.perf_counter()
@@ -393,59 +417,73 @@ def iterative(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mo
 
         print(f"post processing..")
         start_time = time.perf_counter()
-        
+        inst_counts = {}
+
         for root, dirs, files in os.walk(timestep_dir):
             for directory in dirs:
                 if re.match(r"^dr.*", directory):
                     trace_clustering_info = {}
                     dr_path = os.path.join(root, directory)
                     whole_trace = get_largest_trace(dr_path, simpoint_mode)
-                    dr_folder = os.path.dirname(os.path.dirname(whole_trace))
-                    modules_dir = os.path.dirname(os.path.join(dr_folder, "raw/modules.log"))
+                    dr_folder_path = os.path.dirname(os.path.dirname(whole_trace))
+                    print(whole_trace)
+                    
+                    with zipfile.ZipFile(whole_trace, 'r') as zf:
+                        file_list = zf.namelist()
+                        chunk_files = [fname for fname in file_list if re.search(r'chunk\.', fname)]
+                        numChunk = len(chunk_files)
+                        numInsts = numChunk * chunk_size
+                        print(f"{directory}: numInsts = {numInsts}")
+                        inst_counts[directory] = numInsts
 
-                    print(dr_folder)
-                    post_processing_cmd = f"/bin/bash /usr/local/bin/run_trace_post_processing.sh {workload_home} {modules_dir} {whole_trace} {chunk_size} {seg_size} {simpoint_home}"
-                    subprocess.run([post_processing_cmd], check=True, shell=True, stdin=open(os.devnull, 'r'))
-                    trace_file = os.path.basename(whole_trace)
-                    dr_folder = os.path.basename(dr_folder)
-                    trace_clustering_info["modules_dir"] = modules_dir
-                    trace_clustering_info["whole_trace"] = whole_trace
-                    trace_clustering_info["dr_folder"] = dr_folder
-                    trace_clustering_info["trace_file"] = trace_file
-                    with open(os.path.join(workload_home, "trace_clustering_info.json"), "w") as json_file:
-                        json.dump(trace_clustering_info, json_file, indent=2, separators=(",", ":"))
+        total_inst = sum(inst_counts.values())
+        print(f"Total instruction count across all directories: {total_inst}")
 
-                    source_bbfp = os.path.join(workload_home, "fingerprint", "bbfp")
-                    dest_bbfp = os.path.join(workload_home, "bbfp")
+        trace_weights = {}
+        for directory, count in inst_counts.items():
+            if total_inst > 0:
+                weight = count / total_inst
+            else:
+                weight = 0
+            trace_weights[directory] = weight
 
-                    if os.path.exists(source_bbfp):
-                        with open(source_bbfp, "r") as src:
-                            content = src.read()
-                        with open(dest_bbfp, "a") as dst:
-                            dst.write(content)
-                        print(f"Accumulated bbfp from {source_bbfp} into {dest_bbfp}")
-                    else:
-                        print(f"Source bbfp file not found: {source_bbfp}")
+        print("Computed trace weights:")
+        for directory, weight in trace_weights.items():
+            print(f"{directory}: {weight:.4f}")
+
+        sorted_dirs = sorted(trace_weights.keys())
+
+        simpoint_home = f"{workload_home}/simpoints"
+        os.makedirs(simpoint_home, exist_ok=True)
+
+        opt_w_path = os.path.join(simpoint_home, "opt.w")
+        opt_w_lpt_path = os.path.join(simpoint_home, "opt.w.lpt0.99")
+        with open(opt_w_path, "w") as f1, open(opt_w_lpt_path, "w") as f2:
+            for idx, directory in enumerate(sorted_dirs):
+                weight = trace_weights[directory]
+                line = f"{weight:.6f} {idx}\n"
+                f1.write(line)
+                f2.write(line)
+
+        opt_w2_path = os.path.join(simpoint_home, "opt.w.2")
+        opt_w2_lpt_path = os.path.join(simpoint_home, "opt.w.2.lpt0.99")
+        with open(opt_w2_path, "w") as f3, open(opt_w2_lpt_path, "w") as f4:
+            for idx, directory in enumerate(sorted_dirs):
+                inst_count = inst_counts[directory]
+                line = f"{inst_count} {idx}\n"
+                f3.write(line)
+                f4.write(line)
+
+        opt_p_path = os.path.join(simpoint_home, "opt.p")
+        opt_p_lpt_path = os.path.join(simpoint_home, "opt.p.lpt0.99")
+        with open(opt_p_path, "w") as f1, open(opt_p_lpt_path, "w") as f2:
+            for idx, directory in enumerate(sorted_dirs):
+                line = f"{idx+1} {idx}\n"
+                f1.write(line)
+                f2.write(line)
 
         end_time = time.perf_counter()
         report_time(f"post processing done", start_time, end_time)
-
-        print("clustering..")
-        start_time = time.perf_counter()
-        clustering_cmd = f"/bin/bash /usr/local/bin/run_clustering.sh {workload_home}/bbfp {workload_home}"
-        if clustering_userk != None:
-            clustering_cmd = f"{clustering_cmd} {clustering_userk}"
-        subprocess.run([clustering_cmd], check=True, shell=True, stdin=open(os.devnull, 'r'))
-        end_time = time.perf_counter()
-        report_time("clustering done", start_time, end_time)
-
-        print("minimizing traces..")
-        start_time = time.perf_counter()
-        os.makedirs(f"{workload_home}/traces_simp", exist_ok=True)
-        minimize_trace_cmd = f"/bin/bash /usr/local/bin/minimize_trace.sh {dr_folder}/bin {whole_trace} {workload_home}/simpoints 1 {workload_home}/traces_simp"
-        subprocess.run([minimize_trace_cmd], check=True, shell=True, stdin=open(os.devnull, 'r'))
-        end_time = time.perf_counter()
-        report_time("minimizing traces done", start_time, end_time)
     except Exception as e:
         print(f"[Timestep {i}] failed: {str(e)}")
         raise e

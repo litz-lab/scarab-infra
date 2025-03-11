@@ -472,12 +472,12 @@ def run_tracing(user, descriptor_data, workload_db_path, suite_db_path, infra_di
             info(f"Excluding following nodes: {', '.join(excludes)}", dbg_lvl)
             sbatch_cmd = generate_sbatch_command(excludes, trace_dir)
 
-            if trace_type == "cluster":
+            if trace_type == "cluster_then_trace":
                 simpoint_mode = "cluster_then_trace"
-            elif trace_type == "post_proc":
+            elif trace_type == "trace_then_cluster":
                 simpoint_mode = "trace_then_post_process"
-            elif trace_type == "timestep":
-                simpoint_mode = "timestep"
+            elif trace_type == "iterative_trace":
+                simpoint_mode = "iterative_trace"
             else:
                 raise Exception(f"Invalid trace type: {trace_type}")
             info(f"Using docker image with name {image_name}:{githash}", dbg_lvl)
