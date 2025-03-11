@@ -10,7 +10,7 @@ cp $tmpdir/memtrace.cfg $tmpdir/cpu2017/config/memtrace.cfg
 cp $tmpdir/compile-538-clang.sh $tmpdir/cpu2017/benchspec/CPU
 
 # Build the app
-cd ../cpu2017
+cd $tmpdir/cpu2017
 source shrc
 
 ./bin/specperl ./bin/harness/runcpu --copies=1 --iterations=1 --threads=1 --config=memtrace --action=runsetup --size=train $APPNAME
