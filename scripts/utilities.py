@@ -247,7 +247,8 @@ def generate_single_scarab_run_command(user, workload, group, experiment, config
     elif mode == "pt":
         command = f"run_pt_single_simpoint.sh \\\"{workload}\\\" \\\"{group}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{arch}\\\" \\\"{trim_type}\\\" /home/{user}/simulations/{experiment}/scarab"
     elif mode == "exec":
-        command = f"run_exec_single_simpoint.sh \\\"{workload}\\\" \\\"{group}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{arch}\\\" /home/{user}/simulations/{experiment}/scarab {env_vars} {bincmd} {client_bincmd}"
+        #command = f"run_exec_single_simpoint.sh \"{workload}\" \"{group}\" \"/home/{user}/simulations/{experiment}/{config_key}\" \"{config}\" \"{arch}\" /home/{user}/simulations/{experiment}/scarab {env_vars} {bincmd} {client_bincmd}"
+        command = f"run_exec_single_simpoint.sh \"{workload}\" \"/home/{user}/simulations/{experiment}/{config_key}\" \"{config}\" 1000000 \"{arch}\" /home/{user}/simulations/{experiment}/scarab 0 {env_vars} {bincmd}"
     else:
         command = ""
 

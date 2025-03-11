@@ -158,6 +158,17 @@ def open_interactive_shell(user, descriptor_data, workloads_data, suite_data, in
                             "--mount", f"type=bind,source={docker_home},target=/home/{user},readonly=false",
                             "--mount", f"type=bind,source={scarab_path},target=/scarab,readonly=false",
                             f"{docker_prefix}:{githash}", "/bin/bash"], check=True, capture_output=True, text=True)
+            # subprocess.run(["docker", "run",
+            #                 "-e", f"user_id={local_uid}",
+            #                 "-e", f"group_id={local_gid}",
+            #                 "-e", f"username={user}",
+            #                 "-e", f"HOME=/home/{user}",
+            #                 "-dit", "--privileged",
+            #                 "--name", f"{docker_container_name}",
+            #                 "--mount", f"type=bind,source={traces_dir},target=/simpoint_traces",
+            #                 "--mount", f"type=bind,source={docker_home},target=/home/{user}"],
+            #                 check=True, capture_output=True, text=True)
+ 
             subprocess.run(["docker", "cp", f"{infra_dir}/scripts/utilities.sh", f"{docker_container_name}:/usr/local/bin"],
                            check=True, capture_output=True, text=True)
             subprocess.run(["docker", "cp", f"{infra_dir}/common/scripts/root_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
@@ -182,7 +193,7 @@ def open_interactive_shell(user, descriptor_data, workloads_data, suite_data, in
             subprocess.run(["docker", "exec", "--privileged", f"{docker_container_name}", "/bin/bash", "-c", "/usr/local/bin/root_entrypoint.sh"],
                            check=True, capture_output=True, text=True)
             print("Ran entrypoint")
-            subprocess.run(["docker", "exec", "-it", f"--user=root", f"--workdir=/home/{user}", docker_container_name, "/bin/bash"])
+            subprocess.run(["docker", "exec", "-it", "--privileged", f"--user={user}", f"--workdir=/home/{user}", docker_container_name, "/bin/bash"])
             
         except KeyboardInterrupt:
             subprocess.run(["docker", "exec", "--privileged", f"--user={user}", f"--workdir=/home/{user}", docker_container_name,

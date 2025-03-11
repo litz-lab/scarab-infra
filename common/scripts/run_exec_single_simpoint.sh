@@ -6,17 +6,14 @@ set -x #echo on
 echo "Running on $(hostname)"
 
 APPNAME="$1"
-APP_GROUPNAME="$2"
-SCENARIO="$3"
-SCARABPARAMS="$4"
-SEGSIZE="$5"
-SCARABARCH="$6"
-TRACESSIMP="$7"
-SCARABHOME="$8"
-SEGMENT_ID="$9"
-ENVVAR="$10"
-BINCMD="$11"
-CLIENT_BINCMD="$12"
+SCENARIO="$2"
+SCARABPARAMS="$3"
+SEGSIZE="$4"
+SCARABARCH="$5"
+SCARABHOME="$6"
+SEGMENT_ID="$7"
+ENVVAR="$8"
+BINCMD="$9"
 
 for token in $ENVVAR;
 do
@@ -48,6 +45,7 @@ if [ "$SEGMENT_ID" == "0" ]; then
   python3 $SCARABHOME/bin/scarab_launch.py --program=\"$BINCMD\" \
     --simdir=\"$SIMHOME/$SCENARIONUM/\" \
     --pintool_args=\"-hyper_fast_forward_count $start_inst\" \
+    --pin=\"$tmpdir/pin-3.15-98253-gb56e429b1-gcc-linux/pin\" \
     --scarab_args=\"--inst_limit $SEGSIZE --full_warmup $WARMUP $SCARABPARAMS\" \
     --scarab_stdout=\"$SIMHOME/$SCENARIONUM/scarab.out\" \
     --scarab_stderr=\"$SIMHOME/$SCENARIONUM/scarab.err\" \
@@ -77,6 +75,7 @@ else
   python3 $SCARABHOME/bin/scarab_launch.py --program=\"$BINCMD\" \
   --simdir=\"$SIMHOME/$SCENARIONUM/$clusterID\" \
   --pintool_args=\"-hyper_fast_forward_count $roiStart\" \
+  --pin=\"$tmpdir/pin-3.15-98253-gb56e429b1-gcc-linux/pin\" \
   --scarab_args=\"--inst_limit $instLimit --full_warmup $WARMUP $SCARABPARAMS\" \
   --scarab_stdout=\"$SIMHOME/$SCENARIONUM/$clusterID/scarab.out\" \
   --scarab_stderr=\"$SIMHOME/$SCENARIONUM/$clusterID/scarab.err\" \
