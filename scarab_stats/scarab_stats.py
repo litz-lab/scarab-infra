@@ -430,8 +430,8 @@ class stat_aggregator:
 
     # Load simpoint from csv file as pandas dataframe
     def load_simpoint(self, path, load_ramulator=True, ignore_duplicates = True, return_stats = False, order = None):
-        data = pd.Series()
-        group = pd.Series()
+        data = pd.Series(dtype="float64")
+        group = pd.Series(dtype="float64")
         all_stats = []
 
         for file in stat_files:
@@ -1143,7 +1143,7 @@ class stat_aggregator:
         hatches = ['/', '\\', '.', '-', '+', 'x', 'o', 'O', '*']
         patch_hatches = []
         if colors == None:
-            colors = ['#cecece', '#cde1ec', '#8ec1da', '#2066a8', '#a559aa', '#59a89c', '#f0c571', '#e02b35', '#082a54']
+            colors = ['#cecece', '#cde1ec', '#8ec1da', '#2066a8', '#a559aa', '#59a89c', '#f0c571', '#e02b35', '#082a54', '#ededed', '#f6d6c2', '#d47264', '#800000', '#911eb4', '#4363d8', '#f58231', '#3cb44b', '#46f0f0', '#f032e6', '#bcf60c', '#fabebe', '#e6beff', '#e6194b', '#000075', '#9a6324', '#808080', '#ffffff', '#000000']
 
         # For each stat
         for x_offset, config in enumerate(configs):
@@ -1199,7 +1199,7 @@ class stat_aggregator:
         hatches = ['/', '\\', '.', '-', '+', 'x', 'o', 'O', '*']
         patch_hatches = []
         if colors == None:
-            colors = ['#cecece', '#cde1ec', '#8ec1da', '#2066a8', '#a559aa', '#59a89c', '#f0c571', '#e02b35', '#082a54']
+            colors = ['#cecece', '#cde1ec', '#8ec1da', '#2066a8', '#a559aa', '#59a89c', '#f0c571', '#e02b35', '#082a54', '#ededed', '#f6d6c2', '#d47264', '#800000', '#911eb4', '#4363d8', '#f58231', '#3cb44b', '#46f0f0', '#f032e6', '#bcf60c', '#fabebe', '#e6beff', '#e6194b', '#000075', '#9a6324', '#808080', '#ffffff', '#000000']
 
         # For each stat
         for x_offset, config in enumerate(configs):
