@@ -577,11 +577,11 @@ def finish_trace(user, descriptor_data, workload_db_path, suite_db_path, dbg_lvl
             exec_dict['client_bincmd'] = config['client_bincmd']
             memtrace_dict = {}
             memtrace_dict['image_name'] = "allbench_traces"
-            if config['trace_type'] == "cluster":
+            if config['trace_type'] == "cluster_then_trace":
                 trim_type = 1
-            elif config['trace_type'] == "post_proc":
+            elif config['trace_type'] == "trace_then_cluster":
                 trim_type = 2
-            elif config['trace_type'] == "timestep":
+            elif config['trace_type'] == "iterative_trace":
                 trim_type = 3
             else:
                 raise Exception(f"Invalid trace type: {config['trace_type']}")
