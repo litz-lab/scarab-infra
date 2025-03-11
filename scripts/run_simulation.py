@@ -53,7 +53,7 @@ def verify_descriptor(descriptor_data, workloads_data, suite_data, open_shell = 
     # Check experiment doesn't already exists
     experiment_dir = f"{descriptor_data['root_dir']}/simulations/{descriptor_data['experiment']}"
     if os.path.exists(experiment_dir) and not open_shell:
-        print("Experiment '{experiment_dir}' already exists. It will overwrite the existing simulation results!")
+        print(f"Experiment '{experiment_dir}' already exists. It will overwrite the existing simulation results!")
 
     # Check if each simulation type is valid
     validate_simulation(workloads_data, suite_data, descriptor_data['simulations'])
