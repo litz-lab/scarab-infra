@@ -5663,5 +5663,58 @@
   },
   "small_locks_benchmark":{},
   "openssl":{},
-  "lzbench":{}
+  "lzbench":{},
+  "result_bag_timestep":{
+    "trace":{
+      "dynamorio_args":null,
+      "clustering_k":null
+    },
+    "simulation":{
+      "exec":{
+        "image_name":"autoware",
+        "segment_size":10000000,
+        "env_vars":null,
+        "binary_cmd":"\\$tmpdir/autoware/play_next",
+        "client_bincmd":"nohup /opt/ros/humble/bin/ros2 bag play \\\"\\$tmpdir/driving_log_replayer_output/yabloc/latest/sample/result_bag\\\" --rate 0.5 --clock 200 --topics /localization/kinematic_state -p &"
+      },
+      "memtrace":{
+        "image_name":"allbench_traces",
+        "trim_type":3,
+        "segment_size":10000000,
+        "whole_trace_file":"drmemtrace.play_next.00243.5827.trace.zip"
+      }
+    },
+    "simpoints":[
+      {
+        "cluster_id":0,
+        "segment_id":0,
+        "weight":0.206783
+      },
+      {
+        "cluster_id":19,
+        "segment_id":1,
+        "weight":0.196159
+      },
+      {
+        "cluster_id":47,
+        "segment_id":2,
+        "weight":0.0481889
+      },
+      {
+        "cluster_id":1,
+        "segment_id":3,
+        "weight":0.206776
+      },
+      {
+        "cluster_id":23,
+        "segment_id":4,
+        "weight":0.269811
+      },
+      {
+        "cluster_id":2,
+        "segment_id":5,
+        "weight":0.0722833
+      }
+    ]
+  }
 }

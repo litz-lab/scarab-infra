@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(my_play_next_pkg)
+project(my_yabloc_pose_call_pkg)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -8,23 +8,20 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(tier4_localization_msgs REQUIRED)
 find_package(rosbag2_interfaces REQUIRED)
 
-# -----------------------------------------------------
-# Add and link your executable
-add_executable(play_next src/play_next.cpp)
-ament_target_dependencies(
-  play_next
+add_executable(call_yabloc_pose src/call_yabloc_pose.cpp)
+ament_target_dependencies(call_yabloc_pose
   rclcpp
+  tier4_localization_msgs
   rosbag2_interfaces
 )
 
-# Install so 'ros2 run' can find it
 install(TARGETS
-  play_next
+  call_yabloc_pose
   DESTINATION lib/${PROJECT_NAME}
 )
-# -----------------------------------------------------
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
