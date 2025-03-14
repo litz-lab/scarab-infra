@@ -34,8 +34,8 @@ WORKDIR $tmpdir
 
 RUN cd $tmpdir && git clone https://github.com/sbeamer/gapbs.git \
 && cd gapbs \
-&& make \
+&& make SERIAL=1 \
 && make bench-graphs
-RUN rm -rf /tmp_home/gapbs/benchmark/graphs/raw
+RUN rm -rf $tmpdir/gapbs/benchmark/graphs/raw
 # Start your application
 CMD ["/bin/bash"]
