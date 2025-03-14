@@ -339,7 +339,7 @@ def iterative(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mo
 
     try:
         workload_home = f"{simpoint_home}/{workload}"
-        for i in range(1, 101):
+        for i in range(1, 11):
             timestep_dir = os.path.join(workload_home, "traces", "whole")
             os.makedirs(timestep_dir, exist_ok=True)
 
@@ -418,7 +418,8 @@ def iterative(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mo
         print(f"post processing..")
         start_time = time.perf_counter()
         inst_counts = {}
-
+        dir_counter = 1
+        
         for root, dirs, files in os.walk(timestep_dir):
             for directory in dirs:
                 if re.match(r"^dr.*", directory):
@@ -435,6 +436,11 @@ def iterative(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mo
                         numInsts = numChunk * chunk_size
                         print(f"{directory}: numInsts = {numInsts}")
                         inst_counts[directory] = numInsts
+                    
+                    old_path = os.path.join(root, directory)
+                    new_path = os.path.join(root, f"Timestep_{dir_counter}")
+                    os.rename(old_path, new_path)
+                    dir_counter += 1
 
         total_inst = sum(inst_counts.values())
         print(f"Total instruction count across all directories: {total_inst}")
