@@ -32,7 +32,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y \
 
 WORKDIR $tmpdir
 
-RUN cd $tmpdir && git clone https://github.com/hlitz-lab/gapbs.git \
+RUN cd $tmpdir && git clone https://github.com/litz-lab/gapbs.git \
 && cd gapbs \
 && make SERIAL=1
 # Start your application
