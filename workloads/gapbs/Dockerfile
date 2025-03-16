@@ -32,10 +32,8 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y \
 
 WORKDIR $tmpdir
 
-RUN cd $tmpdir && git clone https://github.com/sbeamer/gapbs.git \
+RUN cd $tmpdir && git clone https://github.com/hlitz-lab/gapbs.git \
 && cd gapbs \
-&& make SERIAL=1 \
-&& make bench-graphs
-RUN rm -rf $tmpdir/gapbs/benchmark/graphs/raw
+&& make SERIAL=1
 # Start your application
 CMD ["/bin/bash"]
