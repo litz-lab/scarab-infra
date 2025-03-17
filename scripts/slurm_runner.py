@@ -34,7 +34,7 @@ def check_docker_image(nodes, docker_prefix, githash, dbg_lvl = 1):
             # Check if the image exists
             image = subprocess.check_output(["srun", f"--nodelist={node}", "docker", "images", "-q", f"{docker_prefix}:{githash}"])
             info(f"{image}", dbg_lvl)
-            if image == []:
+            if image == [] or image == b'':
                 info(f"Couldn't find image {docker_prefix}:{githash} on {node}", dbg_lvl)
                 continue
 
@@ -55,7 +55,7 @@ def prepare_docker_image(nodes, docker_prefix, githash, dbg_lvl = 1):
             # Check if the image exists
             image = subprocess.check_output(["srun", f"--nodelist={node}", "docker", "images", "-q", f"{docker_prefix}:{githash}"])
             info(f"{image}", dbg_lvl)
-            if image == []:
+            if image == [] or image == b'':
                 info(f"Couldn't find image {docker_prefix}:{githash} on {node}", dbg_lvl)
                 subprocess.check_output(["srun", f"--nodelist={node}", "docker", "pull", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}"])
                 image = subprocess.check_output(["srun", f"--nodelist={node}", "docker", "images", "-q", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}"])
@@ -249,7 +249,7 @@ def print_status(user, job_name, docker_prefix_list, dbg_lvl = 1):
     node_docker_running = check_docker_container_running(available_slurm_nodes, docker_prefix_list, job_name, user, dbg_lvl)
 
     for node in all_nodes:
-        if node in node_docker_running.keys():
+        if node in node_docker_running.keys() and len(node_docker_running.get(node)) > 0:
             print(f"\033[92mRUNNING:     {node}\033[0m")
             for docker in node_docker_running[node]:
                 print(f"\033[92m    CONTAINER: {docker}\033[0m")
