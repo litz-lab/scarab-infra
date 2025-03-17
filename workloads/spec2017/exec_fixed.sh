@@ -47,6 +47,7 @@ if [ "$SEGMENT_ID" == "0" ]; then
   scarabCmd="
   python3 $SCARABHOME/bin/scarab_launch.py --program=\"$BINCMD\" \
     --simdir=\"$SIMHOME/$SCENARIONUM/\" \
+    --pin=\"/tmp_home/pin-3.15-98253-gb56e429b1-gcc-linux/pin/\" \
     --pintool_args=\"-hyper_fast_forward_count $start_inst\" \
     --scarab_args=\"--inst_limit $SEGSIZE --full_warmup $WARMUP $SCARABPARAMS\" \
     --scarab_stdout=\"$SIMHOME/$SCENARIONUM/scarab.out\" \
@@ -76,6 +77,7 @@ else
   scarabCmd="
   python3 $SCARABHOME/bin/scarab_launch.py --program=\"$BINCMD\" \
   --simdir=\"$SIMHOME/$SCENARIONUM/$clusterID\" \
+  --pin=\"/tmp_home/pin-3.15-98253-gb56e429b1-gcc-linux/pin/\" \
   --pintool_args=\"-hyper_fast_forward_count $roiStart\" \
   --scarab_args=\"--inst_limit $instLimit --full_warmup $WARMUP $SCARABPARAMS\" \
   --scarab_stdout=\"$SIMHOME/$SCENARIONUM/$clusterID/scarab.out\" \
