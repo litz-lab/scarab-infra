@@ -250,14 +250,22 @@ def generate_single_scarab_run_command(user, workload, group, experiment, config
         #command = f"run_exec_single_simpoint.sh \"{workload}\" \"{group}\" \"/home/{user}/simulations/{experiment}/{config_key}\" \"{config}\" \"{arch}\" /home/{user}/simulations/{experiment}/scarab {env_vars} {bincmd} {client_bincmd}"
         # TODO: simpoints. Copy logic from older version, replace the 0 with segment id probably. and the 1000000
         # TODO: CHnage scarab dir stuff
-        command = f"run_exec_single_simpoint.sh \"{workload}\" \"/home/{user}/simulations/{experiment}/{config_key}\" \"{config}\" 1000000 \"{arch}\" /home/{user}/simulations/{experiment}/scarab 0 {env_vars} {bincmd}"
+        command = f"run_exec_single_simpoint.sh \"{workload}\" \"/home/{user}/simulations/{experiment}/{config_key}\" \"{config}\" 100000000 \"{arch}\" /home/{user}/simulations/{experiment}/scarab 0 {env_vars if env_vars is not None else '\"\"'} \"{bincmd}\""
         # SCENARIO / APPNAME / SCENARIONUM / segID
+        # Working command to target:
+        print('COMMAND:')
+        print(command)
+        exit(0)
+        # run_exec_single_simpoint.sh "510.parest_r" /home/aesymons/simulations/exp45/baseline "--heartbeat_interval 1 --num_heartbeats 20000" 100000000 sunny_cove /home/aesymons/scarab_ll 0 "" "$tmpdir/cpu2017/benchspec/CPU/510.parest_r/run/run_base_train_memtrace-m64.0000/parest_r_base.memtrace-m64 $tmpdir/cpu2017/benchspec/CPU/510.parest_r/run/run_base_train_memtrace-m64.0000/train.prm"
+
+        # NEed longer to get csv files. ALso issue with my scarab binary? Try merging to the latest
+        # run_exec_single_simpoint.sh "510.parest_r" "/home/aesymons/simulations/exp42/test" "--heartbeat_interval 1 --num_heartbeats 20000" 100000000 "sunny_cove" /home/aesymons/scarab_ll 0 "" "$tmpdir/cpu2017/benchspec/CPU/510.parest_r/run/run_base_train_memtrace-m64.0000/parest_r_base.memtrace-m64 $tmpdir/cpu2017/benchspec/CPU/510.parest_r/run/run_base_train_memtrace-m64.0000/train.prm"
     else:
         command = ""
 
     return command
 
-def write_docker_command_to_file_run_by_root(user, local_uid, local_gid, workload, experiment_name,
+def write_docker_command_to_file_run_by_root(user, local_uid, local_gid, workload, experiment_name,#
                                              docker_prefix, docker_container_name, traces_dir,
                                              docker_home, githash, config_key, config, scarab_mode, seg_size, scarab_githash,
                                              architecture, cluster_id, trim_type, trace_file,
