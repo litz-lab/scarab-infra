@@ -330,7 +330,9 @@ def generate_single_trace_run_command(user, workload, image_name, trace_name, bi
         mode = 1
     elif simpoint_mode == "trace_then_post_process":
         mode = 2
-    command = f"python3 -u /usr/local/bin/run_simpoint_trace.py --workload {workload} --suite {image_name} --simpoint_mode {mode} --simpoint_home \"/home/{user}/simpoint_flow/{trace_name}\" --bincmd \"{binary_cmd}\" --client_bincmd \"{client_bincmd}\""
+    command = f"python3 -u /usr/local/bin/run_simpoint_trace.py --workload {workload} --suite {image_name} --simpoint_mode {mode} --simpoint_home \"/home/{user}/simpoint_flow/{trace_name}\" --bincmd \"{binary_cmd}\""
+    if client_bincmd != None:
+        command = f"{command} --client_bincmd \"{client_bincmd}\""
     if drio_args != None:
         command = f"{command} --drio_args {drio_args}"
     if clustering_k != None:
