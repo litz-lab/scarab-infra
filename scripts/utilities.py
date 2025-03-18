@@ -225,6 +225,11 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
         os.system(f"cp {scarab_path}/bin/scarab_launch.py  {experiment_dir}/scarab/bin/scarab_launch.py ")
         os.system(f"cp {scarab_path}/bin/scarab_globals/*  {experiment_dir}/scarab/bin/scarab_globals/ ")
 
+        # Required for exec driven mode
+        os.system(f"mkdir -p {experiment_dir}/scarab/src/pin/pin_exec/obj-intel64")
+        os.system(f"echo 'cp {scarab_path}/src/pin/pin_exec/obj-intel64/pin_exec.so  {experiment_dir}/scarab/src/pin/pin_exec/obj-intel64' ")
+        os.system(f"cp {scarab_path}/src/pin/pin_exec/obj-intel64/pin_exec.so  {experiment_dir}/scarab/src/pin/pin_exec/obj-intel64 ")
+
         return scarab_githash
     except Exception as e:
         subprocess.run(["docker", "rm", "-f", docker_container_name], check=True)
@@ -248,18 +253,19 @@ def generate_single_scarab_run_command(user, workload, group, experiment, config
         command = f"run_pt_single_simpoint.sh \\\"{workload}\\\" \\\"{group}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{arch}\\\" \\\"{trim_type}\\\" /home/{user}/simulations/{experiment}/scarab"
     elif mode == "exec":
         #command = f"run_exec_single_simpoint.sh \"{workload}\" \"{group}\" \"/home/{user}/simulations/{experiment}/{config_key}\" \"{config}\" \"{arch}\" /home/{user}/simulations/{experiment}/scarab {env_vars} {bincmd} {client_bincmd}"
-        # TODO: simpoints. Copy logic from older version, replace the 0 with segment id probably. and the 1000000
+        # TODO: simpoints. Copy logic from older version, replace the 0 with segment id probably. and the 1000000 with seg_size
         # TODO: CHnage scarab dir stuff
-        command = f"run_exec_single_simpoint.sh \"{workload}\" \"/home/{user}/simulations/{experiment}/{config_key}\" \"{config}\" 100000000 \"{arch}\" /home/{user}/simulations/{experiment}/scarab 0 {env_vars if env_vars is not None else '\"\"'} \"{bincmd}\""
+        command = f"run_exec_single_simpoint.sh \"{workload}\" \"/home/{user}/simulations/{experiment}/{config_key}\" \"{config}\" \"{seg_size}\" \"{arch}\" /home/{user}/simulations/{experiment}/scarab 0 {env_vars if env_vars is not None else '\"\"'} \"{bincmd}\""
         # SCENARIO / APPNAME / SCENARIONUM / segID
         # Working command to target:
         print('COMMAND:')
         print(command)
         exit(0)
-        # run_exec_single_simpoint.sh "510.parest_r" /home/aesymons/simulations/exp45/baseline "--heartbeat_interval 1 --num_heartbeats 20000" 100000000 sunny_cove /home/aesymons/scarab_ll 0 "" "$tmpdir/cpu2017/benchspec/CPU/510.parest_r/run/run_base_train_memtrace-m64.0000/parest_r_base.memtrace-m64 $tmpdir/cpu2017/benchspec/CPU/510.parest_r/run/run_base_train_memtrace-m64.0000/train.prm"
+        # run_exec_single_simpoint.sh "510.parest_r" /home/aesymons/simulations/exp45/baseline "--heartbeat_interval 1 --num_heartbeats 20000" 10000000 sunny_cove /home/aesymons/scarab_ll 0 "" "$tmpdir/cpu2017/benchspec/CPU/510.parest_r/run/run_base_train_memtrace-m64.0000/parest_r_base.memtrace-m64 $tmpdir/cpu2017/benchspec/CPU/510.parest_r/run/run_base_train_memtrace-m64.0000/train.prm"
 
         # NEed longer to get csv files. ALso issue with my scarab binary? Try merging to the latest
-        # run_exec_single_simpoint.sh "510.parest_r" "/home/aesymons/simulations/exp42/test" "--heartbeat_interval 1 --num_heartbeats 20000" 100000000 "sunny_cove" /home/aesymons/scarab_ll 0 "" "$tmpdir/cpu2017/benchspec/CPU/510.parest_r/run/run_base_train_memtrace-m64.0000/parest_r_base.memtrace-m64 $tmpdir/cpu2017/benchspec/CPU/510.parest_r/run/run_base_train_memtrace-m64.0000/train.prm"
+        # run_exec_single_simpoint.sh "510.parest_r" "/home/aesymons/simulations/exp42/test" "--heartbeat_interval 1 --num_heartbeats 20000" 10000000 "sunny_cove" /home/aesymons/scarab_ll 0 "" "$tmpdir/cpu2017/benchspec/CPU/510.parest_r/run/run_base_train_memtrace-m64.0000/parest_r_base.memtrace-m64 $tmpdir/cpu2017/benchspec/CPU/510.parest_r/run/run_base_train_memtrace-m64.0000/train.prm"
+        # <Scarab_dir>/src/pin/pin_exec/obj-intel64/pin_exec.so MISSING!
     else:
         command = ""
 
