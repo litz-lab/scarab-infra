@@ -44,8 +44,9 @@ if [ "$SEGMENT_ID" == "0" ]; then
   scarabCmd="
   python3 $SCARABHOME/bin/scarab_launch.py --program=\"$BINCMD\" \
     --simdir=\"$SIMHOME/$SCENARIONUM/\" \
+    --pin=\"/tmp_home/pin-3.15-98253-gb56e429b1-gcc-linux/pin\" \
+    --param=\"$OUTDIR/$segID/PARAMS.in\" \
     --pintool_args=\"-hyper_fast_forward_count $start_inst\" \
-    --pin=\"$tmpdir/pin-3.15-98253-gb56e429b1-gcc-linux/pin\" \
     --scarab_args=\"--inst_limit $SEGSIZE --full_warmup $WARMUP $SCARABPARAMS\" \
     --scarab_stdout=\"$SIMHOME/$SCENARIONUM/scarab.out\" \
     --scarab_stderr=\"$SIMHOME/$SCENARIONUM/scarab.err\" \
@@ -74,14 +75,15 @@ else
   scarabCmd="
   python3 $SCARABHOME/bin/scarab_launch.py --program=\"$BINCMD\" \
   --simdir=\"$SIMHOME/$SCENARIONUM/$clusterID\" \
+  --pin=\"/tmp_home/pin-3.15-98253-gb56e429b1-gcc-linux/pin\" \
   --pintool_args=\"-hyper_fast_forward_count $roiStart\" \
-  --pin=\"$tmpdir/pin-3.15-98253-gb56e429b1-gcc-linux/pin\" \
   --scarab_args=\"--inst_limit $instLimit --full_warmup $WARMUP $SCARABPARAMS\" \
   --scarab_stdout=\"$SIMHOME/$SCENARIONUM/$clusterID/scarab.out\" \
   --scarab_stderr=\"$SIMHOME/$SCENARIONUM/$clusterID/scarab.err\" \
   --pin_stdout=\"$SIMHOME/$SCENARIONUM/$clusterID/pin.out\" \
   --pin_stderr=\"$SIMHOME/$SCENARIONUM/$clusterID/pin.err\" \
   "
+  
 fi
 
 echo "simulating clusterID ${clusterID}, segment $segID..."
