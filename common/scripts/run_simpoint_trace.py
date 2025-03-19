@@ -213,7 +213,7 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
         start_time = time.perf_counter()
         fp_cmd = f"{dynamorio_home}/bin64/drrun -max_bb_instrs 4096 -opt_cleancall 2 -c $tmpdir/libfpg.so -no_use_bb_pc -no_use_fetched_count -segment_size {seg_size} -output {workload_home}/fingerprint/bbfp -pcmap_output {workload_home}/fingerprint/pcmap -- {bincmd}"
         subprocess.run([fp_cmd], check=True, capture_output=True, text=True)
-        end_time = time.perf_coiunter()
+        end_time = time.perf_counter()
         report_time("generate fingerprint done", start_time, end_time)
 
         print("clustering..")
