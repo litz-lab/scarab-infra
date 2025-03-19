@@ -295,7 +295,7 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
                     json.dump(trace_clustering_info, json_file, indent=2, separators=(",", ":"))
                 exit(1)
 
-            subprocess.run(f"cp {trace_path}/dr*/raw/ {trace_path}/raw/", check=True, shell=True)
+            subprocess.run(f"mv {trace_path}/dr*/raw/ {trace_path}/raw/", check=True, shell=True)
             os.makedirs(f"{trace_path}/bin", exist_ok=True)
             bin_path = os.path.join(trace_path, "bin")
             raw_path = os.path.join(trace_path, "raw")
