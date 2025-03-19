@@ -344,7 +344,9 @@ if __name__ == "__main__":
     suite = args.suite
     simpoint_home = args.simpoint_home
     bincmd = os.path.expandvars(args.bincmd)
-    client_bincmd = os.path.expandvars(args.client_bincmd)
+    client_bincmd = ""
+    if args.client_bincmd:
+        client_bincmd = os.path.expandvars(args.client_bincmd)
     simpoint_mode = args.simpoint_mode
     drio_args = args.drio_args
     clustering_userk = args.clustering_userk
