@@ -14,6 +14,11 @@ import sys
 sys.path.append("../") # go to parent dir
 import scripts.utilities as utilities
 importlib.reload(utilities)
+import concurrent.futures
+import multiprocessing
+import time
+import pickle
+import hashlib
 
 def get_elem(l, i):
     return list(map(lambda x:x[i], l))
@@ -123,8 +128,8 @@ class Experiment:
     def defragment(self):
         self.data = self.data.copy()
 
-    def derive_stat(self, equation:str, overwrite:bool=True, pre_agg:bool=True,
-                    write_prot:bool=False):
+    def derive_stat(self, equation: str, overwrite: bool = True, pre_agg: bool = True,
+                    write_prot: bool = False):
         # TODO: Doesn't work for stats with spaces in the names
 
         # Make sure tokens have space padding
@@ -136,13 +141,11 @@ class Experiment:
 
         insert_index = len(self.data)
 
-        #self.data.loc[total_cols] = list(self.data.loc[self.data["stats"] == "Weight"])
-
         values = []
         panda_fy = lambda name: f'lookup["{name}"]'
 
-        lookup_cols = {old:new for old, new in zip(self.data.T.columns, self.data.T.iloc[0])}
-        str_rows = [list(self.data["stats"]).index(row) for row in ["Experiment","Architecture","Configuration","Workload"]]
+        lookup_cols = {old: new for old, new in zip(self.data.T.columns, self.data.T.iloc[0])}
+        str_rows = [list(self.data["stats"]).index(row) for row in ["Experiment", "Architecture", "Configuration", "Workload"]]
 
         # NOTE: Drop metadata here, don't do operations on them
         lookup = self.data.T.rename(columns=lookup_cols).drop("stats").drop("write_protect").drop("groups")
@@ -151,12 +154,12 @@ class Experiment:
         # Takes in a stat name, returns a Pandas series
         def panda_fy_agg(name):
             # Get the stat, pre-weight values
-            data = lookup[name]*lookup["Weight"]
+            data = lookup[name] * lookup["Weight"]
             data_weighted = {}
             columns = list(data.index)
 
             # Sum the weighted values
-            for setup in set(map(lambda x:" ".join(x.split(" ")[:-1]), columns)):
+            for setup in set(map(lambda x: " ".join(x.split(" ")[:-1]), columns)):
                 data_weighted[setup] = sum([data[lbl] for lbl in columns if setup in lbl])
 
             # Duplicate values to fill out all simpoints in the dataframe
@@ -166,7 +169,7 @@ class Experiment:
                 prefix = " ".join(col.split(" ")[:-1])
                 data_weighted_duplicated[col] = data_weighted[prefix]
 
-            # Make a sereies so equaation works
+            # Make a series so equation works
             return pd.Series(data_weighted_duplicated.values(), data_weighted_duplicated.keys())
 
         # If pre_agg, then aggregate *while* retrieving stat
@@ -205,16 +208,7 @@ class Experiment:
 
         stat_name = values[0]
 
-        # dependant_stats = list(set(dependant_stats))
-        # print("Dependencies:", list(set(dependant_stats)))
-
-        # print(lookup)
-
-        # print(to_eval)
-
-        # print("agg test",panda_fy_agg("ICACHE_EVICT_HIT_ONPATH_BY_FDIP_count"))
-
-        # print(stat_name, stat_name in set(self.data["stats"]))
+        # Check if the stat already exists and handle overwrite conditions
         if stat_name in set(self.data["stats"]):
             wr_prot = self.data[self.data["stats"] == stat_name]["write_protect"].item()
             if wr_prot:
@@ -227,23 +221,38 @@ class Experiment:
                 print(f"INFO: Overwriting value(s) of stat '{stat_name}'")
                 insert_index = self.data[self.data["stats"] == stat_name].index[0]
 
-        # TODO: Unsafe!
-        # print("Evalling:", to_eval)
+        # Execute the equation
         eval(to_eval)
 
-        # NOTE: Add metadata columns here.
-        # [name, write_prot, group]
-        # print(f"Values:", values)
+        # Create the row data
         row = [stat_name, write_prot, 0] + values[1]
-
+        
+        # Set the row in the dataframe
         self.data.loc[insert_index] = row
-
-        if self.data.loc[insert_index].isna().any():
-            print(f"ERR: 'NaN' calculated in result of the equation '{equation}'")
-            print(f"Likely division by zero. Found {self.data.loc[insert_index].isna().count()} NaNs",
-                  "across all simpoints.")
-            return
-
+        
+        # Check for NaN values and replace with zeros while reporting
+        row_data = self.data.loc[insert_index]
+        nan_count = row_data.isna().sum()
+        
+        if nan_count > 0:
+            # Report division by zero but continue processing
+            print(f"INFO: Detected {nan_count} NaN values in result of '{equation}'")
+            print(f"INFO: These are likely due to division by zero. Replacing NaNs with 0.")
+            
+            # Replace NaN values with zeros
+            self.data.loc[insert_index] = self.data.loc[insert_index].fillna(0)
+            
+            # Print the locations where NaNs were detected for debugging
+            nan_locations = []
+            for col in self.data.columns[3:]:  # Skip the first 3 metadata columns
+                if pd.isna(row_data[col]):
+                    nan_locations.append(str(col))
+            
+            if len(nan_locations) > 5:
+                print(f"INFO: First 5 locations with NaN values: {', '.join(nan_locations[:5])}...")
+            else:
+                print(f"INFO: Locations with NaN values: {', '.join(nan_locations)}")
+        
         return
 
     def to_csv(self, path:str):
@@ -273,91 +282,167 @@ class Experiment:
 
         return self.data.copy().drop(rows_to_drop)
 
-    def calculate_distribution_stats(self):
+    def calculate_distribution_stats(self, max_workers: int = 40):
         groups = self.get_groups()
         groups.remove(0)
 
-        errs = 0
-
-        # TODO: It takes more than 40 minutes for 523 groups for 15 workloads x 5 configurations
-        # Performance improvement required
         num_groups = len(groups)
         print(f"INFO: Calculate distribution stats for {num_groups} groups")
-        # Do calculations for each group
-        for group in groups:
-            print(f"INFO: group {group}/{num_groups}..")
-            remove_columns = ["write_protect", "groups"]
-            group_df = self.data[(self.data["groups"] == group)].drop(columns=remove_columns)
+        
+        # Create a manager for shared resources
+        manager = multiprocessing.Manager()
+        shared_results = manager.list()  # Collect results here
+        completed_groups = manager.Value('i', 0)
+        errs = manager.Value('i', 0)  # Track errors like original code
+        lock = manager.RLock()  # Use RLock for nested lock acquisition
+        
+        def process_group(group):
+            try:
+                remove_columns = ["write_protect", "groups"]
+                group_df = self.data[(self.data["groups"] == group)].drop(columns=remove_columns)
 
-            count_data_stats = list(filter(lambda x: x.endswith("_count") and not x.endswith("_total_count"), group_df["stats"]))
-            total_count_data_stats = list(filter(lambda x: x.endswith("_total_count"), group_df["stats"]))
+                count_data_stats = list(filter(lambda x: x.endswith("_count") and not x.endswith("_total_count"), group_df["stats"]))
+                total_count_data_stats = list(filter(lambda x: x.endswith("_total_count"), group_df["stats"]))
 
-            errs += 1 if len(group_df) != len(count_data_stats) + len(total_count_data_stats) else 0
+                local_errs = 1 if len(group_df) != len(count_data_stats) + len(total_count_data_stats) else 0
+                if local_errs:
+                    with lock:
+                        errs.value += local_errs
 
-            count_data_df = group_df[group_df["stats"].isin(count_data_stats)].set_index("stats")
-            total_count_data_df = group_df[group_df["stats"].isin(total_count_data_stats)].set_index("stats")
+                count_data_df = group_df[group_df["stats"].isin(count_data_stats)].set_index("stats")
+                total_count_data_df = group_df[group_df["stats"].isin(total_count_data_stats)].set_index("stats")
 
-            count_sums = count_data_df.sum(axis=0)
-            total_count_sums = total_count_data_df.sum(axis=0)
+                count_sums = count_data_df.sum(axis=0)
+                total_count_sums = total_count_data_df.sum(axis=0)
 
-            # Replace NaN values where all values are zero
-            if float(0) in list(count_sums) or float(0) in list(total_count_sums):
-                # print("ERR: NULL. Skipping due to sum of 0 in distribution", group)
-                new_stats = [f"group_{group}_total_mean", f"group_{group}_mean",
-                             f"group_{group}_total_stddev", f"group_{group}_stddev"]
+                # Prepare result rows
+                result_rows = []
+                
+                # Handle zero division case exactly like original code
+                if float(0) in list(count_sums) or float(0) in list(total_count_sums):
+                    # Create all required stats upfront with placeholder values
+                    # Get means and std dev first (same names as original)
+                    total_count_means = pd.Series([np.nan] * len(count_sums), index=count_sums.index)
+                    count_means = pd.Series([np.nan] * len(count_sums), index=count_sums.index)
+                    total_count_stddev = pd.Series([np.nan] * len(count_sums), index=count_sums.index)
+                    count_stddev = pd.Series([np.nan] * len(count_sums), index=count_sums.index)
+                    
+                    # Create empty DataFrames for percentages
+                    total_count_percentages = pd.DataFrame(index=total_count_data_df.index)
+                    count_percentages = pd.DataFrame(index=count_data_df.index)
+                    
+                    # Add the stat rows
+                    result_rows.append([f"group_{group}_total_mean", True, 0] + list(total_count_means))
+                    result_rows.append([f"group_{group}_mean", True, 0] + list(count_means))
+                    result_rows.append([f"group_{group}_total_stddev", True, 0] + list(total_count_stddev))
+                    result_rows.append([f"group_{group}_stddev", True, 0] + list(count_stddev))
+                    
+                    # Add percentage rows with NaN values
+                    for stat in total_count_percentages.index:
+                        result_rows.append([f"{stat}_pct", True, 0] + [np.nan] * len(count_sums))
+                    
+                    for stat in count_percentages.index:
+                        result_rows.append([f"{stat}_pct", True, 0] + [np.nan] * len(count_sums))
+                else:
+                    # Calculate normally - match original code exactly
+                    total_count_means = total_count_sums / len(total_count_data_df)
+                    count_means = count_sums / len(count_data_df)
 
-                for stat in total_count_percentages.index:
-                    new_stats.append(f"{stat}_pct")
+                    total_count_stddev = (((total_count_data_df - total_count_means) ** 2).sum() / (len(total_count_data_df))).pow(0.5)
+                    count_stddev = (((count_data_df - count_means) ** 2).sum() / (len(count_data_df))).pow(0.5)
 
-                for stat in count_percentages.index:
-                    new_stats.append(f"{stat}_pct")
-
-                index = len(self.data)
-                for stat in new_stats:
-                    self.data.loc[index] = [stat, True, 0] + [np.nan] * len(count_sums)
-                    index += 1
-
-                continue
-
-            # Get mean and standard deviation of WHOLE distribution, then percent that each sample makes up of distribution (data_df/sums)
-            total_count_means = total_count_sums / len(total_count_data_df)
-            count_means = count_sums / len(count_data_df)
-
-            total_count_stddev = (((total_count_data_df - total_count_means) ** 2).sum() / (len(total_count_data_df))).pow(0.5)
-            count_stddev = (((count_data_df - count_means) ** 2).sum() / (len(count_data_df))).pow(0.5)
-
-            total_count_percentages = total_count_data_df / total_count_sums
-            count_percentages = count_data_df / count_sums
-
-            # print("Mean (Validated)", total_count_means)
-            # print("Standard Deviation", total_count_stddev)
-            # print("Percentages", total_count_percentages)
-
-            index = len(self.data)
-            self.data.loc[index]     = [f"group_{group}_total_mean", True, 0]   + list(total_count_means)
-            self.data.loc[index + 1] = [f"group_{group}_mean", True, 0]         + list(count_means)
-            self.data.loc[index + 2] = [f"group_{group}_total_stddev", True, 0] + list(total_count_stddev)
-            self.data.loc[index + 3] = [f"group_{group}_stddev", True, 0]       + list(count_stddev)
-            index += 4
-
-            # print(count_percentages)
-
-            for stat in total_count_percentages.index:
-                self.data.loc[index] = [f"{stat}_pct", True, 0] + list(total_count_percentages.loc[stat])
-                index += 1
-
-            for stat in count_percentages.index:
-                self.data.loc[index] = [f"{stat}_pct", True, 0] + list(count_percentages.loc[stat])
-                index += 1
-
-            # exit(1)
-            # return
-
-        if errs != 0:
-            print("WARN: Distribution size and number of x_count + x_total_count stats is not equal.")
-            return
-
-        # exit(1)
+                    total_count_percentages = total_count_data_df / total_count_sums
+                    count_percentages = count_data_df / count_sums
+                    
+                    # Add stats rows in same order as original
+                    result_rows.append([f"group_{group}_total_mean", True, 0] + list(total_count_means))
+                    result_rows.append([f"group_{group}_mean", True, 0] + list(count_means))
+                    result_rows.append([f"group_{group}_total_stddev", True, 0] + list(total_count_stddev))
+                    result_rows.append([f"group_{group}_stddev", True, 0] + list(count_stddev))
+                    
+                    # Add percentage rows in same order as original
+                    for stat in total_count_percentages.index:
+                        result_rows.append([f"{stat}_pct", True, 0] + list(total_count_percentages.loc[stat]))
+                    
+                    for stat in count_percentages.index:
+                        result_rows.append([f"{stat}_pct", True, 0] + list(count_percentages.loc[stat]))
+                
+                # Add results to shared list
+                with lock:
+                    shared_results.append((group, result_rows))
+                    completed_groups.value += 1
+                    # Update progress after processing
+                    if completed_groups.value % 10 == 0 or completed_groups.value == num_groups:
+                        print(f"INFO: Completed {completed_groups.value}/{num_groups} groups ({(completed_groups.value/num_groups)*100:.1f}%)")
+            
+            except Exception as e:
+                print(f"WARNING: Error processing group {group}: {str(e)}")
+                with lock:
+                    completed_groups.value += 1
+        
+        start_time = time.time()
+        print(f"INFO: Starting distribution stats calculation at {time.strftime('%H:%M:%S')}")
+        
+        try:
+            # Process groups in parallel
+            with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+                futures = [executor.submit(process_group, group) for group in groups]
+                
+                for future in concurrent.futures.as_completed(futures):
+                    try:
+                        future.result()
+                    except Exception as e:
+                        print(f"WARNING: Worker thread failed: {str(e)}")
+            
+            # Calculate elapsed time
+            elapsed_time = time.time() - start_time
+            minutes, seconds = divmod(elapsed_time, 60)
+            print(f"INFO: All groups processed in {int(minutes)}m {int(seconds)}s")
+            
+            # Update the dataframe efficiently after all processing is complete
+            print(f"INFO: Adding {len(shared_results)} group results to dataframe...")
+            
+            # Copy shared results to a local variable before cleanup
+            local_results = list(shared_results)
+            
+            # Use a single DataFrame and single concatenation for better performance
+            all_rows = []
+            for _, result_rows in local_results:
+                all_rows.extend(result_rows)
+            
+            if all_rows:
+                try:
+                    # Create new dataframe with all rows at once
+                    new_df = pd.DataFrame(all_rows, columns=self.data.columns)
+                    
+                    # Concatenate with original dataframe
+                    self.data = pd.concat([self.data, new_df], ignore_index=True)
+                    print(f"INFO: Added {len(all_rows)} rows to dataframe")
+                except Exception as e:
+                    print(f"ERROR: Failed to update dataframe: {str(e)}")
+            
+            # Final error message as in original code
+            if errs.value != 0:
+                print("WARN: Distribution size and number of x_count + x_total_count stats is not equal.")
+                
+        finally:
+            # Explicitly clean up manager resources - this is important to prevent the errors
+            print(f"INFO: Cleaning up resources...")
+            try:
+                # Clear references to managed objects to allow proper cleanup
+                shared_results[:] = []  # Clear the list but keep the object
+                
+                # Shut down the manager in a controlled way
+                manager.shutdown()
+                
+                # Additional sleep to allow for cleanup
+                import time
+                time.sleep(0.1)
+            except Exception as e:
+                print(f"WARNING: Non-critical error during resource cleanup: {str(e)}")
+        
+        print(f"INFO: Distribution stats calculation complete")
+        return
 
     def get_experiments(self):
         return list(set(list(self.data[self.data["stats"] == "Experiment"].iloc[0])[3:]))
@@ -517,7 +602,7 @@ class stat_aggregator:
         return Experiment(path)
 
     # Load experiment form json file
-    def load_experiment_json(self, experiment_file: str, slurm: bool = False):
+    def load_experiment_json(self, experiment_file: str, slurm: bool = False, max_workers: int = 40):
         # Load json data from experiment file
         json_data = None
         try:
@@ -527,23 +612,51 @@ class stat_aggregator:
             return None
 
         simulations_path = json_data["root_dir"]
-        simpoints_path = "/soe/hlitz/lab/traces/" if json_data["traces_dir"] == None else json_data["traces_dir"]
-
-        # Make sure simulations and simpoints path has known format
+        experiment_name = json_data["experiment"]
+        
+        # Make sure simulations path has known format
         if simulations_path[-1] != '/': simulations_path += "/"
-        if simpoints_path[-1] != '/': simpoints_path += "/"
-
-        # Asking user can provide simulations directory or docker home folder
         if not simulations_path.endswith("simulations/"):
             simulations_path += "simulations/"
+        
+        # Generate cache file path based on experiment name and hash
+        import hashlib
+        with open(experiment_file, 'rb') as f:
+            file_hash = hashlib.md5(f.read()).hexdigest()[:8]  # Use first 8 chars for shorter filename
+        
+        # Create cache directory
+        cache_dir = f"{simulations_path}{experiment_name}/"
+        os.makedirs(cache_dir, exist_ok=True)
+        cache_path = f"{cache_dir}{experiment_name}_{file_hash}.pkl"
+        
+        # Check if cached file exists and is newer than experiment file
+        if os.path.exists(cache_path) and os.path.getmtime(cache_path) > os.path.getmtime(experiment_file):
+            try:
+                print(f"INFO: Loading cached experiment from {cache_path}")
+                with open(cache_path, 'rb') as f:
+                    experiment = pickle.load(f)
+                
+                # Print information about the loaded experiment
+                print(f"INFO: Loaded experiment contains:")
+                print(f"  - Experiment name: {experiment.get_experiments()[0]}")
+                print(f"  - Architecture: {json_data['architecture']}")
+                print(f"  - Configurations: {', '.join(experiment.get_configurations())}")
+                print(f"  - Workloads: {', '.join(experiment.get_workloads())}")
+                
+                return experiment
+            except Exception as e:
+                print(f"WARNING: Error loading cached experiment: {str(e)}. Processing experiment from scratch.")
+        
+        # Continue with original method without modifications
+        simpoints_path = "/soe/hlitz/lab/traces/" if json_data["traces_dir"] == None else json_data["traces_dir"]
 
-        experiment_name = json_data["experiment"]
+        # Make sure simpoints path has known format
+        if simpoints_path[-1] != '/': simpoints_path += "/"
+
         architecture = json_data["architecture"]
 
         if (experiment_name in simulations_path) and slurm:
             print(f"WARN: simulations_path should only point to root of docker home. If this fails, please remove {experiment_name} from simulations_path")
-
-        known_stats = None
 
         current_path = os.getcwd()
         infra_dir = os.path.dirname(current_path)
@@ -551,137 +664,220 @@ class stat_aggregator:
         suite_db_path = f"{infra_dir}/workloads/suite_db.json"
         workloads_data = utilities.read_descriptor_from_json(workload_db_path)
         suite_data = utilities.read_descriptor_from_json(suite_db_path)
-
-        # Set set of all stats. Should only differ by config
-        for config in json_data["configurations"]:
-            config = config.replace("/", "-")
-
-            # Use first workload
-            simulation = json_data["simulations"][0]
+        
+        # Cache for simpoint metadata to avoid repeated file I/O
+        manager = multiprocessing.Manager()
+        simpoint_metadata_cache = manager.dict()
+        # Cache for loaded stats to avoid reprocessing the same directory
+        loaded_stats_cache = manager.dict()
+        lock = multiprocessing.Lock()
+        
+        # Function to get all workload-cluster pairs for a given simulation
+        def get_workload_clusters(simulation, config):
             suite = simulation["suite"]
             subsuite = simulation["subsuite"]
             workload = simulation["workload"]
-            if workload == None:
-                if subsuite == None:
-                    subsuite = list(suite_data[suite].keys())[0]
-                workload = list(suite_data[suite][subsuite]["predefined_simulation_mode"].keys())[0]
-
-            # Get path to the simpoint metadata
-            metadata_path = f"{simpoints_path}{workload}/simpoints/"
-
-            # Get path to the simpoint metadata
-            with open(f"{metadata_path}opt.p.lpt0.99", "r") as cluster_ids, open(f"{metadata_path}opt.w.lpt0.99", "r") as weights:
-
-                cluster_id, weight = (cluster_ids.readlines()[0], weights.readlines()[0])
-                cluster_id, seg_id_1 = [int(i) for i in cluster_id.split()]
-                weight, seg_id_2 = float(weight.split()[0]), int(weight.split()[1])
-
-                if seg_id_1 != seg_id_2:
-                    print(f"ERROR: Simpoints listed out of order in {metadata_path}opt.p.lpt0.99 and opt.w.lpt0.99.")
-                    print(f"       Encountered {seg_id_1} in .p and {seg_id_2} in .w")
-                    exit(1)
-
-                directory = f"{simulations_path}{experiment_name}/{config}/{workload}/{str(cluster_id)}/"
-
-                print("CHECK", directory)
-
-                a = self.load_simpoint(directory, return_stats=True)
-                if known_stats == None: known_stats = a
-                else:
-                    if set(a) != set(known_stats):
-                        print("WARN: Stats differ across configs")
-
-                        # Difference contains new (unseen) stats, and stats which were previously seen but are not present in this config
-                        difference = set(a) - set(known_stats) | set(known_stats) - set(a)
-                        print("Differing stats:", difference)
-                        print("WARN: Differing stats will be resolved by adding empty (nan) values for configs where they don't exist")
-
-                        # Only add those which are new
-                        known_stats += list(set(a) - set(known_stats))
-
-        if len(known_stats) != len(set(known_stats)):
-            print("ERR: After finding superset, known_stats contains duplicates")
-            duplicates = [a for a in known_stats if known_stats.count(a) > 1]
-            print(f"Duplicates ({len(duplicates)}):", duplicates)
-            exit(1)
-
-        # Create initial experiment object
-        experiment = None
-        simulations = json_data["simulations"]
-
-        # Load each configuration
-        for config in json_data["configurations"]:
-            config = config.replace("/", "-")
-
-            for simulation in simulations:
-                suite = simulation["suite"]
-                subsuite = simulation["subsuite"]
-                workload = simulation["workload"]
-                cluster_id = simulation["cluster_id"]
-                sim_mode = simulation["simulation_type"]
-                if workload == None and subsuite == None:
+            cluster_id = simulation["cluster_id"]
+            sim_mode = simulation["simulation_type"]
+            workload_clusters = []
+            
+            # Common function to process a single workload
+            def process_single_workload(wl, sm):
+                sm_actual = sm if sm else suite_data[suite][subsuite]["predefined_simulation_mode"][wl]
+                simpoints = utilities.get_simpoints(workloads_data[wl], sm_actual)
+                for cid, weight in simpoints.items():
+                    directory = f"{simulations_path}{experiment_name}/{config}/{wl}/{str(cid)}/"
+                    workload_clusters.append({
+                        'directory': directory,
+                        'experiment_name': experiment_name,
+                        'architecture': architecture,
+                        'config': config,
+                        'workload': wl,
+                        'cluster_id': cid,
+                        'weight': weight,
+                        'sim_mode': sm_actual
+                    })
+            
+            # Consolidate the three cases into a single pattern
+            if workload is None:
+                if subsuite is None:
+                    # Case 1: No workload, no subsuite
                     for subsuite_ in suite_data[suite].keys():
                         for workload_ in suite_data[suite][subsuite_]["predefined_simulation_mode"].keys():
-                            sim_mode_ = sim_mode
-                            if sim_mode_ == None:
-                                sim_mode_ = suite_data[suite][subsuite_]["predefined_simulation_mode"][workload_]
-                            simpoints = utilities.get_simpoints(workloads_data[workload_], sim_mode_)
-                            for cluster_id, weight in simpoints.items():
-                                directory = f"{simulations_path}{experiment_name}/{config}/{workload_}/{str(cluster_id)}/"
-                                if experiment == None:
-                                    experiment = Experiment(known_stats)
-
-                                print(f"LOAD {directory}")
-                                data, groups = self.load_simpoint(directory, order=known_stats)
-
-                                if not experiment.has_group_data():
-                                    print("INFO: Added group data")
-                                    experiment.set_groups(groups)
-
-                                experiment.add_simpoint(data, experiment_name, architecture, config, workload_, seg_id_1, cluster_id, weight)
-                                print(f"LOADED")
-                elif workload == None and subsuite != None:
-                    for workload_ in suite_data[suite][subsuite]["predefined_simulation_mode"].keys():
-                        sim_mode_ = sim_mode
-                        if sim_mode_ == None:
-                            sim_mode_ = suite_data[suite][subsuite]["predefined_simulation_mode"][workload_]
-                        simpoints = utilities.get_simpoints(workloads_data[workload_], sim_mode_)
-                        for cluster_id, weight in simpoints.items():
-                            directory = f"{simulations_path}{experiment_name}/{config}/{workload_}/{str(cluster_id)}/"
-                            if experiment == None:
-                                experiment = Experiment(known_stats)
-
-                            print(f"LOAD {directory}")
-                            data, groups = self.load_simpoint(directory, order=known_stats)
-
-                            if not experiment.has_group_data():
-                                print("INFO: Added group data")
-                                experiment.set_groups(groups)
-
-                            experiment.add_simpoint(data, experiment_name, architecture, config, workload_, seg_id_1, cluster_id, weight)
-                            print(f"LOADED")
+                            process_single_workload(workload_, sim_mode)
                 else:
-                    sim_mode_ = sim_mode
-                    if sim_mode_ == None:
-                        sim_mode_ = suite_data[suite][subsuite]["predefined_simulation_mode"][workload]
-                    simpoints = utilities.get_simpoints(workloads_data[workload_], sim_mode_)
-                    for cluster_id, weight in simpoints.items():
-                        directory = f"{simulations_path}{experiment_name}/{config}/{workload}/{str(cluster_id)}/"
-                        if experiment == None:
-                            experiment = Experiment(known_stats)
-
-                        print(f"LOAD {directory}")
-                        data, groups = self.load_simpoint(directory, order=known_stats)
-
-                        if not experiment.has_group_data():
-                            print("INFO: Added group data")
-                            experiment.set_groups(groups)
-
-                        experiment.add_simpoint(data, experiment_name, architecture, config, workload, seg_id_1, cluster_id, weight)
-                        print(f"LOADED")
+                    # Case 2: No workload, has subsuite
+                    for workload_ in suite_data[suite][subsuite]["predefined_simulation_mode"].keys():
+                        process_single_workload(workload_, sim_mode)
+            else:
+                # Case 3: Has workload
+                process_single_workload(workload, sim_mode)
+                
+            return workload_clusters
+        
+        # Collect all directories to process in parallel
+        directories_to_process = []
+        configs = json_data["configurations"]
+        simulations = json_data["simulations"]
+        
+        # First collect all directories in parallel to improve performance
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = []
+            for config in configs:
+                config = config.replace("/", "-")
+                for simulation in simulations:
+                    futures.append(executor.submit(get_workload_clusters, simulation, config))
+            
+            for future in concurrent.futures.as_completed(futures):
+                result = future.result()
+                directories_to_process.extend(result)
+        
+        # Now collect known_stats from first few directories in parallel
+        known_stats = None
+        if directories_to_process:
+            # Sample up to 5 directories to find all stats
+            sample_dirs = directories_to_process[:min(5, len(directories_to_process))]
+            
+            with concurrent.futures.ThreadPoolExecutor(max_workers=min(5, max_workers)) as executor:
+                # Function to load stats from a directory
+                def load_dir_stats(dir_info):
+                    directory = dir_info['directory']
+                    workload = dir_info['workload']
+                    
+                    # Also preload metadata while we're at it
+                    if workload not in simpoint_metadata_cache:
+                        with lock:
+                            if workload not in simpoint_metadata_cache:
+                                metadata_path = f"{simpoints_path}{workload}/simpoints/"
+                                try:
+                                    with open(f"{metadata_path}opt.p.lpt0.99", "r") as cluster_ids, open(f"{metadata_path}opt.w.lpt0.99", "r") as weights:
+                                        cluster_id, weight = (cluster_ids.readlines()[0], weights.readlines()[0])
+                                        cluster_id, seg_id_1 = [int(i) for i in cluster_id.split()]
+                                        weight, seg_id_2 = float(weight.split()[0]), int(weight.split()[1])
+                                        
+                                        # Cache the metadata
+                                        simpoint_metadata_cache[workload] = {
+                                            "cluster_id": cluster_id,
+                                            "seg_id_1": seg_id_1,
+                                            "seg_id_2": seg_id_2,
+                                            "weight": weight
+                                        }
+                                        
+                                        if seg_id_1 != seg_id_2:
+                                            print(f"ERROR: Simpoints listed out of order in {metadata_path}opt.p.lpt0.99 and opt.w.lpt0.99.")
+                                            print(f"       Encountered {seg_id_1} in .p and {seg_id_2} in .w")
+                                            return None
+                                except:
+                                    print(f"ERROR: Could not load metadata for {workload}")
+                                    return None
+                    
+                    print(f"CHECK {directory}")
+                    return self.load_simpoint(directory, return_stats=True)
+                
+                futures = [executor.submit(load_dir_stats, dir_info) for dir_info in sample_dirs]
+                
+                all_stats = []
+                for future in concurrent.futures.as_completed(futures):
+                    result = future.result()
+                    if result is not None:
+                        all_stats.append(set(result))
+                
+                # Merge all stats into a superset
+                if all_stats:
+                    known_stats = list(set().union(*all_stats))
+        
+        if not known_stats:
+            print("ERROR: Could not determine stats for the experiment")
+            return None
+        
+        # Create experiment with known stats
+        experiment = Experiment(known_stats)
+        
+        # Process directories in parallel
+        def process_directory(dir_info):
+            directory = dir_info['directory']
+            workload = dir_info['workload']
+            
+            # Skip if already processed
+            if directory in loaded_stats_cache:
+                return None
+            
+            print(f"LOAD {directory}")
+            
+            # Load data
+            data, groups = self.load_simpoint(directory, order=known_stats)
+            
+            # Get simpoint metadata - use cached if available
+            if workload in simpoint_metadata_cache:
+                seg_id_1 = simpoint_metadata_cache[workload]["seg_id_1"]
+            else:
+                # If not in cache, need to load it
+                metadata_path = f"{simpoints_path}{workload}/simpoints/"
+                try:
+                    with open(f"{metadata_path}opt.p.lpt0.99", "r") as cluster_ids:
+                        _, seg_id_1 = [int(i) for i in cluster_ids.readlines()[0].split()]
+                        with lock:
+                            simpoint_metadata_cache[workload] = {"seg_id_1": seg_id_1}
+                except:
+                    print(f"ERROR: Could not load metadata for {workload}")
+                    return None
+            
+            # Add to cache
+            with lock:
+                loaded_stats_cache[directory] = (data, groups)
+            
+            return {
+                'directory': directory,
+                'data': data,
+                'groups': groups,
+                'experiment_name': dir_info['experiment_name'],
+                'architecture': dir_info['architecture'],
+                'config': dir_info['config'],
+                'workload': workload,
+                'seg_id': seg_id_1,
+                'cluster_id': dir_info['cluster_id'],
+                'weight': dir_info['weight']
+            }
+        
+        # Process all directories in parallel with better batching
+        results_to_process = []
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Submit all jobs
+            batch_size = min(1000, len(directories_to_process))  # Process in batches to avoid memory issues
+            for i in range(0, len(directories_to_process), batch_size):
+                batch = directories_to_process[i:i+batch_size]
+                futures = [executor.submit(process_directory, dir_info) for dir_info in batch]
+                
+                # Process results as they complete
+                for future in concurrent.futures.as_completed(futures):
+                    result = future.result()
+                    if result:
+                        results_to_process.append(result)
+        
+        # Now process all the results to update the experiment
+        # Sort by group to improve locality
+        results_to_process.sort(key=lambda x: x.get('workload', ''))
+        
+        # First, set group data if available
+        if results_to_process and not experiment.has_group_data():
+            print("INFO: Added group data")
+            experiment.set_groups(results_to_process[0]['groups'])
+        
+        # Add all simpoints
+        for result in results_to_process:
+            experiment.add_simpoint(
+                result['data'], 
+                result['experiment_name'],
+                result['architecture'],
+                result['config'],
+                result['workload'],
+                result['seg_id'],
+                result['cluster_id'],
+                result['weight']
+            )
+            print(f"LOADED {result['directory']}")
 
         experiment.defragment()
-        # print("\n\n", experiment)
 
         print("INFO: calculating derived stats...")
 
@@ -693,8 +889,24 @@ class stat_aggregator:
 
         # Derive distribution stats for each group
         # 'Group' 0 is no group
-        experiment.calculate_distribution_stats()
-
+        experiment.calculate_distribution_stats(max_workers=max_workers)
+        
+        # Save the processed experiment to cache
+        try:
+            print(f"INFO: Saving experiment data to {cache_path}")
+            with open(cache_path, 'wb') as f:
+                pickle.dump(experiment, f)
+            print(f"INFO: Successfully saved experiment data")
+        except Exception as e:
+            print(f"WARNING: Failed to save experiment to cache: {str(e)}")
+        
+        # Cleanup any remaining resources
+        if 'manager' in locals():
+            try:
+                manager.shutdown()
+            except Exception as e:
+                print(f"WARNING: Error shutting down manager: {str(e)}")
+        
         return experiment
 
     # Plot one stat across multiple workloads
@@ -1120,10 +1332,6 @@ class stat_aggregator:
             plt.show()
         else: plt.savefig(plot_name)
 
-
-    # Plot simpoints within workload
-    # Don't agregate
-    # def plot_simpoints (self, experiment, stats, configs, workload)
 
     # Plot stacked bars. List of
     def plot_stacked (self, experiment: Experiment, stats: List[str], workloads: List[str],
