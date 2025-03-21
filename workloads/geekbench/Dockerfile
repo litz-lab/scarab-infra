@@ -14,8 +14,8 @@ RUN wget https://cdn.geekbench.com/Geekbench-6.3.0-Linux.tar.gz -O /tmp/Geekbenc
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y jq
 
 # Using Geekbench6 Pro requires a license key and the its user email
-# For Litz Lab users, get the license from the traces dir and then copy them into the current dir
-COPY ./license.json $tmpdir/Geekbench-6.3.0-Linux/license.json
+# For Litz Lab users, get the license from the traces dir and then copy them into './workloads/geekbench/'
+COPY ./workloads/geekbench/license.json $tmpdir/Geekbench-6.3.0-Linux/license.json
 
 # Unlock Geekbench6 using the license json file
 RUN cd $tmpdir/Geekbench-6.3.0-Linux && \
