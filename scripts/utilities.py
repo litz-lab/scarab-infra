@@ -626,26 +626,27 @@ def finish_trace(user, descriptor_data, workload_db_path, suite_db_path, dbg_lvl
                 suite_dict[subsuite] = subsuite_dict
                 suite_db_data[suite] = suite_dict
 
-            # TODO: switch to a hierarchical path
-            # target_traces_path = f"{target_traces_dir}/{suite}/{subsuite}/{workload}"
-            target_traces_path = f"{target_traces_dir}/{workload}"
-            # Copy successfully collected simpoints and traces to target_traces_dir
-            os.system(f"mkdir -p {target_traces_path}/simpoints")
-            os.system(f"mkdir -p {target_traces_path}/traces_simp")
-            os.system(f"cp -r {trace_dir}/{workload}/simpoints/* {target_traces_path}/simpoints/")
-            os.system(f"cp -r {trace_dir}/{workload}/traces_simp/* {target_traces_path}/traces_simp/")
-            os.system(f"mkdir -p {target_traces_path}/traces/whole/trace")
-            os.system(f"mkdir -p {target_traces_path}/traces/whole/raw")
-            os.system(f"mkdir -p {target_traces_path}/traces/whole/bin")
-            os.system(f"mkdir -p {target_traces_path}/traces_simp/bin")
-            trace_clustering_info = read_descriptor_from_json(os.path.join(trace_dir, workload, "trace_clustering_info.json"), dbg_lvl)
-            whole_trace_dir = trace_clustering_info['dr_folder']
-            trace_file = trace_clustering_info['trace_file']
-            subprocess.run([f"cp {trace_dir}/{workload}/traces/whole/{whole_trace_dir}/trace/{trace_file} {target_traces_path}/traces/whole/trace"], check=True, shell=True)
-            subprocess.run([f"cp {trace_dir}/{workload}/traces/whole/{whole_trace_dir}/raw/modules.log {target_traces_path}/traces/whole/raw/modules.log"], check=True, shell=True)
-            subprocess.run([f"cp {trace_dir}/{workload}/traces/whole/{whole_trace_dir}/raw/modules.log {target_traces_path}/traces_simp/raw/modules.log"], check=True, shell=True)
-            subprocess.run([f"cp {trace_dir}/{workload}/traces/whole/{whole_trace_dir}/bin/* {target_traces_path}/traces/whole/bin"], check=True, shell=True)
-            subprocess.run([f"cp {trace_dir}/{workload}/traces/whole/{whole_trace_dir}/bin/* {target_traces_path}/traces_simp/bin"], check=True, shell=True)
+            if trim_type is not 3:
+                # TODO: switch to a hierarchical path
+                # target_traces_path = f"{target_traces_dir}/{suite}/{subsuite}/{workload}"
+                target_traces_path = f"{target_traces_dir}/{workload}"
+                # Copy successfully collected simpoints and traces to target_traces_dir
+                os.system(f"mkdir -p {target_traces_path}/simpoints")
+                os.system(f"mkdir -p {target_traces_path}/traces_simp")
+                os.system(f"cp -r {trace_dir}/{workload}/simpoints/* {target_traces_path}/simpoints/")
+                os.system(f"cp -r {trace_dir}/{workload}/traces_simp/* {target_traces_path}/traces_simp/")
+                os.system(f"mkdir -p {target_traces_path}/traces/whole/trace")
+                os.system(f"mkdir -p {target_traces_path}/traces/whole/raw")
+                os.system(f"mkdir -p {target_traces_path}/traces/whole/bin")
+                os.system(f"mkdir -p {target_traces_path}/traces_simp/bin")
+                trace_clustering_info = read_descriptor_from_json(os.path.join(trace_dir, workload, "trace_clustering_info.json"), dbg_lvl)
+                whole_trace_dir = trace_clustering_info['dr_folder']
+                trace_file = trace_clustering_info['trace_file']
+                subprocess.run([f"cp {trace_dir}/{workload}/traces/whole/{whole_trace_dir}/trace/{trace_file} {target_traces_path}/traces/whole/trace"], check=True, shell=True)
+                subprocess.run([f"cp {trace_dir}/{workload}/traces/whole/{whole_trace_dir}/raw/modules.log {target_traces_path}/traces/whole/raw/modules.log"], check=True, shell=True)
+                subprocess.run([f"cp {trace_dir}/{workload}/traces/whole/{whole_trace_dir}/raw/modules.log {target_traces_path}/traces_simp/raw/modules.log"], check=True, shell=True)
+                subprocess.run([f"cp {trace_dir}/{workload}/traces/whole/{whole_trace_dir}/bin/* {target_traces_path}/traces/whole/bin"], check=True, shell=True)
+                subprocess.run([f"cp {trace_dir}/{workload}/traces/whole/{whole_trace_dir}/bin/* {target_traces_path}/traces_simp/bin"], check=True, shell=True)
 
         write_json_descriptor(workload_db_path, workload_db_data, dbg_lvl)
         write_json_descriptor(suite_db_path, suite_db_data, dbg_lvl)

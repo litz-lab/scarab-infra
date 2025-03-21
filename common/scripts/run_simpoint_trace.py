@@ -334,13 +334,12 @@ def iterative(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mo
     # 1. trace timestep event from application
     # 2. drraw2trace
     chunk_size = 10000000
-    seg_size = 10000000
-    max_retries = 3
+    max_retries = 5
 
     try:
         workload_home = f"{simpoint_home}/{workload}"
-        for i in range(1, 11):
-            timestep_dir = os.path.join(workload_home, "traces", "whole")
+        for i in range(1, 601):
+            timestep_dir = os.path.join(workload_home, "traces_simp")
             os.makedirs(timestep_dir, exist_ok=True)
 
             start_time = time.perf_counter()
@@ -365,7 +364,7 @@ def iterative(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mo
                 except subprocess.TimeoutExpired as e:
                     print(f"[Timestep {i}] tracing attempt {attempt+1} timed out: {e}")
                     if attempt == max_retries - 1:
-                        raise e 
+                        raise e
                     else:
                         subdirs = [os.path.join(timestep_dir, d) for d in os.listdir(timestep_dir) 
                                    if os.path.isdir(os.path.join(timestep_dir, d))]
@@ -377,16 +376,12 @@ def iterative(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mo
                             print(f"[Timestep {i}] no subfolder found in {timestep_dir} to remove.")
                         
                         print(f"[Timestep {i}] retrying tracing (attempt {attempt+2})...")
-                        time.sleep(5)
                 except Exception as e:
                     print(f"[Timestep {i}] tracing failed with error: {e}")
-                    raise e
+                    continue
 
             end_time = time.perf_counter()
             report_time(f"[Timestep {i}] tracing done", start_time, end_time)
-
-            # sleep 1sec for every iteration
-            time.sleep(10)
 
         print(f"raw2trace..")
         start_time = time.perf_counter()
@@ -407,6 +402,9 @@ def iterative(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mo
                     subprocess.run(f"cp {bin_path}/modules.log {raw_path}/modules.log", check=True, shell=True)
                     raw2trace_cmd = f"{dynamorio_home}/tools/bin64/drraw2trace -jobs 40 -indir {raw_path} -chunk_instr_count {chunk_size}"
                     process = subprocess.Popen("exec " + raw2trace_cmd, stdout=subprocess.PIPE, shell=True)
+                    stdout, stderr = process.communicate()
+                    if stderr:
+                        print("drraw2trace error:", stderr.decode())
                     raw2trace_processes.add(process)
 
         for p in raw2trace_processes:
@@ -429,16 +427,24 @@ def iterative(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mo
                     dr_folder_path = os.path.dirname(os.path.dirname(whole_trace))
                     print(whole_trace)
                     
-                    with zipfile.ZipFile(whole_trace, 'r') as zf:
-                        file_list = zf.namelist()
-                        chunk_files = [fname for fname in file_list if re.search(r'chunk\.', fname)]
-                        numChunk = len(chunk_files)
-                        numInsts = numChunk * chunk_size
-                        print(f"{directory}: numInsts = {numInsts}")
-                        inst_counts[directory] = numInsts
-                    
+                    try:
+                        with zipfile.ZipFile(whole_trace, 'r') as zf:
+                            file_list = zf.namelist()
+                            chunk_files = [fname for fname in file_list if re.search(r'chunk\.', fname)]
+                            numChunk = len(chunk_files)
+                            numInsts = numChunk * chunk_size
+                            print(f"{directory}: numInsts = {numInsts}")
+                            inst_counts[directory] = numInsts
+                    except zipfile.BadZipFile:
+                        print(f"invalid zip: {whole_trace}.")
+                        shutil.rmtree(os.path.join(root, directory), ignore_errors=True)
+                        continue
+
                     old_path = os.path.join(root, directory)
-                    new_path = os.path.join(root, f"Timestep_{dir_counter}")
+                    new_folder = os.path.join(root, f"Timestep_{dir_counter}")
+                    if not os.path.exists(new_folder):
+                        os.makedirs(new_folder)
+                    new_path = os.path.join(new_folder, directory)
                     os.rename(old_path, new_path)
                     dir_counter += 1
 
@@ -487,6 +493,26 @@ def iterative(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mo
                 line = f"{idx+1} {idx}\n"
                 f1.write(line)
                 f2.write(line)
+
+        fingerprint_dir = os.path.join(workload_home, "fingerprint")
+        if not os.path.exists(fingerprint_dir):
+            os.makedirs(fingerprint_dir)
+        segment_size_path = os.path.join(fingerprint_dir, "segment_size")
+        with open(segment_size_path, "w") as f:
+            f.write(f"{chunk_size}\n")
+
+        modules_log_list = glob.glob(os.path.join(dr_folder_path, "raw", "modules.log"))
+        modules_dir = os.path.dirname(modules_log_list[0]) if modules_log_list else ""
+        trace_clustering_info["modules_dir"] = modules_dir
+        trace_clustering_info["whole_trace"] = None
+        trace_clustering_info["dr_folder"] = os.path.basename(dr_folder_path)
+        trace_clustering_info["trace_file"] = None
+                    
+        if trace_clustering_info is not None:
+            clustering_info_path = os.path.join(workload_home, "trace_clustering_info.json")
+            with open(clustering_info_path, "w") as json_file:
+                json.dump(trace_clustering_info, json_file, indent=2, separators=(",", ":"))
+            print(f"trace_clustering_info.json written to {clustering_info_path}")
 
         end_time = time.perf_counter()
         report_time(f"post processing done", start_time, end_time)

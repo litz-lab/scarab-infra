@@ -64,7 +64,7 @@
   "autoware":{
     "autoware":{
       "predefined_simulation_mode":{
-        "result_bag_timestep":"memtrace"
+        "autoware":"memtrace"
       }
     }
   }
