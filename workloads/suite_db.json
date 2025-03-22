@@ -64,7 +64,7 @@
   "autoware":{
     "autoware":{
       "predefined_simulation_mode":{
-        "autoware":"memtrace"
+        "yabloc":"memtrace"
       }
     }
   }

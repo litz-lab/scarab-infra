@@ -5664,16 +5664,16 @@
   "small_locks_benchmark":{},
   "openssl":{},
   "lzbench":{},
-  "autoware":{
+  "yabloc":{
     "trace":{
       "dynamorio_args":null,
       "clustering_k":null
     },
     "simulation":{
       "exec":{
-        "image_name":"dummy_image_name",
+        "image_name":"autoware",
         "segment_size":10000000,
-        "env_vars":{},
+        "env_vars":null,
         "binary_cmd":"\\$tmpdir/autoware/my_yabloc_pose_call_pkg/build/my_yabloc_pose_call_pkg/call_yabloc_pose",
         "client_bincmd":null
       },

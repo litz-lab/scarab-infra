@@ -626,15 +626,15 @@ def finish_trace(user, descriptor_data, workload_db_path, suite_db_path, dbg_lvl
                 suite_dict[subsuite] = subsuite_dict
                 suite_db_data[suite] = suite_dict
 
+            # TODO: switch to a hierarchical path
+            # target_traces_path = f"{target_traces_dir}/{suite}/{subsuite}/{workload}"
+            target_traces_path = f"{target_traces_dir}/{workload}"
+            # Copy successfully collected simpoints and traces to target_traces_dir
+            os.system(f"mkdir -p {target_traces_path}/simpoints")
+            os.system(f"mkdir -p {target_traces_path}/traces_simp")
+            os.system(f"cp -r {trace_dir}/{workload}/simpoints/* {target_traces_path}/simpoints/")
+            os.system(f"cp -r {trace_dir}/{workload}/traces_simp/* {target_traces_path}/traces_simp/")
             if trim_type is not 3:
-                # TODO: switch to a hierarchical path
-                # target_traces_path = f"{target_traces_dir}/{suite}/{subsuite}/{workload}"
-                target_traces_path = f"{target_traces_dir}/{workload}"
-                # Copy successfully collected simpoints and traces to target_traces_dir
-                os.system(f"mkdir -p {target_traces_path}/simpoints")
-                os.system(f"mkdir -p {target_traces_path}/traces_simp")
-                os.system(f"cp -r {trace_dir}/{workload}/simpoints/* {target_traces_path}/simpoints/")
-                os.system(f"cp -r {trace_dir}/{workload}/traces_simp/* {target_traces_path}/traces_simp/")
                 os.system(f"mkdir -p {target_traces_path}/traces/whole/trace")
                 os.system(f"mkdir -p {target_traces_path}/traces/whole/raw")
                 os.system(f"mkdir -p {target_traces_path}/traces/whole/bin")
