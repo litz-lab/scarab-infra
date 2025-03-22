@@ -230,29 +230,6 @@ class Experiment:
         # Set the row in the dataframe
         self.data.loc[insert_index] = row
         
-        # Check for NaN values and replace with zeros while reporting
-        row_data = self.data.loc[insert_index]
-        nan_count = row_data.isna().sum()
-        
-        if nan_count > 0:
-            # Report division by zero but continue processing
-            print(f"INFO: Detected {nan_count} NaN values in result of '{equation}'")
-            print(f"INFO: These are likely due to division by zero. Replacing NaNs with 0.")
-            
-            # Replace NaN values with zeros
-            self.data.loc[insert_index] = self.data.loc[insert_index].fillna(0)
-            
-            # Print the locations where NaNs were detected for debugging
-            nan_locations = []
-            for col in self.data.columns[3:]:  # Skip the first 3 metadata columns
-                if pd.isna(row_data[col]):
-                    nan_locations.append(str(col))
-            
-            if len(nan_locations) > 5:
-                print(f"INFO: First 5 locations with NaN values: {', '.join(nan_locations[:5])}...")
-            else:
-                print(f"INFO: Locations with NaN values: {', '.join(nan_locations)}")
-        
         return
 
     def to_csv(self, path:str):
@@ -436,7 +413,6 @@ class Experiment:
                 manager.shutdown()
                 
                 # Additional sleep to allow for cleanup
-                import time
                 time.sleep(0.1)
             except Exception as e:
                 print(f"WARNING: Non-critical error during resource cleanup: {str(e)}")
@@ -1279,7 +1255,7 @@ class stat_aggregator:
         all_data = experiment.retrieve_stats(configs, stats, workloads, aggregation_level="Config")
         if speedup_baseline != None: baseline_data = experiment.retrieve_stats([speedup_baseline], stats, workloads, aggregation_level="Config")
 
-        plt.figure(figsize=(6+num_workloads,8))
+        plt.figure(figsize=(6+len(configs),8))
 
         # For each stat
         for x_offset, stat in enumerate(stats):
