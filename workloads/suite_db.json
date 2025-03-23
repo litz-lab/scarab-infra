@@ -60,5 +60,15 @@
         "random_benchmark":"memtrace"
       }
     }
+  },
+  "single_core":{
+    "single_core":{
+      "predefined_simulation_mode":{
+        "101.filecompression":"memtrace",
+        "102.navigation":"memtrace",
+        "201.clang":"memtrace",
+        "202.textprocessing":"memtrace"
+      }
+    }
   }
 }
