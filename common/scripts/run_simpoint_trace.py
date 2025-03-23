@@ -35,6 +35,16 @@ def get_largest_trace(base_path, simpoint_mode):
         return max(traces, key=lambda x: x[0])[1]
     return None
 
+def get_largest_raw_trace(base_path):
+    traces = []
+    for trace in glob.glob(os.path.join(base_path, "*/raw/dr*.raw.lz4")):
+        size = os.path.getsize(trace)
+        traces.append((size, trace))
+
+    if traces:
+        return max(traces, key=lambda x: x[0])[1]
+    return None
+
 def report_time(procedure, start, end):
     elapsed_time = end - start
     hours = int(elapsed_time / 3600)
@@ -110,6 +120,8 @@ def trace_then_cluster(workload, suite, simpoint_home, bincmd, client_bincmd, si
         trace_cmd = f"{trace_cmd} -- {bincmd}"
         trace_cmd_list = shlex.split(trace_cmd)
 
+        whole_trace_path = f"{workload_home}/traces/whole"
+        trace_clustering_info = {}
         print("whole app tracing..")
         if client_bincmd:
             subprocess.Popen("exec " + client_bincmd, stdout=subprocess.PIPE, shell=True)
@@ -117,26 +129,54 @@ def trace_then_cluster(workload, suite, simpoint_home, bincmd, client_bincmd, si
         end_time = time.perf_counter()
         report_time("whole app tracing done", start_time, end_time)
 
+        trace_files, dr_folders = find_trace_files(whole_trace_path)
+        num_traces = len(trace_files)
+        num_dr_folder = len(dr_folders)
+
+        # Single-threaded multi-process workload
+        if num_traces == num_dr_folder and num_dr_folder > 1:
+            whole_raw_trace = get_largest_raw_trace(whole_trace_path)
+            dr_folder = os.path.dirname(os.path.dirname(whole_trace))
+            modules_dir = os.path.dirname(os.path.join(dr_folder, "raw/modules.log"))
+            dr_folder = os.path.basename(dr_folder)
+            trace_clustering_info["modules_dir"] = modules_dir
+            trace_clustering_info["dr_folder"] = dr_folder
+
         print("whole app raw2trace..")
         start_time = time.perf_counter()
-        whole_trace_path = f"{workload_home}/traces/whole"
         raw2trace_processes = set()
-        for root, dirs, files in os.walk(whole_trace_path):
-            for directory in dirs:
-                if re.match(r"^dr.*", directory):
-                    dr_path = os.path.join(root, directory)
-                    bin_path = os.path.join(root, directory, "bin")
-                    raw_path = os.path.join(root, directory, "raw")
-                    os.makedirs(bin_path, exist_ok=True)
-                    os.chmod(bin_path, 0o777)
-                    os.chmod(raw_path, 0o777)
-                    subprocess.run(f"cp {raw_path}/modules.log {bin_path}/modules.log", check=True, shell=True)
-                    subprocess.run(f"cp {raw_path}/modules.log {raw_path}/modules.log.bak", check=True, shell=True)
-                    subprocess.run(["python2", f"{simpoint_home}/scarab/utils/memtrace/portabilize_trace.py", f"{dr_path}"], capture_output=True, text=True, check=True)
-                    subprocess.run(f"cp {bin_path}/modules.log {raw_path}/modules.log", check=True, shell=True)
-                    raw2trace_cmd = f"{dynamorio_home}/tools/bin64/drraw2trace -jobs 40 -indir {raw_path} -chunk_instr_count {chunk_size}"
-                    process = subprocess.Popen("exec " + raw2trace_cmd, stdout=subprocess.PIPE, shell=True)
-                    raw2trace_processes.add(process)
+
+        if trace_clustering_info:
+            dr_path = os.path.join(whole_trace_path, dr_folder)
+            bin_path = os.path.join(whole_trace_path, dr_folder, "bin")
+            raw_path = os.path.join(whole_trace_path, dr_folder, "raw")
+            os.makedirs(bin_path, exist_ok=True)
+            os.chmod(bin_path, 0o777)
+            os.chmod(raw_path, 0o777)
+            subprocess.run(f"cp {raw_path}/modules.log {bin_path}/modules.log", check=True, shell=True)
+            subprocess.run(f"cp {raw_path}/modules.log {raw_path}/modules.log.bak", check=True, shell=True)
+            subprocess.run(["python2", f"{simpoint_home}/scarab/utils/memtrace/portabilize_trace.py", f"{dr_path}"], capture_output=True, text=True, check=True)
+            subprocess.run(f"cp {bin_path}/modules.log {raw_path}/modules.log", check=True, shell=True)
+            raw2trace_cmd = f"{dynamorio_home}/tools/bin64/drraw2trace -jobs 40 -indir {raw_path} -chunk_instr_count {chunk_size}"
+            process = subprocess.Popen("exec " + raw2trace_cmd, stdout=subprocess.PIPE, shell=True)
+            raw2trace_processes.add(process)
+        else:
+            for root, dirs, files in os.walk(whole_trace_path):
+                for directory in dirs:
+                    if re.match(r"^dr.*", directory):
+                        dr_path = os.path.join(root, directory)
+                        bin_path = os.path.join(root, directory, "bin")
+                        raw_path = os.path.join(root, directory, "raw")
+                        os.makedirs(bin_path, exist_ok=True)
+                        os.chmod(bin_path, 0o777)
+                        os.chmod(raw_path, 0o777)
+                        subprocess.run(f"cp {raw_path}/modules.log {bin_path}/modules.log", check=True, shell=True)
+                        subprocess.run(f"cp {raw_path}/modules.log {raw_path}/modules.log.bak", check=True, shell=True)
+                        subprocess.run(["python2", f"{simpoint_home}/scarab/utils/memtrace/portabilize_trace.py", f"{dr_path}"], capture_output=True, text=True, check=True)
+                        subprocess.run(f"cp {bin_path}/modules.log {raw_path}/modules.log", check=True, shell=True)
+                        raw2trace_cmd = f"{dynamorio_home}/tools/bin64/drraw2trace -jobs 40 -indir {raw_path} -chunk_instr_count {chunk_size}"
+                        process = subprocess.Popen("exec " + raw2trace_cmd, stdout=subprocess.PIPE, shell=True)
+                        raw2trace_processes.add(process)
 
         for p in raw2trace_processes:
             p.wait()
@@ -149,32 +189,31 @@ def trace_then_cluster(workload, suite, simpoint_home, bincmd, client_bincmd, si
         num_traces = len(trace_files)
         num_dr_folder = len(dr_folders)
 
-        trace_clustering_info = {}
-        if num_traces == 1 and num_dr_folder == 1:
-            modules_dir = os.path.dirname(glob.glob(os.path.join(whole_trace_path, "drmemtrace.*.dir/raw/modules.log"))[0])
-            whole_trace = glob.glob(os.path.join(whole_trace_path, "drmemtrace.*.dir/trace/dr*.zip"))[0]
-            dr_folder = os.path.dirname(os.path.dirname(whole_trace))
-        elif num_traces == num_dr_folder:
-            whole_trace = get_largest_trace(whole_trace_path, simpoint_mode)
-            dr_folder = os.path.dirname(os.path.dirname(whole_trace))
-            modules_dir = os.path.dirname(os.path.join(dr_folder, "raw/modules.log"))
-        elif num_traces > num_dr_folder:
-            whole_trace = get_largest_trace(whole_trace_path, simpoint_mode)
-            dr_folder = os.path.dirname(os.path.dirname(whole_trace))
-            modules_dir = os.path.dirname(os.path.join(dr_folder, "raw/modules.log"))
+        if not trace_clustering_info:
+            if num_traces == 1 and num_dr_folder == 1:
+                modules_dir = os.path.dirname(glob.glob(os.path.join(whole_trace_path, "drmemtrace.*.dir/raw/modules.log"))[0])
+                whole_trace = glob.glob(os.path.join(whole_trace_path, "drmemtrace.*.dir/trace/dr*.zip"))[0]
+                dr_folder = os.path.dirname(os.path.dirname(whole_trace))
+            else:
+                whole_trace = get_largest_trace(whole_trace_path, simpoint_mode)
+                dr_folder = os.path.dirname(os.path.dirname(whole_trace))
+                modules_dir = os.path.dirname(os.path.join(dr_folder, "raw/modules.log"))
+            dr_folder = os.path.basename(dr_folder)
+            trace_clustering_info["modules_dir"] = modules_dir
+            trace_clustering_info["whole_trace"] = whole_trace
+            trace_clustering_info["dr_folder"] = dr_folder
         else:
-            trace_clustering_info["err"] = "There are multiple trace files. Decide one and run manually: /usr/local/bin/run_trace_post_processing.sh <OUTDIR> <MODULESDIR> <TRACEFILE> <CHUNKSIZE> <SEG_SIZE> <SIMPOINTHOME>, then run /usr/local/bin/run_clustering.sh <FPFILE> <OUTDIR>"
+            if num_traces > 1:
+                trace_clustering_info["err"] = "Tried to convert the largest raw trace, but found more than one converted traces."
+                with open(os.path.join(workload_home, "trace_clustering_info.json"), "w") as json_file:
+                    json.dump(trace_clustering_info, json_file, indent=2, separators=(",", ":"))
+                exit(1)
+            whole_trace = get_largest_trace(whole_trace_path, simpoint_mode)
+            trace_clustering_info["whole_trace"] = whole_trace
 
-            with open(os.path.join(workload_home, "trace_clustering_info.json"), "w") as json_file:
-                json.dump(trace_clustering_info, json_file, indent=2, separators=(",", ":"))
-            exit(1)
         post_processing_cmd = f"/bin/bash /usr/local/bin/run_trace_post_processing.sh {workload_home} {modules_dir} {whole_trace} {chunk_size} {seg_size} {simpoint_home}"
         subprocess.run([post_processing_cmd], check=True, shell=True, stdin=open(os.devnull, 'r'))
         trace_file = os.path.basename(whole_trace)
-        dr_folder = os.path.basename(dr_folder)
-        trace_clustering_info["modules_dir"] = modules_dir
-        trace_clustering_info["whole_trace"] = whole_trace
-        trace_clustering_info["dr_folder"] = dr_folder
         trace_clustering_info["trace_file"] = trace_file
         with open(os.path.join(workload_home, "trace_clustering_info.json"), "w") as json_file:
             json.dump(trace_clustering_info, json_file, indent=2, separators=(",", ":"))
@@ -374,7 +413,7 @@ def iterative(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mo
                             shutil.rmtree(latest_dir, ignore_errors=True)
                         else:
                             print(f"[Timestep {i}] no subfolder found in {timestep_dir} to remove.")
-                        
+
                         print(f"[Timestep {i}] retrying tracing (attempt {attempt+2})...")
                 except Exception as e:
                     print(f"[Timestep {i}] tracing failed with error: {e}")
@@ -417,7 +456,7 @@ def iterative(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mo
         start_time = time.perf_counter()
         inst_counts = {}
         dir_counter = 1
-        
+
         for root, dirs, files in os.walk(timestep_dir):
             for directory in dirs:
                 if re.match(r"^dr.*", directory):
@@ -426,7 +465,7 @@ def iterative(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mo
                     whole_trace = get_largest_trace(dr_path, simpoint_mode)
                     dr_folder_path = os.path.dirname(os.path.dirname(whole_trace))
                     print(whole_trace)
-                    
+
                     try:
                         with zipfile.ZipFile(whole_trace, 'r') as zf:
                             file_list = zf.namelist()
@@ -507,7 +546,7 @@ def iterative(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mo
         trace_clustering_info["whole_trace"] = None
         trace_clustering_info["dr_folder"] = os.path.basename(dr_folder_path)
         trace_clustering_info["trace_file"] = None
-                    
+
         if trace_clustering_info is not None:
             clustering_info_path = os.path.join(workload_home, "trace_clustering_info.json")
             with open(clustering_info_path, "w") as json_file:
