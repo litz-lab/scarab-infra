@@ -328,7 +328,7 @@ def generate_single_trace_run_command(user, workload, image_name, trace_name, bi
     command = ""
     if simpoint_mode == "cluster_then_trace":
         mode = 1
-    elif simpoint_mode == "trace_then_cluster":
+    elif simpoint_mode == "trace_then_post_process":
         mode = 2
     elif simpoint_mode == "iterative_trace":
         mode = 3
