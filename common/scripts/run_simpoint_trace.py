@@ -64,7 +64,7 @@ def minimize_simpoint_traces(cluster_map, workload_home):
     # but we always keep two regardlessly
     try:
         for cluster_id, segment_id in cluster_map.items():
-            trace_dir = os.path.join(workload_home, "traces_simp", segment_id)
+            trace_dir = os.path.join(workload_home, "traces_simp", str(segment_id))
             trace_files = subprocess.getoutput(f"find {trace_dir} -name 'dr*.trace.zip' | grep 'drmemtrace.*.trace.zip'").splitlines()
             num_traces = len(trace_files)
             if num_traces != 1:
@@ -84,7 +84,7 @@ def minimize_simpoint_traces(cluster_map, workload_home):
 
 
             # Copy chunk 0 and chunk 1 into a new zip file
-            subprocess.run(f"zip {big_zip_file} --copy chunk.0000 chunk.0001 --out {os.path.join(trace_path, f'{segment_id}.zip')}", shell=True)
+            subprocess.run(f"zip {big_zip_file} --copy chunk.0000 chunk.0001 --out {os.path.join(trace_dir, f'{segment_id}.zip')}", shell=True)
 
             # Remove the big zip file
             os.remove(big_zip_file)
@@ -219,8 +219,8 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
             subprocess.Popen("exec " + client_bincmd, stdout=subprocess.PIPE, shell=True)
         start_time = time.perf_counter()
         fp_cmd = f"{dynamorio_home}/bin64/drrun -max_bb_instrs 4096 -opt_cleancall 2 -c $tmpdir/libfpg.so -no_use_bb_pc -no_use_fetched_count -segment_size {seg_size} -output {workload_home}/fingerprint/bbfp -pcmap_output {workload_home}/fingerprint/pcmap -- {bincmd}"
-        subprocess.run([fp_cmd], check=True, capture_output=True, text=True)
-        end_time = time.perf_coiunter()
+        subprocess.run([fp_cmd], check=True, capture_output=True, text=True, shell=True)
+        end_time = time.perf_counter()
         report_time("generate fingerprint done", start_time, end_time)
 
         print("clustering..")
@@ -302,7 +302,7 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
                     json.dump(trace_clustering_info, json_file, indent=2, separators=(",", ":"))
                 exit(1)
 
-            subprocess.run(f"cp {trace_path}/dr*/raw/ {trace_path}/raw/", check=True, shell=True)
+            subprocess.run(f"mv {trace_path}/dr*/raw/ {trace_path}/raw/", check=True, shell=True)
             os.makedirs(f"{trace_path}/bin", exist_ok=True)
             bin_path = os.path.join(trace_path, "bin")
             raw_path = os.path.join(trace_path, "raw")
@@ -324,7 +324,7 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
 
         print("minimize traces..")
         start_time = time.perf_counter()
-        minimze_simpoint_traces(cluster_map, workload_home)
+        minimize_simpoint_traces(cluster_map, workload_home)
         end_time = time.perf_counter()
         report_time("minimize traces done", start_time, end_time)
     except Exception as e:
@@ -541,7 +541,9 @@ if __name__ == "__main__":
     suite = args.suite
     simpoint_home = args.simpoint_home
     bincmd = os.path.expandvars(args.bincmd)
-    client_bincmd = os.path.expandvars(args.client_bincmd)
+    client_bincmd = ""
+    if args.client_bincmd:
+        client_bincmd = os.path.expandvars(args.client_bincmd)
     simpoint_mode = args.simpoint_mode
     drio_args = args.drio_args
     clustering_userk = args.clustering_userk

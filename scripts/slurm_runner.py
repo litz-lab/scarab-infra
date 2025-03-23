@@ -34,7 +34,7 @@ def check_docker_image(nodes, docker_prefix, githash, dbg_lvl = 1):
             # Check if the image exists
             image = subprocess.check_output(["srun", f"--nodelist={node}", "docker", "images", "-q", f"{docker_prefix}:{githash}"])
             info(f"{image}", dbg_lvl)
-            if image == []:
+            if image == [] or image == b'':
                 info(f"Couldn't find image {docker_prefix}:{githash} on {node}", dbg_lvl)
                 continue
 
@@ -55,7 +55,7 @@ def prepare_docker_image(nodes, docker_prefix, githash, dbg_lvl = 1):
             # Check if the image exists
             image = subprocess.check_output(["srun", f"--nodelist={node}", "docker", "images", "-q", f"{docker_prefix}:{githash}"])
             info(f"{image}", dbg_lvl)
-            if image == []:
+            if image == [] or image == b'':
                 info(f"Couldn't find image {docker_prefix}:{githash} on {node}", dbg_lvl)
                 subprocess.check_output(["srun", f"--nodelist={node}", "docker", "pull", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}"])
                 image = subprocess.check_output(["srun", f"--nodelist={node}", "docker", "images", "-q", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}"])
@@ -249,7 +249,7 @@ def print_status(user, job_name, docker_prefix_list, dbg_lvl = 1):
     node_docker_running = check_docker_container_running(available_slurm_nodes, docker_prefix_list, job_name, user, dbg_lvl)
 
     for node in all_nodes:
-        if node in node_docker_running.keys():
+        if node in node_docker_running.keys() and len(node_docker_running.get(node)) > 0:
             print(f"\033[92mRUNNING:     {node}\033[0m")
             for docker in node_docker_running[node]:
                 print(f"\033[92m    CONTAINER: {docker}\033[0m")
@@ -331,7 +331,7 @@ def run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir,
                 simpoints = {}
                 simpoints["0"] = weight
             elif exp_cluster_id == None:
-                simpoints = get_simpoints(workloads_data[workload], dbg_lvl)
+                simpoints = get_simpoints(workloads_data[workload], sim_mode, dbg_lvl)
             elif exp_cluster_id > 0:
                 weight = get_weight_by_cluster_id(exp_cluster_id, workloads_data[workload]["simpoints"])
                 simpoints = {}
@@ -356,7 +356,7 @@ def run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir,
                     filename = f"{docker_container_name}_tmp_run.sh"
                     write_docker_command_to_file(user, local_uid, local_gid, workload, experiment_name,
                                                  docker_prefix, docker_container_name, traces_dir,
-                                                 docker_home, githash, config_key, config, scarab_mode, scarab_githash,
+                                                 docker_home, githash, config_key, config, sim_mode, scarab_githash,
                                                  seg_size, architecture, cluster_id, trim_type, trace_file,
                                                  env_vars, bincmd, client_bincmd, filename, infra_dir)
                     tmp_files.append(filename)
@@ -417,16 +417,23 @@ def run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir,
 
             # Run all the workloads within suite
             if workload == None and subsuite == None:
-                for subsuite in suite_data[suite].keys():
-                    for workload in suite_data[suite][subsuite]["predefined_simulation_mode"].keys():
-                        sim_mode = suite_data[suite][subsuite]["predefined_simulation_mode"][workload]
-                        run_single_workload(workload, exp_cluster_id, sim_mode)
+                for subsuite_ in suite_data[suite].keys():
+                    for workload_ in suite_data[suite][subsuite_]["predefined_simulation_mode"].keys():
+                        sim_mode_ = sim_mode
+                        if sim_mode_ == None:
+                            sim_mode_ = suite_data[suite][subsuite_]["predefined_simulation_mode"][workload_]
+                        run_single_workload(workload_, exp_cluster_id, sim_mode_)
             elif workload == None and subsuite != None:
-                for workload in suite_data[suite][subsuite]["predefined_simulation_mode"].keys():
-                    sim_mode = suite_data[suite][subsuite]["predefined_simulation_mode"][workload]
-                    run_single_workload(workload, exp_cluster_id, sim_mode)
+                for workload_ in suite_data[suite][subsuite]["predefined_simulation_mode"].keys():
+                    sim_mode_ = sim_mode
+                    if sim_mode_ == None:
+                        sim_mode_ = suite_data[suite][subsuite]["predefined_simulation_mode"][workload_]
+                    run_single_workload(workload_, exp_cluster_id, sim_mode_)
             else:
-                run_single_workload(workload, exp_cluster_id, sim_mode)
+                sim_mode_ = sim_mode
+                if sim_mode_ == None:
+                    sim_mode_ = suite_data[suite][subsuite]["predefined_simulation_mode"][workload]
+                run_single_workload(workload, exp_cluster_id, sim_mode_)
 
         # Clean up temp files
         for tmp in tmp_files:

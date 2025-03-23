@@ -151,7 +151,7 @@ def run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir,
                 simpoints = {}
                 simpoints["0"] = weight
             elif exp_cluster_id == None:
-                simpoints = get_simpoints(workloads_data[workload], dbg_lvl)
+                simpoints = get_simpoints(workloads_data[workload], sim_mode, dbg_lvl)
             elif exp_cluster_id > 0:
                 weight = get_weight_by_cluster_id(exp_cluster_id, workloads_data[workload]["simpoints"])
                 simpoints = {}
@@ -229,16 +229,23 @@ def run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir,
 
             # Run all the workloads within suite
             if workload == None and subsuite == None:
-                for subsuite in suite_data[suite].keys():
-                    for workload in suite_data[suite][subsuite]["predefined_simulation_mode"].keys():
-                        sim_mode = suite_data[suite][subsuite]["predefined_simulation_mode"][workload]
-                        run_single_workload(workload, exp_cluster_id, sim_mode)
+                for subsuite_ in suite_data[suite].keys():
+                    for workload_ in suite_data[suite][subsuite_]["predefined_simulation_mode"].keys():
+                        sim_mode_ = sim_mode
+                        if sim_mode_ == None:
+                            sim_mode_ = suite_data[suite][subsuite_]["predefined_simulation_mode"][workload_]
+                        run_single_workload(workload_, exp_cluster_id, sim_mode_)
             elif workload == None and subsuite != None:
-                for workload in suite_data[suite][subsuite]["predefined_simulation_mode"].keys():
-                    sim_mode = suite_data[suite][subsuite]["predefined_simulation_mode"][workload]
-                    run_single_workload(workload, exp_cluster_id, sim_mode)
+                for workload_ in suite_data[suite][subsuite]["predefined_simulation_mode"].keys():
+                    sim_mode_ = sim_mode
+                    if sim_mode_ == None:
+                        sim_mode_ = suite_data[suite][subsuite]["predefined_simulation_mode"][workload_]
+                    run_single_workload(workload_, exp_cluster_id, sim_mode_)
             else:
-                run_single_workload(workload, exp_cluster_id, sim_mode)
+                sim_mode_ = sim_mode
+                if sim_mode_ == None:
+                    sim_mode_ = suite_data[suite][subsuite]["predefined_simulation_mode"][workload]
+                run_single_workload(workload, exp_cluster_id, sim_mode_)
 
         print("Wait processes...")
         for p in processes:
