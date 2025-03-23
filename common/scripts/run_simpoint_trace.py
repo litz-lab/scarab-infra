@@ -12,15 +12,22 @@ import re
 import glob
 import json
 import shlex
+import shutil
+import zipfile
 
 def find_trace_files(base_path):
     trace_files = glob.glob(os.path.join(base_path, "drmemtrace.*.dir/trace/dr*.trace.zip"))
     dr_folders = glob.glob(os.path.join(base_path, "drmemtrace.*.dir"))
     return trace_files, dr_folders
 
-def get_largest_trace(base_path):
+def get_largest_trace(base_path, simpoint_mode):
     traces = []
-    for trace in glob.glob(os.path.join(base_path, "*/trace/dr*.trace.zip")):
+    if simpoint_mode == "3":
+        pattern = os.path.join(base_path, "trace/dr*.trace.zip")
+    else:
+        pattern = os.path.join(base_path, "*/trace/dr*.trace.zip")
+    
+    for trace in glob.glob(os.path.join(base_path, pattern)):
         size = os.path.getsize(trace)
         traces.append((size, trace))
 
@@ -148,11 +155,11 @@ def trace_then_cluster(workload, suite, simpoint_home, bincmd, client_bincmd, si
             whole_trace = glob.glob(os.path.join(whole_trace_path, "drmemtrace.*.dir/trace/dr*.zip"))[0]
             dr_folder = os.path.dirname(os.path.dirname(whole_trace))
         elif num_traces == num_dr_folder:
-            whole_trace = get_largest_trace(whole_trace_path)
+            whole_trace = get_largest_trace(whole_trace_path, simpoint_mode)
             dr_folder = os.path.dirname(os.path.dirname(whole_trace))
             modules_dir = os.path.dirname(os.path.join(dr_folder, "raw/modules.log"))
         elif num_traces > num_dr_folder:
-            whole_trace = get_largest_trace(whole_trace_path)
+            whole_trace = get_largest_trace(whole_trace_path, simpoint_mode)
             dr_folder = os.path.dirname(os.path.dirname(whole_trace))
             modules_dir = os.path.dirname(os.path.join(dr_folder, "raw/modules.log"))
         else:
@@ -323,6 +330,196 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
     except Exception as e:
         raise e
 
+def iterative(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mode, drio_args, clustering_userk):
+    # 1. trace timestep event from application
+    # 2. drraw2trace
+    chunk_size = 10000000
+    max_retries = 5
+
+    try:
+        workload_home = f"{simpoint_home}/{workload}"
+        for i in range(1, 601):
+            timestep_dir = os.path.join(workload_home, "traces_simp")
+            os.makedirs(timestep_dir, exist_ok=True)
+
+            start_time = time.perf_counter()
+            dynamorio_home = os.environ.get('DYNAMORIO_HOME')
+            if not dynamorio_home:
+                raise EnvironmentError("DYNAMORIO_HOME not set")
+
+            trace_cmd = (f"{dynamorio_home}/bin64/drrun -t drcachesim -jobs 40 -outdir {timestep_dir} -offline")
+            if drio_args is not None:
+                trace_cmd = f"{trace_cmd} {drio_args}"
+            trace_cmd = f"{trace_cmd} -- {bincmd}"
+            trace_cmd_list = shlex.split(trace_cmd)
+
+            print(f"[Timestep {i}] tracing..")
+            if i == 1 and client_bincmd:
+                subprocess.Popen("exec " + client_bincmd, stdout=subprocess.PIPE, shell=True)
+
+            for attempt in range(max_retries):
+                try:
+                    subprocess.run(trace_cmd_list, check=True, capture_output=True, text=True, timeout=30)
+                    break
+                except subprocess.TimeoutExpired as e:
+                    print(f"[Timestep {i}] tracing attempt {attempt+1} timed out: {e}")
+                    if attempt == max_retries - 1:
+                        raise e
+                    else:
+                        subdirs = [os.path.join(timestep_dir, d) for d in os.listdir(timestep_dir) 
+                                   if os.path.isdir(os.path.join(timestep_dir, d))]
+                        if subdirs:
+                            latest_dir = max(subdirs, key=os.path.getmtime)
+                            print(f"[Timestep {i}] removing the most recent folder: {latest_dir}")
+                            shutil.rmtree(latest_dir, ignore_errors=True)
+                        else:
+                            print(f"[Timestep {i}] no subfolder found in {timestep_dir} to remove.")
+                        
+                        print(f"[Timestep {i}] retrying tracing (attempt {attempt+2})...")
+                except Exception as e:
+                    print(f"[Timestep {i}] tracing failed with error: {e}")
+                    continue
+
+            end_time = time.perf_counter()
+            report_time(f"[Timestep {i}] tracing done", start_time, end_time)
+
+        print(f"raw2trace..")
+        start_time = time.perf_counter()
+
+        raw2trace_processes = set()
+        for root, dirs, files in os.walk(timestep_dir):
+            for directory in dirs:
+                if re.match(r"^dr.*", directory):
+                    dr_path = os.path.join(root, directory)
+                    bin_path = os.path.join(root, directory, "bin")
+                    raw_path = os.path.join(root, directory, "raw")
+                    os.makedirs(bin_path, exist_ok=True)
+                    os.chmod(bin_path, 0o777)
+                    os.chmod(raw_path, 0o777)
+                    subprocess.run(f"cp {raw_path}/modules.log {bin_path}/modules.log", check=True, shell=True)
+                    subprocess.run(f"cp {raw_path}/modules.log {raw_path}/modules.log.bak", check=True, shell=True)
+                    subprocess.run(["python2", f"{simpoint_home}/scarab/utils/memtrace/portabilize_trace.py", f"{dr_path}"], capture_output=True, text=True, check=True)
+                    subprocess.run(f"cp {bin_path}/modules.log {raw_path}/modules.log", check=True, shell=True)
+                    raw2trace_cmd = f"{dynamorio_home}/tools/bin64/drraw2trace -jobs 40 -indir {raw_path} -chunk_instr_count {chunk_size}"
+                    process = subprocess.Popen("exec " + raw2trace_cmd, stdout=subprocess.PIPE, shell=True)
+                    stdout, stderr = process.communicate()
+                    if stderr:
+                        print("drraw2trace error:", stderr.decode())
+                    raw2trace_processes.add(process)
+
+        for p in raw2trace_processes:
+            p.wait()
+
+        end_time = time.perf_counter()
+        report_time(f"raw2trace done", start_time, end_time)
+
+        print(f"post processing..")
+        start_time = time.perf_counter()
+        inst_counts = {}
+        dir_counter = 1
+        
+        for root, dirs, files in os.walk(timestep_dir):
+            for directory in dirs:
+                if re.match(r"^dr.*", directory):
+                    trace_clustering_info = {}
+                    dr_path = os.path.join(root, directory)
+                    whole_trace = get_largest_trace(dr_path, simpoint_mode)
+                    dr_folder_path = os.path.dirname(os.path.dirname(whole_trace))
+                    print(whole_trace)
+                    
+                    try:
+                        with zipfile.ZipFile(whole_trace, 'r') as zf:
+                            file_list = zf.namelist()
+                            chunk_files = [fname for fname in file_list if re.search(r'chunk\.', fname)]
+                            numChunk = len(chunk_files)
+                            numInsts = numChunk * chunk_size
+                            print(f"{directory}: numInsts = {numInsts}")
+                            inst_counts[directory] = numInsts
+                    except zipfile.BadZipFile:
+                        print(f"invalid zip: {whole_trace}.")
+                        shutil.rmtree(os.path.join(root, directory), ignore_errors=True)
+                        continue
+
+                    old_path = os.path.join(root, directory)
+                    new_folder = os.path.join(root, f"Timestep_{dir_counter}")
+                    if not os.path.exists(new_folder):
+                        os.makedirs(new_folder)
+                    new_path = os.path.join(new_folder, directory)
+                    os.rename(old_path, new_path)
+                    dir_counter += 1
+
+        total_inst = sum(inst_counts.values())
+        print(f"Total instruction count across all directories: {total_inst}")
+
+        trace_weights = {}
+        for directory, count in inst_counts.items():
+            if total_inst > 0:
+                weight = count / total_inst
+            else:
+                weight = 0
+            trace_weights[directory] = weight
+
+        print("Computed trace weights:")
+        for directory, weight in trace_weights.items():
+            print(f"{directory}: {weight:.4f}")
+
+        sorted_dirs = sorted(trace_weights.keys())
+
+        simpoint_home = f"{workload_home}/simpoints"
+        os.makedirs(simpoint_home, exist_ok=True)
+
+        opt_w_path = os.path.join(simpoint_home, "opt.w")
+        opt_w_lpt_path = os.path.join(simpoint_home, "opt.w.lpt0.99")
+        with open(opt_w_path, "w") as f1, open(opt_w_lpt_path, "w") as f2:
+            for idx, directory in enumerate(sorted_dirs):
+                weight = trace_weights[directory]
+                line = f"{weight:.6f} {idx}\n"
+                f1.write(line)
+                f2.write(line)
+
+        opt_w2_path = os.path.join(simpoint_home, "opt.w.2")
+        opt_w2_lpt_path = os.path.join(simpoint_home, "opt.w.2.lpt0.99")
+        with open(opt_w2_path, "w") as f3, open(opt_w2_lpt_path, "w") as f4:
+            for idx, directory in enumerate(sorted_dirs):
+                inst_count = inst_counts[directory]
+                line = f"{inst_count} {idx}\n"
+                f3.write(line)
+                f4.write(line)
+
+        opt_p_path = os.path.join(simpoint_home, "opt.p")
+        opt_p_lpt_path = os.path.join(simpoint_home, "opt.p.lpt0.99")
+        with open(opt_p_path, "w") as f1, open(opt_p_lpt_path, "w") as f2:
+            for idx, directory in enumerate(sorted_dirs):
+                line = f"{idx+1} {idx}\n"
+                f1.write(line)
+                f2.write(line)
+
+        fingerprint_dir = os.path.join(workload_home, "fingerprint")
+        if not os.path.exists(fingerprint_dir):
+            os.makedirs(fingerprint_dir)
+        segment_size_path = os.path.join(fingerprint_dir, "segment_size")
+        with open(segment_size_path, "w") as f:
+            f.write(f"{chunk_size}\n")
+
+        modules_log_list = glob.glob(os.path.join(dr_folder_path, "raw", "modules.log"))
+        modules_dir = os.path.dirname(modules_log_list[0]) if modules_log_list else ""
+        trace_clustering_info["modules_dir"] = modules_dir
+        trace_clustering_info["whole_trace"] = None
+        trace_clustering_info["dr_folder"] = os.path.basename(dr_folder_path)
+        trace_clustering_info["trace_file"] = None
+                    
+        if trace_clustering_info is not None:
+            clustering_info_path = os.path.join(workload_home, "trace_clustering_info.json")
+            with open(clustering_info_path, "w") as json_file:
+                json.dump(trace_clustering_info, json_file, indent=2, separators=(",", ":"))
+            print(f"trace_clustering_info.json written to {clustering_info_path}")
+
+        end_time = time.perf_counter()
+        report_time(f"post processing done", start_time, end_time)
+    except Exception as e:
+        print(f"[Timestep {i}] failed: {str(e)}")
+        raise e
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Runs clustering/tracing on local or a slurm network')
 
@@ -354,9 +551,14 @@ if __name__ == "__main__":
 
     try:
         print("running run_simpoint_trace.py...")
+        print(simpoint_mode)
         if simpoint_mode == "1": # clustering then tracing
             cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mode, drio_args, clustering_userk, manual_trace)
         elif simpoint_mode == "2": # trace then post-process
             trace_then_cluster(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mode, drio_args, clustering_userk)
+        elif simpoint_mode == "3": # trace each timestep
+            iterative(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mode, drio_args, clustering_userk)
+        else:
+            raise Exception("Invalid simpoint mode")
     except Exception as e:
         traceback.print_exc() # Print the full stack trace

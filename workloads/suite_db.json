@@ -60,5 +60,12 @@
         "random_benchmark":"memtrace"
       }
     }
+  },
+  "autoware":{
+    "autoware":{
+      "predefined_simulation_mode":{
+        "yabloc":"memtrace"
+      }
+    }
   }
 }

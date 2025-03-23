@@ -45,12 +45,8 @@ RUN mv autoware.repos $tmpdir/autoware/
 RUN mv simulator.repos $tmpdir/autoware/
 RUN rm -rf /tmp/autoware_repos
 
-# Copy simulator_append.txt to $tmpdir/autoware
+# Copy simulator_append.txt to ros2 custom packates(play_next, image republisher)
 COPY ./workloads/autoware/simulator_append.txt $tmpdir/autoware/
-COPY ./workloads/autoware/ros2_play_next $tmpdir/autoware/ros2_play_next
-RUN cd $tmpdir/autoware/ros2_play_next && source /opt/ros/$ROS_DISTRO/setup.bash && colcon build
-RUN chmod +x $tmpdir/autoware/ros2_play_next/build/my_play_next_pkg/play_next
-RUN mv $tmpdir/autoware/ros2_play_next/build/my_play_next_pkg/play_next $tmpdir/autoware/
 
 WORKDIR $tmpdir/autoware
 RUN cat simulator_append.txt >> simulator.repos
@@ -72,6 +68,11 @@ RUN source /opt/ros/$ROS_DISTRO/setup.bash && \
     source /opt/ros/$ROS_DISTRO/setup.bash && \
     colcon build --base-paths src --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
 
+COPY ./workloads/autoware/my_yabloc_pose_call_pkg $tmpdir/autoware/my_yabloc_pose_call_pkg
+RUN cd $tmpdir/autoware/my_yabloc_pose_call_pkg && source /opt/ros/$ROS_DISTRO/setup.bash && source $tmpdir/autoware/install/setup.bash && colcon build --packages-select my_yabloc_pose_call_pkg
+COPY ./workloads/autoware/image_republisher $tmpdir/autoware/image_republisher
+RUN cd $tmpdir/autoware/image_republisher && source /opt/ros/$ROS_DISTRO/setup.bash && colcon build --packages-select image_republisher
+    
 # Install driving_log_replayer via pipx
 RUN apt-get remove -y python3-termcolor || true
 RUN python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel packaging
@@ -114,11 +115,6 @@ RUN cp -r $tmpdir/driving_log_replayer_data/sample_bag/yabloc/input_bag $tmpdir/
 
 # Prepare simpoint result
 RUN mkdir -p $tmpdir/simpoint_flow/trace_autoware/result_bag/traces/whole
-
-# Collect simulation data
-RUN source /opt/ros/$ROS_DISTRO/setup.bash && \
-    source $tmpdir/autoware/install/setup.bash && \
-    env HOME="$tmpdir" dlr simulation run -p yabloc -l play_rate:=0.5
 
 COPY ./workloads/autoware/workload_user_entrypoint.sh /usr/local/bin/workload_user_entrypoint.sh
 

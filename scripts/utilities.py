@@ -328,11 +328,13 @@ def generate_single_trace_run_command(user, workload, image_name, trace_name, bi
     command = ""
     if simpoint_mode == "cluster_then_trace":
         mode = 1
-    elif simpoint_mode == "trace_then_post_process":
+    elif simpoint_mode == "trace_then_cluster":
         mode = 2
-    command = f"python3 -u /usr/local/bin/run_simpoint_trace.py --workload {workload} --suite {image_name} --simpoint_mode {mode} --simpoint_home \"/home/{user}/simpoint_flow/{trace_name}\" --bincmd \"{binary_cmd}\""
+    elif simpoint_mode == "iterative_trace":
+        mode = 3
+    command = f"python3 -u /usr/local/bin/run_simpoint_trace.py --workload {workload} --suite {image_name} --simpoint_mode {mode} --simpoint_home \\\"/home/{user}/simpoint_flow/{trace_name}\\\" --bincmd \\\"{binary_cmd}\\\""
     if client_bincmd != None:
-        command = f"{command} --client_bincmd \"{client_bincmd}\""
+        command = f"{command} --client_bincmd \\\"{client_bincmd}\\\""
     if drio_args != None:
         command = f"{command} --drio_args {drio_args}"
     if clustering_k != None:
@@ -627,10 +629,14 @@ def finish_trace(user, descriptor_data, workload_db_path, suite_db_path, dbg_lvl
             exec_dict['client_bincmd'] = config['client_bincmd']
             memtrace_dict = {}
             memtrace_dict['image_name'] = "allbench_traces"
-            if config['post_processing']:
+            if config['trace_type'] == "cluster_then_trace":
                 trim_type = 1
-            else:
+            elif config['trace_type'] == "trace_then_cluster":
                 trim_type = 2
+            elif config['trace_type'] == "iterative_trace":
+                trim_type = 3
+            else:
+                raise Exception(f"Invalid trace type: {config['trace_type']}")
             memtrace_dict['trim_type'] = trim_type
             memtrace_dict['segment_size'] = int(read_first_line(segment_size_file))
             trace_clustering_info = read_descriptor_from_json(f"{docker_home}/simpoint_flow/{job_name}/{workload}/trace_clustering_info.json", dbg_lvl)
@@ -680,18 +686,19 @@ def finish_trace(user, descriptor_data, workload_db_path, suite_db_path, dbg_lvl
             os.system(f"mkdir -p {target_traces_path}/traces_simp")
             os.system(f"cp -r {trace_dir}/{workload}/simpoints/* {target_traces_path}/simpoints/")
             os.system(f"cp -r {trace_dir}/{workload}/traces_simp/* {target_traces_path}/traces_simp/")
-            os.system(f"mkdir -p {target_traces_path}/traces/whole/trace")
-            os.system(f"mkdir -p {target_traces_path}/traces/whole/raw")
-            os.system(f"mkdir -p {target_traces_path}/traces/whole/bin")
-            os.system(f"mkdir -p {target_traces_path}/traces_simp/bin")
-            trace_clustering_info = read_descriptor_from_json(os.path.join(trace_dir, workload, "trace_clustering_info.json"), dbg_lvl)
-            whole_trace_dir = trace_clustering_info['dr_folder']
-            trace_file = trace_clustering_info['trace_file']
-            subprocess.run([f"cp {trace_dir}/{workload}/traces/whole/{whole_trace_dir}/trace/{trace_file} {target_traces_path}/traces/whole/trace"], check=True, shell=True)
-            subprocess.run([f"cp {trace_dir}/{workload}/traces/whole/{whole_trace_dir}/raw/modules.log {target_traces_path}/traces/whole/raw/modules.log"], check=True, shell=True)
-            subprocess.run([f"cp {trace_dir}/{workload}/traces/whole/{whole_trace_dir}/raw/modules.log {target_traces_path}/traces_simp/raw/modules.log"], check=True, shell=True)
-            subprocess.run([f"cp {trace_dir}/{workload}/traces/whole/{whole_trace_dir}/bin/* {target_traces_path}/traces/whole/bin"], check=True, shell=True)
-            subprocess.run([f"cp {trace_dir}/{workload}/traces/whole/{whole_trace_dir}/bin/* {target_traces_path}/traces_simp/bin"], check=True, shell=True)
+            if trim_type is not 3:
+                os.system(f"mkdir -p {target_traces_path}/traces/whole/trace")
+                os.system(f"mkdir -p {target_traces_path}/traces/whole/raw")
+                os.system(f"mkdir -p {target_traces_path}/traces/whole/bin")
+                os.system(f"mkdir -p {target_traces_path}/traces_simp/bin")
+                trace_clustering_info = read_descriptor_from_json(os.path.join(trace_dir, workload, "trace_clustering_info.json"), dbg_lvl)
+                whole_trace_dir = trace_clustering_info['dr_folder']
+                trace_file = trace_clustering_info['trace_file']
+                subprocess.run([f"cp {trace_dir}/{workload}/traces/whole/{whole_trace_dir}/trace/{trace_file} {target_traces_path}/traces/whole/trace"], check=True, shell=True)
+                subprocess.run([f"cp {trace_dir}/{workload}/traces/whole/{whole_trace_dir}/raw/modules.log {target_traces_path}/traces/whole/raw/modules.log"], check=True, shell=True)
+                subprocess.run([f"cp {trace_dir}/{workload}/traces/whole/{whole_trace_dir}/raw/modules.log {target_traces_path}/traces_simp/raw/modules.log"], check=True, shell=True)
+                subprocess.run([f"cp {trace_dir}/{workload}/traces/whole/{whole_trace_dir}/bin/* {target_traces_path}/traces/whole/bin"], check=True, shell=True)
+                subprocess.run([f"cp {trace_dir}/{workload}/traces/whole/{whole_trace_dir}/bin/* {target_traces_path}/traces_simp/bin"], check=True, shell=True)
 
         write_json_descriptor(workload_db_path, workload_db_data, dbg_lvl)
         write_json_descriptor(suite_db_path, suite_db_data, dbg_lvl)

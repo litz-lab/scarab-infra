@@ -472,16 +472,21 @@ def run_tracing(user, descriptor_data, workload_db_path, suite_db_path, infra_di
 
     tmp_files = []
 
-    def run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd, post_processing, drio_args, clustering_k):
+    def run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd, trace_type, drio_args, clustering_k):
         try:
             docker_running = check_docker_image(all_nodes, image_name, githash, dbg_lvl)
             excludes = set(all_nodes) - set(docker_running)
             info(f"Excluding following nodes: {', '.join(excludes)}", dbg_lvl)
             sbatch_cmd = generate_sbatch_command(excludes, trace_dir)
 
-            simpoint_mode = "cluster_then_trace"
-            if post_processing:
+            if trace_type == "cluster_then_trace":
+                simpoint_mode = "cluster_then_trace"
+            elif trace_type == "trace_then_cluster":
                 simpoint_mode = "trace_then_post_process"
+            elif trace_type == "iterative_trace":
+                simpoint_mode = "iterative_trace"
+            else:
+                raise Exception(f"Invalid trace type: {trace_type}")
             info(f"Using docker image with name {image_name}:{githash}", dbg_lvl)
             docker_container_name = f"{image_name}_{workload}_{trace_name}_{simpoint_mode}_{user}"
             filename = f"{docker_container_name}_tmp_run.sh"
@@ -543,12 +548,12 @@ def run_tracing(user, descriptor_data, workload_db_path, suite_db_path, infra_di
                 env_vars = config["env_vars"]
             binary_cmd = config["binary_cmd"]
             client_bincmd = config["client_bincmd"]
-            post_processing = config["post_processing"]
+            trace_type = config["trace_type"]
             drio_args = config["dynamorio_args"]
             clustering_k = config["clustering_k"]
 
             run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd,
-                             post_processing, drio_args, clustering_k)
+                             trace_type, drio_args, clustering_k)
 
         # Clean up temp files
         for tmp in tmp_files:

@@ -45,8 +45,8 @@ def validate_tracing(trace_data, workload_db_path, dbg_lvl = 2):
             err(f"A binary command must be provided.", dbg_lvl)
             exit(1)
 
-        if trace["post_processing"] == None:
-            err(f"true or false must be set for post_processing.", dbg_lvl)
+        if trace["trace_type"] == None:
+            err(f"A type of trace must be set for trace_type.", dbg_lvl)
             exit(1)
 
 def verify_descriptor(descriptor_data, workload_db_path, dbg_lvl = 2):
