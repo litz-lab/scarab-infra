@@ -5,7 +5,7 @@ scarab-infra is a set of tools that automate the execution of Scarab simulations
 ## Requirements
 1. Install Docker [docker docs](https://docs.docker.com/engine/install/) and python docker library.
 ```
-apt-get install python3-docker
+pip install -r requirements.txt
 ```
 2. Configure Docker to run as non-root user ([ref](https://stackoverflow.com/questions/48957195/how-to-fix-docker-got-permission-denied-issue)):
 ```
