@@ -28,7 +28,7 @@ RUN mkdir -p $tmpdir/cpu2017_install
 
 RUN mkdir -p $tmpdir/cpu2017
 
-COPY ./workloads/spec2017/spec_env.iso $tmpdir/spec_env.iso
+COPY ./workloads/spec2017/spec2017_installed_rate_all.iso $tmpdir/spec2017_installed_rate_all.iso
 
 # RUN cd $tmpdir/cpu2017_install && echo "yes" | ./install.sh -d $tmpdir/cpu2017
 # RUN cp $tmpdir/memtrace.cfg $tmpdir/cpu2017/config/memtrace.cfg
