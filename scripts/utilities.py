@@ -255,12 +255,12 @@ def generate_single_scarab_run_command(user, workload, group, experiment, config
         #command = f"run_exec_single_simpoint.sh \"{workload}\" \"{group}\" \"/home/{user}/simulations/{experiment}/{config_key}\" \"{config}\" \"{arch}\" /home/{user}/simulations/{experiment}/scarab {env_vars} {bincmd} {client_bincmd}"
         # TODO: simpoints. Copy logic from older version, replace the 0 with segment id probably. and the 1000000 with seg_size
         # TODO: CHnage scarab dir stuff
-        command = f"run_exec_single_simpoint.sh \"{workload}\" \"/home/{user}/simulations/{experiment}/{config_key}\" \"{config}\" \"{seg_size}\" \"{arch}\" /home/{user}/simulations/{experiment}/scarab 0 {env_vars if env_vars is not None else '\"\"'} \"{bincmd}\""
+        command = f"run_exec_single_simpoint.sh \"{workload}\" \"/home/{user}/simulations/{experiment}/{config_key}\" \"{config}\" \"{seg_size}\" \"{arch}\" /home/{user}/simulations/{experiment}/scarab {cluster_id} {env_vars if env_vars is not None else '\"\"'} \"{bincmd}\""
         # SCENARIO / APPNAME / SCENARIONUM / segID
         # Working command to target:
         print('COMMAND:')
         print(command)
-        exit(0)
+        #exit(0)
         # run_exec_single_simpoint.sh "510.parest_r" /home/aesymons/simulations/exp45/baseline "--heartbeat_interval 1 --num_heartbeats 20000" 10000000 sunny_cove /home/aesymons/scarab_ll 0 "" "$tmpdir/cpu2017/benchspec/CPU/510.parest_r/run/run_base_train_memtrace-m64.0000/parest_r_base.memtrace-m64 $tmpdir/cpu2017/benchspec/CPU/510.parest_r/run/run_base_train_memtrace-m64.0000/train.prm"
 
         # NEed longer to get csv files. ALso issue with my scarab binary? Try merging to the latest
@@ -339,7 +339,7 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, experimen
             elif scarab_mode == "exec":
                 f.write(f"docker cp {infra_dir}/common/scripts/run_exec_single_simpoint.sh {docker_container_name}:/usr/local/bin\n")
             f.write(f"docker exec --privileged {docker_container_name} /bin/bash -c '/usr/local/bin/root_entrypoint.sh'\n")
-            f.write(f"docker exec --user={user} {docker_container_name} /bin/bash -c \"source /usr/local/bin/user_entrypoint.sh && {scarab_cmd}\"\n")
+            f.write(f"docker exec --user={user} {docker_container_name} /bin/bash -c 'source /usr/local/bin/user_entrypoint.sh && {scarab_cmd}'\n")
             f.write(f"docker rm -f {docker_container_name}\n")
     except Exception as e:
         raise e
