@@ -2,7 +2,7 @@
 #set -x
 APPNAME="$1"
 
-sudo mount -t iso9660 -o ro,exec,loop $tmpdir/spec_env.iso $tmpdir/cpu2017
+sudo mount -t iso9660 -o exec,loop $tmpdir/spec_env.iso $tmpdir/cpu2017
 
 # # Install spec
 # mkdir -p $tmpdir/cpu2017_install
