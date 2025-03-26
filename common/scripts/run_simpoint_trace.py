@@ -403,7 +403,8 @@ def iterative(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mo
                 except subprocess.TimeoutExpired as e:
                     print(f"[Timestep {i}] tracing attempt {attempt+1} timed out: {e}")
                     if attempt == max_retries - 1:
-                        raise e
+                        print(f"[Timestep {i}] tracing failed with error: {e}")
+                        break
                     else:
                         subdirs = [os.path.join(timestep_dir, d) for d in os.listdir(timestep_dir) 
                                    if os.path.isdir(os.path.join(timestep_dir, d))]
@@ -415,16 +416,30 @@ def iterative(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mo
                             print(f"[Timestep {i}] no subfolder found in {timestep_dir} to remove.")
 
                         print(f"[Timestep {i}] retrying tracing (attempt {attempt+2})...")
-                except Exception as e:
-                    print(f"[Timestep {i}] tracing failed with error: {e}")
-                    continue
 
             end_time = time.perf_counter()
             report_time(f"[Timestep {i}] tracing done", start_time, end_time)
 
+        print(f"folder renaming..")
+        dir_counter = 1
+        for root, dirs, files in os.walk(timestep_dir):
+            for directory in dirs:
+                if re.match(r"^dr.*", directory):
+                    old_path = os.path.join(root, directory)
+                    new_folder = os.path.join(root, f"Timestep_{dir_counter}")
+                    if not os.path.exists(new_folder):
+                        os.makedirs(new_folder)
+                    new_path = os.path.join(new_folder, directory)
+                    os.rename(old_path, new_path)
+                    dir_counter += 1
+        print(f"folder renaming done..")
+
         print(f"raw2trace..")
         start_time = time.perf_counter()
-
+        available_cores = os.cpu_count() or 1
+        max_processes = int(available_cores * 0.6)
+        print(f"available cores: {available_cores}, max_processes: {max_processes}")
+        
         raw2trace_processes = set()
         for root, dirs, files in os.walk(timestep_dir):
             for directory in dirs:
@@ -445,6 +460,13 @@ def iterative(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mo
                     if stderr:
                         print("drraw2trace error:", stderr.decode())
                     raw2trace_processes.add(process)
+                    
+                    while len(raw2trace_processes) >= max_processes:
+                        for p in list(raw2trace_processes):
+                            if p.poll() is not None:
+                                p.wait()
+                                raw2trace_processes.remove(p)
+                                break
 
         for p in raw2trace_processes:
             p.wait()
@@ -456,36 +478,29 @@ def iterative(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mo
         start_time = time.perf_counter()
         inst_counts = {}
         dir_counter = 1
-
+        
         for root, dirs, files in os.walk(timestep_dir):
-            for directory in dirs:
-                if re.match(r"^dr.*", directory):
-                    trace_clustering_info = {}
-                    dr_path = os.path.join(root, directory)
-                    whole_trace = get_largest_trace(dr_path, simpoint_mode)
-                    dr_folder_path = os.path.dirname(os.path.dirname(whole_trace))
-                    print(whole_trace)
-
-                    try:
-                        with zipfile.ZipFile(whole_trace, 'r') as zf:
-                            file_list = zf.namelist()
-                            chunk_files = [fname for fname in file_list if re.search(r'chunk\.', fname)]
-                            numChunk = len(chunk_files)
-                            numInsts = numChunk * chunk_size
-                            print(f"{directory}: numInsts = {numInsts}")
-                            inst_counts[directory] = numInsts
-                    except zipfile.BadZipFile:
-                        print(f"invalid zip: {whole_trace}.")
-                        shutil.rmtree(os.path.join(root, directory), ignore_errors=True)
-                        continue
-
-                    old_path = os.path.join(root, directory)
-                    new_folder = os.path.join(root, f"Timestep_{dir_counter}")
-                    if not os.path.exists(new_folder):
-                        os.makedirs(new_folder)
-                    new_path = os.path.join(new_folder, directory)
-                    os.rename(old_path, new_path)
-                    dir_counter += 1
+            if re.match(r"^Timestep_\d+$", os.path.basename(root)):
+                for directory in dirs:
+                    if re.match(r"^dr.*", directory):
+                        trace_clustering_info = {}
+                        dr_path = os.path.join(root, directory)
+                        whole_trace = get_largest_trace(dr_path, simpoint_mode)
+                        dr_folder_path = os.path.dirname(os.path.dirname(whole_trace))
+                        print(whole_trace)
+                        
+                        try:
+                            with zipfile.ZipFile(whole_trace, 'r') as zf:
+                                file_list = zf.namelist()
+                                chunk_files = [fname for fname in file_list if re.search(r'chunk\.', fname)]
+                                numChunk = len(chunk_files)
+                                numInsts = numChunk * chunk_size
+                                print(f"{directory}: numInsts = {numInsts}")
+                                inst_counts[directory] = numInsts
+                        except zipfile.BadZipFile:
+                            print(f"invalid zip: {whole_trace}.")
+                            shutil.rmtree(os.path.join(root, directory), ignore_errors=True)
+                            continue
 
         total_inst = sum(inst_counts.values())
         print(f"Total instruction count across all directories: {total_inst}")
