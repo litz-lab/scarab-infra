@@ -77,6 +77,7 @@ else
   --simdir=\"$SIMHOME/$SCENARIONUM/$clusterID\" \
   --pin=\"/tmp_home/pin-3.15-98253-gb56e429b1-gcc-linux/pin\" \
   --pintool_args=\"-hyper_fast_forward_count $roiStart\" \
+  --param=\"$OUTDIR/$segID/PARAMS.in\" \
   --scarab_args=\"--inst_limit $instLimit --full_warmup $WARMUP $SCARABPARAMS\" \
   --scarab_stdout=\"$SIMHOME/$SCENARIONUM/$clusterID/scarab.out\" \
   --scarab_stderr=\"$SIMHOME/$SCENARIONUM/$clusterID/scarab.err\" \

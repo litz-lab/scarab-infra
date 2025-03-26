@@ -405,7 +405,7 @@ def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_contai
 
 def get_simpoints (workload_data, sim_mode, dbg_lvl = 2):
     simpoints = {}
-    if sim_mode == "memtrace":
+    if sim_mode == "memtrace" or sim_mode == "exec":
         for simpoint in workload_data["simpoints"]:
             simpoints[f"{simpoint['cluster_id']}"] = simpoint["weight"]
     else:
