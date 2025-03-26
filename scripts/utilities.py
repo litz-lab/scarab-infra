@@ -686,7 +686,7 @@ def finish_trace(user, descriptor_data, workload_db_path, suite_db_path, dbg_lvl
             os.system(f"mkdir -p {target_traces_path}/traces_simp")
             os.system(f"cp -r {trace_dir}/{workload}/simpoints/* {target_traces_path}/simpoints/")
             os.system(f"cp -r {trace_dir}/{workload}/traces_simp/* {target_traces_path}/traces_simp/")
-            if trim_type is not 3:
+            if trim_type != 3:
                 os.system(f"mkdir -p {target_traces_path}/traces/whole/trace")
                 os.system(f"mkdir -p {target_traces_path}/traces/whole/raw")
                 os.system(f"mkdir -p {target_traces_path}/traces/whole/bin")
