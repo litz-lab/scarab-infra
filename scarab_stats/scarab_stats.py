@@ -664,7 +664,7 @@ class stat_aggregator:
                     sim_mode_ = sim_mode
                     if sim_mode_ == None:
                         sim_mode_ = suite_data[suite][subsuite]["predefined_simulation_mode"][workload]
-                    simpoints = utilities.get_simpoints(workloads_data[workload_], sim_mode_)
+                    simpoints = utilities.get_simpoints(workloads_data[workload], sim_mode_)
                     for cluster_id, weight in simpoints.items():
                         directory = f"{simulations_path}{experiment_name}/{config}/{workload}/{str(cluster_id)}/"
                         if experiment == None:
