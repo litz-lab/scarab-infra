@@ -73,8 +73,17 @@
       "predefined_simulation_mode":{
         "101.filecompression":"memtrace",
         "102.navigation":"memtrace",
+        "103.html5_browser":"memtrace",
+        "105.photo_library":"memtrace",
         "201.clang":"memtrace",
-        "202.textprocessing":"memtrace"
+        "202.textprocessing":"memtrace",
+        "203.asset_compression":"memtrace",
+        "301.object_detection":"memtrace",
+        "302.background_blur":"memtrace",
+        "401.horizon_detection":"memtrace",
+        "404.photo_filer":"memtrace",
+        "501.ray_tracer":"memtrace",
+        "502.structure_motion":"memtrace"
       }
     }
   }
