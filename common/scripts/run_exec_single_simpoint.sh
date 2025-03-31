@@ -1,7 +1,7 @@
 #!/bin/bash
 source utilities.sh
 
-set -x #echo on
+#set -x #echo on
 
 echo "Running on $(hostname)"
 
