@@ -1,0 +1,32 @@
+{
+  "_descriptor_type":"A type of descriptor. One of 'simulation', 'trace', and 'perf'.",
+  "descriptor_type":"simulation",
+  "_architecture": "A name of the available architectures (PARAMS.<architecture>) found in scarab repository, which defines the machine parameters of the default configuration.",
+  "architecture": "sunny_cove",
+  "_experiment": "The name of the experiment. scarab-infra will create a new folder named containing all files needed to execute the simulation in the <ROOT_DIR>/simulations/<experiment> directory. The folder will also contain all generated simulation statistics/outputs.",
+  "experiment": "github_top_simpoint_workflow",
+  "_workload_manager": "manual: run each exp scenario with all the simpoints at a time, slurm: Slurm schedules simulations based on its policy",
+  "workload_manager": "manual",
+  "_root_dir": "Root directory mounted into the docker container home, for instance, the user's home directory",
+  "root_dir": "/home/runner/work/scarab_ll/scarab_ll/",
+  "_scarab_path": "The path to the scarab repository that contains the scarab binary used to run the experiment.",
+  "scarab_path": "/home/runner/work/scarab_ll/scarab_ll/scarab_ll",
+  "_scarab_build":"scarab build mode. 'opt', 'dbg', or null",
+  "scarab_build":null,
+  "_traces_dir": "The local directory containing all simpointed traces",
+  "traces_dir": "/home/runner/work/scarab_ll/scarab_ll/traces_top_simpoint",
+  "_simulations": "A list of [suite, subsuite, workload, simpoint's cluster #, simulation type]. Available suite and subsuite are found in workloads/suite_db.json and workload's available cluster_id and simulation_type are found in workloads/workloads_db.json where it runs all the simpoints if cluster_id is null and simulation type is one of 'exec', 'memtrace', 'pt'. When only 'suite' or 'suite'+'subsuite' is given and the rest are null, it launches simulations for all the workloads, all the simpoints if available, and in predefined simulation mode in workloads/suite_db.json.",
+  "simulations": [
+    {
+      "suite":"spec2017",
+      "subsuite":"rate_int",
+      "workload":"500.perlbench_r",
+      "cluster_id":29229,
+      "simulation_type":"memtrace"
+    }
+  ],
+  "_configurations": "scarab configurations to sweep",
+  "configurations": {
+      "this_pr":"--bp_mech tage64k"
+  }
+}
