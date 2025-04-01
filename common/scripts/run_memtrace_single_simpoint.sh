@@ -3,7 +3,7 @@ source utilities.sh
 
 #set -x #echo on
 
-echo "Running on $(hostname)"
+#echo "Running on $(hostname)"
 
 # TODO: for other apps?
 APPNAME="$1"
@@ -31,7 +31,7 @@ mkdir -p $SIMHOME
 OUTDIR=$SIMHOME
 
 segID=$SEGMENT_ID
-echo "SEGMENT ID: $segID"
+#echo "SEGMENT ID: $segID"
 mkdir -p $OUTDIR/$segID
 cp $SCARABHOME/src/PARAMS.$SCARABARCH $OUTDIR/$segID/PARAMS.in
 cd $OUTDIR/$segID
@@ -73,7 +73,7 @@ else
   instLimit=$(( $roiEnd - $roiStart + 1 ))
 
   if [ "$TRACESSIMP" == "0" ]; then
-    echo "!TRACESSIMP"
+    #echo "!TRACESSIMP"
     scarabCmd="$SCARABHOME/src/scarab \
     --frontend memtrace \
     --cbp_trace_r0=$TRACEFILE \
@@ -86,7 +86,7 @@ else
     $SCARABPARAMS \
     &> sim.log"
   elif [ "$TRACESSIMP" == "1" ]; then
-    echo "TRACESSIMP"
+    #echo "TRACESSIMP"
     # with TRACESSIMP == 1
     # simultion uses the specific trace file
     # the roiStart is the second chunk, which is assumed to be segment size
@@ -96,9 +96,9 @@ else
 
     # roiStart 1 means simulation starts with chunk 0
     if [ "$roiStart" == "1" ]; then
-        echo "ROISTART"
-        echo "$TRACEFILE"
-        echo "$segID"
+        #echo "ROISTART"
+        #echo "$TRACEFILE"
+        #echo "$segID"
         scarabCmd="$SCARABHOME/src/scarab \
         --frontend memtrace \
         --cbp_trace_r0=$TRACEFILE/$segID.zip \
@@ -111,7 +111,7 @@ else
         $SCARABPARAMS \
         &> sim.log"
     else
-        echo "!ROISTART"
+        #echo "!ROISTART"
         scarabCmd="$SCARABHOME/src/scarab \
         --frontend memtrace \
         --cbp_trace_r0=$TRACEFILE/$segID.zip \
@@ -152,8 +152,8 @@ else
   fi
 fi
 
-echo "simulating clusterID ${clusterID}, segment $segID..."
-echo "command: ${scarabCmd}"
+#echo "simulating clusterID ${clusterID}, segment $segID..."
+#echo "command: ${scarabCmd}"
 eval $scarabCmd &
 wait $!
 
