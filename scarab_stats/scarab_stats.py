@@ -320,7 +320,7 @@ class Experiment:
                 for stat in count_percentages.index:
                     new_stats.append(f"{stat}_pct")
 
-                gd = pd.DataFrame([[stat, True, 0] + [0] * len(count_sums) for stat in new_stats])
+                gd = pd.DataFrame([[stat, True, 0] + [np.nan] * len(count_sums) for stat in new_stats])
                 group_calculations = pd.concat([group_calculations,gd.rename(columns={bc:ac for ac, bc in zip(group_calculations.columns,gd.columns)})])
                 # for stat in new_stats:
                 #     # 0 was np.nan, which causes errors. 0 is not ideal, but works
