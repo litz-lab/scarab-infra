@@ -392,6 +392,7 @@ class stat_aggregator:
     def __init__(self) -> None:
         self.experiments = {}
         self.simpoint_info = {}
+        self.experiment = None  # Initialize experiment as class variable
 
     def colorwheel(self, x):
         print ((math.cos(2*math.pi*x)+1.5)/2.5, (math.cos(2*math.pi*x+(math.pi/1.5))+1.5)/2.5, (math.cos(2*math.pi*x+2*(math.pi/4))+1.5)/2.5)
@@ -552,133 +553,43 @@ class stat_aggregator:
         workloads_data = utilities.read_descriptor_from_json(workload_db_path)
         suite_data = utilities.read_descriptor_from_json(suite_db_path)
 
+        experiment = None
         # Set set of all stats. Should only differ by config
         for config in json_data["configurations"]:
             config = config.replace("/", "-")
-
             # Use first workload
             simulation = json_data["simulations"][0]
-            suite = simulation["suite"]
-            subsuite = simulation["subsuite"]
-            workload = simulation["workload"]
-            if workload == None:
-                if subsuite == None:
-                    subsuite = list(suite_data[suite].keys())[0]
-                workload = list(suite_data[suite][subsuite]["predefined_simulation_mode"].keys())[0]
+            found_suite = simulation["suite"]
+            found_subsuite = simulation["subsuite"]
+            found_workload = simulation["workload"]
+            found_cluster_id = simulation["cluster_id"]
 
-            # Get path to the simpoint metadata
-            metadata_path = f"{simpoints_path}{workload}/simpoints/"
-
-            # Get path to the simpoint metadata
-            with open(f"{metadata_path}opt.p.lpt0.99", "r") as cluster_ids, open(f"{metadata_path}opt.w.lpt0.99", "r") as weights:
-
-                cluster_id, weight = (cluster_ids.readlines()[0], weights.readlines()[0])
-                cluster_id, seg_id_1 = [int(i) for i in cluster_id.split()]
-                weight, seg_id_2 = float(weight.split()[0]), int(weight.split()[1])
-
-                if seg_id_1 != seg_id_2:
-                    print(f"ERROR: Simpoints listed out of order in {metadata_path}opt.p.lpt0.99 and opt.w.lpt0.99.")
-                    print(f"       Encountered {seg_id_1} in .p and {seg_id_2} in .w")
-                    exit(1)
-
-                directory = f"{simulations_path}{experiment_name}/{config}/{workload}/{str(cluster_id)}/"
-
-                print("CHECK", directory)
-
-                a = self.load_simpoint(directory, return_stats=True)
-                if known_stats == None: known_stats = a
-                else:
-                    if set(a) != set(known_stats):
-                        print("WARN: Stats differ across configs")
-
-                        # Difference contains new (unseen) stats, and stats which were previously seen but are not present in this config
-                        difference = set(a) - set(known_stats) | set(known_stats) - set(a)
-                        print("Differing stats:", difference)
-                        print("WARN: Differing stats will be resolved by adding empty (nan) values for configs where they don't exist")
-
-                        # Only add those which are new
-                        known_stats += list(set(a) - set(known_stats))
-
-        if len(known_stats) != len(set(known_stats)):
-            print("ERR: After finding superset, known_stats contains duplicates")
-            duplicates = [a for a in known_stats if known_stats.count(a) > 1]
-            print(f"Duplicates ({len(duplicates)}):", duplicates)
-            exit(1)
-
-        # Create initial experiment object
-        experiment = None
-        simulations = json_data["simulations"]
-
-        # Load each configuration
-        for config in json_data["configurations"]:
-            config = config.replace("/", "-")
-
-            for simulation in simulations:
-                suite = simulation["suite"]
-                subsuite = simulation["subsuite"]
-                workload = simulation["workload"]
-                cluster_id = simulation["cluster_id"]
-                sim_mode = simulation["simulation_type"]
-                if workload == None and subsuite == None:
-                    for subsuite_ in suite_data[suite].keys():
-                        for workload_ in suite_data[suite][subsuite_]["predefined_simulation_mode"].keys():
-                            sim_mode_ = sim_mode
-                            if sim_mode_ == None:
-                                sim_mode_ = suite_data[suite][subsuite_]["predefined_simulation_mode"][workload_]
-                            simpoints = utilities.get_simpoints(workloads_data[workload_], sim_mode_)
-                            for cluster_id, weight in simpoints.items():
-                                directory = f"{simulations_path}{experiment_name}/{config}/{workload_}/{str(cluster_id)}/"
-                                if experiment == None:
-                                    experiment = Experiment(known_stats)
-
-                                print(f"LOAD {directory}")
-                                data, groups = self.load_simpoint(directory, order=known_stats)
-
-                                if not experiment.has_group_data():
-                                    print("INFO: Added group data")
-                                    experiment.set_groups(groups)
-
-                                experiment.add_simpoint(data, experiment_name, architecture, config, workload_, seg_id_1, cluster_id, weight)
-                                print(f"LOADED")
-                elif workload == None and subsuite != None:
-                    for workload_ in suite_data[suite][subsuite]["predefined_simulation_mode"].keys():
-                        sim_mode_ = sim_mode
-                        if sim_mode_ == None:
-                            sim_mode_ = suite_data[suite][subsuite]["predefined_simulation_mode"][workload_]
-                        simpoints = utilities.get_simpoints(workloads_data[workload_], sim_mode_)
-                        for cluster_id, weight in simpoints.items():
-                            directory = f"{simulations_path}{experiment_name}/{config}/{workload_}/{str(cluster_id)}/"
-                            if experiment == None:
-                                experiment = Experiment(known_stats)
-
-                            print(f"LOAD {directory}")
-                            data, groups = self.load_simpoint(directory, order=known_stats)
-
-                            if not experiment.has_group_data():
-                                print("INFO: Added group data")
-                                experiment.set_groups(groups)
-
-                            experiment.add_simpoint(data, experiment_name, architecture, config, workload_, seg_id_1, cluster_id, weight)
-                            print(f"LOADED")
-                else:
-                    sim_mode_ = sim_mode
-                    if sim_mode_ == None:
-                        sim_mode_ = suite_data[suite][subsuite]["predefined_simulation_mode"][workload]
-                    simpoints = utilities.get_simpoints(workloads_data[workload], sim_mode_)
-                    for cluster_id, weight in simpoints.items():
-                        directory = f"{simulations_path}{experiment_name}/{config}/{workload}/{str(cluster_id)}/"
-                        if experiment == None:
-                            experiment = Experiment(known_stats)
-
-                        print(f"LOAD {directory}")
-                        data, groups = self.load_simpoint(directory, order=known_stats)
-
-                        if not experiment.has_group_data():
-                            print("INFO: Added group data")
-                            experiment.set_groups(groups)
-
-                        experiment.add_simpoint(data, experiment_name, architecture, config, workload, seg_id_1, cluster_id, weight)
-                        print(f"LOADED")
+            if found_cluster_id != None:
+                assert found_workload is not None, "Workload cannot be None when cluster_id is specified"
+                assert found_suite is not None, "Suite cannot be None when cluster_id is specified"
+                assert found_subsuite is not None, "Subsuite cannot be None when cluster_id is specified"
+                experiment, known_stats = self.load_simpoint_data(found_cluster_id, found_workload, config, experiment_name, architecture, simulations_path)
+            elif found_workload != None:
+                assert found_suite is not None, "Suite cannot be None when workload is specified"
+                assert found_subsuite is not None, "Subsuite cannot be None when workload is specified"
+                cluster_ids = self.get_cluster_ids(found_workload, found_suite, found_subsuite)
+                for cluster_id in cluster_ids:
+                    experiment, known_stats = self.load_simpoint_data(cluster_id, found_workload, config, experiment_name, architecture, simulations_path)
+            elif found_subsuite != None:
+                assert found_suite is not None, "Suite cannot be None when subsuite is specified"
+                workloads = list(suite_data[found_suite][found_subsuite]["predefined_simulation_mode"].keys())
+                for workload in workloads:
+                    cluster_ids = self.get_cluster_ids(workload, found_suite, found_subsuite)
+                    for cluster_id in cluster_ids:
+                        experiment, known_stats = self.load_simpoint_data(cluster_id, workload, config, experiment_name, architecture, simulations_path)
+            else:
+                subsuites = list(suite_data[found_suite].keys())
+                for subsuite in subsuites:
+                    workloads = list(suite_data[found_suite][subsuite]["predefined_simulation_mode"].keys())
+                    for workload in workloads:
+                        cluster_ids = self.get_cluster_ids(workload, found_suite, subsuite)
+                        for cluster_id in cluster_ids:
+                            experiment, known_stats = self.load_simpoint_data(cluster_id, workload, config, experiment_name, architecture, simulations_path)
 
         experiment.defragment()
         # print("\n\n", experiment)
@@ -1537,6 +1448,91 @@ class stat_aggregator:
         #print(sorted(speedups[diff_vector], key=lambda x:abs(x), reverse=True))
 
 # TODO: Make accessible
+
+    def get_simpoint_info(self, cluster_id, workload):
+        """Get weight and segment_id for a given cluster_id from workloads_db.json.
+
+        Args:
+            cluster_id: The cluster_id to look up
+            workload: The workload name for error reporting
+
+        Returns:
+            tuple: (weight, segment_id) if found, None if not found
+        """
+        current_path = os.getcwd()
+        infra_dir = os.path.dirname(current_path)
+        workload_db_path = f"{infra_dir}/workloads/workloads_db.json"
+        workloads_data = utilities.read_descriptor_from_json(workload_db_path)
+
+        try:
+            simpoints = workloads_data[workload]["simpoints"]
+            sp = next(sp for sp in simpoints if sp["cluster_id"] == int(cluster_id))
+            return sp["weight"], sp["segment_id"]
+        except StopIteration:
+            print(f"ERROR: Could not find cluster_id {cluster_id} in simpoints for workload {workload}")
+            return None
+        except KeyError:
+            print(f"ERROR: Could not find workload {workload} in workloads_db.json")
+            return None
+
+    def get_cluster_ids(self, workload, suite, subsuite):
+        """Get list of cluster_ids for a given workload from workloads_db.json.
+
+        Args:
+            workload: The workload name
+            suite: The suite name
+            subsuite: The subsuite name
+
+        Returns:
+            list: List of cluster_ids if found, None if workload not found
+        """
+        current_path = os.getcwd()
+        infra_dir = os.path.dirname(current_path)
+        workload_db_path = f"{infra_dir}/workloads/workloads_db.json"
+        suite_db_path = f"{infra_dir}/workloads/suite_db.json"
+        workloads_data = utilities.read_descriptor_from_json(workload_db_path)
+        suite_data = utilities.read_descriptor_from_json(suite_db_path)
+
+        try:
+            sim_mode = suite_data[suite][subsuite]["predefined_simulation_mode"][workload]
+            simpoints = utilities.get_simpoints(workloads_data[workload], sim_mode)
+            return list(simpoints.keys())
+        except KeyError:
+            print(f"ERROR: Could not find workload {workload} in workloads_db.json")
+            return None
+
+    def load_simpoint_data(self, cluster_id, workload, config, experiment_name, architecture, simulations_path):
+        """Helper function to load simpoint data and add it to the experiment.
+
+        Args:
+            cluster_id: The cluster ID to load
+            workload: The workload name
+            config: The configuration name
+            experiment_name: Name of the experiment
+            architecture: The architecture name
+            simulations_path: Path to simulations directory
+
+        Returns:
+            tuple: (experiment, known_stats) if successful, (None, None) if failed
+        """
+        weight, seg_id = self.get_simpoint_info(cluster_id, workload)
+        if weight is None or seg_id is None:
+            return None, None
+
+        directory = f"{simulations_path}{experiment_name}/{config}/{workload}/{str(cluster_id)}/"
+        known_stats = self.load_simpoint(directory, return_stats=True)
+
+        if self.experiment is None:
+            self.experiment = Experiment(known_stats)
+
+        data, groups = self.load_simpoint(directory, order=known_stats)
+        if not self.experiment.has_group_data():
+            print("INFO: Added group data")
+            self.experiment.set_groups(groups)
+
+        self.experiment.add_simpoint(data, experiment_name, architecture, config, workload, seg_id, cluster_id, weight)
+
+        return self.experiment, known_stats
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
