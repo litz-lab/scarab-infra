@@ -1465,7 +1465,10 @@ class stat_aggregator:
         workloads_data = utilities.read_descriptor_from_json(workload_db_path)
 
         try:
-            simpoints = workloads_data[workload]["simpoints"]
+            simpoints = workloads_data[workload].get("simpoints")
+            # If simpoints not present, treat as one simpoint with 100% weighting
+            if simpoints == None:
+                return 1, 0
             sp = next(sp for sp in simpoints if sp["cluster_id"] == int(cluster_id))
             return sp["weight"], sp["segment_id"]
         except StopIteration:
