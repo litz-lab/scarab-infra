@@ -3,16 +3,21 @@
 scarab-infra is a set of tools that automate the execution of Scarab simulations. It utilizes [Docker](https://www.docker.com/) and [Slurm](https://slurm.schedmd.com/documentation.html) to effectively simulate applications according to the [SimPoint](https://cseweb.ucsd.edu/~calder/simpoint/) methodology. Furthermore, scarab-infra provides tools to analyze generated simulation statistics and to obtain simpoints and execution traces from binary applications.
 
 ## Requirements
-1. Install Docker [docker docs](https://docs.docker.com/engine/install/) and python docker library.
-```
-pip install -r requirements.txt
-```
+1. Install Docker [docker docs](https://docs.docker.com/engine/install/).
 2. Configure Docker to run as non-root user ([ref](https://stackoverflow.com/questions/48957195/how-to-fix-docker-got-permission-denied-issue)):
 ```
 sudo chmod 666 /var/run/docker.sock
 ```
-3. Add the SSH key of the machine(s) running the Docker container to your GitHub account ([link](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent?platform=linux)).
-4. Place simpointed instruction traces into $trace_home. scarab-infra offers prepackaged traces that can be downloaded as follows:
+3. Install pip libraries by using conda (create virtual environment `scarabinfra`)
+```
+conda env create --file quickstart_env.yaml
+```
+4. Activate the virtual environment.
+```
+conda activate scarabinfra
+```
+5. Add the SSH key of the machine(s) running the Docker container to your GitHub account ([link](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent?platform=linux)).
+6. Place simpointed instruction traces into $trace_home. scarab-infra offers prepackaged traces that can be downloaded as follows:
 ```
 cd /home/$USER/traces
 gdown https://drive.google.com/uc?id=1tfKL7wYK1mUqpCH8yPaPVvxk2UIAJrOX

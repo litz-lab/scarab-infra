@@ -17,9 +17,6 @@ Prerequisites:
 4) Have scarab_stats.py in the directory you want to plot the figures
 **You need the quick start guide and serve_jupyter.sh in the same directory**
 
-Using conda:
-Please run `conda env create --file quickstart_env.yaml` on the machine running the jupyter notebook server using the provided quickstart_env.yaml file. This will provide you with all the notebooks pip library required for running the server. If you have already created the statslib conda environment, run `conda activate statslib`.
-
 Running the guide:
 Run `pip3 install notebook` if notebook is not installed. If your distribution is adopting PEP 668 (Making Python base environments as "externally managed"), use venv. Then you can run ./serve_jupyter.sh on bohr3 to start the server. It will take around 4 seconds to get a port, start the server, and generate the kill script.
 
