@@ -283,10 +283,20 @@ class Experiment:
         # Performance improvement required
         num_groups = len(groups)
         print(f"INFO: Calculate distribution stats for {num_groups} groups")
+        remove_columns = ["write_protect", "groups"]
+
+        index = 0
+        group_calculations = pd.DataFrame(columns=self.data.columns)
+        stat_columns = self.data.columns
+        # group_calculations = []
+
+        import time
+
+        start = time.time()
+
         # Do calculations for each group
         for group in groups:
             print(f"INFO: group {group}/{num_groups}..")
-            remove_columns = ["write_protect", "groups"]
             group_df = self.data[(self.data["groups"] == group)].drop(columns=remove_columns)
 
             count_data_stats = list(filter(lambda x: x.endswith("_count") and not x.endswith("_total_count"), group_df["stats"]))
@@ -312,10 +322,13 @@ class Experiment:
                 for stat in count_percentages.index:
                     new_stats.append(f"{stat}_pct")
 
-                index = len(self.data)
-                for stat in new_stats:
-                    self.data.loc[index] = [stat, True, 0] + [np.nan] * len(count_sums)
-                    index += 1
+                # group_calculations.append(pd.DataFrame([[stat, True, 0] + [np.nan] * len(count_sums) for stat in new_stats], columns=stat_columns))
+                gd = pd.DataFrame([[stat, True, 0] + [np.nan] * len(count_sums) for stat in new_stats], columns=stat_columns)
+                group_calculations = pd.concat([group_calculations, gd])
+                # for stat in new_stats:
+                #     # 0 was np.nan, which causes errors. 0 is not ideal, but works
+                #     group_calculations.loc[index] = [stat, True, 0] + [0] * len(count_sums)
+                #     index += 1
 
                 continue
 
@@ -333,25 +346,48 @@ class Experiment:
             # print("Standard Deviation", total_count_stddev)
             # print("Percentages", total_count_percentages)
 
-            index = len(self.data)
-            self.data.loc[index]     = [f"group_{group}_total_mean", True, 0]   + list(total_count_means)
-            self.data.loc[index + 1] = [f"group_{group}_mean", True, 0]         + list(count_means)
-            self.data.loc[index + 2] = [f"group_{group}_total_stddev", True, 0] + list(total_count_stddev)
-            self.data.loc[index + 3] = [f"group_{group}_stddev", True, 0]       + list(count_stddev)
-            index += 4
+            # group_calculations.append(pd.DataFrame([[f"group_{group}_total_mean", True, 0] + list(total_count_means), [f"group_{group}_mean", True, 0] + list(count_means),
+            #                                         [f"group_{group}_total_stddev", True, 0] + list(total_count_stddev), [f"group_{group}_stddev", True, 0] + list(count_stddev)], 
+            #                                         columns=stat_columns))
+            gd = pd.DataFrame([[f"group_{group}_total_mean", True, 0] + list(total_count_means), [f"group_{group}_mean", True, 0] + list(count_means),
+                               [f"group_{group}_total_stddev", True, 0] + list(total_count_stddev), [f"group_{group}_stddev", True, 0] + list(count_stddev)],
+                               columns=stat_columns)
+            group_calculations = pd.concat([group_calculations, gd])
+
+            # group_calculations.loc[index]     = [f"group_{group}_total_mean", True, 0]   + list(total_count_means)
+            # group_calculations.loc[index + 1] = [f"group_{group}_mean", True, 0]         + list(count_means)
+            # group_calculations.loc[index + 2] = [f"group_{group}_total_stddev", True, 0] + list(total_count_stddev)
+            # group_calculations.loc[index + 3] = [f"group_{group}_stddev", True, 0]       + list(count_stddev)
+            # index += 4
 
             # print(count_percentages)
+            # group_calculations.append(pd.DataFrame([[f"{stat}_pct", True, 0] + list(total_count_percentages.loc[stat]) for stat in total_count_percentages.index], 
+            #                                        columns=stat_columns))
+            gd = pd.DataFrame([[f"{stat}_pct", True, 0] + list(total_count_percentages.loc[stat]) for stat in total_count_percentages.index], columns=stat_columns)
+            group_calculations = pd.concat([group_calculations, gd])
+            # for stat in total_count_percentages.index:
+            #     group_calculations.loc[index] = [f"{stat}_pct", True, 0] + list(total_count_percentages.loc[stat])
+            #     index += 1
 
-            for stat in total_count_percentages.index:
-                self.data.loc[index] = [f"{stat}_pct", True, 0] + list(total_count_percentages.loc[stat])
-                index += 1
-
-            for stat in count_percentages.index:
-                self.data.loc[index] = [f"{stat}_pct", True, 0] + list(count_percentages.loc[stat])
-                index += 1
+            # group_calculations.append(pd.DataFrame([[f"{stat}_pct", True, 0] + list(count_percentages.loc[stat]) for stat in count_percentages.index], 
+            #                                        columns=stat_columns))
+            gd = pd.DataFrame([[f"{stat}_pct", True, 0] + list(count_percentages.loc[stat]) for stat in count_percentages.index], columns=stat_columns)
+            group_calculations = pd.concat([group_calculations, gd])
+            # for stat in count_percentages.index:
+                # group_calculations.loc[index] = [f"{stat}_pct", True, 0] + list(count_percentages.loc[stat])
+                # index += 1
 
             # exit(1)
             # return
+
+        # TODO: concat once at the end. append all gds to list
+        # print(group_calculations)
+        cat_time = time.time()
+        self.data = pd.concat([self.data, group_calculations]).reset_index(drop=True)
+        # self.data.fillna(0, inplace=True)
+
+        print(f"Took: {time.time() - start} of which was cat time: {time.time()-cat_time}")
+        # exit(1)
 
         if errs != 0:
             print("WARN: Distribution size and number of x_count + x_total_count stats is not equal.")
@@ -1547,6 +1583,12 @@ if __name__ == "__main__":
 
     da = stat_aggregator()
     E = da.load_experiment_json(args.descriptor_name, True)
+    E.to_csv("fast.csv")
+    # exit(1)
+    EL = da.load_experiment_csv("fast.csv")
+    print(E.data)
+    print(EL.data)
+    print(E.data == EL.data)
     print(E.get_experiments())
 
     # Create equation that sums all of the stats
@@ -1574,7 +1616,7 @@ if __name__ == "__main__":
     #     print(f"{k}: {v}")
 
     # Call the plot function
-    E.to_csv("agg.csv")
+    # E.to_csv("fast.csv")
     da.plot_workloads(E, stats_to_plot, wls, cfs, title="", average=True, x_label="Benchmarks", y_label="UNUSEFUL_pct", bar_width=0.10, plot_name="a.png")
 
     #E = Experiment("panda3.csv")
