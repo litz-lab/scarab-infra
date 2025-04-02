@@ -161,7 +161,7 @@ def run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir,
                 config = configs[config_key]
 
                 for cluster_id, weight in simpoints.items():
-                    print(cluster_id, weight)
+                    info(f"cluster_id: {cluster_id}, weight: {weight}", dbg_lvl)
 
                     docker_container_name = f"{docker_prefix}_{workload}_{experiment_name}_{config_key.replace("/", "-")}_{cluster_id}_{sim_mode}_{user}"
                     # Create temp file with run command and run it
