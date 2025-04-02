@@ -211,7 +211,12 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
                 scarab_bin = f"{scarab_path}/src/build/{scarab_build}/scarab"
             else:
                 scarab_bin = f"{scarab_path}/src/build/opt/scarab"
-            os.system(f"cp {scarab_bin} {experiment_dir}/scarab/src/scarab")
+            result = subprocess.run(["cp", scarab_bin, f"{experiment_dir}/scarab/src/scarab"],
+                                   capture_output=True,
+                                   text=True)
+            if result.returncode != 0:
+                err(f"Failed to copy scarab binary: {result.stderr}", dbg_lvl)
+                raise RuntimeError(f"Failed to copy scarab binary: {result.stderr}")
         try:
             os.symlink(f"{experiment_dir}/scarab/src/scarab", f"{experiment_dir}/scarab/src/scarab_{scarab_githash}")
         except FileExistsError:
@@ -557,7 +562,12 @@ def prepare_trace(user, scarab_path, scarab_build, docker_home, job_name, infra_
                 scarab_bin = f"{scarab_path}/src/build/{scarab_build}/scarab"
             else:
                 scarab_bin = f"{scarab_path}/src/build/opt/scarab"
-            os.system(f"cp {scarab_bin} {trace_dir}/scarab/src/scarab")
+            result = subprocess.run(["cp", scarab_bin, f"{trace_dir}/scarab/src/scarab"],
+                                   capture_output=True,
+                                   text=True)
+            if result.returncode != 0:
+                err(f"Failed to copy scarab binary: {result.stderr}", dbg_lvl)
+                raise RuntimeError(f"Failed to copy scarab binary: {result.stderr}")
 
         try:
             os.symlink(f"{trace_dir}/scarab/src/scarab", f"{trace_dir}/scarab/src/scarab_{scarab_githash}")
