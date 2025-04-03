@@ -1,9 +1,9 @@
 #!/bin/bash
 source utilities.sh
 
-set -x #echo on
+#set -x #echo on
 
-echo "Running on $(hostname)"
+#echo "Running on $(hostname)"
 
 APPNAME="$1"
 APP_GROUPNAME="$2"
@@ -30,14 +30,14 @@ cd $SIMHOME
 OUTDIR=$SIMHOME
 
 segID=$SEGMENT_ID
-echo "SEGMENT ID: $segID"
+#echo "SEGMENT ID: $segID"
 mkdir -p $OUTDIR/$segID
 cp $SCARABHOME/src/PARAMS.$SCARABARCH $OUTDIR/$segID/PARAMS.in
 cd $OUTDIR/$segID
 
 scarabCmd="$SCARABHOME/src/scarab --full_warmup $WARMUP --frontend pt --cbp_trace_r0=$trace_home/pt_$APPNAME/${traceMap} $SCARABPARAMS &> sim.log"
 
-echo "simulating clusterID ${clusterID}, segment $segID..."
-echo "command: ${scarabCmd}"
+#echo "simulating clusterID ${clusterID}, segment $segID..."
+#echo "command: ${scarabCmd}"
 eval $scarabCmd &
 wait $!

@@ -1,4 +1,23 @@
 {
+  "google":{
+    "google":{
+      "predefined_simulation_mode":{
+        "merced":"memtrace",
+        "arizona":"memtrace",
+        "bravo.a":"memtrace",
+        "charlie":"memtrace",
+        "delta":"memtrace",
+        "merced":"memtrace",
+        "sierra.a.3":"memtrace",
+        "sierra.a.4":"memtrace",
+        "sierra.a.6":"memtrace",
+        "tahoe":"memtrace",
+        "tango":"memtrace",
+        "whiskey":"memtrace",
+        "yankee":"memtrace"
+      }
+    }
+  },
   "datacenter":{
     "datacenter":{
       "predefined_simulation_mode":{
