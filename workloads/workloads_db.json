@@ -9735,7 +9735,7 @@
       },
       "memtrace":{
         "image_name":"allbench_traces",
-        "trim_type":2,
+        "trim_type":1,
         "segment_size":10000000,
         "whole_trace_file":"drmemtrace.geekbench_avx2.00041.5550.trace.zip"
       }
@@ -9823,7 +9823,7 @@
       },
       "memtrace":{
         "image_name":"allbench_traces",
-        "trim_type":2,
+        "trim_type":1,
         "segment_size":10000000,
         "whole_trace_file":"drmemtrace.geekbench_avx2.00041.3463.trace.zip"
       }
@@ -10297,7 +10297,7 @@
       },
       "memtrace":{
         "image_name":"allbench_traces",
-        "trim_type":2,
+        "trim_type":1,
         "segment_size":10000000,
         "whole_trace_file":"drmemtrace.geekbench_avx2.00041.8896.trace.zip"
       }
@@ -10525,7 +10525,7 @@
       },
       "memtrace":{
         "image_name":"allbench_traces",
-        "trim_type":2,
+        "trim_type":1,
         "segment_size":10000000,
         "whole_trace_file":"drmemtrace.geekbench_avx2.00041.9068.trace.zip"
       }
@@ -10658,7 +10658,7 @@
       },
       "memtrace":{
         "image_name":"allbench_traces",
-        "trim_type":2,
+        "trim_type":1,
         "segment_size":10000000,
         "whole_trace_file":"drmemtrace.geekbench_avx2.00041.3949.trace.zip"
       }
@@ -10851,7 +10851,7 @@
       },
       "memtrace":{
         "image_name":"allbench_traces",
-        "trim_type":2,
+        "trim_type":1,
         "segment_size":10000000,
         "whole_trace_file":"drmemtrace.geekbench_avx2.00041.8808.trace.zip"
       }
@@ -11004,7 +11004,7 @@
       },
       "memtrace":{
         "image_name":"allbench_traces",
-        "trim_type":2,
+        "trim_type":1,
         "segment_size":10000000,
         "whole_trace_file":"drmemtrace.geekbench_avx2.00041.5264.trace.zip"
       }
@@ -11172,7 +11172,7 @@
       },
       "memtrace":{
         "image_name":"allbench_traces",
-        "trim_type":2,
+        "trim_type":1,
         "segment_size":10000000,
         "whole_trace_file":"drmemtrace.geekbench_avx2.00041.9238.trace.zip"
       }
@@ -11305,7 +11305,7 @@
       },
       "memtrace":{
         "image_name":"allbench_traces",
-        "trim_type":2,
+        "trim_type":1,
         "segment_size":10000000,
         "whole_trace_file":"drmemtrace.geekbench_avx2.00041.3548.trace.zip"
       }
