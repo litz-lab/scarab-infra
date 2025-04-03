@@ -283,10 +283,18 @@ class Experiment:
         # Performance improvement required
         num_groups = len(groups)
         print(f"INFO: Calculate distribution stats for {num_groups} groups")
+        remove_columns = ["write_protect", "groups"]
+
+        # Initialize numpy array to store all data
+        all_data = []
+        stat_columns = self.data.columns
+
+        import time
+        start = time.time()
+
         # Do calculations for each group
         for group in groups:
             print(f"INFO: group {group}/{num_groups}..")
-            remove_columns = ["write_protect", "groups"]
             group_df = self.data[(self.data["groups"] == group)].drop(columns=remove_columns)
 
             count_data_stats = list(filter(lambda x: x.endswith("_count") and not x.endswith("_total_count"), group_df["stats"]))
@@ -302,7 +310,6 @@ class Experiment:
 
             # Replace NaN values where all values are zero
             if float(0) in list(count_sums) or float(0) in list(total_count_sums):
-                # print("ERR: NULL. Skipping due to sum of 0 in distribution", group)
                 new_stats = [f"group_{group}_total_mean", f"group_{group}_mean",
                              f"group_{group}_total_stddev", f"group_{group}_stddev"]
 
@@ -312,11 +319,9 @@ class Experiment:
                 for stat in count_percentages.index:
                     new_stats.append(f"{stat}_pct")
 
-                index = len(self.data)
+                # Add NaN rows for this group
                 for stat in new_stats:
-                    self.data.loc[index] = [stat, True, 0] + [np.nan] * len(count_sums)
-                    index += 1
-
+                    all_data.append([stat, True, 0] + [np.nan] * len(count_sums))
                 continue
 
             # Get mean and standard deviation of WHOLE distribution, then percent that each sample makes up of distribution (data_df/sums)
@@ -329,35 +334,27 @@ class Experiment:
             total_count_percentages = total_count_data_df / total_count_sums
             count_percentages = count_data_df / count_sums
 
-            # print("Mean (Validated)", total_count_means)
-            # print("Standard Deviation", total_count_stddev)
-            # print("Percentages", total_count_percentages)
+            # Add group statistics to numpy array
+            all_data.append([f"group_{group}_total_mean", True, 0] + list(total_count_means))
+            all_data.append([f"group_{group}_mean", True, 0] + list(count_means))
+            all_data.append([f"group_{group}_total_stddev", True, 0] + list(total_count_stddev))
+            all_data.append([f"group_{group}_stddev", True, 0] + list(count_stddev))
 
-            index = len(self.data)
-            self.data.loc[index]     = [f"group_{group}_total_mean", True, 0]   + list(total_count_means)
-            self.data.loc[index + 1] = [f"group_{group}_mean", True, 0]         + list(count_means)
-            self.data.loc[index + 2] = [f"group_{group}_total_stddev", True, 0] + list(total_count_stddev)
-            self.data.loc[index + 3] = [f"group_{group}_stddev", True, 0]       + list(count_stddev)
-            index += 4
-
-            # print(count_percentages)
-
+            # Add percentage statistics
             for stat in total_count_percentages.index:
-                self.data.loc[index] = [f"{stat}_pct", True, 0] + list(total_count_percentages.loc[stat])
-                index += 1
-
+                all_data.append([f"{stat}_pct", True, 0] + list(total_count_percentages.loc[stat]))
             for stat in count_percentages.index:
-                self.data.loc[index] = [f"{stat}_pct", True, 0] + list(count_percentages.loc[stat])
-                index += 1
+                all_data.append([f"{stat}_pct", True, 0] + list(count_percentages.loc[stat]))
 
-            # exit(1)
-            # return
+        # Create single DataFrame from numpy array and concatenate with self.data
+        group_calculations = pd.DataFrame(all_data, columns=stat_columns)
+        self.data = pd.concat([self.data, group_calculations]).reset_index(drop=True)
+
+        print(f"Took: {time.time() - start} seconds")
 
         if errs != 0:
             print("WARN: Distribution size and number of x_count + x_total_count stats is not equal.")
             return
-
-        # exit(1)
 
     def get_experiments(self):
         return list(set(list(self.data[self.data["stats"] == "Experiment"].iloc[0])[3:]))
@@ -508,7 +505,7 @@ class stat_aggregator:
             data = data.reindex(order, fill_value="nan")
 
         data = list(map(float, list(data)))
-        if order != None: print(len(data), len(order))
+        #if order != None: print(len(data), len(order))
 
         if not return_stats: return data, group
         else: return all_stats
@@ -591,6 +588,7 @@ class stat_aggregator:
                         for cluster_id in cluster_ids:
                             experiment, known_stats = self.load_simpoint_data(cluster_id, workload, config, experiment_name, architecture, simulations_path)
 
+        print(f"load_simpoint_data was called {load_simpoint_data_count} times")
         experiment.defragment()
         # print("\n\n", experiment)
 
@@ -1518,6 +1516,9 @@ class stat_aggregator:
         Returns:
             tuple: (experiment, known_stats) if successful, (None, None) if failed
         """
+        global load_simpoint_data_count
+        load_simpoint_data_count += 1
+
         weight, seg_id = self.get_simpoint_info(cluster_id, workload)
         if weight is None or seg_id is None:
             return None, None
@@ -1546,6 +1547,12 @@ if __name__ == "__main__":
 
     da = stat_aggregator()
     E = da.load_experiment_json(args.descriptor_name, True)
+    E.to_csv("fast.csv")
+    # exit(1)
+    EL = da.load_experiment_csv("fast.csv")
+    print(E.data)
+    print(EL.data)
+    print(E.data == EL.data)
     print(E.get_experiments())
 
     # Create equation that sums all of the stats
@@ -1573,7 +1580,7 @@ if __name__ == "__main__":
     #     print(f"{k}: {v}")
 
     # Call the plot function
-    E.to_csv("agg.csv")
+    # E.to_csv("fast.csv")
     da.plot_workloads(E, stats_to_plot, wls, cfs, title="", average=True, x_label="Benchmarks", y_label="UNUSEFUL_pct", bar_width=0.10, plot_name="a.png")
 
     #E = Experiment("panda3.csv")
@@ -1599,8 +1606,4 @@ if __name__ == "__main__":
     #da.plot_simpoints(E, "exp2", ["BTB_ON_PATH_MISS_total_count"], ["mysql", "verilator", "xgboost"], ["fe_ftq_block_num.8"], speedup_baseline="fe_ftq_block_num.16", title="Simpoint")
     #da.plot_configs(E, "exp2", ['BTB_OFF_PATH_MISS_count', 'BTB_OFF_PATH_HIT_count'], ["mysql", "xgboost"], ["fe_ftq_block_num.16", "fe_ftq_block_num.8"])
 
-# TODO: launch jupyter server and use it there
-# Open to tutorial
-# Multiple users
-# Sandboxing, per user
-# Sharing?
+load_simpoint_data_count = 0
