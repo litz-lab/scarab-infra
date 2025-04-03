@@ -130,7 +130,7 @@ else
     #                 # do not use fetch count
     scarabCmd="$SCARABHOME/src/scarab \
     --frontend memtrace \
-    --cbp_trace_r0=$TRACEFILE/$segID/trace/$segID.zip \
+    --cbp_trace_r0=$TRACEFILE/trace/$segID.zip \
     --memtrace_modules_log=$MODULESDIR/$segID/raw \
     --inst_limit=$instLimit \
     --full_warmup=$WARMUP \
