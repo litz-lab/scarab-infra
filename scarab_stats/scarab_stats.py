@@ -285,13 +285,11 @@ class Experiment:
         print(f"INFO: Calculate distribution stats for {num_groups} groups")
         remove_columns = ["write_protect", "groups"]
 
-        index = 0
-        group_calculations = pd.DataFrame(columns=self.data.columns)
+        # Initialize numpy array to store all data
+        all_data = []
         stat_columns = self.data.columns
-        # group_calculations = []
 
         import time
-
         start = time.time()
 
         # Do calculations for each group
@@ -312,7 +310,6 @@ class Experiment:
 
             # Replace NaN values where all values are zero
             if float(0) in list(count_sums) or float(0) in list(total_count_sums):
-                # print("ERR: NULL. Skipping due to sum of 0 in distribution", group)
                 new_stats = [f"group_{group}_total_mean", f"group_{group}_mean",
                              f"group_{group}_total_stddev", f"group_{group}_stddev"]
 
@@ -322,14 +319,9 @@ class Experiment:
                 for stat in count_percentages.index:
                     new_stats.append(f"{stat}_pct")
 
-                # group_calculations.append(pd.DataFrame([[stat, True, 0] + [np.nan] * len(count_sums) for stat in new_stats], columns=stat_columns))
-                gd = pd.DataFrame([[stat, True, 0] + [np.nan] * len(count_sums) for stat in new_stats], columns=stat_columns)
-                group_calculations = pd.concat([group_calculations, gd])
-                # for stat in new_stats:
-                #     # 0 was np.nan, which causes errors. 0 is not ideal, but works
-                #     group_calculations.loc[index] = [stat, True, 0] + [0] * len(count_sums)
-                #     index += 1
-
+                # Add NaN rows for this group
+                for stat in new_stats:
+                    all_data.append([stat, True, 0] + [np.nan] * len(count_sums))
                 continue
 
             # Get mean and standard deviation of WHOLE distribution, then percent that each sample makes up of distribution (data_df/sums)
@@ -342,58 +334,27 @@ class Experiment:
             total_count_percentages = total_count_data_df / total_count_sums
             count_percentages = count_data_df / count_sums
 
-            # print("Mean (Validated)", total_count_means)
-            # print("Standard Deviation", total_count_stddev)
-            # print("Percentages", total_count_percentages)
+            # Add group statistics to numpy array
+            all_data.append([f"group_{group}_total_mean", True, 0] + list(total_count_means))
+            all_data.append([f"group_{group}_mean", True, 0] + list(count_means))
+            all_data.append([f"group_{group}_total_stddev", True, 0] + list(total_count_stddev))
+            all_data.append([f"group_{group}_stddev", True, 0] + list(count_stddev))
 
-            # group_calculations.append(pd.DataFrame([[f"group_{group}_total_mean", True, 0] + list(total_count_means), [f"group_{group}_mean", True, 0] + list(count_means),
-            #                                         [f"group_{group}_total_stddev", True, 0] + list(total_count_stddev), [f"group_{group}_stddev", True, 0] + list(count_stddev)], 
-            #                                         columns=stat_columns))
-            gd = pd.DataFrame([[f"group_{group}_total_mean", True, 0] + list(total_count_means), [f"group_{group}_mean", True, 0] + list(count_means),
-                               [f"group_{group}_total_stddev", True, 0] + list(total_count_stddev), [f"group_{group}_stddev", True, 0] + list(count_stddev)],
-                               columns=stat_columns)
-            group_calculations = pd.concat([group_calculations, gd])
+            # Add percentage statistics
+            for stat in total_count_percentages.index:
+                all_data.append([f"{stat}_pct", True, 0] + list(total_count_percentages.loc[stat]))
+            for stat in count_percentages.index:
+                all_data.append([f"{stat}_pct", True, 0] + list(count_percentages.loc[stat]))
 
-            # group_calculations.loc[index]     = [f"group_{group}_total_mean", True, 0]   + list(total_count_means)
-            # group_calculations.loc[index + 1] = [f"group_{group}_mean", True, 0]         + list(count_means)
-            # group_calculations.loc[index + 2] = [f"group_{group}_total_stddev", True, 0] + list(total_count_stddev)
-            # group_calculations.loc[index + 3] = [f"group_{group}_stddev", True, 0]       + list(count_stddev)
-            # index += 4
-
-            # print(count_percentages)
-            # group_calculations.append(pd.DataFrame([[f"{stat}_pct", True, 0] + list(total_count_percentages.loc[stat]) for stat in total_count_percentages.index], 
-            #                                        columns=stat_columns))
-            gd = pd.DataFrame([[f"{stat}_pct", True, 0] + list(total_count_percentages.loc[stat]) for stat in total_count_percentages.index], columns=stat_columns)
-            group_calculations = pd.concat([group_calculations, gd])
-            # for stat in total_count_percentages.index:
-            #     group_calculations.loc[index] = [f"{stat}_pct", True, 0] + list(total_count_percentages.loc[stat])
-            #     index += 1
-
-            # group_calculations.append(pd.DataFrame([[f"{stat}_pct", True, 0] + list(count_percentages.loc[stat]) for stat in count_percentages.index], 
-                                                #    columns=stat_columns))
-            gd = pd.DataFrame([[f"{stat}_pct", True, 0] + list(count_percentages.loc[stat]) for stat in count_percentages.index], columns=stat_columns)
-            group_calculations = pd.concat([group_calculations, gd])
-            # for stat in count_percentages.index:
-                # group_calculations.loc[index] = [f"{stat}_pct", True, 0] + list(count_percentages.loc[stat])
-                # index += 1
-
-            # exit(1)
-            # return
-
-        # TODO: concat once at the end. append all gds to list
-        # print(group_calculations)
-        cat_time = time.time()
+        # Create single DataFrame from numpy array and concatenate with self.data
+        group_calculations = pd.DataFrame(all_data, columns=stat_columns)
         self.data = pd.concat([self.data, group_calculations]).reset_index(drop=True)
-        # self.data.fillna(0, inplace=True)
 
-        print(f"Took: {time.time() - start} of which was concat time: {time.time()-cat_time}")
-        # exit(1)
+        print(f"Took: {time.time() - start} seconds")
 
         if errs != 0:
             print("WARN: Distribution size and number of x_count + x_total_count stats is not equal.")
             return
-
-        # exit(1)
 
     def get_experiments(self):
         return list(set(list(self.data[self.data["stats"] == "Experiment"].iloc[0])[3:]))
@@ -544,7 +505,7 @@ class stat_aggregator:
             data = data.reindex(order, fill_value="nan")
 
         data = list(map(float, list(data)))
-        if order != None: print(len(data), len(order))
+        #if order != None: print(len(data), len(order))
 
         if not return_stats: return data, group
         else: return all_stats
@@ -627,6 +588,7 @@ class stat_aggregator:
                         for cluster_id in cluster_ids:
                             experiment, known_stats = self.load_simpoint_data(cluster_id, workload, config, experiment_name, architecture, simulations_path)
 
+        print(f"load_simpoint_data was called {load_simpoint_data_count} times")
         experiment.defragment()
         # print("\n\n", experiment)
 
@@ -1554,6 +1516,9 @@ class stat_aggregator:
         Returns:
             tuple: (experiment, known_stats) if successful, (None, None) if failed
         """
+        global load_simpoint_data_count
+        load_simpoint_data_count += 1
+
         weight, seg_id = self.get_simpoint_info(cluster_id, workload)
         if weight is None or seg_id is None:
             return None, None
@@ -1641,8 +1606,4 @@ if __name__ == "__main__":
     #da.plot_simpoints(E, "exp2", ["BTB_ON_PATH_MISS_total_count"], ["mysql", "verilator", "xgboost"], ["fe_ftq_block_num.8"], speedup_baseline="fe_ftq_block_num.16", title="Simpoint")
     #da.plot_configs(E, "exp2", ['BTB_OFF_PATH_MISS_count', 'BTB_OFF_PATH_HIT_count'], ["mysql", "xgboost"], ["fe_ftq_block_num.16", "fe_ftq_block_num.8"])
 
-# TODO: launch jupyter server and use it there
-# Open to tutorial
-# Multiple users
-# Sandboxing, per user
-# Sharing?
+load_simpoint_data_count = 0
