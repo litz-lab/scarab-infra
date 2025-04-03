@@ -18,6 +18,8 @@ importlib.reload(utilities)
 def get_elem(l, i):
     return list(map(lambda x:x[i], l))
 
+load_simpoint_data_count = 0
+
 class Experiment:
     def __init__(self, stats):
         '''Stats is either a path to saved experiment or list of stats'''
