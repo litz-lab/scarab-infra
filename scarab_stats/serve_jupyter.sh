@@ -1,6 +1,9 @@
 #!/bin/bash
 # set -x #echo on
 
+# Activate conda environment first
+conda activate scarabinfra
+
 GUIDE_PATH="scarab_stats_quick_start.ipynb"
 
 # Check that guide exists
@@ -27,10 +30,11 @@ done
 
 echo "Using port: $port"
 
-# Port is now free port
+# Set fixed password
+password="scarabdev"
 
 # Launch notebook server quietly as child process on porte
-python3 -m notebook --no-browser $GUIDE_PATH --ip=0.0.0.0 --port=$port > /dev/null 2> jupyter_log.txt &
+python3 -m notebook --no-browser $GUIDE_PATH --ip=0.0.0.0 --port=$port --NotebookApp.password=$(python3 -c "from notebook.auth import passwd; print(passwd('$password'))") > jupyter_log.txt 2>&1 &
 pid=$!
 
 # Create stop program
@@ -40,33 +44,14 @@ chmod +x stop_jupyter.sh
 # Get username to make ssh tunnel command
 me=$(whoami)
 
-# Get the token for the jupyter notebook
-sleep 4
-
-IFS="?"
-
-input=$(grep "?token=" jupyter_log.txt)
-
-read -ra array <<< "$input"
-
-token="${array[1]}"
-
-if [[ -z $token ]]; then
-    echo "ERR: token empty"
-    echo "Got: '$token'"
-    echo "sleep before getting token was not long enough"
-    echo "OR notebook not installed. Install with pip3 install notebook"
-    ./stop_jupyter.sh
-    exit 1
-fi
-
 echo
 echo "Run the following command on your local machine to create a ssh tunnel to the server:"
 echo "ssh -NfL localhost:$port:localhost:$port $me@$hostname.soe.ucsc.edu"
 echo "(Above not requied if using vscode with Remote - SSH extension)"
 echo
 echo "Visit the following url in the browser on your local machine to access the notebook:"
-echo "http://localhost:$port/ and log in with $token"
+echo "http://localhost:$port/"
+echo "Password: $password"
 echo "Open $GUIDE_PATH for an interactive quick start guide for the scarab stats library"
 echo
 echo "When you are done run the following on $hostname:"
