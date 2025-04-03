@@ -285,8 +285,11 @@ class Experiment:
         print(f"INFO: Calculate distribution stats for {num_groups} groups")
         remove_columns = ["write_protect", "groups"]
 
+        # Len gets number of stats in a group (each one has pct), plus 4 (total/non-total * mean/stddev)
+        stats_per_group = [len(self.data[(self.data["groups"] == group)]) + 4 for group in groups]
+
         index = 0
-        group_calculations = pd.DataFrame(columns=self.data.columns)
+        group_calculations = pd.DataFrame(np.empty((sum(stats_per_group), len(self.data.columns))), columns=self.data.columns)
         stat_columns = self.data.columns
         # group_calculations = []
 
@@ -322,13 +325,9 @@ class Experiment:
                 for stat in count_percentages.index:
                     new_stats.append(f"{stat}_pct")
 
-                # group_calculations.append(pd.DataFrame([[stat, True, 0] + [np.nan] * len(count_sums) for stat in new_stats], columns=stat_columns))
-                gd = pd.DataFrame([[stat, True, 0] + [np.nan] * len(count_sums) for stat in new_stats], columns=stat_columns)
-                group_calculations = pd.concat([group_calculations, gd])
-                # for stat in new_stats:
-                #     # 0 was np.nan, which causes errors. 0 is not ideal, but works
-                #     group_calculations.loc[index] = [stat, True, 0] + [0] * len(count_sums)
-                #     index += 1
+                # NOTE: Must use pandas dataframe. List tried in other approach, np arrays do not allow strings
+                group_calculations.loc[index:index+len(new_stats)] = [[stat, True, 0] + [0] * len(count_sums) for stat in new_stats]
+                index += len(new_stats)
 
                 continue
 
@@ -342,40 +341,15 @@ class Experiment:
             total_count_percentages = total_count_data_df / total_count_sums
             count_percentages = count_data_df / count_sums
 
-            # print("Mean (Validated)", total_count_means)
-            # print("Standard Deviation", total_count_stddev)
-            # print("Percentages", total_count_percentages)
+    
+            group_calculations.loc[index:index+4] = [[f"group_{group}_total_mean", True, 0] + list(total_count_means), [f"group_{group}_mean", True, 0] + list(count_means), [f"group_{group}_total_stddev", True, 0] + list(total_count_stddev), [f"group_{group}_stddev", True, 0] + list(count_stddev)]
+            index += 4
 
-            # group_calculations.append(pd.DataFrame([[f"group_{group}_total_mean", True, 0] + list(total_count_means), [f"group_{group}_mean", True, 0] + list(count_means),
-            #                                         [f"group_{group}_total_stddev", True, 0] + list(total_count_stddev), [f"group_{group}_stddev", True, 0] + list(count_stddev)], 
-            #                                         columns=stat_columns))
-            gd = pd.DataFrame([[f"group_{group}_total_mean", True, 0] + list(total_count_means), [f"group_{group}_mean", True, 0] + list(count_means),
-                               [f"group_{group}_total_stddev", True, 0] + list(total_count_stddev), [f"group_{group}_stddev", True, 0] + list(count_stddev)],
-                               columns=stat_columns)
-            group_calculations = pd.concat([group_calculations, gd])
+            group_calculations.loc[index:index+len(new_stats)] = [[f"{stat}_pct", True, 0] + list(total_count_percentages.loc[stat]) for stat in total_count_percentages.index]
+            index += len(total_count_percentages.index)
 
-            # group_calculations.loc[index]     = [f"group_{group}_total_mean", True, 0]   + list(total_count_means)
-            # group_calculations.loc[index + 1] = [f"group_{group}_mean", True, 0]         + list(count_means)
-            # group_calculations.loc[index + 2] = [f"group_{group}_total_stddev", True, 0] + list(total_count_stddev)
-            # group_calculations.loc[index + 3] = [f"group_{group}_stddev", True, 0]       + list(count_stddev)
-            # index += 4
-
-            # print(count_percentages)
-            # group_calculations.append(pd.DataFrame([[f"{stat}_pct", True, 0] + list(total_count_percentages.loc[stat]) for stat in total_count_percentages.index], 
-            #                                        columns=stat_columns))
-            gd = pd.DataFrame([[f"{stat}_pct", True, 0] + list(total_count_percentages.loc[stat]) for stat in total_count_percentages.index], columns=stat_columns)
-            group_calculations = pd.concat([group_calculations, gd])
-            # for stat in total_count_percentages.index:
-            #     group_calculations.loc[index] = [f"{stat}_pct", True, 0] + list(total_count_percentages.loc[stat])
-            #     index += 1
-
-            # group_calculations.append(pd.DataFrame([[f"{stat}_pct", True, 0] + list(count_percentages.loc[stat]) for stat in count_percentages.index], 
-                                                #    columns=stat_columns))
-            gd = pd.DataFrame([[f"{stat}_pct", True, 0] + list(count_percentages.loc[stat]) for stat in count_percentages.index], columns=stat_columns)
-            group_calculations = pd.concat([group_calculations, gd])
-            # for stat in count_percentages.index:
-                # group_calculations.loc[index] = [f"{stat}_pct", True, 0] + list(count_percentages.loc[stat])
-                # index += 1
+            group_calculations.loc[index:index+len(new_stats)] = [[f"{stat}_pct", True, 0] + list(count_percentages.loc[stat]) for stat in count_percentages.index]
+            index += len(count_percentages.index)
 
             # exit(1)
             # return
