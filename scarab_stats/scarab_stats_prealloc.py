@@ -326,8 +326,12 @@ class Experiment:
                     new_stats.append(f"{stat}_pct")
 
                 # NOTE: Must use pandas dataframe. List tried in other approach, np arrays do not allow strings
-                group_calculations.loc[index:index+len(new_stats)] = [[stat, True, 0] + [0] * len(count_sums) for stat in new_stats]
+                group_calculations.loc[index:index+len(new_stats)-1] = [[stat, True, 0] + [0] * len(count_sums) for stat in new_stats]
                 index += len(new_stats)
+                # for stat in new_stats:
+                # #     # 0 was np.nan, which causes errors. 0 is not ideal, but works
+                #     group_calculations.loc[index] = [stat, True, 0] + [0] * len(count_sums)
+                #     index += 1
 
                 continue
 
@@ -342,14 +346,17 @@ class Experiment:
             count_percentages = count_data_df / count_sums
 
     
-            group_calculations.loc[index:index+4] = [[f"group_{group}_total_mean", True, 0] + list(total_count_means), [f"group_{group}_mean", True, 0] + list(count_means), [f"group_{group}_total_stddev", True, 0] + list(total_count_stddev), [f"group_{group}_stddev", True, 0] + list(count_stddev)]
+            group_calculations.loc[index:index+3] = [[f"group_{group}_total_mean", True, 0]   + list(total_count_means),
+                                                     [f"group_{group}_mean", True, 0]         + list(count_means),
+                                                     [f"group_{group}_total_stddev", True, 0] + list(total_count_stddev),
+                                                     [f"group_{group}_stddev", True, 0]       + list(count_stddev)]
             index += 4
 
-            group_calculations.loc[index:index+len(new_stats)] = [[f"{stat}_pct", True, 0] + list(total_count_percentages.loc[stat]) for stat in total_count_percentages.index]
-            index += len(total_count_percentages.index)
-
-            group_calculations.loc[index:index+len(new_stats)] = [[f"{stat}_pct", True, 0] + list(count_percentages.loc[stat]) for stat in count_percentages.index]
-            index += len(count_percentages.index)
+            group_calculations.loc[index:index+len(total_count_percentages.index)-1] = [[f"{stat}_pct", True, 0] + list(total_count_percentages.loc[stat]) for stat in total_count_percentages.index]
+            index += len(total_count_percentages)
+                
+            group_calculations.loc[index:index+len(count_percentages.index)-1] = [[f"{stat}_pct", True, 0] + list(count_percentages.loc[stat]) for stat in count_percentages.index]
+            index += len(count_percentages)
 
             # exit(1)
             # return
