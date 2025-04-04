@@ -71,6 +71,22 @@ class Experiment:
     def retrieve_stats(self, config: List[str], stats: List[str], workload: List[str], 
         aggregation_level:str = "Workload", simpoints: List[str] = None):
         results = {}
+        # Get available workloads and configs from the dataframe
+        available_workloads = set(self.data[self.data["stats"] == "Workload"].iloc[0][3:])
+        available_configs = set(self.data[self.data["stats"] == "Configuration"].iloc[0][3:])
+
+        # Validate workloads
+        missing_workloads = set(workload) - available_workloads
+
+        if missing_workloads:
+            print(f"ERROR: The following workloads do not exist in the dataframe: {missing_workloads}")
+            return None
+
+        # Validate configs
+        missing_configs = set(config) - available_configs
+        if missing_configs:
+            print(f"ERROR: The following configurations do not exist in the dataframe: {missing_configs}")
+            return None
 
         if aggregation_level == "Workload":
             for c in config:
@@ -128,7 +144,6 @@ class Experiment:
     def derive_stat(self, equation:str, overwrite:bool=True, pre_agg:bool=True,
                     write_prot:bool=False):
         # TODO: Doesn't work for stats with spaces in the names
-
         # Make sure tokens have space padding
         single_char_tokens = ["+", "-", "*", "/", "(", ")", "="]
         equation = "".join([f" {c} " if c in single_char_tokens else c for c in equation])
@@ -622,7 +637,6 @@ class stat_aggregator:
         # Get all data with structure all_data[f"{config} {wl} {stat}"]
         configs_to_load = configs + [speedup_baseline]
         all_data = experiment.retrieve_stats(configs_to_load, stats, workloads)
-
         workloads_to_plot = workloads.copy()
 
         mean_type = 1 # geomean
@@ -709,8 +723,15 @@ class stat_aggregator:
 
         stat = stats[0]
         # Get all data with structure all_data[f"{config} {wl} {stat}"]
-        configs_to_load = configs + [None]
+
+        configs_to_load = configs
         all_data = experiment.retrieve_stats(configs_to_load, stats, workloads)
+        if all_data is None:
+            print("ERROR: retrieve_stats returned None. This means either:")
+            print("1. The requested workloads don't exist in the dataframe")
+            print("2. The requested configurations don't exist in the dataframe")
+            print("3. The dataframe doesn't contain the expected 'Workload' or 'Configuration' rows")
+            return
 
         workloads_to_plot = workloads.copy()
 
@@ -784,6 +805,12 @@ class stat_aggregator:
         # Get all data with structure all_data[f"{config} {wl} {stat}"]
         configs_to_load = configs + [speedup_baseline]
         all_data = experiment.retrieve_stats(configs_to_load, stats, workloads)
+        if all_data is None:
+            print("ERROR: retrieve_stats returned None. This means either:")
+            print("1. The requested workloads don't exist in the dataframe")
+            print("2. The requested configurations don't exist in the dataframe")
+            print("3. The dataframe doesn't contain the expected 'Workload' or 'Configuration' rows")
+            return
 
         workloads_to_plot = workloads.copy()
 
