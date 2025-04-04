@@ -695,8 +695,8 @@ def finish_trace(user, descriptor_data, workload_db_path, suite_db_path, dbg_lvl
             os.system(f"mkdir -p {target_traces_path}/simpoints")
             os.system(f"mkdir -p {target_traces_path}/traces_simp")
             os.system(f"cp -r {trace_dir}/{workload}/simpoints/* {target_traces_path}/simpoints/")
-            os.system(f"cp -r {trace_dir}/{workload}/traces_simp/* {target_traces_path}/traces_simp/")
             if trim_type != 3:
+                os.system(f"cp -r {trace_dir}/{workload}/traces_simp/* {target_traces_path}/traces_simp/")
                 os.system(f"mkdir -p {target_traces_path}/traces/whole/trace")
                 os.system(f"mkdir -p {target_traces_path}/traces/whole/raw")
                 os.system(f"mkdir -p {target_traces_path}/traces/whole/bin")
@@ -709,7 +709,34 @@ def finish_trace(user, descriptor_data, workload_db_path, suite_db_path, dbg_lvl
                 subprocess.run([f"cp {trace_dir}/{workload}/traces/whole/{whole_trace_dir}/raw/modules.log {target_traces_path}/traces_simp/raw/modules.log"], check=True, shell=True)
                 subprocess.run([f"cp {trace_dir}/{workload}/traces/whole/{whole_trace_dir}/bin/* {target_traces_path}/traces/whole/bin"], check=True, shell=True)
                 subprocess.run([f"cp {trace_dir}/{workload}/traces/whole/{whole_trace_dir}/bin/* {target_traces_path}/traces_simp/bin"], check=True, shell=True)
-
+            else:
+                trace_clustering_info = read_descriptor_from_json(os.path.join(trace_dir, workload, "trace_clustering_info.json"), dbg_lvl)
+                largest_traces = trace_clustering_info['trace_file']
+                
+                for trace_path in largest_traces:
+                    print("Processing trace:", trace_path)
+                    prefix = "traces_simp/"
+                    if prefix in trace_path:
+                        relative_part = trace_path.split(prefix, 1)[1]
+                        trace_source = os.path.join(trace_dir, workload, "traces_simp", relative_part) 
+                        trace_dest = os.path.join(target_traces_path, "traces_simp", relative_part)
+                        
+                        os.makedirs(os.path.dirname(trace_dest), exist_ok=True)
+                        os.system(f"cp -r {trace_source} {trace_dest}")
+                        
+                        parts = relative_part.split(os.sep)
+                        dr_folder_rel = os.path.join(parts[0], parts[1])
+                        source_dr_folder = os.path.join(trace_dir, workload, "traces_simp", dr_folder_rel)
+                        dest_dr_folder = os.path.join(target_traces_path, "traces_simp", dr_folder_rel)
+            
+                        os.makedirs(os.path.join(dest_dr_folder, "raw"), exist_ok=True)
+                        os.makedirs(os.path.join(dest_dr_folder, "bin"), exist_ok=True)
+                        
+                        os.system(f"cp {source_dr_folder}/raw/modules.log {dest_dr_folder}/raw/modules.log")
+                        os.system(f"cp -r {source_dr_folder}/bin/* {dest_dr_folder}/bin/")
+                                
+                simulation_dict['memtrace']['whole_trace_file'] = None
+                
         write_json_descriptor(workload_db_path, workload_db_data, dbg_lvl)
         write_json_descriptor(suite_db_path, suite_db_data, dbg_lvl)
 

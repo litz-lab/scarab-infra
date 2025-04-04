@@ -141,7 +141,7 @@ else
     # with TRACESSIMP == 3
     # simultion always simulate the whole trace file with no skip
     modulesDir=$(dirname $(ls $MODULESDIR/Timestep_$segID/drmemtrace.*.dir/bin/modules.log))
-    wholeTrace=$(ls -S $TRACEFILE/Timestep_$segID/drmemtrace.*.dir/trace/dr*.zip | head -n 1)
+    wholeTrace=$(ls $TRACEFILE/Timestep_$segID/drmemtrace.*.dir/trace/dr*.zip)
 
     numChunk=$(unzip -l "$wholeTrace" 2>/dev/null | grep "chunk." | wc -l)
     instLimit=$((numChunk * 10000000))

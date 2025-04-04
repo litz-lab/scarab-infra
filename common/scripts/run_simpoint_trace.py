@@ -478,6 +478,7 @@ def iterative(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mo
         start_time = time.perf_counter()
         inst_counts = {}
         dir_counter = 1
+        tracefiles = []
         
         for root, dirs, files in os.walk(timestep_dir):
             if re.match(r"^Timestep_\d+$", os.path.basename(root)):
@@ -488,6 +489,7 @@ def iterative(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mo
                         whole_trace = get_largest_trace(dr_path, simpoint_mode)
                         dr_folder_path = os.path.dirname(os.path.dirname(whole_trace))
                         print(whole_trace)
+                        tracefiles.append(whole_trace)
                         
                         try:
                             with zipfile.ZipFile(whole_trace, 'r') as zf:
@@ -560,7 +562,7 @@ def iterative(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mo
         trace_clustering_info["modules_dir"] = modules_dir
         trace_clustering_info["whole_trace"] = None
         trace_clustering_info["dr_folder"] = os.path.basename(dr_folder_path)
-        trace_clustering_info["trace_file"] = None
+        trace_clustering_info["trace_file"] = tracefiles
 
         if trace_clustering_info is not None:
             clustering_info_path = os.path.join(workload_home, "trace_clustering_info.json")
