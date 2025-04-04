@@ -6,6 +6,7 @@ import json
 import os
 import subprocess
 import re
+import docker
 
 # Print an error message if on right debugging level
 def err(msg: str, level: int):
@@ -718,3 +719,34 @@ def finish_trace(user, descriptor_data, workload_db_path, suite_db_path, dbg_lvl
 
     except Exception as e:
         raise e
+
+def is_container_running(container_name, dbg_lvl):
+    client = docker.from_env()
+    try:
+        container = client.containers.get(container_name)
+        info(f"container {container_name} is already running.", dbg_lvl)
+        return container.status == "running"
+    except docker.errors.NotFound:
+        return False
+
+def count_interactive_shells(container_name, dbg_lvl):
+    client = docker.APIClient()
+    try:
+        container = client.inspect_container(container_name)
+        container_id = container['Id']
+        processes = client.top(container_id)
+
+        shell_count = 0
+        for process in processes['Processes']:
+            cmd = ' '.join(process)
+            # Check for common interactive shells
+            if any(shell in cmd for shell in ['bash', 'sh', 'zsh']):
+                shell_count += 1
+        info(f"{shell_count} shells are running for {container_name}.", dbg_lvl)
+        return shell_count
+    except docker.errors.NotFound:
+        print(f"Container '{container_name}' not found.")
+        return 0
+    except Exception as e:
+        print(f"Error: {e}")
+        return 0
