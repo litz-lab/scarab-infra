@@ -143,10 +143,14 @@ else
     modulesDir=$(dirname $(ls $MODULESDIR/Timestep_$segID/drmemtrace.*.dir/bin/modules.log))
     wholeTrace=$(ls $TRACEFILE/Timestep_$segID/drmemtrace.*.dir/trace/dr*.zip)
 
+    numChunk=$(unzip -l "$wholeTrace" 2>/dev/null | grep "chunk." | wc -l)
+    instLimit=$((numChunk * 10000000))
+
     scarabCmd="$SCARABHOME/src/scarab \
     --frontend memtrace \
     --cbp_trace_r0=$wholeTrace \
     --memtrace_modules_log=$modulesDir \
+    --inst_limit=$instLimit \
     $SCARABPARAMS \
     &> sim.log"
   fi
