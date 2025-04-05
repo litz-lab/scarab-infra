@@ -135,7 +135,7 @@ run () {
     echo "open an interactive shell.."
     start=`date +%s`
 
-    python3 ${INFRA_ROOT}/scripts/run_simulation.py -dbg 1 -l -d ${json_file}
+    python3 ${INFRA_ROOT}/scripts/run_simulation.py -dbg 3 -l -d ${json_file}
 
     end=`date +%s`
     report_time "interactive-shell" "$start" "$end"

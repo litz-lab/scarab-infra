@@ -11,7 +11,9 @@ import docker
 from utilities import (
         info,
         err,
-        read_descriptor_from_json
+        read_descriptor_from_json,
+        is_container_running,
+        count_interactive_shells
         )
 
 client = docker.from_env()
@@ -29,29 +31,34 @@ def open_interactive_shell(user, docker_home, image_name, infra_dir, dbg_lvl = 1
 
         docker_container_name = f"{image_name}_perf_{user}"
         try:
-            command = f"docker run --privileged \
-                    -dit \
-                    --name {docker_container_name} \
-                    --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
-                    {image_name}:{githash} \
-                    /bin/bash"
-            print(command)
-            os.system(command)
-            os.system(f"docker cp {infra_dir}/scripts/utilities.sh {docker_container_name}:/usr/local/bin")
-            os.system(f"docker cp {infra_dir}/common/scripts/root_entrypoint.sh {docker_container_name}:/usr/local/bin")
-            os.system(f"docker cp {infra_dir}/common/scripts/perf_entrypoint.sh {docker_container_name}:/usr/local/bin")
-            os.system(f"docker exec --privileged {docker_container_name} /bin/bash -c '/usr/local/bin/root_entrypoint.sh'")
-            os.system(f"docker exec --privileged {docker_container_name} /bin/bash -c '/usr/local/bin/perf_entrypoint.sh'")
-            subprocess.run(["docker", "exec", "-it", f"--user={user}", f"--workdir=/tmp_home", docker_container_name, "/bin/bash"])
+            if is_container_running(docker_container_name, dbg_lvl):
+                subprocess.run(["docker", "exec", "-it", f"--user={user}", f"--workdir=/tmp_home", docker_container_name, "/bin/bash"])
+            else:
+                command = f"docker run --privileged \
+                        -dit \
+                        --name {docker_container_name} \
+                        --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
+                        {image_name}:{githash} \
+                        /bin/bash"
+                print(command)
+                os.system(command)
+                os.system(f"docker cp {infra_dir}/scripts/utilities.sh {docker_container_name}:/usr/local/bin")
+                os.system(f"docker cp {infra_dir}/common/scripts/root_entrypoint.sh {docker_container_name}:/usr/local/bin")
+                os.system(f"docker cp {infra_dir}/common/scripts/perf_entrypoint.sh {docker_container_name}:/usr/local/bin")
+                os.system(f"docker exec --privileged {docker_container_name} /bin/bash -c '/usr/local/bin/root_entrypoint.sh'")
+                os.system(f"docker exec --privileged {docker_container_name} /bin/bash -c '/usr/local/bin/perf_entrypoint.sh'")
+                subprocess.run(["docker", "exec", "-it", f"--user={user}", f"--workdir=/tmp_home", docker_container_name, "/bin/bash"])
         except KeyboardInterrupt:
-            os.system(f"docker rm -f {docker_container_name}")
-            print("Recover the ASLR setting with sudo. Provide password..")
-            os.system("echo 2 | sudo tee /proc/sys/kernel/randomize_va_space")
+            if count_interactive_shells(docker_container_name, dbg_lvl) == 1:
+                os.system(f"docker rm -f {docker_container_name}")
+                print("Recover the ASLR setting with sudo. Provide password..")
+                os.system("echo 2 | sudo tee /proc/sys/kernel/randomize_va_space")
             exit(0)
         finally:
             try:
-                client.containers.get(docker_container_name).remove(force=True)
-                print(f"Container {docker_container_name} removed.")
+                if count_interactive_shells(docker_container_name, dbg_lvl) == 1:
+                    client.containers.get(docker_container_name).remove(force=True)
+                    print(f"Container {docker_container_name} removed.")
             except docker.error.NotFound:
                 print(f"Container {docker_container_name} not found.")
     except Exception as e:

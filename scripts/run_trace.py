@@ -13,7 +13,9 @@ from utilities import (
         err,
         read_descriptor_from_json,
         remove_docker_containers,
-        prepare_trace
+        prepare_trace,
+        is_container_running,
+        count_interactive_shells
         )
 
 import slurm_runner
@@ -145,55 +147,62 @@ def open_interactive_shell(user, descriptor_data, infra_dir, dbg_lvl = 1):
         docker_container_name = f"{docker_prefix}_{trace_name}_scarab_{scarab_githash}_{user}"
         trace_dir = f"{docker_home}/simpoint_flow/{trace_name}"
         try:
-            command = f"docker run --privileged \
-                    -e user_id={local_uid} \
-                    -e group_id={local_gid} \
-                    -e username={user} \
-                    -e HOME=/home/{user} \
-                    -e APP_GROUPNAME={docker_prefix} \
-                    -e APPNAME={workload} "
-            if env_vars:
-                for env in env_vars:
-                    command = command + f"-e {env} "
-            command = command + f"-dit \
-                    --name {docker_container_name} \
-                    --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
-                    --mount type=bind,source={scarab_path},target=/scarab,readonly=false \
-                    {docker_prefix}:{githash} \
-                    /bin/bash"
-            print(command)
-            os.system(command)
-            os.system(f"docker cp {infra_dir}/scripts/utilities.sh {docker_container_name}:/usr/local/bin")
-            os.system(f"docker cp {infra_dir}/common/scripts/root_entrypoint.sh {docker_container_name}:/usr/local/bin")
-            os.system(f"docker cp {infra_dir}/common/scripts/user_entrypoint.sh {docker_container_name}:/usr/local/bin")
-            if os.path.exists(f"{infra_dir}/workloads/{docker_prefix}/workload_root_entrypoint.sh"):
-                os.system(f"docker cp {infra_dir}/workloads/{docker_prefix}/workload_root_entrypoint.sh {docker_container_name}:/usr/local/bin")
-            if os.path.exists(f"{infra_dir}/workloads/{docker_prefix}/workload_user_entrypoint.sh"):
-                os.system(f"docker cp {infra_dir}/workloads/{docker_prefix}/workload_user_entrypoint.sh {docker_container_name}:/usr/local/bin")
-            os.system(f"docker cp {infra_dir}/common/scripts/run_clustering.sh {docker_container_name}:/usr/local/bin")
-            os.system(f"docker cp {infra_dir}/common/scripts/run_simpoint_trace.py {docker_container_name}:/usr/local/bin")
-            os.system(f"docker cp {infra_dir}/common/scripts/minimize_trace.sh {docker_container_name}:/usr/local/bin")
-            os.system(f"docker cp {infra_dir}/common/scripts/run_trace_post_processing.sh {docker_container_name}:/usr/local/bin")
-            os.system(f"docker cp {infra_dir}/common/scripts/gather_fp_pieces.py {docker_container_name}:/usr/local/bin")
-            os.system(f"docker exec --privileged {docker_container_name} /bin/bash -c '/usr/local/bin/root_entrypoint.sh'")
-            os.system(f"docker exec --privileged {docker_container_name} /bin/bash -c \"echo 0 | sudo tee /proc/sys/kernel/randomize_va_space\"")
-            subprocess.run(["docker", "exec", "--privileged", "-it", f"--user={user}", f"--workdir=/home/{user}", docker_container_name, "/bin/bash"])
+            # If the container is already running, log into it by openning another interactive shell
+            if is_container_running(docker_container_name, dbg_lvl):
+                subprocess.run(["docker", "exec", "--privileged", "-it", f"--user={user}", f"--workdir=/home/{user}", docker_container_name, "/bin/bash"])
+            else:
+                command = f"docker run --privileged \
+                        -e user_id={local_uid} \
+                        -e group_id={local_gid} \
+                        -e username={user} \
+                        -e HOME=/home/{user} \
+                        -e APP_GROUPNAME={docker_prefix} \
+                        -e APPNAME={workload} "
+                if env_vars:
+                    for env in env_vars:
+                        command = command + f"-e {env} "
+                command = command + f"-dit \
+                        --name {docker_container_name} \
+                        --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
+                        --mount type=bind,source={scarab_path},target=/scarab,readonly=false \
+                        {docker_prefix}:{githash} \
+                        /bin/bash"
+                print(command)
+                os.system(command)
+                os.system(f"docker cp {infra_dir}/scripts/utilities.sh {docker_container_name}:/usr/local/bin")
+                os.system(f"docker cp {infra_dir}/common/scripts/root_entrypoint.sh {docker_container_name}:/usr/local/bin")
+                os.system(f"docker cp {infra_dir}/common/scripts/user_entrypoint.sh {docker_container_name}:/usr/local/bin")
+                if os.path.exists(f"{infra_dir}/workloads/{docker_prefix}/workload_root_entrypoint.sh"):
+                    os.system(f"docker cp {infra_dir}/workloads/{docker_prefix}/workload_root_entrypoint.sh {docker_container_name}:/usr/local/bin")
+                if os.path.exists(f"{infra_dir}/workloads/{docker_prefix}/workload_user_entrypoint.sh"):
+                    os.system(f"docker cp {infra_dir}/workloads/{docker_prefix}/workload_user_entrypoint.sh {docker_container_name}:/usr/local/bin")
+                os.system(f"docker cp {infra_dir}/common/scripts/run_clustering.sh {docker_container_name}:/usr/local/bin")
+                os.system(f"docker cp {infra_dir}/common/scripts/run_simpoint_trace.py {docker_container_name}:/usr/local/bin")
+                os.system(f"docker cp {infra_dir}/common/scripts/minimize_trace.sh {docker_container_name}:/usr/local/bin")
+                os.system(f"docker cp {infra_dir}/common/scripts/run_trace_post_processing.sh {docker_container_name}:/usr/local/bin")
+                os.system(f"docker cp {infra_dir}/common/scripts/gather_fp_pieces.py {docker_container_name}:/usr/local/bin")
+                os.system(f"docker exec --privileged {docker_container_name} /bin/bash -c '/usr/local/bin/root_entrypoint.sh'")
+                os.system(f"docker exec --privileged {docker_container_name} /bin/bash -c \"echo 0 | sudo tee /proc/sys/kernel/randomize_va_space\"")
+                subprocess.run(["docker", "exec", "--privileged", "-it", f"--user={user}", f"--workdir=/home/{user}", docker_container_name, "/bin/bash"])
         except KeyboardInterrupt:
-            subprocess.run(["docker", "exec", "--privileged", f"--user={user}", f"--workdir=/home/{user}", docker_container_name,
-                            "sed", "-i", "/source \\/usr\\/local\\/bin\\/user_entrypoint.sh/d", f"/home/{user}/.bashrc"], check=True, capture_output=True, text=True)
-            os.system(f"docker rm -f {docker_container_name}")
-            print("Recover the ASLR setting with sudo. Provide password..")
-            os.system("echo 2 | sudo tee /proc/sys/kernel/randomize_va_space")
+            if count_interactive_shells(docker_container_name, dbg_lvl) == 1:
+                subprocess.run(["docker", "exec", "--privileged", f"--user={user}", f"--workdir=/home/{user}", docker_container_name,
+                                "sed", "-i", "/source \\/usr\\/local\\/bin\\/user_entrypoint.sh/d", f"/home/{user}/.bashrc"], check=True, capture_output=True, text=True)
+                os.system(f"docker rm -f {docker_container_name}")
+                print("Recover the ASLR setting with sudo. Provide password..")
+                os.system("echo 2 | sudo tee /proc/sys/kernel/randomize_va_space")
             exit(0)
         finally:
             try:
-                subprocess.run(["docker", "exec", "--privileged", f"--user={user}", f"--workdir=/home/{user}", docker_container_name,
-                                "sed", "-i", "/source \\/usr\\/local\\/bin\\/user_entrypoint.sh/d", f"/home/{user}/.bashrc"], check=True, capture_output=True, text=True)
-                os.system("echo 2 | sudo tee /proc/sys/kernel/randomize_va_space")
-                client.containers.get(docker_container_name).remove(force=True)
-                print(f"Container {docker_container_name} removed.")
+                if count_interactive_shells(docker_container_name, dbg_lvl) == 1:
+                    subprocess.run(["docker", "exec", "--privileged", f"--user={user}", f"--workdir=/home/{user}", docker_container_name,
+                                    "sed", "-i", "/source \\/usr\\/local\\/bin\\/user_entrypoint.sh/d", f"/home/{user}/.bashrc"], check=True, capture_output=True, text=True)
+                    os.system("echo 2 | sudo tee /proc/sys/kernel/randomize_va_space")
+                    client.containers.get(docker_container_name).remove(force=True)
+                    print(f"Container {docker_container_name} removed.")
             except docker.error.NotFound:
                 print(f"Container {docker_container_name} not found.")
+                raise e
             except Exception as e:
                 raise e
     except Exception as e:
