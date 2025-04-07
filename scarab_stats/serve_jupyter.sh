@@ -34,7 +34,7 @@ echo "Using port: $port"
 password="scarabdev"
 
 # Launch notebook server quietly as child process on porte
-python3 -m notebook --no-browser $GUIDE_PATH --ip=0.0.0.0 --port=$port --NotebookApp.password=$(python3 -c "from notebook.auth import passwd; print(passwd('$password'))") > jupyter_log.txt 2>&1 &
+python3 -m notebook --no-browser $GUIDE_PATH --ip=0.0.0.0 --port=$port --NotebookApp.password=$(python3 -c "from jupyter_server.auth import passwd; print(passwd('$password'))") > jupyter_log.txt 2>&1 &
 pid=$!
 
 # Create stop program
