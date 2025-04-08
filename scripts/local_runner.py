@@ -107,7 +107,7 @@ def kill_jobs(user, job_type, job_name, docker_prefix_list, infra_dir, dbg_lvl):
     info(f"Removing temporary run scripts..", dbg_lvl)
     os.system(f"rm *_{job_name}_*_{user}_tmp_run.sh")
 
-def run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir, dbg_lvl = 1):
+def run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir, descriptor_path, dbg_lvl = 1):
     architecture = descriptor_data["architecture"]
     experiment_name = descriptor_data["experiment"]
     docker_home = descriptor_data["root_dir"]
@@ -250,6 +250,15 @@ def run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir,
         print("Wait processes...")
         for p in processes:
             p.wait()
+
+        # Generate stats csvs
+        print(f"Collecting stats...")
+        
+        # Import scarab stats for auto-generating csvs
+        subprocess.check_output(["python3", "stat_collector.py", 
+                                 "-d", f"{descriptor_path}", "-o", 
+                                 f"{descriptor_data["root_dir"]}/simulations/{experiment_name}/collected_stats.csv"],
+                                 cwd="scarab_stats")
 
         # Clean up temp files
         for tmp in tmp_files:
