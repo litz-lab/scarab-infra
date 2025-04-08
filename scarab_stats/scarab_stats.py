@@ -91,7 +91,7 @@ class Experiment:
         if aggregation_level == "Workload":
             for c in config:
                 for w in workload:
-                    selected_simpoints = [col for col in self.data.columns if f"{c} {w}" in col]
+                    selected_simpoints = [col for col in self.data.columns if col.startswith(f"{c} {w}")]
 
                     for stat in stats:
                         values = list(self.data[selected_simpoints][self.data["stats"] == stat].iloc[0])
@@ -99,6 +99,7 @@ class Experiment:
                         values = list(map(float, values))
                         weights = list(map(float, weights))
                         results[f"{c} {w} {stat}"] = sum([v*w for v, w in zip(values, weights)])
+                        print(values, weights, sum([v*w for v, w in zip(values, weights)]))
 
         elif aggregation_level == "Simpoint":
             for c in config:
@@ -106,7 +107,7 @@ class Experiment:
 
                     # Set selected simpoints to all possible if not provided
                     if simpoints == None:
-                        selected_simpoints = [col.split(" ")[-1] for col in self.data.columns if f"{c} {w}" in col]
+                        selected_simpoints = [col.split(" ")[-1] for col in self.data.columns if col.startswith(f"{c} {w}")]
                     else: selected_simpoints = simpoints
 
                     for sp in selected_simpoints:
@@ -118,7 +119,7 @@ class Experiment:
             for c in config:
                 config_data = {stat:[] for stat in stats}
                 for w in workload:
-                    selected_simpoints = [col for col in self.data.columns if f"{c} {w}" in col]
+                    selected_simpoints = [col for col in self.data.columns if col.startswith(f"{c} {w}")]
 
                     for stat in stats:
                         values = list(self.data[selected_simpoints][self.data["stats"] == stat].iloc[0])
@@ -163,6 +164,9 @@ class Experiment:
 
         # NOTE: Drop metadata here, don't do operations on them
         lookup = self.data.T.rename(columns=lookup_cols).drop("stats").drop("write_protect").drop("groups")
+        # print(lookup["Weight"])
+        # print(panda_fy_agg(""))
+        # exit()
 
         # Aggregates before returning row
         # Takes in a stat name, returns a Pandas series
@@ -726,6 +730,7 @@ class stat_aggregator:
 
         configs_to_load = configs
         all_data = experiment.retrieve_stats(configs_to_load, stats, workloads)
+        print(all_data)
         if all_data is None:
             print("ERROR: retrieve_stats returned None. This means either:")
             print("1. The requested workloads don't exist in the dataframe")
@@ -1575,7 +1580,24 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     da = stat_aggregator()
-    E = da.load_experiment_json(args.descriptor_name, True)
+    
+    # E = da.load_experiment_json(args.descriptor_name, True)
+    # E.to_csv("micro.csv")
+
+    E = da.load_experiment_csv("micro.csv")
+
+    experiment_name = E.get_experiments()[0]
+    wl_to_plot = E.get_workloads()
+    configs_to_plot = E.get_configurations()
+
+    stats_to_plot = ["Cumulative_IPC"]
+
+    da.plot_workloads(E, stats_to_plot, wl_to_plot, configs_to_plot, y_label = "IPC", x_label="Workloads", average=False, plot_name="micro.png")
+    print(E.retrieve_stats(configs_to_plot, stats_to_plot, wl_to_plot))
+
+    exit(1)
+
+
     E.to_csv("fast.csv")
     # exit(1)
     EL = da.load_experiment_csv("fast.csv")
