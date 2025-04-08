@@ -99,7 +99,6 @@ class Experiment:
                         values = list(map(float, values))
                         weights = list(map(float, weights))
                         results[f"{c} {w} {stat}"] = sum([v*w for v, w in zip(values, weights)])
-                        print(values, weights, sum([v*w for v, w in zip(values, weights)]))
 
         elif aggregation_level == "Simpoint":
             for c in config:
@@ -1592,7 +1591,7 @@ if __name__ == "__main__":
 
     stats_to_plot = ["Cumulative_IPC"]
 
-    da.plot_workloads(E, stats_to_plot, wl_to_plot, configs_to_plot, y_label = "IPC", x_label="Workloads", average=False, plot_name="micro.png")
+    da.plot_workloads(E, stats_to_plot, wl_to_plot, configs_to_plot, y_label = "IPC", x_label="Workloads", average=True, plot_name="micro.png")
     print(E.retrieve_stats(configs_to_plot, stats_to_plot, wl_to_plot))
 
     exit(1)
