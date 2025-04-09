@@ -1579,24 +1579,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     da = stat_aggregator()
-    
-    # E = da.load_experiment_json(args.descriptor_name, True)
-    # E.to_csv("micro.csv")
-
-    E = da.load_experiment_csv("micro.csv")
-
-    experiment_name = E.get_experiments()[0]
-    wl_to_plot = E.get_workloads()
-    configs_to_plot = E.get_configurations()
-
-    stats_to_plot = ["Cumulative_IPC"]
-
-    da.plot_workloads(E, stats_to_plot, wl_to_plot, configs_to_plot, y_label = "IPC", x_label="Workloads", average=True, plot_name="micro.png")
-    print(E.retrieve_stats(configs_to_plot, stats_to_plot, wl_to_plot))
-
-    exit(1)
-
-
+    E = da.load_experiment_json(args.descriptor_name, True)
     E.to_csv("fast.csv")
     # exit(1)
     EL = da.load_experiment_csv("fast.csv")
