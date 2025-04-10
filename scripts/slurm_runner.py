@@ -304,7 +304,7 @@ def run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir,
         try:
             docker_prefix = get_docker_prefix(sim_mode, workloads_data[workload]["simulation"])
             info(f"Using docker image with name {docker_prefix}:{githash}", dbg_lvl)
-            docker_running = check_docker_image(all_nodes, docker_prefix, githash, dbg_lvl)
+            docker_running = check_docker_image(available_slurm_nodes, docker_prefix, githash, dbg_lvl)
             excludes = set(all_nodes) - set(docker_running)
             info(f"Excluding following nodes: {', '.join(excludes)}", dbg_lvl)
             sbatch_cmd = generate_sbatch_command(excludes, experiment_dir)
@@ -474,7 +474,7 @@ def run_tracing(user, descriptor_data, workload_db_path, suite_db_path, infra_di
 
     def run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd, trace_type, drio_args, clustering_k):
         try:
-            docker_running = check_docker_image(all_nodes, image_name, githash, dbg_lvl)
+            docker_running = check_docker_image(available_slurm_nodes, image_name, githash, dbg_lvl)
             excludes = set(all_nodes) - set(docker_running)
             info(f"Excluding following nodes: {', '.join(excludes)}", dbg_lvl)
             sbatch_cmd = generate_sbatch_command(excludes, trace_dir)
