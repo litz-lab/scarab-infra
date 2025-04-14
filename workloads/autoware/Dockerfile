@@ -35,7 +35,7 @@ RUN rosdep init || true  && rosdep fix-permissions && rosdep update
 
 # Clone the autoware repos into a temporary folder
 WORKDIR /tmp/autoware_repos
-RUN git clone --depth 1 --filter=blob:none --sparse \
+RUN git clone --depth 1 --filter=blob:none --sparse --branch 0.41.2 \
     https://github.com/autowarefoundation/autoware.git .
 RUN git sparse-checkout set autoware.repos simulator.repos
 
@@ -70,9 +70,11 @@ RUN source /opt/ros/$ROS_DISTRO/setup.bash && \
 
 COPY ./workloads/autoware/my_yabloc_pose_call_pkg $tmpdir/autoware/my_yabloc_pose_call_pkg
 RUN cd $tmpdir/autoware/my_yabloc_pose_call_pkg && source /opt/ros/$ROS_DISTRO/setup.bash && source $tmpdir/autoware/install/setup.bash && colcon build --packages-select my_yabloc_pose_call_pkg
+COPY ./workloads/autoware/lane_detector $tmpdir/autoware/lane_detector
+RUN cd $tmpdir/autoware/lane_detector && source /opt/ros/$ROS_DISTRO/setup.bash && source $tmpdir/autoware/install/setup.bash && colcon build --packages-select lane_detector
 COPY ./workloads/autoware/image_republisher $tmpdir/autoware/image_republisher
 RUN cd $tmpdir/autoware/image_republisher && source /opt/ros/$ROS_DISTRO/setup.bash && colcon build --packages-select image_republisher
-    
+
 # Install driving_log_replayer via pipx
 RUN apt-get remove -y python3-termcolor || true
 RUN python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel packaging
