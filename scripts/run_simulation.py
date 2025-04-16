@@ -273,4 +273,4 @@ if __name__ == "__main__":
     if workload_manager == "manual":
         local_runner.run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir, descriptor_path, dbg_lvl)
     else:
-        slurm_runner.run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir, dbg_lvl)
+        slurm_runner.run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir, descriptor_path, dbg_lvl)
