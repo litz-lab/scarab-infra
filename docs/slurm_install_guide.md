@@ -132,3 +132,17 @@ Slurmd: `/var/log/slurm-llnl/slurmd.log`\
 Slurmctld: `/var/log/slurm-llnl/slurmctld.log`
 
 You need root access to cat the contents of these files.
+
+# How to enable/disable nodes
+## Disabling a node temporarily
+To disable a node, you can run the following command:
+`sudo scontrol update NodeName=<NODENAME> State=DRAIN Reason="Reserved"`
+
+This will put the node into the drained state, described as ["unavailable for use per system administrator request".][https://slurm.schedmd.com/sinfo.html]
+You can add whatever reason you want for the Reason field, and it will show up in the slurm logs
+
+## Re-enabling a drained node
+The command to re-enable a drained node is very similar:
+`sudo scontrol update NodeName=<NODENAME> State=IDLE Reason="Reservation over"`
+
+This will put the node back into the default IDLE state, and it will begin taking slurm jobs again.
