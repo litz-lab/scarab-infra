@@ -217,7 +217,6 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
                                    text=True)
             if result.returncode != 0:
                 err(f"Failed to copy scarab binary: {result.stderr}", dbg_lvl)
-                raise RuntimeError(f"Failed to copy scarab binary: {result.stderr}")
         try:
             os.symlink(f"{experiment_dir}/scarab/src/scarab", f"{experiment_dir}/scarab/src/scarab_{scarab_githash}")
         except FileExistsError:
