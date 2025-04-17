@@ -83,7 +83,8 @@
   "autoware":{
     "autoware":{
       "predefined_simulation_mode":{
-        "yabloc":"memtrace"
+        "yabloc":"memtrace",
+        "lane_detector":"memtrace"
       }
     }
   },
