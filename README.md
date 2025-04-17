@@ -105,7 +105,7 @@ cd ~/simulations/<exp_name>/baseline/<workload>/<simpoint>
 Create a debug directory and copy the original PARAMS.out file as a new PARAMS.in, then cut the lines following after `--- Cut out everything below to use this file as PARAMS.in ---`
 ```
 mkdir debug && cd debug
-cp ../PARAMS.out ./PARAMS.out
+cp ../PARAMS.out ./PARAMS.in
 ```
 Now, you can attach gdb with the same scarab parameters where you want to debug.
 ```
