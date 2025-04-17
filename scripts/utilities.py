@@ -777,3 +777,10 @@ def count_interactive_shells(container_name, dbg_lvl):
     except Exception as e:
         print(f"Error: {e}")
         return 0
+
+def image_exist(image_tag):
+    try:
+        output = subprocess.check_output(["docker", "images", "-q", image_tag])
+        return bool(output.strip())
+    except subprocess.CalledProcessError:
+        return False

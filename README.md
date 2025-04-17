@@ -24,9 +24,14 @@ gdown https://drive.google.com/uc?id=1tfKL7wYK1mUqpCH8yPaPVvxk2UIAJrOX
 tar -xzvf simpoint_traces.tar.gz
 ```
 5. Optional: Install [Slurm](docs/slurm_install_guide.md)
-
+6. Optional: To pull the pre-built docker image from GitHub Packages, make sure your token has `read:packages` permission.
+You should be able to `docker login`
+```
+echo <YOUR_GITHUB_TOKEN> | docker login ghcr.io -u <YOUR_GITHUB_USERNAME> --password-stdin
+```
 ## Set up the environment (Docker image)
 ### Alternative 1. Download a pre-built Docker image where GitHash refers to the short git hash of the current scarab-infra commit.
+To pull the image, please complete `Requirement 6`.
 ```
 export GIT_HASH=$(git rev-parse --short HEAD)
 docker pull ghcr.io/litz-lab/scarab-infra/allbench_traces:$GIT_HASH

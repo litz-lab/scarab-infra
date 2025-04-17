@@ -22,8 +22,27 @@ from utilities import (
         prepare_trace,
         finish_trace,
         write_trace_docker_command_to_file,
-        get_weight_by_cluster_id
+        get_weight_by_cluster_id,
+        image_exist
         )
+
+def prepare_docker_image(docker_prefix, githash, dbg_lvl):
+    image_tag = f"{docker_prefix}:{githash}"
+    if not image_exist(image_tag):
+        print(f"Couldn't find image {image_tag} locally")
+        ghcr_tag = f"ghcr.io/litz-lab/scarab-infra/{image_tag}"
+        try:
+            print("Pulling docker image...")
+            subprocess.check_output(["docker", "pull", ghcr_tag])
+            subprocess.check_output(["docker", "tag", ghcr_tag, image_tag])
+            subprocess.check_output(["docker", "rmi", ghcr_tag])
+            print(f"{image_tag} has succesfully pulled!")
+        except subprocess.CalledProcessError as e:
+            err("Docker pull failed:\n" + e.output.decode(), dbg_lvl)
+            subprocess.check_output(["./run.sh", "-b", docker_prefix])
+            if not image_exist(image_tag):
+                err(f"Still couldn't find image {image_tag} after trying to build one", dbg_lvl)
+                exit(1)
 
 # Check if a container is running on local
 # Inputs: docker_prefix, job_name, user,
@@ -201,20 +220,7 @@ def run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir,
             err("Error: Not in a Git repository or unable to retrieve Git hash.")
 
         for docker_prefix in docker_prefix_list:
-            image = subprocess.check_output(["docker", "images", "-q", f"{docker_prefix}:{githash}"])
-            if image == []:
-                info(f"Couldn't find image {docker_prefix}:{githash}", dbg_lvl)
-                subprocess.check_output(["docker", "pull", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}"])
-                image = subprocess.check_output(["docker", "images", "-q", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}"])
-                if image != []:
-                    subprocess.check_output(["docker", "tag", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}", f"{docker_prefix}:{githash}"])
-                    subprocess.check_output(["docker", "rmi", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}"])
-                    continue
-                subprocess.check_output(["./run.sh", "-b", docker_prefix])
-                image = subprocess.check_output(["docker", "images", "-q", f"{docker_prefix}:{githash}"])
-                if image == []:
-                    info(f"Still couldn't find image {docker_prefix}:{githash} after trying to build one", dbg_lvl)
-                    exit(1)
+            prepare_docker_image(docker_prefix, githash, dbg_lvl)
 
         docker_prefix = docker_prefix_list[0]
         scarab_githash = prepare_simulation(user, scarab_path, scarab_build, descriptor_data['root_dir'], experiment_name, architecture, docker_prefix, githash, infra_dir, False, dbg_lvl)
@@ -339,20 +345,7 @@ def run_tracing(user, descriptor_data, workload_db_path, suite_db_path, infra_di
             err("Error: Not in a Git repository or unable to retrieve Git hash.")
 
         for docker_prefix in docker_prefix_list:
-            image = subprocess.check_output(["docker", "images", "-q", f"{docker_prefix}:{githash}"])
-            if image == []:
-                info(f"Couldn't find image {docker_prefix}:{githash}", dbg_lvl)
-                subprocess.check_output(["docker", "pull", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}"])
-                image = subprocess.check_output(["docker", "images", "-q", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}"])
-                if image != []:
-                    subprocess.check_output(["docker", "tag", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}", f"{docker_prefix}:{githash}"])
-                    subprocess.check_output(["docker", "rmi", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}"])
-                    continue
-                subprocess.check_output(["./run.sh", "-b", docker_prefix])
-                image = subprocess.check_output(["docker", "images", "-q", f"{docker_prefix}:{githash}"])
-                if image == []:
-                    info(f"Still couldn't find image {docker_prefix}:{githash} after trying to build one", dbg_lvl)
-                    exit(1)
+            prepare_docker_image(docker_prefix, githash, dbg_lvl)
 
         docker_prefix = docker_prefix_list[0]
         prepare_trace(user, scarab_path, scarab_build, docker_home, trace_name, infra_dir, docker_prefix, githash, False, dbg_lvl)
