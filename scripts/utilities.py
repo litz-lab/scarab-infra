@@ -212,12 +212,18 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
                 scarab_bin = f"{scarab_path}/src/build/{scarab_build}/scarab"
             else:
                 scarab_bin = f"{scarab_path}/src/build/opt/scarab"
-            result = subprocess.run(["cp", scarab_bin, f"{experiment_dir}/scarab/src/scarab"],
-                                   capture_output=True,
-                                   text=True)
-            if result.returncode != 0:
-                err(f"Failed to copy scarab binary: {result.stderr}", dbg_lvl)
-                raise RuntimeError(f"Failed to copy scarab binary: {result.stderr}")
+            dest_scarab_bin = f"{experiment_dir}/scarab/src/scarab"
+            try:
+                result = subprocess.run(['diff', '-q', scarab_bin, dest_scarab_bin], capture_output=True, text=True, check=True)
+            except subprocess.CalledProcessError as e:
+                if e.returncode == 1 or e.returncode == 2:
+                    info("scarab binaries differ or the destination binary does not exist. Will copy.", dbg_lvl)
+                    result = subprocess.run(["cp", scarab_bin, dest_scarab_bin], capture_output=True, text=True)
+                    if result.returncode != 0:
+                        err(f"Failed to copy scarab binary: {result.stderr}", dbg_lvl)
+                        raise RuntimeError(f"Failed to copy scarab binary. Existing binary is in use and differs from the new binary: {result.stderr}")
+                else:
+                    raise e
         try:
             os.symlink(f"{experiment_dir}/scarab/src/scarab", f"{experiment_dir}/scarab/src/scarab_{scarab_githash}")
         except FileExistsError:
