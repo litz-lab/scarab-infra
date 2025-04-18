@@ -43,6 +43,7 @@ class Experiment:
 
             # Enable write protect for all base stats
             self.data["write_protect"] = [True for _ in rows]
+            self._columns_dict = {}
 
     def has_group_data(self):
         return "groups" in self.data.columns
@@ -65,8 +66,8 @@ class Experiment:
         column.append(c_id)
         column.append(weight)
 
-        self.data = self.data.copy()
-        self.data[f"{config} {workload} {c_id}"] = column
+        new_col_name = f"{config} {workload} {c_id}"
+        self._columns_dict[new_col_name] = column
 
     def retrieve_stats(self, config: List[str], stats: List[str], workload: List[str], 
         aggregation_level:str = "Workload", simpoints: List[str] = None):
@@ -530,6 +531,14 @@ class stat_aggregator:
         if not return_stats: return data, group
         else: return all_stats
 
+    # Finalizing the accumulated columns
+    def finalize_columns(self):
+        data_dict = self.experiment.data.to_dict(orient="list")
+        data_dict.update(self.experiment._columns_dict)
+        self.experiment.data = pd.DataFrame(data_dict)
+
+        self.experiment._columns_dict = {}
+
     # Load experiment from saved file
     def load_experiment_csv(self, path):
         return Experiment(path)
@@ -609,6 +618,7 @@ class stat_aggregator:
                                 experiment, known_stats = self.load_simpoint_data(cluster_id, workload, config, experiment_name, architecture, simulations_path)
 
         print(f"load_simpoint_data was called {load_simpoint_data_count} times")
+        self.finalize_columns()
         experiment.defragment()
         # print("\n\n", experiment)
 
