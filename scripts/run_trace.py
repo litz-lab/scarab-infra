@@ -232,7 +232,6 @@ if __name__ == "__main__":
         infra_dir = subprocess.check_output(["pwd"]).decode("utf-8").split("\n")[0]
 
     workload_db_path = f"{infra_dir}/workloads/workloads_db.json"
-    suite_db_path = f"{infra_dir}/workloads/suite_db.json"
 
     # Get user for commands
     user = subprocess.check_output("whoami").decode('utf-8')[:-1]
@@ -270,6 +269,6 @@ if __name__ == "__main__":
 
     verify_descriptor(descriptor_data, workload_db_path, dbg_lvl)
     if workload_manager == "manual":
-        local_runner.run_tracing(user, descriptor_data, workload_db_path, suite_db_path, infra_dir, dbg_lvl)
+        local_runner.run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl)
     else:
-        slurm_runner.run_tracing(user, descriptor_data, workload_db_path, suite_db_path, infra_dir, dbg_lvl)
+        slurm_runner.run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl)
