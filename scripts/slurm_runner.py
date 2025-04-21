@@ -305,11 +305,11 @@ def run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir,
 
     docker_prefix_list = get_image_list(simulations, workloads_data, suite_data)
 
-    def run_single_workload(workload, exp_cluster_id, sim_mode):
+    def run_single_workload(workload, exp_cluster_id, sim_mode, all_nodes, docker_running):
         try:
             docker_prefix = get_docker_prefix(sim_mode, workloads_data[workload]["simulation"])
             info(f"Using docker image with name {docker_prefix}:{githash}", dbg_lvl)
-            docker_running = check_docker_image(all_nodes, docker_prefix, githash, dbg_lvl)
+            docker_running = check_docker_image(docker_running, docker_prefix, githash, dbg_lvl)
             excludes = set(all_nodes) - set(docker_running)
             info(f"Excluding following nodes: {', '.join(excludes)}", dbg_lvl)
             sbatch_cmd = generate_sbatch_command(excludes, experiment_dir)
@@ -435,18 +435,18 @@ def run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir,
                         sim_mode_ = sim_mode
                         if sim_mode_ == None:
                             sim_mode_ = suite_data[suite][subsuite_]["predefined_simulation_mode"][workload_]
-                        slurm_ids += run_single_workload(workload_, exp_cluster_id, sim_mode_)
+                        slurm_ids += run_single_workload(workload_, exp_cluster_id, sim_mode_, all_nodes, docker_running)
             elif workload == None and subsuite != None:
                 for workload_ in suite_data[suite][subsuite]["predefined_simulation_mode"].keys():
                     sim_mode_ = sim_mode
                     if sim_mode_ == None:
                         sim_mode_ = suite_data[suite][subsuite]["predefined_simulation_mode"][workload_]
-                    slurm_ids += run_single_workload(workload_, exp_cluster_id, sim_mode_)
+                    slurm_ids += run_single_workload(workload_, exp_cluster_id, sim_mode_, all_nodes, docker_running)
             else:
                 sim_mode_ = sim_mode
                 if sim_mode_ == None:
                     sim_mode_ = suite_data[suite][subsuite]["predefined_simulation_mode"][workload]
-                slurm_ids += run_single_workload(workload, exp_cluster_id, sim_mode_)
+                slurm_ids += run_single_workload(workload, exp_cluster_id, sim_mode_, all_nodes, docker_running)
 
         # Clean up temp files
         for tmp in tmp_files:
@@ -456,7 +456,7 @@ def run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir,
         finish_simulation(user, docker_home)
 
         print(slurm_ids)
-        collect_stats_cmd = f"sbatch --dependency=afterok:{','.join(slurm_ids)} slurm_collect_stats.sh {descriptor_path} {descriptor_data['root_dir']} {experiment_name}"
+        collect_stats_cmd = f"sbatch --dependency=afterok:{','.join(slurm_ids)} scripts/slurm_collect_stats.sh {descriptor_path} {descriptor_data['root_dir']} {experiment_name}"
         print(collect_stats_cmd)
         os.system(collect_stats_cmd)
 
