@@ -26,7 +26,7 @@ def get_largest_trace(base_path, simpoint_mode):
         pattern = os.path.join(base_path, "trace/dr*.trace.zip")
     else:
         pattern = os.path.join(base_path, "*/trace/dr*.trace.zip")
-    
+
     for trace in glob.glob(os.path.join(base_path, pattern)):
         size = os.path.getsize(trace)
         traces.append((size, trace))
@@ -406,7 +406,7 @@ def iterative(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mo
                         print(f"[Timestep {i}] tracing failed with error: {e}")
                         break
                     else:
-                        subdirs = [os.path.join(timestep_dir, d) for d in os.listdir(timestep_dir) 
+                        subdirs = [os.path.join(timestep_dir, d) for d in os.listdir(timestep_dir)
                                    if os.path.isdir(os.path.join(timestep_dir, d))]
                         if subdirs:
                             latest_dir = max(subdirs, key=os.path.getmtime)
@@ -439,7 +439,7 @@ def iterative(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mo
         available_cores = os.cpu_count() or 1
         max_processes = int(available_cores * 0.6)
         print(f"available cores: {available_cores}, max_processes: {max_processes}")
-        
+
         raw2trace_processes = set()
         for root, dirs, files in os.walk(timestep_dir):
             for directory in dirs:
@@ -460,7 +460,7 @@ def iterative(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mo
                     if stderr:
                         print("drraw2trace error:", stderr.decode())
                     raw2trace_processes.add(process)
-                    
+
                     while len(raw2trace_processes) >= max_processes:
                         for p in list(raw2trace_processes):
                             if p.poll() is not None:
@@ -479,7 +479,7 @@ def iterative(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mo
         inst_counts = {}
         dir_counter = 1
         tracefiles = []
-        
+
         for root, dirs, files in os.walk(timestep_dir):
             if re.match(r"^Timestep_\d+$", os.path.basename(root)):
                 for directory in dirs:
@@ -490,7 +490,7 @@ def iterative(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mo
                         dr_folder_path = os.path.dirname(os.path.dirname(whole_trace))
                         print(whole_trace)
                         tracefiles.append(whole_trace)
-                        
+
                         try:
                             with zipfile.ZipFile(whole_trace, 'r') as zf:
                                 file_list = zf.namelist()

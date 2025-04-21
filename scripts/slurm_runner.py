@@ -21,7 +21,8 @@ from utilities import (
         prepare_trace,
         finish_trace,
         write_trace_docker_command_to_file,
-        get_weight_by_cluster_id
+        get_weight_by_cluster_id,
+        image_exist
         )
 
 # Check if the docker image exists on available slurm nodes
@@ -53,33 +54,24 @@ def prepare_docker_image(nodes, docker_prefix, githash, dbg_lvl = 1):
         available_nodes = []
         for node in nodes:
             # Check if the image exists
-            image = subprocess.check_output(["srun", f"--nodelist={node}", "docker", "images", "-q", f"{docker_prefix}:{githash}"])
-            info(f"{image}", dbg_lvl)
+            image_tag = f"{docker_prefix}:{githash}"
+            image = subprocess.check_output(["srun", f"--nodelist={node}", "docker", "images", "-q", image_tag])
             if image == [] or image == b'':
-                info(f"Couldn't find image {docker_prefix}:{githash} on {node}", dbg_lvl)
+                print(f"Couldn't find image {docker_prefix}:{githash} on {node}")
                 try:
+                    print(f"Pulling docker image on {node}...")
                     subprocess.check_output(["srun", f"--nodelist={node}", "docker", "pull", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}"])
                     image = subprocess.check_output(["srun", f"--nodelist={node}", "docker", "images", "-q", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}"])
+                    if image != []:
+                        print(f"{image_tag} has succesfully pulled on {node}!")
+                        subprocess.check_output(["srun", f"--nodelist={node}", "docker", "tag", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}", f"{docker_prefix}:{githash}"])
+                        subprocess.check_output(["srun", f"--nodelist={node}", "docker", "rmi", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}"])
                 except subprocess.CalledProcessError as e:
-                    info("Couldn't pull image from ghcr.io", dbg_lvl)
-                    image = []
-                
-                if image != []:
-                    subprocess.check_output(["srun", f"--nodelist={node}", "docker", "tag", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}", f"{docker_prefix}:{githash}"])
-                    subprocess.check_output(["srun", f"--nodelist={node}", "docker", "rmi", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}"])
-                    available_nodes.append(node)
-                    continue
-
-                # build the image if a pre-built image is not found
-                subprocess.check_output(["srun", f"--nodelist={node}", "./run.sh", "-b", docker_prefix])
-
-                image = subprocess.check_output(["srun", f"--nodelist={node}", "docker", "images", "-q", f"{docker_prefix}:{githash}"])
-                info(f"{image}", dbg_lvl)
-                if image == []:
-                    info(f"Still couldn't find image {docker_prefix}:{githash} on {node} after trying to build one", dbg_lvl)
-
-                    continue
-
+                    err("Docker pull failed:\n" + e.output.decode(), dbg_lvl)
+                    subprocess.check_output(["srun", f"--nodelist={node}", "./run.sh", "-b", docker_prefix])
+                    if not image_exist(image_tag):
+                        err(f"Still couldn't find image {image_tag} after trying to build one", dbg_lvl)
+                        exit(1)
             available_nodes.append(node)
 
         return available_nodes
@@ -492,7 +484,7 @@ def run_tracing(user, descriptor_data, workload_db_path, suite_db_path, infra_di
 
     def run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd, trace_type, drio_args, clustering_k):
         try:
-            docker_running = check_docker_image(all_nodes, image_name, githash, dbg_lvl)
+            docker_running = check_docker_image(available_slurm_nodes, image_name, githash, dbg_lvl)
             excludes = set(all_nodes) - set(docker_running)
             info(f"Excluding following nodes: {', '.join(excludes)}", dbg_lvl)
             sbatch_cmd = generate_sbatch_command(excludes, trace_dir)

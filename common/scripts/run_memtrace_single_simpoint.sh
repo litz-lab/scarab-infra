@@ -40,17 +40,14 @@ cd $OUTDIR/$segID
 # SEGMENT_ID > 0 represents segmented trace (simpoint) simulation
 if [ "$SEGMENT_ID" == "0" ]; then
   traceMap=$(ls $trace_home/$APPNAME/traces/whole/)
-  scarabCmd="$SCARABHOME/src/scarab --frontend memtrace --cbp_trace_r0=$trace_home/$APPNAME/traces/whole/${traceMap} --memtrace_modules_log=$trace_home/$APPNAME/traces/raw/ $SCARABPARAMS &> sim.log"
+  scarabCmd="$SCARABHOME/src/scarab --frontend memtrace --cbp_trace_r0=$trace_home/$APPNAME/traces/whole/${traceMap} $SCARABPARAMS &> sim.log"
 else
   # overwriting
   if [ "$TRACESSIMP" == "0" ]; then
-    MODULESDIR=$trace_home/$APPNAME/traces/whole/raw/modules.log
     TRACEFILE=$trace_home/$APPNAME/traces/whole/trace/$TRACEFILE
   elif [ "$TRACESSIMP" == "1" ]; then
-    MODULESDIR=$trace_home/$APPNAME/traces_simp/bin
     TRACEFILE=$trace_home/$APPNAME/traces_simp/trace
   elif [ "$TRACESSIMP" == "2" ] || [ "$TRACESSIMP" == "3" ]; then
-    MODULESDIR=$trace_home/$APPNAME/traces_simp/
     TRACEFILE=$trace_home/$APPNAME/traces_simp/
   fi
 
@@ -77,7 +74,6 @@ else
     scarabCmd="$SCARABHOME/src/scarab \
     --frontend memtrace \
     --cbp_trace_r0=$TRACEFILE \
-    --memtrace_modules_log=$MODULESDIR \
     --memtrace_roi_begin=$roiStart \
     --memtrace_roi_end=$roiEnd \
     --inst_limit=$instLimit \
@@ -102,7 +98,6 @@ else
         scarabCmd="$SCARABHOME/src/scarab \
         --frontend memtrace \
         --cbp_trace_r0=$TRACEFILE/$segID.zip \
-        --memtrace_modules_log=$MODULESDIR \
         --memtrace_roi_begin=1 \
         --memtrace_roi_end=$instLimit \
         --inst_limit=$instLimit \
@@ -115,7 +110,6 @@ else
         scarabCmd="$SCARABHOME/src/scarab \
         --frontend memtrace \
         --cbp_trace_r0=$TRACEFILE/$segID.zip \
-        --memtrace_modules_log=$MODULESDIR \
         --memtrace_roi_begin=$(( $SEGSIZE + 1)) \
         --memtrace_roi_end=$(( $SEGSIZE + $instLimit )) \
         --inst_limit=$instLimit \
@@ -131,7 +125,6 @@ else
     scarabCmd="$SCARABHOME/src/scarab \
     --frontend memtrace \
     --cbp_trace_r0=$TRACEFILE/$segID/trace/$segID.zip \
-    --memtrace_modules_log=$MODULESDIR/$segID/raw \
     --inst_limit=$instLimit \
     --full_warmup=$WARMUP \
     --use_fetched_count=0 \
@@ -140,7 +133,6 @@ else
   elif [ "$TRACESSIMP" == "3" ]; then
     # with TRACESSIMP == 3
     # simultion always simulate the whole trace file with no skip
-    modulesDir=$(dirname $(ls $MODULESDIR/Timestep_$segID/drmemtrace.*.dir/bin/modules.log))
     wholeTrace=$(ls $TRACEFILE/Timestep_$segID/drmemtrace.*.dir/trace/dr*.zip)
 
     numChunk=$(unzip -l "$wholeTrace" 2>/dev/null | grep "chunk." | wc -l)
@@ -149,7 +141,6 @@ else
     scarabCmd="$SCARABHOME/src/scarab \
     --frontend memtrace \
     --cbp_trace_r0=$wholeTrace \
-    --memtrace_modules_log=$modulesDir \
     --inst_limit=$instLimit \
     $SCARABPARAMS \
     &> sim.log"

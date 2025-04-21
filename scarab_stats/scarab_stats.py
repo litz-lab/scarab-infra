@@ -91,7 +91,7 @@ class Experiment:
         if aggregation_level == "Workload":
             for c in config:
                 for w in workload:
-                    selected_simpoints = [col for col in self.data.columns if f"{c} {w}" in col]
+                    selected_simpoints = [col for col in self.data.columns if col.startswith(f"{c} {w}")]
 
                     for stat in stats:
                         values = list(self.data[selected_simpoints][self.data["stats"] == stat].iloc[0])
@@ -106,7 +106,7 @@ class Experiment:
 
                     # Set selected simpoints to all possible if not provided
                     if simpoints == None:
-                        selected_simpoints = [col.split(" ")[-1] for col in self.data.columns if f"{c} {w}" in col]
+                        selected_simpoints = [col.split(" ")[-1] for col in self.data.columns if col.startswith(f"{c} {w}")]
                     else: selected_simpoints = simpoints
 
                     for sp in selected_simpoints:
@@ -118,7 +118,7 @@ class Experiment:
             for c in config:
                 config_data = {stat:[] for stat in stats}
                 for w in workload:
-                    selected_simpoints = [col for col in self.data.columns if f"{c} {w}" in col]
+                    selected_simpoints = [col for col in self.data.columns if col.startswith(f"{c} {w}")]
 
                     for stat in stats:
                         values = list(self.data[selected_simpoints][self.data["stats"] == stat].iloc[0])
@@ -163,6 +163,9 @@ class Experiment:
 
         # NOTE: Drop metadata here, don't do operations on them
         lookup = self.data.T.rename(columns=lookup_cols).drop("stats").drop("write_protect").drop("groups")
+        # print(lookup["Weight"])
+        # print(panda_fy_agg(""))
+        # exit()
 
         # Aggregates before returning row
         # Takes in a stat name, returns a Pandas series
@@ -572,38 +575,38 @@ class stat_aggregator:
         for config in json_data["configurations"]:
             config = config.replace("/", "-")
             # Use first workload
-            simulation = json_data["simulations"][0]
-            found_suite = simulation["suite"]
-            found_subsuite = simulation["subsuite"]
-            found_workload = simulation["workload"]
-            found_cluster_id = simulation["cluster_id"]
+            for simulation in json_data["simulations"]:
+                found_suite = simulation["suite"]
+                found_subsuite = simulation["subsuite"]
+                found_workload = simulation["workload"]
+                found_cluster_id = simulation["cluster_id"]
 
-            if found_cluster_id != None:
-                assert found_workload is not None, "Workload cannot be None when cluster_id is specified"
-                assert found_suite is not None, "Suite cannot be None when cluster_id is specified"
-                assert found_subsuite is not None, "Subsuite cannot be None when cluster_id is specified"
-                experiment, known_stats = self.load_simpoint_data(found_cluster_id, found_workload, config, experiment_name, architecture, simulations_path)
-            elif found_workload != None:
-                assert found_suite is not None, "Suite cannot be None when workload is specified"
-                assert found_subsuite is not None, "Subsuite cannot be None when workload is specified"
-                cluster_ids = self.get_cluster_ids(found_workload, found_suite, found_subsuite)
-                for cluster_id in cluster_ids:
-                    experiment, known_stats = self.load_simpoint_data(cluster_id, found_workload, config, experiment_name, architecture, simulations_path)
-            elif found_subsuite != None:
-                assert found_suite is not None, "Suite cannot be None when subsuite is specified"
-                workloads = list(suite_data[found_suite][found_subsuite]["predefined_simulation_mode"].keys())
-                for workload in workloads:
-                    cluster_ids = self.get_cluster_ids(workload, found_suite, found_subsuite)
+                if found_cluster_id != None:
+                    assert found_workload is not None, "Workload cannot be None when cluster_id is specified"
+                    assert found_suite is not None, "Suite cannot be None when cluster_id is specified"
+                    assert found_subsuite is not None, "Subsuite cannot be None when cluster_id is specified"
+                    experiment, known_stats = self.load_simpoint_data(found_cluster_id, found_workload, config, experiment_name, architecture, simulations_path)
+                elif found_workload != None:
+                    assert found_suite is not None, "Suite cannot be None when workload is specified"
+                    assert found_subsuite is not None, "Subsuite cannot be None when workload is specified"
+                    cluster_ids = self.get_cluster_ids(found_workload, found_suite, found_subsuite)
                     for cluster_id in cluster_ids:
-                        experiment, known_stats = self.load_simpoint_data(cluster_id, workload, config, experiment_name, architecture, simulations_path)
-            else:
-                subsuites = list(suite_data[found_suite].keys())
-                for subsuite in subsuites:
-                    workloads = list(suite_data[found_suite][subsuite]["predefined_simulation_mode"].keys())
+                        experiment, known_stats = self.load_simpoint_data(cluster_id, found_workload, config, experiment_name, architecture, simulations_path)
+                elif found_subsuite != None:
+                    assert found_suite is not None, "Suite cannot be None when subsuite is specified"
+                    workloads = list(suite_data[found_suite][found_subsuite]["predefined_simulation_mode"].keys())
                     for workload in workloads:
-                        cluster_ids = self.get_cluster_ids(workload, found_suite, subsuite)
+                        cluster_ids = self.get_cluster_ids(workload, found_suite, found_subsuite)
                         for cluster_id in cluster_ids:
                             experiment, known_stats = self.load_simpoint_data(cluster_id, workload, config, experiment_name, architecture, simulations_path)
+                else:
+                    subsuites = list(suite_data[found_suite].keys())
+                    for subsuite in subsuites:
+                        workloads = list(suite_data[found_suite][subsuite]["predefined_simulation_mode"].keys())
+                        for workload in workloads:
+                            cluster_ids = self.get_cluster_ids(workload, found_suite, subsuite)
+                            for cluster_id in cluster_ids:
+                                experiment, known_stats = self.load_simpoint_data(cluster_id, workload, config, experiment_name, architecture, simulations_path)
 
         print(f"load_simpoint_data was called {load_simpoint_data_count} times")
         experiment.defragment()
@@ -726,6 +729,7 @@ class stat_aggregator:
 
         configs_to_load = configs
         all_data = experiment.retrieve_stats(configs_to_load, stats, workloads)
+        print(all_data)
         if all_data is None:
             print("ERROR: retrieve_stats returned None. This means either:")
             print("1. The requested workloads don't exist in the dataframe")

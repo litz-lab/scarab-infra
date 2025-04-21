@@ -212,12 +212,18 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
                 scarab_bin = f"{scarab_path}/src/build/{scarab_build}/scarab"
             else:
                 scarab_bin = f"{scarab_path}/src/build/opt/scarab"
-            result = subprocess.run(["cp", scarab_bin, f"{experiment_dir}/scarab/src/scarab"],
-                                   capture_output=True,
-                                   text=True)
-            if result.returncode != 0:
-                err(f"Failed to copy scarab binary: {result.stderr}", dbg_lvl)
-                raise RuntimeError(f"Failed to copy scarab binary: {result.stderr}")
+            dest_scarab_bin = f"{experiment_dir}/scarab/src/scarab"
+            try:
+                result = subprocess.run(['diff', '-q', scarab_bin, dest_scarab_bin], capture_output=True, text=True, check=True)
+            except subprocess.CalledProcessError as e:
+                if e.returncode == 1 or e.returncode == 2:
+                    info("scarab binaries differ or the destination binary does not exist. Will copy.", dbg_lvl)
+                    result = subprocess.run(["cp", scarab_bin, dest_scarab_bin], capture_output=True, text=True)
+                    if result.returncode != 0:
+                        err(f"Failed to copy scarab binary: {result.stderr}", dbg_lvl)
+                        raise RuntimeError(f"Failed to copy scarab binary. Existing binary is in use and differs from the new binary: {result.stderr}")
+                else:
+                    raise e
         try:
             os.symlink(f"{experiment_dir}/scarab/src/scarab", f"{experiment_dir}/scarab/src/scarab_{scarab_githash}")
         except FileExistsError:
@@ -713,31 +719,31 @@ def finish_trace(user, descriptor_data, workload_db_path, suite_db_path, dbg_lvl
             else:
                 trace_clustering_info = read_descriptor_from_json(os.path.join(trace_dir, workload, "trace_clustering_info.json"), dbg_lvl)
                 largest_traces = trace_clustering_info['trace_file']
-                
+
                 for trace_path in largest_traces:
                     print("Processing trace:", trace_path)
                     prefix = "traces_simp/"
                     if prefix in trace_path:
                         relative_part = trace_path.split(prefix, 1)[1]
-                        trace_source = os.path.join(trace_dir, workload, "traces_simp", relative_part) 
+                        trace_source = os.path.join(trace_dir, workload, "traces_simp", relative_part)
                         trace_dest = os.path.join(target_traces_path, "traces_simp", relative_part)
-                        
+
                         os.makedirs(os.path.dirname(trace_dest), exist_ok=True)
                         os.system(f"cp -r {trace_source} {trace_dest}")
-                        
+
                         parts = relative_part.split(os.sep)
                         dr_folder_rel = os.path.join(parts[0], parts[1])
                         source_dr_folder = os.path.join(trace_dir, workload, "traces_simp", dr_folder_rel)
                         dest_dr_folder = os.path.join(target_traces_path, "traces_simp", dr_folder_rel)
-            
+
                         os.makedirs(os.path.join(dest_dr_folder, "raw"), exist_ok=True)
                         os.makedirs(os.path.join(dest_dr_folder, "bin"), exist_ok=True)
-                        
+
                         os.system(f"cp {source_dr_folder}/raw/modules.log {dest_dr_folder}/raw/modules.log")
                         os.system(f"cp -r {source_dr_folder}/bin/* {dest_dr_folder}/bin/")
-                                
+
                 simulation_dict['memtrace']['whole_trace_file'] = None
-                
+
         write_json_descriptor(workload_db_path, workload_db_data, dbg_lvl)
         write_json_descriptor(suite_db_path, suite_db_data, dbg_lvl)
 
@@ -777,3 +783,10 @@ def count_interactive_shells(container_name, dbg_lvl):
     except Exception as e:
         print(f"Error: {e}")
         return 0
+
+def image_exist(image_tag):
+    try:
+        output = subprocess.check_output(["docker", "images", "-q", image_tag])
+        return bool(output.strip())
+    except subprocess.CalledProcessError:
+        return False

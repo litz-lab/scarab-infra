@@ -24,9 +24,14 @@ gdown https://drive.google.com/uc?id=1tfKL7wYK1mUqpCH8yPaPVvxk2UIAJrOX
 tar -xzvf simpoint_traces.tar.gz
 ```
 5. Optional: Install [Slurm](docs/slurm_install_guide.md)
-
+6. Optional: To pull the pre-built docker image from GitHub Packages, make sure your token has `read:packages` permission.
+You should be able to `docker login`
+```
+echo <YOUR_GITHUB_TOKEN> | docker login ghcr.io -u <YOUR_GITHUB_USERNAME> --password-stdin
+```
 ## Set up the environment (Docker image)
 ### Alternative 1. Download a pre-built Docker image where GitHash refers to the short git hash of the current scarab-infra commit.
+To pull the image, please complete `Requirement 6`.
 ```
 export GIT_HASH=$(git rev-parse --short HEAD)
 docker pull ghcr.io/litz-lab/scarab-infra/allbench_traces:$GIT_HASH
@@ -79,13 +84,37 @@ A user can update scarab and rebuild for further simulation. Scarab can be updat
 ### Alternative 1. Start an interactive container with pre-installed Scarab environment
 ```
 ./run.sh --run your_experiment
-cd /home/$USER/{experiment}/scarab/src
+cd /scarab/src
 make clean && make
 ```
 ### Alternative 2. Work outside of the container
 When you modify scarab outside the container, cd to the path you provided for 'scarab_path' in your_experiment.json, and modify it.
 ```
 cd /home/$USER/src/scarab
+```
+
+## Debug scarab
+Start an interactive container with pre-installed Scarab environment
+```
+./run.sh --run your_experiment
+cd /scarab/src
+```
+If you want to attach gdb to the debug mode binary,
+```
+make dbg
+```
+Then, go to the simulation directory where you want to debug such as
+```
+cd ~/simulations/<exp_name>/baseline/<workload>/<simpoint>
+```
+Create a debug directory and copy the original PARAMS.out file as a new PARAMS.in, then cut the lines following after `--- Cut out everything below to use this file as PARAMS.in ---`
+```
+mkdir debug && cd debug
+cp ../PARAMS.out ./PARAMS.in
+```
+Now, you can attach gdb with the same scarab parameters where you want to debug.
+```
+gdb /scarab/src/scarab
 ```
 
 ## Clean up any cached docker container/image/builds
