@@ -1,4 +1,8 @@
+#!/usr/bin/env python3
+
 import argparse
+import os
+os.chdir("scarab_stats")
 
 import scarab_stats
 
