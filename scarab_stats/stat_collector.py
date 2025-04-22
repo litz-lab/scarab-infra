@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 
 import argparse
+
+# So the script can find scarab_stats
 import os
 os.chdir("scarab_stats")
+import sys
+sys.path.append(os.getcwd())
 
 import scarab_stats
 
