@@ -246,12 +246,14 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
 def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_name, slurm_ids = None):
 
     # Run stat autocollector 
+    experiment_dir = f"{root_dir}/simulations/{experiment_name}"
     collect_stats_cmd =  f"scarab_stats/stat_collector.py -d {descriptor_path} "
-    collect_stats_cmd += f"-o {root_dir}/simulations/{experiment_name}/collected_stats.csv"
+    collect_stats_cmd += f"-o {experiment_dir}/collected_stats.csv"
     
     # For slurm, add slurm dependencies
     if slurm_ids != None:
-        collect_stats_cmd = f"sbatch --dependency=afterok:{','.join(slurm_ids)} " + collect_stats_cmd
+        sbatch_cmd = f"sbatch --dependency=afterok:{','.join(slurm_ids)} -o {experiment_dir}/logs/stat_collection_job_%j.out " 
+        collect_stats_cmd = sbatch_cmd + collect_stats_cmd
 
     os.system(collect_stats_cmd)
     
