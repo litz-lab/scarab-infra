@@ -243,7 +243,17 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
         info(f"Removed container: {docker_container_name}", dbg_lvl)
         raise e
 
-def finish_simulation(user, docker_home):
+def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_name, slurm_ids = None):
+
+    # Run stat autocollector 
+    collect_stats_cmd = f"scripts/slurm_collect_stats.sh {descriptor_path} {root_dir} {experiment_name}"
+    
+    # For slurm, add slurm dependencies
+    if slurm_ids != None:
+        collect_stats_cmd = f"sbatch --dependency=afterok:{','.join(slurm_ids)}" + collect_stats_cmd
+
+    os.system(collect_stats_cmd)
+    
     try:
         print("Finish simulation..")
     except Exception as e:

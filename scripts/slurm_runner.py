@@ -445,12 +445,7 @@ def run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir,
             info(f"Removing temporary run script {tmp}", dbg_lvl)
             os.remove(tmp)
 
-        finish_simulation(user, docker_home)
-
-        print(slurm_ids)
-        collect_stats_cmd = f"sbatch --dependency=afterok:{','.join(slurm_ids)} scripts/slurm_collect_stats.sh {descriptor_path} {descriptor_data['root_dir']} {experiment_name}"
-        print(collect_stats_cmd)
-        os.system(collect_stats_cmd)
+        finish_simulation(user, docker_home, descriptor_path, descriptor_data['root_dir'], experiment_name, slurm_ids)        
 
         # TODO: check resource capping policies, add kill/info options
 

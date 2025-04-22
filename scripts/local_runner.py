@@ -257,21 +257,12 @@ def run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir,
         for p in processes:
             p.wait()
 
-        # Generate stats csvs
-        print(f"Collecting stats...")
-        
-        # Import scarab stats for auto-generating csvs
-        subprocess.check_output(["python3", "stat_collector.py", 
-                                 "-d", f"{descriptor_path}", "-o", 
-                                 f"{descriptor_data["root_dir"]}/simulations/{experiment_name}/collected_stats.csv"],
-                                 cwd="scarab_stats")
-
         # Clean up temp files
         for tmp in tmp_files:
             info(f"Removing temporary run script {tmp}", dbg_lvl)
             os.remove(tmp)
 
-        finish_simulation(user, docker_home)
+        finish_simulation(user, docker_home, descriptor_path, descriptor_data['root_dir'], experiment_name)
 
     except Exception as e:
         print("An exception occurred:", e)
