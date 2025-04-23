@@ -30,8 +30,8 @@ def validate_tracing(trace_data, workload_db_path, dbg_lvl = 2):
             err(f"A workload name must be provided.", dbg_lvl)
             exit(1)
 
-        if trace["workload"] in workload_data.keys():
-            if "trace" in workload_data[trace['workload']].keys():
+        if trace["suite"] in workload_data.keys() and trace["subsuite"] in workload_data[trace["suite"]].keys() and trace["workload"] in workload_data[trace["suite"]][trace["subsuite"]].keys():
+            if "trace" in workload_data[trace["suite"]][trace["subsuite"]][trace["workload"]].keys():
                 err(f"{trace['workload']} already exists in workload database (workloads/workloads_db.json). Choose a different workload name.", dbg_lvl)
                 exit(1)
 
