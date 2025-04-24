@@ -29,7 +29,6 @@ if __name__ == "__main__":
 
     # Add arguments
     parser.add_argument('-wdb','--workload_db', required=True, help='Workload database descriptor name. Usage: -d ./workloads/workloads_db.json')
-    parser.add_argument('-sdb','--suite_db', required=True, help='Benchmark suite database descriptor name. Usage: -d ./workloads/suite_db.json')
     parser.add_argument('-l','--list', required=False, default=False, action=argparse.BooleanOptionalAction, help='List all the workloads and their available simulation information')
     parser.add_argument('-val','--validate', required=False, default=None, help='Experiment descriptor name to validate. Usage: --validate ./json/exp.json')
     parser.add_argument('-g','--group', required=False, default=None, help='Experiment descriptor name to get a group name of the first simulation. Usage: --group ./json/exp.json')
@@ -40,7 +39,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     workload_db_descriptor_path = args.workload_db
-    suite_db_descriptor_path = args.suite_db
     dbg_lvl = args.debug
     infra_dir = args.scarab_infra
 
@@ -48,7 +46,6 @@ if __name__ == "__main__":
         infra_dir = subprocess.check_output(["pwd"]).decode("utf-8").split("\n")[0]
 
     workloads_data = read_descriptor_from_json(workload_db_descriptor_path, dbg_lvl)
-    suite_data = read_descriptor_from_json(suite_db_descriptor_path, dbg_lvl)
 
     if args.list:
         list_workloads(workloads_data, dbg_lvl)
@@ -56,10 +53,10 @@ if __name__ == "__main__":
 
     if args.validate != None:
         exp_data = read_descriptor_from_json(args.validate, dbg_lvl)
-        validate_simulation(workloads_data, suite_data, exp_data["simulations"], dbg_lvl)
+        validate_simulation(workloads_data, exp_data["simulations"], dbg_lvl)
         exit(0)
 
     if args.group != None:
         exp_data = read_descriptor_from_json(args.group, dbg_lvl)
-        print(get_image_name(workloads_data, suite_data, exp_data["simulations"][0]))
+        print(get_image_name(workloads_data, exp_data["simulations"][0]))
         exit(0)

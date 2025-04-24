@@ -566,9 +566,7 @@ class stat_aggregator:
         current_path = os.getcwd()
         infra_dir = os.path.dirname(current_path)
         workload_db_path = f"{infra_dir}/workloads/workloads_db.json"
-        suite_db_path = f"{infra_dir}/workloads/suite_db.json"
         workloads_data = utilities.read_descriptor_from_json(workload_db_path)
-        suite_data = utilities.read_descriptor_from_json(suite_db_path)
 
         experiment = None
         # Set set of all stats. Should only differ by config
@@ -585,28 +583,32 @@ class stat_aggregator:
                     assert found_workload is not None, "Workload cannot be None when cluster_id is specified"
                     assert found_suite is not None, "Suite cannot be None when cluster_id is specified"
                     assert found_subsuite is not None, "Subsuite cannot be None when cluster_id is specified"
-                    experiment, known_stats = self.load_simpoint_data(found_cluster_id, found_workload, config, experiment_name, architecture, simulations_path)
+                    experiment, known_stats = self.load_simpoint_data(found_cluster_id, found_workload, found_subsuite, found_suite,
+                                                                      config, experiment_name, architecture, simulations_path)
                 elif found_workload != None:
                     assert found_suite is not None, "Suite cannot be None when workload is specified"
                     assert found_subsuite is not None, "Subsuite cannot be None when workload is specified"
                     cluster_ids = self.get_cluster_ids(found_workload, found_suite, found_subsuite)
                     for cluster_id in cluster_ids:
-                        experiment, known_stats = self.load_simpoint_data(cluster_id, found_workload, config, experiment_name, architecture, simulations_path)
+                        experiment, known_stats = self.load_simpoint_data(cluster_id, found_workload, found_subsuite, found_suite,
+                                                                          config, experiment_name, architecture, simulations_path)
                 elif found_subsuite != None:
                     assert found_suite is not None, "Suite cannot be None when subsuite is specified"
-                    workloads = list(suite_data[found_suite][found_subsuite]["predefined_simulation_mode"].keys())
+                    workloads = list(workloads_data[found_suite][found_subsuite].keys())
                     for workload in workloads:
                         cluster_ids = self.get_cluster_ids(workload, found_suite, found_subsuite)
                         for cluster_id in cluster_ids:
-                            experiment, known_stats = self.load_simpoint_data(cluster_id, workload, config, experiment_name, architecture, simulations_path)
+                            experiment, known_stats = self.load_simpoint_data(cluster_id, workload, found_subsuite, found_suite,
+                                                                              config, experiment_name, architecture, simulations_path)
                 else:
-                    subsuites = list(suite_data[found_suite].keys())
+                    subsuites = list(workloads_data[found_suite].keys())
                     for subsuite in subsuites:
-                        workloads = list(suite_data[found_suite][subsuite]["predefined_simulation_mode"].keys())
+                        workloads = list(workloads_data[found_suite][subsuite].keys())
                         for workload in workloads:
                             cluster_ids = self.get_cluster_ids(workload, found_suite, subsuite)
                             for cluster_id in cluster_ids:
-                                experiment, known_stats = self.load_simpoint_data(cluster_id, workload, config, experiment_name, architecture, simulations_path)
+                                experiment, known_stats = self.load_simpoint_data(cluster_id, workload, subsuite, suite,
+                                                                                  config, experiment_name, architecture, simulations_path)
 
         print(f"load_simpoint_data was called {load_simpoint_data_count} times")
         experiment.defragment()
@@ -1480,12 +1482,14 @@ class stat_aggregator:
 
 # TODO: Make accessible
 
-    def get_simpoint_info(self, cluster_id, workload):
+    def get_simpoint_info(self, cluster_id, workload, subsuite, suite):
         """Get weight and segment_id for a given cluster_id from workloads_db.json.
 
         Args:
             cluster_id: The cluster_id to look up
             workload: The workload name for error reporting
+            subsuite: The subsuite name for error reporting
+            suite: The suite name for error reporting
 
         Returns:
             tuple: (weight, segment_id) if found, None if not found
@@ -1496,14 +1500,14 @@ class stat_aggregator:
         workloads_data = utilities.read_descriptor_from_json(workload_db_path)
 
         try:
-            simpoints = workloads_data[workload].get("simpoints")
+            simpoints = workloads_data[suite][subsuite][workload].get("simpoints")
             # If simpoints not present, treat as one simpoint with 100% weighting
             if simpoints == None:
                 return 1, 0
             sp = next(sp for sp in simpoints if sp["cluster_id"] == int(cluster_id))
             return sp["weight"], sp["segment_id"]
         except StopIteration:
-            print(f"ERROR: Could not find cluster_id {cluster_id} in simpoints for workload {workload}")
+            print(f"ERROR: Could not find cluster_id {cluster_id} in simpoints for workload {workload} from suite {suite}, subsuite {subsuite}")
             return None
         except KeyError:
             print(f"ERROR: Could not find workload {workload} in workloads_db.json")
@@ -1523,24 +1527,24 @@ class stat_aggregator:
         current_path = os.getcwd()
         infra_dir = os.path.dirname(current_path)
         workload_db_path = f"{infra_dir}/workloads/workloads_db.json"
-        suite_db_path = f"{infra_dir}/workloads/suite_db.json"
         workloads_data = utilities.read_descriptor_from_json(workload_db_path)
-        suite_data = utilities.read_descriptor_from_json(suite_db_path)
 
         try:
-            sim_mode = suite_data[suite][subsuite]["predefined_simulation_mode"][workload]
-            simpoints = utilities.get_simpoints(workloads_data[workload], sim_mode)
+            sim_mode = workloads_data[suite][subsuite][workload]["simulation"]["prioritized_mode"]
+            simpoints = utilities.get_simpoints(workloads_data[suite][subsuite][workload], sim_mode)
             return list(simpoints.keys())
         except KeyError:
             print(f"ERROR: Could not find workload {workload} in workloads_db.json")
             return None
 
-    def load_simpoint_data(self, cluster_id, workload, config, experiment_name, architecture, simulations_path):
+    def load_simpoint_data(self, cluster_id, workload, subsuite, suite, config, experiment_name, architecture, simulations_path):
         """Helper function to load simpoint data and add it to the experiment.
 
         Args:
             cluster_id: The cluster ID to load
             workload: The workload name
+            subsuite: The subsuite name
+            suite: The suite name
             config: The configuration name
             experiment_name: Name of the experiment
             architecture: The architecture name
@@ -1552,11 +1556,11 @@ class stat_aggregator:
         global load_simpoint_data_count
         load_simpoint_data_count += 1
 
-        weight, seg_id = self.get_simpoint_info(cluster_id, workload)
+        weight, seg_id = self.get_simpoint_info(cluster_id, workload, subsuite, suite)
         if weight is None or seg_id is None:
             return None, None
 
-        directory = f"{simulations_path}{experiment_name}/{config}/{workload}/{str(cluster_id)}/"
+        directory = f"{simulations_path}{experiment_name}/{config}/{suite}/{subsuite}/{workload}/{str(cluster_id)}/"
         known_stats = self.load_simpoint(directory, return_stats=True)
 
         if self.experiment is None:

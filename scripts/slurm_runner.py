@@ -285,7 +285,7 @@ def kill_jobs(user, job_name, docker_prefix_list, dbg_lvl = 2):
     else:
         print("No job found.")
 
-def run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir, descriptor_path, dbg_lvl = 1):
+def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_path, dbg_lvl = 1):
     architecture = descriptor_data["architecture"]
     experiment_name = descriptor_data["experiment"]
     docker_home = descriptor_data["root_dir"]
@@ -295,42 +295,43 @@ def run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir,
     configs = descriptor_data["configurations"]
     simulations = descriptor_data["simulations"]
 
-    docker_prefix_list = get_image_list(simulations, workloads_data, suite_data)
+    docker_prefix_list = get_image_list(simulations, workloads_data)
 
-    def run_single_workload(workload, exp_cluster_id, sim_mode, all_nodes, docker_running):
+    def run_single_workload(suite, subsuite, workload, exp_cluster_id, sim_mode, all_nodes, docker_running):
         try:
-            docker_prefix = get_docker_prefix(sim_mode, workloads_data[workload]["simulation"])
+            docker_prefix = get_docker_prefix(sim_mode, workloads_data[suite][subsuite][workload]["simulation"])
             info(f"Using docker image with name {docker_prefix}:{githash}", dbg_lvl)
             docker_running = check_docker_image(docker_running, docker_prefix, githash, dbg_lvl)
             excludes = set(all_nodes) - set(docker_running)
             info(f"Excluding following nodes: {', '.join(excludes)}", dbg_lvl)
             sbatch_cmd = generate_sbatch_command(excludes, experiment_dir)
-            trim_type = None
+            warmup = None
             trace_file = None
             env_vars = ""
             bincmd = ""
             client_bincmd = ""
             seg_size = None
-            simulation_data = workloads_data[workload]["simulation"][sim_mode]
+            simulation_data = workloads_data[suite][subsuite][workload]["simulation"][sim_mode]
             if sim_mode == "memtrace":
-                trim_type = simulation_data["trim_type"]
-                if trim_type == 0:
-                    trace_file = simulation_data["whole_trace_file"]
+                warmup = simulation_data["warmup"]
+                trace_file = simulation_data["whole_trace_file"]
                 seg_size = simulation_data["segment_size"]
+            if sim_mode == "pt":
+                warmup = simulation_data["warmup"]
             if sim_mode == "exec":
                 env_vars = simulation_data["env_vars"]
                 bincmd = simulation_data["binary_cmd"]
                 client_bincmd = simulation_data["client_bincmd"]
                 seg_size = simulation_data["segment_size"]
 
-            if "simpoints" not in workloads_data[workload].keys():
+            if "simpoints" not in workloads_data[suite][subsuite][workload].keys():
                 weight = 1
                 simpoints = {}
                 simpoints["0"] = weight
             elif exp_cluster_id == None:
-                simpoints = get_simpoints(workloads_data[workload], sim_mode, dbg_lvl)
+                simpoints = get_simpoints(workloads_data[suite][subsuite][workload], sim_mode, dbg_lvl)
             elif exp_cluster_id > 0:
-                weight = get_weight_by_cluster_id(exp_cluster_id, workloads_data[workload]["simpoints"])
+                weight = get_weight_by_cluster_id(exp_cluster_id, workloads_data[suite][subsuite][workload]["simpoints"])
                 simpoints = {}
                 simpoints[exp_cluster_id] = weight
 
@@ -352,10 +353,11 @@ def run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir,
 
                     # Create temp file with run command and run it
                     filename = f"{docker_container_name}_tmp_run.sh"
-                    write_docker_command_to_file(user, local_uid, local_gid, workload, experiment_name,
+                    workload_home = f"{suite}/{subsuite}/{workload}"
+                    write_docker_command_to_file(user, local_uid, local_gid, workload, workload_home, experiment_name,
                                                  docker_prefix, docker_container_name, traces_dir,
                                                  docker_home, githash, config_key, config, sim_mode, scarab_githash,
-                                                 seg_size, architecture, cluster_id, trim_type, trace_file,
+                                                 seg_size, architecture, cluster_id, warmup, trace_file,
                                                  env_vars, bincmd, client_bincmd, filename, infra_dir)
                     tmp_files.append(filename)
 
@@ -422,23 +424,23 @@ def run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir,
 
             # Run all the workloads within suite
             if workload == None and subsuite == None:
-                for subsuite_ in suite_data[suite].keys():
-                    for workload_ in suite_data[suite][subsuite_]["predefined_simulation_mode"].keys():
+                for subsuite_ in workloads_data[suite].keys():
+                    for workload_ in workloads_data[suite][subsuite_].keys():
                         sim_mode_ = sim_mode
                         if sim_mode_ == None:
-                            sim_mode_ = suite_data[suite][subsuite_]["predefined_simulation_mode"][workload_]
-                        slurm_ids += run_single_workload(workload_, exp_cluster_id, sim_mode_, all_nodes, docker_running)
+                            sim_mode_ = workloads_data[suite][subsuite_][workload_]["simulation"]["prioritized_mode"]
+                        slurm_ids += run_single_workload(suite, subsuite_, workload_, exp_cluster_id, sim_mode_, all_nodes, docker_running)
             elif workload == None and subsuite != None:
-                for workload_ in suite_data[suite][subsuite]["predefined_simulation_mode"].keys():
+                for workload_ in workloads_data[suite][subsuite].keys():
                     sim_mode_ = sim_mode
                     if sim_mode_ == None:
-                        sim_mode_ = suite_data[suite][subsuite]["predefined_simulation_mode"][workload_]
-                    slurm_ids += run_single_workload(workload_, exp_cluster_id, sim_mode_, all_nodes, docker_running)
+                        sim_mode_ = workloads_data[suite][subsuite][workload_]["simulation"]["prioritized_mode"]
+                    slurm_ids += run_single_workload(suite, subsuite, workload_, exp_cluster_id, sim_mode_, all_nodes, docker_running)
             else:
                 sim_mode_ = sim_mode
                 if sim_mode_ == None:
-                    sim_mode_ = suite_data[suite][subsuite]["predefined_simulation_mode"][workload]
-                slurm_ids += run_single_workload(workload, exp_cluster_id, sim_mode_, all_nodes, docker_running)
+                    sim_mode_ = workloads_data[suite][subsuite][workload]["simulation"]["prioritized_mode"]
+                slurm_ids += run_single_workload(suite, subsuite, workload, exp_cluster_id, sim_mode_, all_nodes, docker_running)
 
         # Clean up temp files
         for tmp in tmp_files:
@@ -461,7 +463,7 @@ def run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir,
 
         kill_jobs(user, experiment_name, docker_prefix_list, dbg_lvl)
 
-def run_tracing(user, descriptor_data, workload_db_path, suite_db_path, infra_dir, dbg_lvl = 2):
+def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2):
     trace_name = descriptor_data["trace_name"]
     docker_home = descriptor_data["root_dir"]
     scarab_path = descriptor_data["scarab_path"]
@@ -565,7 +567,7 @@ def run_tracing(user, descriptor_data, workload_db_path, suite_db_path, infra_di
             info(f"Removing temporary run script {tmp}", dbg_lvl)
             os.remove(tmp)
 
-        finish_trace(user, descriptor_data, workload_db_path, suite_db_path, dbg_lvl)
+        finish_trace(user, descriptor_data, workload_db_path, dbg_lvl)
     except Exception as e:
         print("An exception occurred:", e)
         traceback.print_exc()  # Print the full stack trace

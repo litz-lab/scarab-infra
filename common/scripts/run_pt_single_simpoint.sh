@@ -5,13 +5,12 @@ source utilities.sh
 
 #echo "Running on $(hostname)"
 
-APPNAME="$1"
-APP_GROUPNAME="$2"
-SCENARIO="$3"
-SCARABPARAMS="$4"
-SCARABARCH="$5"
-TRACESSIMP="$6"
-SCARABHOME="$7"
+WORKLOAD_HOME="$1"
+SCENARIO="$2"
+SCARABPARAMS="$3"
+SCARABARCH="$4"
+WARMUP="$5"
+SCARABHOME="$6"
 SEGMENT_ID=0
 
 if [ "$SEGMENT_ID" != "0" ]; then
@@ -19,10 +18,7 @@ if [ "$SEGMENT_ID" != "0" ]; then
   exit
 fi
 
-# 50M warmup for PT traces by default
-WARMUP=49999999
-
-SIMHOME=$SCENARIO/$APPNAME
+SIMHOME=$SCENARIO/$WORKLOAD_HOME
 mkdir -p $SIMHOME
 traceMap="trace.gz"
 
@@ -35,7 +31,7 @@ mkdir -p $OUTDIR/$segID
 cp $SCARABHOME/src/PARAMS.$SCARABARCH $OUTDIR/$segID/PARAMS.in
 cd $OUTDIR/$segID
 
-scarabCmd="$SCARABHOME/src/scarab --full_warmup $WARMUP --frontend pt --cbp_trace_r0=$trace_home/pt_$APPNAME/${traceMap} $SCARABPARAMS &> sim.log"
+scarabCmd="$SCARABHOME/src/scarab --full_warmup $WARMUP --frontend pt --cbp_trace_r0=$trace_home/$WORKLOAD_HOME/traces/pt/${traceMap} $SCARABPARAMS &> sim.log"
 
 #echo "simulating clusterID ${clusterID}, segment $segID..."
 #echo "command: ${scarabCmd}"
