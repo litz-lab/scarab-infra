@@ -230,14 +230,17 @@ if __name__ == "__main__":
     if infra_dir == None:
         infra_dir = subprocess.check_output(["pwd"]).decode("utf-8").split("\n")[0]
 
-    workload_db_path = f"{infra_dir}/workloads/workloads_db.json"
-
     # Get user for commands
     user = subprocess.check_output("whoami").decode('utf-8')[:-1]
     info(f"User detected as {user}", dbg_lvl)
 
     # Read descriptor json and extract important data
     descriptor_data = read_descriptor_from_json(descriptor_path, dbg_lvl)
+    workload_db_path = ""
+    if descriptor_data["top_simpoint"]:
+        workload_db_path = f"{infra_dir}/workloads/workloads_top_simp.json"
+    else:
+        workload_db_path = f"{infra_dir}/workloads/workloads_db.json"
     workloads_data = read_descriptor_from_json(workload_db_path, dbg_lvl)
     workload_manager = descriptor_data["workload_manager"]
     experiment_name = descriptor_data["experiment"]

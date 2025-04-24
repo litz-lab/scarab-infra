@@ -7,6 +7,12 @@ import os
 import subprocess
 import re
 import docker
+import importlib
+import sys
+sys.path.append("../") # go to parent dir
+import workloads.extract_top_simpoints as extract_top_simpoints
+importlib.reload(extract_top_simpoints)
+
 
 # Print an error message if on right debugging level
 def err(msg: str, level: int):
@@ -609,7 +615,7 @@ def prepare_trace(user, scarab_path, scarab_build, docker_home, job_name, infra_
         info(f"Removed container: {docker_container_name}", dbg_lvl)
         raise e
 
-def finish_trace(user, descriptor_data, workload_db_path, dbg_lvl):
+def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
     def read_first_line(file_path):
         with open(file_path, 'r') as f:
             value = f.readline().rstrip('\n')
@@ -727,6 +733,8 @@ def finish_trace(user, descriptor_data, workload_db_path, dbg_lvl):
             workload_db_data[suite][subsuite][workload] = workload_dict
 
         write_json_descriptor(workload_db_path, workload_db_data, dbg_lvl)
+        top_simpoint_workload = extract_top_simpoints.extract_workloads_with_simpoints(workload_db_data)
+        write_json_descriptor(f"{infra_dir}/workloads/workloads_top_simp.json", top_simpoint_workload, dbg_lvl)
 
         print("Recover the ASLR setting with sudo. Provide password..")
         os.system("echo 2 | sudo tee /proc/sys/kernel/randomize_va_space")

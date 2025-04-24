@@ -1,4 +1,10 @@
+#!/usr/bin/python3
+
+# 04/23/2025 | Surim Oh | extract_top_simpoints.py
+# A script that extracts top simpoints from the source workloads_db.json and write the recomputed weights of top simpoints to the destination workloads_top_simp.json
+
 import json
+import argparse
 
 def normalize_weights(simpoints):
     total = sum(sp['weight'] for sp in simpoints)
@@ -36,13 +42,16 @@ def extract_workloads_with_simpoints(data):
     recurse(data, [])
     return result
 
-# Load the JSON input
-with open('workloads_db.json') as f:
-    data = json.load(f)
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Extract the top simpoints and recompute their weights')
 
-# Process it
-minimized = extract_workloads_with_simpoints(data)
+    # Add arguments
+    parser.add_argument('-s','--src_descriptor_name', required=True, help='Source workloads_db.json descriptor name. Usage: -s workloads_db.json')
+    parser.add_argument('-d','--dest_descriptor_name', required=True, help='Destination workloads_top_simp.json descriptor name. Usage: -d workloads_top_simp.json')
+    args = parser.parse_args()
 
-# Write to a new JSON file
-with open('workloads_top_simp.json', 'w') as f:
-    json.dump(minimized, f, indent=2, separators=(",", ":"))
+    with open(args.src_descriptor_name) as f_in:
+        data = json.load(f_in)
+        top_simp = extract_workloads_with_simpoints(data)
+        with open(args.dest_descriptor_name, 'w') as f_out:
+            json.dump(top_simp, f_out, indent=2, separators=(",", ":"))
