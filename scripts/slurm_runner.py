@@ -354,7 +354,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                     # Create temp file with run command and run it
                     filename = f"{docker_container_name}_tmp_run.sh"
                     workload_home = f"{suite}/{subsuite}/{workload}"
-                    write_docker_command_to_file(user, local_uid, local_gid, workload_home, experiment_name,
+                    write_docker_command_to_file(user, local_uid, local_gid, workload, workload_home, experiment_name,
                                                  docker_prefix, docker_container_name, traces_dir,
                                                  docker_home, githash, config_key, config, sim_mode, scarab_githash,
                                                  seg_size, architecture, cluster_id, warmup, trace_file,
