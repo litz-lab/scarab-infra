@@ -104,6 +104,34 @@ def check_docker_container_running(nodes, docker_prefix_list, job_name, user, db
         return running_nodes_dockers
     except Exception as e:
         raise e
+    
+def check_slurm_task_queued_or_running (docker_prefix_list, job_name, user, dbg_lvl = 1):
+    output = subprocess.run(["squeue", "-u", user, "--format='%N %o'"], capture_output=True, text=True, check=True)
+    output = output.stdout.split("\n")[1:-1] if output.stdout else []
+
+    tasks_per_node = {}
+
+    for line in output:
+        # Get the node, and the command
+        node, command = line.split(" ")
+        node = node.strip("'")
+        command = command.strip("'")
+        command = command[command.rfind("/")+1:]
+
+        for docker_prefix in docker_prefix_list:
+            pattern = re.compile(fr"^{docker_prefix}_.*_{job_name}.*_.*_{user}$")
+
+            if pattern.match(command):
+                # Check if the command is already in the list
+                if node not in tasks_per_node:
+                    tasks_per_node[node] = []
+
+                # Add this command to the list of tasks for this node
+                tasks_per_node[node].append(command)
+          
+    print("Tasks per node:", tasks_per_node)
+
+        
 
 # Check if a container is running on the provided nodes, return those that are
 # Inputs: list of nodes, docker container name, path to container mount
@@ -143,7 +171,12 @@ def check_available_nodes(dbg_lvl = 1):
     try:
         # Query sinfo to get all lines with status information for all nodes
         # Ex: [['LocalQ*', 'up', 'infinite', '2', 'idle', 'bohr[3,5]']]
-        response = subprocess.check_output(["sinfo", "-N"]).decode("utf-8")
+        try:
+            response = subprocess.check_output(["sinfo", "-N"], timeout=10).decode("utf-8")
+        except subprocess.TimeoutExpired as e:
+            err("sinfo command timed out. Please check slurm control node.", dbg_lvl)
+            raise e
+        
         lines = [r.split() for r in response.split('\n') if r != ''][1:]
 
         # Check each node is up and available
@@ -214,18 +247,38 @@ def launch_docker(infra_dir, docker_home, available_nodes, node=None, dbg_lvl=1)
 
 # Print info of docker/slurm nodes and running experiment
 def print_status(user, job_name, docker_prefix_list, dbg_lvl = 1):
+    
+    # TODO: Get githash from scarab binary. In case new release happens after running
+    # Get info on running jobs/simulations. Completed/failed/scheduled
+    # Check sim.log and check running commands
+    # add sinfo timeout
+    # Please extend the stat_collector when you extend --status command.
+
+    # TODO: Ran status.json and runner ran oon bohr3, but status says no valid image on bohr 3 and thu sno running containers
+    # Its fine now? Maybe not an issue?
+
+    # TODO: Big issue: slurm used to check if nodes are running, but if lots of jobs are running srun will stall for a long time.
+    # Probe using ssh? Or just check on slurm list, DOnt need docker stuff. DO just via squeue
+    # Use squeue --format="%o", prints full command
+    # Make yellow if queued, green if running
+
     # Get GitHash
     try:
         githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).decode("utf-8").strip()
         info(f"Git hash: {githash}", dbg_lvl)
     except FileNotFoundError:
-        err("Error: 'git' command not found. Make sure Git is installed and in your PATH.")
+        err("Error: 'git' command not found. Make sure Git is installed and in your PATH.", dbg_lvl)
     except subprocess.CalledProcessError:
-        err("Error: Not in a Git repository or unable to retrieve Git hash.")
+        err("Error: Not in a Git repository or unable to retrieve Git hash.", dbg_lvl)
 
     info(f"Getting information about all nodes", dbg_lvl)
-    available_slurm_nodes, all_nodes = check_available_nodes(dbg_lvl)
 
+    try:
+        available_slurm_nodes, all_nodes = check_available_nodes(dbg_lvl)
+    except:
+        exit(1)
+
+    # General info, not helpful for --status <job>?
     print(f"Checking resource availability of slurm nodes:")
     for node in all_nodes:
         if node in available_slurm_nodes:
@@ -233,25 +286,42 @@ def print_status(user, job_name, docker_prefix_list, dbg_lvl = 1):
         else:
             print(f"\033[31mUNAVAILABLE: {node}\033[0m")
 
+    # Again general info. Not helpful for --status <job>?
+    # for docker_prefix in docker_prefix_list:
+    #     print(f"\nChecking what nodes have {docker_prefix}:{githash} image:")
+    #     docker_available_slurm_nodes = check_docker_image(all_nodes, docker_prefix, githash, dbg_lvl)
+    #     for node in all_nodes:
+    #         if node in docker_available_slurm_nodes:
+    #             print(f"\033[92mAVAILABLE:   {node}\033[0m")
+    #         else:
+    #             print(f"\033[31mUNAVAILABLE: {node}\033[0m")
+
+    # TODO: Only does this for one docker prefix. Need to do for all and compile
+    # print(f"\nChecking what nodes currently have a running container with the following name:")
+    # print(f"{docker_prefix}_*_{job_name}_*_*_{user}")
+
+    running_sims = {node:[] for node in all_nodes}
+
+    check_slurm_task_queued_or_running(docker_prefix_list, job_name, user, dbg_lvl)
+    exit(1)
+
     for docker_prefix in docker_prefix_list:
-        print(f"\nChecking what nodes have {docker_prefix}:{githash} image:")
-        available_slurm_nodes = check_docker_image(available_slurm_nodes, docker_prefix, githash, dbg_lvl)
+        node_docker_running = check_docker_container_running(docker_available_slurm_nodes, docker_prefix_list, job_name, user, dbg_lvl)
+
+        # Print running containers on node
         for node in all_nodes:
-            if node in available_slurm_nodes:
-                print(f"\033[92mAVAILABLE:   {node}\033[0m")
-            else:
-                print(f"\033[31mUNAVAILABLE: {node}\033[0m")
+            print(node)
+            if node in node_docker_running.keys() and len(node_docker_running.get(node)) > 0:
+                for docker in node_docker_running[node]:
+                    running_sims[node].append(docker)
 
-    print(f"\nChecking what nodes have a running container with name {docker_prefix}_*_{job_name}_*_*_{user}")
-    node_docker_running = check_docker_container_running(available_slurm_nodes, docker_prefix_list, job_name, user, dbg_lvl)
-
-    for node in all_nodes:
-        if node in node_docker_running.keys() and len(node_docker_running.get(node)) > 0:
-            print(f"\033[92mRUNNING:     {node}\033[0m")
-            for docker in node_docker_running[node]:
+    for key, val in running_sims.items():
+        if len(val) > 0:
+            print(f"\033[92mRUNNING:     {key}\033[0m")
+            for docker in val:
                 print(f"\033[92m    CONTAINER: {docker}\033[0m")
         else:
-            print(f"\033[31mNOT RUNNING: {node}\033[0m")
+            print(f"\033[31mNOT RUNNING: {key}\033[0m")
 
 
 # Kills all jobs for job_name, if associated with user
@@ -377,9 +447,9 @@ def run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir,
             githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).decode("utf-8").strip()
             info(f"Git hash: {githash}", dbg_lvl)
         except FileNotFoundError:
-            err("Error: 'git' command not found. Make sure Git is installed and in your PATH.")
+            err("Error: 'git' command not found. Make sure Git is installed and in your PATH.", dbg_lvl)
         except subprocess.CalledProcessError:
-            err("Error: Not in a Git repository or unable to retrieve Git hash.")
+            err("Error: Not in a Git repository or unable to retrieve Git hash.", dbg_lvl)
 
 
         # Get avlailable nodes. Error if none available
@@ -511,9 +581,9 @@ def run_tracing(user, descriptor_data, workload_db_path, suite_db_path, infra_di
             githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).decode("utf-8").strip()
             info(f"Git hash: {githash}", dbg_lvl)
         except FileNotFoundError:
-            err("Error: 'git' command not found. Make sure Git is installed and in your PATH.")
+            err("Error: 'git' command not found. Make sure Git is installed and in your PATH.", dbg_lvl)
         except subprocess.CalledProcessError:
-            err("Error: Not in a Git repository or unable to retrieve Git hash.")
+            err("Error: Not in a Git repository or unable to retrieve Git hash.", dbg_lvl)
 
 
         # Get avlailable nodes. Error if none available
