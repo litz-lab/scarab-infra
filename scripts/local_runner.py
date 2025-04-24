@@ -126,7 +126,7 @@ def kill_jobs(user, job_type, job_name, docker_prefix_list, infra_dir, dbg_lvl):
     info(f"Removing temporary run scripts..", dbg_lvl)
     os.system(f"rm *_{job_name}_*_{user}_tmp_run.sh")
 
-def run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir, dbg_lvl = 1):
+def run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir, descriptor_path, dbg_lvl = 1):
     architecture = descriptor_data["architecture"]
     experiment_name = descriptor_data["experiment"]
     docker_home = descriptor_data["root_dir"]
@@ -262,7 +262,7 @@ def run_simulation(user, descriptor_data, workloads_data, suite_data, infra_dir,
             info(f"Removing temporary run script {tmp}", dbg_lvl)
             os.remove(tmp)
 
-        finish_simulation(user, docker_home)
+        finish_simulation(user, docker_home, descriptor_path, descriptor_data['root_dir'], experiment_name)
 
     except Exception as e:
         print("An exception occurred:", e)
