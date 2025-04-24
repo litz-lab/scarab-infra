@@ -15,7 +15,7 @@
   "scarab_build":null,
   "_traces_dir": "The local directory containing all simpointed traces",
   "traces_dir": "/home/runner/work/scarab_ll/scarab_ll/traces_top_simpoint",
-  "_simulations": "A list of [suite, subsuite, workload, simpoint's cluster #, simulation type]. Available suite and subsuite are found in workloads/suite_db.json and workload's available cluster_id and simulation_type are found in workloads/workloads_db.json where it runs all the simpoints if cluster_id is null and simulation type is one of 'exec', 'memtrace', 'pt'. When only 'suite' or 'suite'+'subsuite' is given and the rest are null, it launches simulations for all the workloads, all the simpoints if available, and in predefined simulation mode in workloads/suite_db.json.",
+  "_simulations":"A list of [suite, subsuite, workload, simpoint's cluster #, simulation type]. Available suite, subsuite, workloads, and each workload's available cluster_id and simulation_type are found in workloads/workloads_db.json. It runs all the simpoints if cluster_id is null and simulation type is one of 'exec', 'memtrace', 'pt'. When only 'suite' or 'suite'+'subsuite' is given and the rest are null, it launches simulations for all the workloads, all the simpoints if available, and in prioritized_mode (simulation type) in workloads/workloads_db.json.",
   "simulations": [
     {
       "suite":"spec2017",

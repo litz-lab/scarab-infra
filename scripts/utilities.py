@@ -54,7 +54,7 @@ def write_json_descriptor(filename, descriptor_data, dbg_lvl = 1):
     except json.JSONDecodeError as e:
             print(f"JSONDecodeError: {e}")
 
-def validate_simulation(workloads_data, suite_data, simulations, dbg_lvl = 2):
+def validate_simulation(workloads_data, simulations, dbg_lvl = 2):
     for simulation in simulations:
         suite = simulation["suite"]
         subsuite = simulation["subsuite"]
@@ -66,11 +66,11 @@ def validate_simulation(workloads_data, suite_data, simulations, dbg_lvl = 2):
             err(f"Suite field cannot be null.", dbg_lvl)
             exit(1)
 
-        if suite not in suite_data.keys():
+        if suite not in workloads_data.keys():
             err(f"Suite '{suite}' is not valid.", dbg_lvl)
             exit(1)
 
-        if subsuite != None and subsuite not in suite_data[suite].keys():
+        if subsuite != None and subsuite not in workloads_data[suite].keys():
             err(f"Subsuite '{subsuite}' is not valid in Suite '{suite}'.", dbg_lvl);
             exit(1)
 
@@ -80,54 +80,59 @@ def validate_simulation(workloads_data, suite_data, simulations, dbg_lvl = 2):
 
         if workload == None:
             if subsuite == None:
-                for subsuite_ in suite_data[suite].keys():
-                    for workload_ in suite_data[suite][subsuite_]["predefined_simulation_mode"].keys():
-                        predef_mode = suite_data[suite][subsuite_]["predefined_simulation_mode"][workload_]
+                for subsuite_ in workloads_data[suite].keys():
+                    for workload_ in workloads_data[suite][subsuite_].keys():
+                        predef_mode = workloads_data[suite][subsuite_][workload_]["simulation"]["prioritized_mode"]
                         sim_mode_ = sim_mode
                         if sim_mode_ == None:
                             sim_mode_ = predef_mode
-                        if sim_mode_ not in workloads_data[workload_]["simulation"].keys():
+                        if sim_mode_ not in workloads_data[suite][subsuite_][workload_]["simulation"].keys():
                             err(f"{sim_mode_} is not a valid simulation mode for workload {workload_}.", dbg_lvl)
                             exit(1)
             else:
-                for workload_ in suite_data[suite][subsuite]["predefined_simulation_mode"].keys():
-                    predef_mode = suite_data[suite][subsuite]["predefined_simulation_mode"][workload_]
+                for workload_ in workloads_data[suite][subsuite].keys():
+                    predef_mode = workloads_data[suite][subsuite][workload_]["simulation"]["prioritized_mode"]
                     sim_mode_ = sim_mode
                     if sim_mode_ == None:
                         sim_mode_ = predef_mode
-                    if sim_mode_ not in workloads_data[workload_]["simulation"].keys():
+                    if sim_mode_ not in workloads_data[suite][subsuite][workload_]["simulation"].keys():
                         err(f"{sim_mode_} is not a valid simulation mode for workload {workload_}.", dbg_lvl)
                         exit(1)
         else:
-            if workload not in workloads_data.keys():
-                err(f"Workload '{workload}' is not valid.", dbg_lvl)
-                exit(1)
-
             if subsuite == None:
-                for subsuite_ in suite_data[suite].keys():
-                    predef_mode = suite_data[suite][subsuite_]["predefined_simulation_mode"][workload]
+                found = False
+                for subsuite_ in workloads_data[suite].keys():
+                    if workload not in workloads_data[suite][subsuite_].keys():
+                        continue
+                    found = True
+                    predef_mode = workloads_data[suite][subsuite_][workload]["simulation"]["prioritized_mode"]
                     sim_mode_ = sim_mode
                     if sim_mode_ == None:
                         sim_mode_ = predef_mode
-                    if sim_mode_ not in workloads_data[workload]["simulation"].keys():
+                    if sim_mode_ not in workloads_data[suite][subsuite_][workload]["simulation"].keys():
                         err(f"{sim_mode_} is not a valid simulation mode for workload {workload}.", dbg_lvl)
                         exit(1)
+                if not found:
+                    err(f"Workload '{workload}' is not valid in suite {suite}", dbg_lvl)
+                    exit(1)
             else:
-                predef_mode = suite_data[suite][subsuite]["predefined_simulation_mode"][workload]
+                if workload not in workloads_data[suite][subsuite].keys():
+                    err(f"Workload '{workload}' is not valid in suite {suite} and subsuite {subsuite}.", dbg_lvl)
+                predef_mode = workloads_data[suite][subsuite][workload]["simulation"]["prioritized_mode"]
                 sim_mode_ = sim_mode
                 if sim_mode_ == None:
                     sim_mode_ = predef_mode
-                if sim_mode_ not in workloads_data[workload]["simulation"].keys():
+                if sim_mode_ not in workloads_data[suite][subsuite][workload]["simulation"].keys():
                     err(f"{sim_mode_} is not a valid simulation mode for workload {workload}.", dbg_lvl)
                     exit(1)
 
             if cluster_id != None:
-                if "simpoints" not in workloads_data[workload].keys():
+                if "simpoints" not in workloads_data[suite][subsuite][workload].keys():
                     err(f"Simpoints are not available for workload {workload}. Choose 'null' for cluster id.", dbg_lvl)
                     exit(1)
                 if cluster_id > 0:
                     found = False
-                    for simpoint in workloads_data[workload]["simpoints"]:
+                    for simpoint in workloads_data[suite][subsuite][workload]["simpoints"]:
                         if cluster_id == simpoint["cluster_id"]:
                             found = True
                             break
@@ -243,40 +248,53 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
         info(f"Removed container: {docker_container_name}", dbg_lvl)
         raise e
 
-def finish_simulation(user, docker_home):
+def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_name, slurm_ids = None):
+
+    # Run stat autocollector 
+    experiment_dir = f"{root_dir}/simulations/{experiment_name}"
+    collect_stats_cmd =  f"scarab_stats/stat_collector.py -d {descriptor_path} "
+    collect_stats_cmd += f"-o {experiment_dir}/collected_stats.csv"
+    
+    # For slurm, add slurm dependencies
+    if slurm_ids != None:
+        sbatch_cmd = f"sbatch --dependency=afterok:{','.join(slurm_ids)} -o {experiment_dir}/logs/stat_collection_job_%j.out " 
+        collect_stats_cmd = sbatch_cmd + collect_stats_cmd
+
+    os.system(collect_stats_cmd)
+    
     try:
         print("Finish simulation..")
     except Exception as e:
         raise e
 
 # Generate command to do a single run of scarab
-def generate_single_scarab_run_command(user, workload, group, experiment, config_key, config,
+def generate_single_scarab_run_command(user, workload_home, experiment, config_key, config,
                                        mode, seg_size, arch, scarab_githash, cluster_id,
-                                       trim_type, trace_file,
+                                       warmup, trace_file,
                                        env_vars, bincmd, client_bincmd):
     if mode == "memtrace":
-        command = f"run_memtrace_single_simpoint.sh \\\"{workload}\\\" \\\"{group}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{seg_size}\\\" \\\"{arch}\\\" \\\"{trim_type}\\\" /home/{user}/simulations/{experiment}/scarab {cluster_id} {trace_file}"
+        command = f"run_memtrace_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{seg_size}\\\" \\\"{arch}\\\" \\\"{warmup}\\\" /home/{user}/simulations/{experiment}/scarab {cluster_id} {trace_file}"
     elif mode == "pt":
-        command = f"run_pt_single_simpoint.sh \\\"{workload}\\\" \\\"{group}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{arch}\\\" \\\"{trim_type}\\\" /home/{user}/simulations/{experiment}/scarab"
+        command = f"run_pt_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{arch}\\\" \\\"{warmup}\\\" /home/{user}/simulations/{experiment}/scarab"
     elif mode == "exec":
-        command = f"run_exec_single_simpoint.sh \\\"{workload}\\\" \\\"{group}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{arch}\\\" /home/{user}/simulations/{experiment}/scarab {env_vars} {bincmd} {client_bincmd}"
+        command = f"run_exec_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{arch}\\\" /home/{user}/simulations/{experiment}/scarab {env_vars} {bincmd} {client_bincmd}"
     else:
         command = ""
 
     return command
 
-def write_docker_command_to_file_run_by_root(user, local_uid, local_gid, workload, experiment_name,
+def write_docker_command_to_file_run_by_root(user, local_uid, local_gid, workload, workload_home, experiment_name,
                                              docker_prefix, docker_container_name, traces_dir,
                                              docker_home, githash, config_key, config, scarab_mode, seg_size, scarab_githash,
-                                             architecture, cluster_id, trim_type, trace_file,
+                                             architecture, cluster_id, warmup, trace_file,
                                              env_vars, bincmd, client_bincmd, filename):
     try:
-        scarab_cmd = generate_single_scarab_run_command(user, workload, docker_prefix, experiment_name, config_key, config,
+        scarab_cmd = generate_single_scarab_run_command(user, workload_home, experiment_name, config_key, config,
                                                         scarab_mode, seg_size, architecture, scarab_githash, cluster_id,
-                                                        trim_type, trace_file, env_vars, bincmd, client_bincmd)
+                                                        warmup, trace_file, env_vars, bincmd, client_bincmd)
         with open(filename, "w") as f:
             f.write("#!/bin/bash\n")
-            f.write(f"echo \"Running {config_key} {workload} {cluster_id}\"\n")
+            f.write(f"echo \"Running {config_key} {workload_home} {cluster_id}\"\n")
             f.write("echo \"Running on $(uname -n)\"\n")
             f.write(f"docker run --rm \
             -e user_id={local_uid} \
@@ -291,18 +309,18 @@ def write_docker_command_to_file_run_by_root(user, local_uid, local_gid, workloa
     except Exception as e:
         raise e
 
-def write_docker_command_to_file(user, local_uid, local_gid, workload, experiment_name,
+def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_home, experiment_name,
                                  docker_prefix, docker_container_name, traces_dir,
                                  docker_home, githash, config_key, config, scarab_mode, scarab_githash,
-                                 seg_size, architecture, cluster_id, trim_type, trace_file,
+                                 seg_size, architecture, cluster_id, warmup, trace_file,
                                  env_vars, bincmd, client_bincmd, filename, infra_dir):
     try:
-        scarab_cmd = generate_single_scarab_run_command(user, workload, docker_prefix, experiment_name, config_key, config,
+        scarab_cmd = generate_single_scarab_run_command(user, workload_home, experiment_name, config_key, config,
                                                         scarab_mode, seg_size, architecture, scarab_githash, cluster_id,
-                                                        trim_type, trace_file, env_vars, bincmd, client_bincmd)
+                                                        warmup, trace_file, env_vars, bincmd, client_bincmd)
         with open(filename, "w") as f:
             f.write("#!/bin/bash\n")
-            f.write(f"echo \"Running {config_key} {workload} {cluster_id}\"\n")
+            f.write(f"echo \"Running {config_key} {workload_home} {cluster_id}\"\n")
             f.write("echo \"Running on $(uname -n)\"\n")
             f.write(f"docker run \
             -e user_id={local_uid} \
@@ -409,7 +427,7 @@ def get_simpoints (workload_data, sim_mode, dbg_lvl = 2):
 
     return simpoints
 
-def get_image_name(workloads_data, suite_data, simulation):
+def get_image_name(workloads_data, simulation):
     suite = simulation["suite"]
     subsuite = simulation["subsuite"]
     workload = simulation["workload"]
@@ -418,25 +436,25 @@ def get_image_name(workloads_data, suite_data, simulation):
 
     if workload != None:
         if subsuite == None:
-            subsuite = next(iter(suite_data[suite]))
-        predef_sim_mode = suite_data[suite][subsuite]["predefined_simulation_mode"][workload]
+            subsuite = next(iter(workloads_data[suite]))
+        predef_sim_mode = workloads_data[suite][subsuite][workload]["simulation"]["prioritized_mode"]
         if sim_mode == None:
             sim_mode = predef_sim_mode
-        return workloads_data[workload]["simulation"][sim_mode]["image_name"]
+        return workloads_data[suite][subsuite][workload]["simulation"][sim_mode]["image_name"]
 
     if subsuite != None:
-        workload = next(iter(suite_data[suite][subsuite]["predefined_simulation_mode"]))
-        predef_sim_mode = suite_data[suite][subsuite]["predefined_simulation_mode"][workload]
+        workload = next(iter(workloads_data[suite][subsuite]))
+        predef_sim_mode = workloads_data[suite][subsuite][workload]["simulation"]["prioritized_mode"]
         if sim_mode == None:
             sim_mode = predef_sim_mode
     else:
-        subsuite = next(iter(suite_data[suite]))
-        workload = next(iter(suite_data[suite][subsuite]["predefined_simulation_mode"]))
-        predef_sim_mode = suite_data[suite][subsuite]["predefined_simulation_mode"][workload]
+        subsuite = next(iter(workloads_data[suite]))
+        workload = next(iter(workloads_data[suite][subsuite]))
+        predef_sim_mode = workloads_data[suite][subsuite][workload]["simulation"]["prioritized_mode"]
         if sim_mode == None:
             sim_mode = predef_sim_mode
 
-    return workloads_data[workload]["simulation"][sim_mode]["image_name"]
+    return workloads_data[suite][subsuite][workload]["simulation"][sim_mode]["image_name"]
 
 def remove_docker_containers(docker_prefix_list, job_name, user, dbg_lvl):
     try:
@@ -456,7 +474,7 @@ def remove_docker_containers(docker_prefix_list, job_name, user, dbg_lvl):
         err(f"Error while removing containers: {e}")
         raise e
 
-def get_image_list(simulations, workloads_data, suite_data):
+def get_image_list(simulations, workloads_data):
     image_list = []
     for simulation in simulations:
         suite = simulation["suite"]
@@ -467,38 +485,38 @@ def get_image_list(simulations, workloads_data, suite_data):
 
         if workload == None:
             if subsuite == None:
-                for subsuite_ in suite_data[suite].keys():
-                    for workload_ in suite_data[suite][subsuite_]["predefined_simulation_mode"].keys():
-                        predef_mode = suite_data[suite][subsuite_]["predefined_simulation_mode"][workload_]
+                for subsuite_ in workloads_data[suite].keys():
+                    for workload_ in workloads_data[suite][subsuite_].keys():
+                        predef_mode = workloads_data[suite][subsuite_][workload_]["simulation"]["prioritized_mode"]
                         sim_mode_ = sim_mode
                         if sim_mode_ == None:
                             sim_mode_ = predef_mode
-                        if sim_mode_ in workloads_data[workload_]["simulation"].keys() and workloads_data[workload_]["simulation"][sim_mode_]["image_name"] not in image_list:
-                            image_list.append(workloads_data[workload_]["simulation"][sim_mode_]["image_name"])
+                        if sim_mode_ in workloads_data[suite][subsuite_][workload_]["simulation"].keys() and workloads_data[suite][subsuite_][workload_]["simulation"][sim_mode_]["image_name"] not in image_list:
+                            image_list.append(workloads_data[suite][subsuite_][workload_]["simulation"][sim_mode_]["image_name"])
             else:
-                for workload_ in suite_data[suite][subsuite]["predefined_simulation_mode"].keys():
-                    predef_mode = suite_data[suite][subsuite]["predefined_simulation_mode"][workload_]
+                for workload_ in workloads_data[suite][subsuite].keys():
+                    predef_mode = workloads_data[suite][subsuite][workload_]["simulation"]["prioritized_mode"]
                     sim_mode_ = sim_mode
                     if sim_mode_ == None:
                         sim_mode_ = predef_mode
-                    if sim_mode_ in workloads_data[workload_]["simulation"].keys() and workloads_data[workload_]["simulation"][sim_mode_]["image_name"] not in image_list:
-                        image_list.append(workloads_data[workload_]["simulation"][sim_mode_]["image_name"])
+                    if sim_mode_ in workloads_data[suite][subsuite][workload_]["simulation"].keys() and workloads_data[suite][subsuite][workload_]["simulation"][sim_mode_]["image_name"] not in image_list:
+                        image_list.append(workloads_data[suite][subsuite][workload_]["simulation"][sim_mode_]["image_name"])
         else:
             if subsuite == None:
-                for subsuite_ in suite_data[suite].keys():
-                    predef_mode = suite_data[suite][subsuite_]["predefined_simulation_mode"][workload]
+                for subsuite_ in workloads_data[suite].keys():
+                    predef_mode = workloads_data[suite][subsuite_][workload]["simulation"]["prioritized_mode"]
                     sim_mode_ = sim_mode
                     if sim_mode_ == None:
                         sim_mode_ = predef_mode
-                    if sim_mode_ in workloads_data[workload]["simulation"].keys() and workloads_data[workload]["simulation"][sim_mode_]["image_name"] not in image_list:
-                        image_list.append(workloads_data[workload]["simulation"][sim_mode_]["image_name"])
+                    if sim_mode_ in workloads_data[suite][subsuite_][workload]["simulation"].keys() and workloads_data[suite][subsuite_][workload]["simulation"][sim_mode_]["image_name"] not in image_list:
+                        image_list.append(workloads_data[suite][subsuite_][workload]["simulation"][sim_mode_]["image_name"])
             else:
-                predef_mode = suite_data[suite][subsuite]["predefined_simulation_mode"][workload]
+                predef_mode = workloads_data[suite][subsuite][workload]["simulation"]["prioritized_mode"]
                 sim_mode_ = sim_mode
                 if sim_mode_ == None:
                     sim_mode_ = predef_mode
-                if sim_mode_ in workloads_data[workload]["simulation"].keys() and workloads_data[workload]["simulation"][sim_mode_]["image_name"] not in image_list:
-                    image_list.append(workloads_data[workload]["simulation"][sim_mode_]["image_name"])
+                if sim_mode_ in workloads_data[suite][subsuite][workload]["simulation"].keys() and workloads_data[suite][subsuite][workload]["simulation"][sim_mode_]["image_name"] not in image_list:
+                    image_list.append(workloads_data[suite][subsuite][workload]["simulation"][sim_mode_]["image_name"])
 
     return image_list
 
@@ -591,7 +609,7 @@ def prepare_trace(user, scarab_path, scarab_build, docker_home, job_name, infra_
         info(f"Removed container: {docker_container_name}", dbg_lvl)
         raise e
 
-def finish_trace(user, descriptor_data, workload_db_path, suite_db_path, dbg_lvl):
+def finish_trace(user, descriptor_data, workload_db_path, dbg_lvl):
     def read_first_line(file_path):
         with open(file_path, 'r') as f:
             value = f.readline().rstrip('\n')
@@ -619,14 +637,13 @@ def finish_trace(user, descriptor_data, workload_db_path, suite_db_path, dbg_lvl
 
     try:
         workload_db_data = read_descriptor_from_json(workload_db_path, dbg_lvl)
-        suite_db_data = read_descriptor_from_json(suite_db_path, dbg_lvl)
         trace_configs = descriptor_data["trace_configurations"]
         job_name = descriptor_data["trace_name"]
         trace_dir = f"{descriptor_data['root_dir']}/simpoint_flow/{job_name}"
         target_traces_dir = descriptor_data["traces_dir"]
         docker_home = descriptor_data["root_dir"]
 
-        print("Copying the successfully collected traces and update workloads_db.json/suite_db.json...")
+        print("Copying the successfully collected traces and update workloads_db.json...")
 
         for config in trace_configs:
             workload = config['workload']
@@ -646,20 +663,7 @@ def finish_trace(user, descriptor_data, workload_db_path, suite_db_path, dbg_lvl
             exec_dict['client_bincmd'] = config['client_bincmd']
             memtrace_dict = {}
             memtrace_dict['image_name'] = "allbench_traces"
-            if config['trace_type'] == "trace_then_cluster":
-                trim_type = 1
-            elif config['trace_type'] == "cluster_then_trace":
-                trim_type = 2
-            elif config['trace_type'] == "iterative_trace":
-                trim_type = 3
-            else:
-                raise Exception(f"Invalid trace type: {config['trace_type']}")
-            memtrace_dict['trim_type'] = trim_type
             memtrace_dict['segment_size'] = int(read_first_line(segment_size_file))
-            trace_clustering_info = read_descriptor_from_json(f"{docker_home}/simpoint_flow/{job_name}/{workload}/trace_clustering_info.json", dbg_lvl)
-            memtrace_dict['whole_trace_file'] = trace_clustering_info['trace_file']
-            simulation_dict['exec'] = exec_dict
-            simulation_dict['memtrace'] = memtrace_dict
 
             weight_file = os.path.join(trace_dir, workload, "simpoints", "opt.w.lpt0.99")
             cluster_file = os.path.join(trace_dir, workload, "simpoints", "opt.p.lpt0.99")
@@ -675,77 +679,52 @@ def finish_trace(user, descriptor_data, workload_db_path, suite_db_path, dbg_lvl
                         'weight': weight
                     })
 
-            workload_db_data[workload] = {
-                "trace":trace_dict,
-                "simulation":simulation_dict,
-                "simpoints":simpoints
-            }
-
-            # Update suite_db_data
-            suite = config['suite']
-            subsuite = config['subsuite'] if config['subsuite'] else suite
-            if suite in suite_db_data.keys() and subsuite in suite_db_data[suite].keys():
-                suite_db_data[suite][subsuite]['predefined_simulation_mode'][workload] = "memtrace"
-            else:
-                simulation_mode_dict = {}
-                simulation_mode_dict[workload] = "memtrace"
-                subsuite_dict = {}
-                subsuite_dict['predefined_simulation_mode'] = simulation_mode_dict
-                suite_dict = {}
-                suite_dict[subsuite] = subsuite_dict
-                suite_db_data[suite] = suite_dict
-
-            # TODO: switch to a hierarchical path
-            # target_traces_path = f"{target_traces_dir}/{suite}/{subsuite}/{workload}"
-            target_traces_path = f"{target_traces_dir}/{workload}"
-            # Copy successfully collected simpoints and traces to target_traces_dir
-            os.system(f"mkdir -p {target_traces_path}/simpoints")
-            os.system(f"mkdir -p {target_traces_path}/traces_simp")
-            os.system(f"cp -r {trace_dir}/{workload}/simpoints/* {target_traces_path}/simpoints/")
-            if trim_type != 3:
-                os.system(f"cp -r {trace_dir}/{workload}/traces_simp/* {target_traces_path}/traces_simp/")
-                os.system(f"mkdir -p {target_traces_path}/traces/whole/trace")
-                os.system(f"mkdir -p {target_traces_path}/traces/whole/raw")
-                os.system(f"mkdir -p {target_traces_path}/traces/whole/bin")
-                os.system(f"mkdir -p {target_traces_path}/traces_simp/bin")
-                trace_clustering_info = read_descriptor_from_json(os.path.join(trace_dir, workload, "trace_clustering_info.json"), dbg_lvl)
+            target_traces_path = f"{target_traces_dir}/{suite}/{subsuite}/{workload}"
+            # Copy successfully collected traces to target_traces_dir (simpoints are recorded in workloads_db.json)
+            os.system(f"mkdir -p {target_traces_path}/traces/whole")
+            os.system(f"mkdir -p {target_traces_path}/traces/simp")
+            trace_clustering_info = read_descriptor_from_json(os.path.join(trace_dir, workload, "trace_clustering_info.json"), dbg_lvl)
+            if config['trace_type'] != "iterative_trace":
+                os.system(f"cp -r {trace_dir}/{workload}/traces_simp/* {target_traces_path}/traces/simp/")
+                os.system(f"mkdir -p {target_traces_path}/traces/whole/")
                 whole_trace_dir = trace_clustering_info['dr_folder']
                 trace_file = trace_clustering_info['trace_file']
-                subprocess.run([f"cp {trace_dir}/{workload}/traces/whole/{whole_trace_dir}/trace/{trace_file} {target_traces_path}/traces/whole/trace"], check=True, shell=True)
-                subprocess.run([f"cp {trace_dir}/{workload}/traces/whole/{whole_trace_dir}/raw/modules.log {target_traces_path}/traces/whole/raw/modules.log"], check=True, shell=True)
-                subprocess.run([f"cp {trace_dir}/{workload}/traces/whole/{whole_trace_dir}/raw/modules.log {target_traces_path}/traces_simp/raw/modules.log"], check=True, shell=True)
-                subprocess.run([f"cp {trace_dir}/{workload}/traces/whole/{whole_trace_dir}/bin/* {target_traces_path}/traces/whole/bin"], check=True, shell=True)
-                subprocess.run([f"cp {trace_dir}/{workload}/traces/whole/{whole_trace_dir}/bin/* {target_traces_path}/traces_simp/bin"], check=True, shell=True)
+                subprocess.run([f"cp {trace_dir}/{workload}/traces/whole/{whole_trace_dir}/trace/{trace_file} {target_traces_path}/traces/whole/"], check=True, shell=True)
+                memtrace_dict['warmup'] = 10000000
+                memtrace_dict['whole_trace_file'] = trace_clustering_info['trace_file']
             else:
-                trace_clustering_info = read_descriptor_from_json(os.path.join(trace_dir, workload, "trace_clustering_info.json"), dbg_lvl)
                 largest_traces = trace_clustering_info['trace_file']
-
                 for trace_path in largest_traces:
                     print("Processing trace:", trace_path)
                     prefix = "traces_simp/"
                     if prefix in trace_path:
                         relative_part = trace_path.split(prefix, 1)[1]
+                        timestep = trace_path.split("Timestep_")[1].split("/")[0]
                         trace_source = os.path.join(trace_dir, workload, "traces_simp", relative_part)
-                        trace_dest = os.path.join(target_traces_path, "traces_simp", relative_part)
+                        trace_dest_dir = os.path.join(target_traces_path, "traces/simp")
+                        trace_dest = os.path.join(target_traces_path, "traces/simp", f"{timestep}.zip")
 
-                        os.makedirs(os.path.dirname(trace_dest), exist_ok=True)
+                        os.makedirs(os.path.dirname(trace_dest_dir), exist_ok=True)
                         os.system(f"cp -r {trace_source} {trace_dest}")
+                memtrace_dict['warmup'] = 0
+                memtrace_dict['whole_trace_file'] = None
 
-                        parts = relative_part.split(os.sep)
-                        dr_folder_rel = os.path.join(parts[0], parts[1])
-                        source_dr_folder = os.path.join(trace_dir, workload, "traces_simp", dr_folder_rel)
-                        dest_dr_folder = os.path.join(target_traces_path, "traces_simp", dr_folder_rel)
+            simulation_dict['prioritized_mode'] = "memtrace"
+            simulation_dict['exec'] = exec_dict
+            simulation_dict['memtrace'] = memtrace_dict
+            suite = config['suite']
+            subsuite = config['subsuite'] if config['subsuite'] else suite
+            workload_dict = {
+                "trace":trace_dict,
+                "simulation":simulation_dict,
+                "simpoints":simpoints
+            }
 
-                        os.makedirs(os.path.join(dest_dr_folder, "raw"), exist_ok=True)
-                        os.makedirs(os.path.join(dest_dr_folder, "bin"), exist_ok=True)
-
-                        os.system(f"cp {source_dr_folder}/raw/modules.log {dest_dr_folder}/raw/modules.log")
-                        os.system(f"cp -r {source_dr_folder}/bin/* {dest_dr_folder}/bin/")
-
-                simulation_dict['memtrace']['whole_trace_file'] = None
+            if suite in workload_db_data.keys() and subsuite in workload_db_data[suite].keys() and workload in workload_db_data[suite][subsuite].keys():
+                print("WARNING: workload name should be unique within a subsuite. db will be overwritten!")
+            workload_db_data[suite][subsuite][workload] = workload_dict
 
         write_json_descriptor(workload_db_path, workload_db_data, dbg_lvl)
-        write_json_descriptor(suite_db_path, suite_db_data, dbg_lvl)
 
         print("Recover the ASLR setting with sudo. Provide password..")
         os.system("echo 2 | sudo tee /proc/sys/kernel/randomize_va_space")

@@ -30,8 +30,8 @@ def validate_tracing(trace_data, workload_db_path, dbg_lvl = 2):
             err(f"A workload name must be provided.", dbg_lvl)
             exit(1)
 
-        if trace["workload"] in workload_data.keys():
-            if "trace" in workload_data[trace['workload']].keys():
+        if trace["suite"] in workload_data.keys() and trace["subsuite"] in workload_data[trace["suite"]].keys() and trace["workload"] in workload_data[trace["suite"]][trace["subsuite"]].keys():
+            if "trace" in workload_data[trace["suite"]][trace["subsuite"]][trace["workload"]].keys():
                 err(f"{trace['workload']} already exists in workload database (workloads/workloads_db.json). Choose a different workload name.", dbg_lvl)
                 exit(1)
 
@@ -232,7 +232,6 @@ if __name__ == "__main__":
         infra_dir = subprocess.check_output(["pwd"]).decode("utf-8").split("\n")[0]
 
     workload_db_path = f"{infra_dir}/workloads/workloads_db.json"
-    suite_db_path = f"{infra_dir}/workloads/suite_db.json"
 
     # Get user for commands
     user = subprocess.check_output("whoami").decode('utf-8')[:-1]
@@ -270,6 +269,6 @@ if __name__ == "__main__":
 
     verify_descriptor(descriptor_data, workload_db_path, dbg_lvl)
     if workload_manager == "manual":
-        local_runner.run_tracing(user, descriptor_data, workload_db_path, suite_db_path, infra_dir, dbg_lvl)
+        local_runner.run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl)
     else:
-        slurm_runner.run_tracing(user, descriptor_data, workload_db_path, suite_db_path, infra_dir, dbg_lvl)
+        slurm_runner.run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl)
