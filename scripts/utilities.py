@@ -709,6 +709,7 @@ def finish_trace(user, descriptor_data, workload_db_path, dbg_lvl):
                 memtrace_dict['warmup'] = 0
                 memtrace_dict['whole_trace_file'] = None
 
+            os.system(f"chmod a+w -R {target_traces_path}")
             simulation_dict['prioritized_mode'] = "memtrace"
             simulation_dict['exec'] = exec_dict
             simulation_dict['memtrace'] = memtrace_dict
