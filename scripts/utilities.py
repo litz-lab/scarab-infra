@@ -757,6 +757,8 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
 
         for config in trace_configs:
             workload = config['workload']
+            suite = config['suite']
+            subsuite = config['subsuite']
 
             # Update workload_db_data
             trace_dict = {}
