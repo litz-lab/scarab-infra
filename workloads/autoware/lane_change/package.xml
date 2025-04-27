@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>lane_change</name>
+  <version>0.0.0</version>
+  <description>TODO: Package description</description>
+  <maintainer email="mkim293@ucsc.edu">root</maintainer>
+  <license>TODO: License declaration</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>autoware_behavior_path_lane_change_module</depend>
+  <depend>autoware_behavior_path_planner</depend>
+  <depend>autoware_behavior_path_planner_common</depend>
+  <depend>autoware_frenet_planner</depend>
+  <depend>autoware_motion_utils</depend>
+  <depend>autoware_rtc_interface</depend>
+  <depend>autoware_universe_utils</depend>
+  <depend>fmt</depend>
+  <depend>pluginlib</depend>
+  <depend>range-v3</depend>
+  <depend>rclcpp</depend>
+  <depend>tier4_planning_msgs</depend>
+  <depend>visualization_msgs</depend>
+  <depend>rosbag2_interfaces</depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
