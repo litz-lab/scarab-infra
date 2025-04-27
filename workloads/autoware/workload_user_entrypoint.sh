@@ -1,6 +1,7 @@
 source /opt/ros/$ROS_DISTRO/setup.sh
 source $tmpdir/autoware/install/setup.bash
 nohup /opt/ros/humble/bin/ros2 bag play $tmpdir/driving_log_replayer_data/yabloc/sample/input_bag --topics /sensing/camera/traffic_light/image_raw/compressed -p &
+nohup /opt/ros/humble/bin/ros2 bag play $tmpdir/autoware/lane_change/input_bag --topics /filtered/objects -p &
 sleep 5
 cd $tmpdir/autoware/ && /opt/ros/humble/bin/ros2 launch tier4_map_launch map.launch.xml pointcloud_map_path:=/tmp_home/autoware_map/nishishinjuku_autoware_map/pointcloud_map.pcd pointcloud_map_metadata_path:='""' lanelet2_map_path:=/tmp_home/autoware_map/nishishinjuku_autoware_map/lanelet2_map.osm map_projector_info_path:='""' pointcloud_map_loader_param_path:=src/universe/autoware.universe/map/autoware_map_loader/config/pointcloud_map_loader.param.yaml lanelet2_map_loader_param_path:=src/universe/autoware.universe/map/autoware_map_loader/config/lanelet2_map_loader.param.yaml map_tf_generator_param_path:=src/universe/autoware.universe/map/autoware_map_tf_generator/config/map_tf_generator.param.yaml map_projection_loader_param_path:=/tmp_home/autoware/src/universe/autoware.universe/map/autoware_map_projection_loader/config/map_projection_loader.param.yaml &
 sleep 10

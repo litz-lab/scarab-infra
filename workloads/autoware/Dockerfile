@@ -74,6 +74,8 @@ COPY ./workloads/autoware/lane_detector $tmpdir/autoware/lane_detector
 RUN cd $tmpdir/autoware/lane_detector && source /opt/ros/$ROS_DISTRO/setup.bash && source $tmpdir/autoware/install/setup.bash && colcon build --packages-select lane_detector
 COPY ./workloads/autoware/image_republisher $tmpdir/autoware/image_republisher
 RUN cd $tmpdir/autoware/image_republisher && source /opt/ros/$ROS_DISTRO/setup.bash && colcon build --packages-select image_republisher
+COPY ./workloads/autoware/lane_change $tmpdir/autoware/lane_change
+RUN cd $tmpdir/autoware/lane_change && source /opt/ros/$ROS_DISTRO/setup.bash && source $tmpdir/autoware/install/setup.bash && colcon build --packages-select lane_change
 
 # Install driving_log_replayer via pipx
 RUN apt-get remove -y python3-termcolor || true
