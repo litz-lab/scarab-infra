@@ -183,7 +183,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                 for cluster_id, weight in simpoints.items():
                     info(f"cluster_id: {cluster_id}, weight: {weight}", dbg_lvl)
 
-                    docker_container_name = f"{docker_prefix}_{workload}_{experiment_name}_{config_key.replace("/", "-")}_{cluster_id}_{sim_mode}_{user}"
+                    docker_container_name = f"{docker_prefix}_{suite}_{subsuite}_{workload}_{experiment_name}_{config_key.replace("/", "-")}_{cluster_id}_{sim_mode}_{user}"
                     # Create temp file with run command and run it
                     filename = f"{docker_container_name}_tmp_run.sh"
                     workload_home = f"{suite}/{subsuite}/{workload}"
