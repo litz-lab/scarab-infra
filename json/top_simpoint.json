@@ -20,7 +20,7 @@
     {
       "suite":"spec2017",
       "subsuite":"rate_int",
-      "workload":"500.perlbench_r",
+      "workload":"perlbench",
       "cluster_id":29229,
       "simulation_type":"memtrace"
     }
