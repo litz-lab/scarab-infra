@@ -8,6 +8,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"trace_then_cluster",
             "whole_trace_file":null
           }
         },
@@ -134,6 +135,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"trace_then_cluster",
             "whole_trace_file":null
           }
         },
@@ -197,6 +199,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"trace_then_cluster",
             "whole_trace_file":null
           }
         },
@@ -260,6 +263,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"trace_then_cluster",
             "whole_trace_file":null
           }
         },
@@ -323,6 +327,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"trace_then_cluster",
             "whole_trace_file":null
           }
         },
@@ -386,6 +391,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"trace_then_cluster",
             "whole_trace_file":null
           }
         },
@@ -449,6 +455,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"trace_then_cluster",
             "whole_trace_file":null
           }
         },
@@ -512,6 +519,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"trace_then_cluster",
             "whole_trace_file":null
           }
         },
@@ -575,6 +583,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"trace_then_cluster",
             "whole_trace_file":null
           }
         },
@@ -638,6 +647,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"trace_then_cluster",
             "whole_trace_file":null
           }
         },
@@ -701,6 +711,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"trace_then_cluster",
             "whole_trace_file":null
           }
         },
@@ -775,6 +786,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"trace_then_cluster",
             "whole_trace_file":"drmemtrace.clang.03072.4467.trace.zip"
           },
           "pt":{
@@ -956,6 +968,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"trace_then_cluster",
             "whole_trace_file":"drmemtrace.cc1.04250.5506.trace.zip"
           }
         },
@@ -1076,6 +1089,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"trace_then_cluster",
             "whole_trace_file":"drmemtrace.mongod.04332.7098.trace.zip"
           }
         },
@@ -1119,6 +1133,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"trace_then_cluster",
             "whole_trace_file":"drmemtrace.mysqld.123827.6272.trace.zip"
           },
           "pt":{
@@ -1168,6 +1183,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"trace_then_cluster",
             "whole_trace_file":"drmemtrace.postgres.10865.3710.trace.zip"
           },
           "pt":{
@@ -1244,6 +1260,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"trace_then_cluster",
             "whole_trace_file":"drmemtrace.emulator-freechips.rocketchip.system-DefaultConfigN8.00025.6005.trace.zip"
           },
           "pt":{
@@ -1448,6 +1465,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"trace_then_cluster",
             "whole_trace_file":"drmemtrace.python3.8.00025.0843.trace.zip"
           }
         },
@@ -1671,6 +1689,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"trace_then_cluster",
             "whole_trace_file":"drmemtrace.redis-server.40792.6868.trace.zip"
           }
         },
@@ -1746,6 +1765,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"trace_then_cluster",
             "whole_trace_file":"drmemtrace.memcached.07434.0028.trace.zip"
           }
         },
@@ -1793,6 +1813,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"trace_then_cluster",
             "whole_trace_file":"drmemtrace.db_bench.01669.6627.trace.zip"
           }
         },
@@ -2018,6 +2039,8 @@
           "memtrace":{
             "image_name":"allbench_traces",
             "segment_size":10000000,
+            "warmup":10000000,
+            "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
         },
@@ -2103,6 +2126,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
         },
@@ -2418,6 +2442,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
         },
@@ -2493,6 +2518,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
         },
@@ -2568,6 +2594,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
         },
@@ -2653,6 +2680,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
         },
@@ -2738,6 +2766,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
         },
@@ -2818,6 +2847,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
         },
@@ -2903,6 +2933,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
         },
@@ -2983,6 +3014,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
         },
@@ -3060,6 +3092,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
         },
@@ -3150,6 +3183,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
         },
@@ -3225,6 +3259,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
         },
@@ -3425,6 +3460,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
         },
@@ -3830,6 +3866,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
         },
@@ -3910,6 +3947,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
         },
@@ -3965,6 +4003,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
         },
@@ -4700,6 +4739,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
         },
@@ -4800,6 +4840,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
         },
@@ -5125,6 +5166,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
         },
@@ -5170,6 +5212,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
         },
@@ -5230,6 +5273,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
         },
@@ -5355,6 +5399,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
         },
@@ -5728,6 +5773,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"trace_then_cluster",
             "whole_trace_file":"drmemtrace.geekbench_avx2.00046.0526.trace.zip"
           }
         },
@@ -5932,6 +5978,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"trace_then_cluster",
             "whole_trace_file":"drmemtrace.geekbench_avx2.00047.1680.trace.zip"
           }
         },
@@ -6031,6 +6078,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"trace_then_cluster",
             "whole_trace_file":"drmemtrace.geekbench_avx2.00041.5550.trace.zip"
           }
         },
@@ -6120,6 +6168,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"trace_then_cluster",
             "whole_trace_file":"drmemtrace.geekbench_avx2.00041.3463.trace.zip"
           }
         },
@@ -6343,6 +6392,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"trace_then_cluster",
             "whole_trace_file":"drmemtrace.geekbench_avx2.00366.0629.trace.zip"
           }
         },
@@ -6416,6 +6466,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"trace_then_cluster",
             "whole_trace_file":"drmemtrace.geekbench_avx2.00061.4524.trace.zip"
           }
         },
@@ -6594,6 +6645,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"trace_then_cluster",
             "whole_trace_file":"drmemtrace.geekbench_avx2.00041.8896.trace.zip"
           }
         },
@@ -6822,6 +6874,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"trace_then_cluster",
             "whole_trace_file":"drmemtrace.geekbench_avx2.00041.9068.trace.zip"
           }
         },
@@ -6955,6 +7008,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"trace_then_cluster",
             "whole_trace_file":"drmemtrace.geekbench_avx2.00041.3949.trace.zip"
           }
         },
@@ -7148,6 +7202,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"trace_then_cluster",
             "whole_trace_file":"drmemtrace.geekbench_avx2.00041.8808.trace.zip"
           }
         },
@@ -7301,6 +7356,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"trace_then_cluster",
             "whole_trace_file":"drmemtrace.geekbench_avx2.00041.5264.trace.zip"
           }
         },
@@ -7470,6 +7526,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"trace_then_cluster",
             "whole_trace_file":"drmemtrace.geekbench_avx2.00041.9238.trace.zip"
           }
         },
@@ -7604,6 +7661,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"trace_then_cluster",
             "whole_trace_file":"drmemtrace.geekbench_avx2.00041.3548.trace.zip"
           }
         },
@@ -7819,6 +7877,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"trace_then_cluster",
             "whole_trace_file":"drmemtrace.fibers_fibers_benchmark.00051.0149.trace.zip"
           }
         },
@@ -7900,6 +7959,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"trace_then_cluster",
             "whole_trace_file":"drmemtrace.random_benchmark.00038.7140.trace.zip"
           }
         },
@@ -7965,6 +8025,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":0,
+            "trace_type":"iterative_trace",
             "whole_trace_file":null
           }
         },
@@ -8271,6 +8332,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":0,
+            "trace_type":"iterative_trace",
             "whole_trace_file":null
           }
         },
@@ -11295,6 +11357,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":0,
+            "trace_type":"iterative_trace",
             "whole_trace_file":null
           }
         },

@@ -306,6 +306,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
             info(f"Excluding following nodes: {', '.join(excludes)}", dbg_lvl)
             sbatch_cmd = generate_sbatch_command(excludes, experiment_dir)
             warmup = None
+            trace_type = ""
             trace_file = None
             env_vars = ""
             bincmd = ""
@@ -314,6 +315,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
             simulation_data = workloads_data[suite][subsuite][workload]["simulation"][sim_mode]
             if sim_mode == "memtrace":
                 warmup = simulation_data["warmup"]
+                trace_type = simulation_data["trace_type"]
                 trace_file = simulation_data["whole_trace_file"]
                 seg_size = simulation_data["segment_size"]
             if sim_mode == "pt":
@@ -357,7 +359,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                     write_docker_command_to_file(user, local_uid, local_gid, workload, workload_home, experiment_name,
                                                  docker_prefix, docker_container_name, traces_dir,
                                                  docker_home, githash, config_key, config, sim_mode, scarab_githash,
-                                                 seg_size, architecture, cluster_id, warmup, trace_file,
+                                                 seg_size, architecture, cluster_id, warmup, trace_type, trace_file,
                                                  env_vars, bincmd, client_bincmd, filename, infra_dir)
                     tmp_files.append(filename)
 

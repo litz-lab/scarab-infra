@@ -14,9 +14,10 @@ SCARABPARAMS="$3"
 SEGSIZE="$4"
 SCARABARCH="$5"
 WARMUP="$6"
-SCARABHOME="$7"
-SEGMENT_ID="$8"
-TRACEFILE="$9"
+TRACE_TYPE="$7"
+SCARABHOME="$8"
+SEGMENT_ID="$9"
+TRACEFILE="$10"
 
 SIMHOME=$SCENARIO/$WORKLOAD_HOME
 mkdir -p $SIMHOME
@@ -39,8 +40,25 @@ if [ "$SEGMENT_ID" == "0" ]; then
 else
   # overwriting
   TRACEFILE=$trace_home/$WORKLOAD_HOME/traces/simp/$segID.zip
+  # roi is initialized by original segment boundary without warmup
+  roiStart=$(( $segID * $SEGSIZE + 1 ))
+  roiEnd=$(( $segID * $SEGSIZE + $SEGSIZE ))
 
-  if [ "$WARMUP" == "0" ]; then
+  # now reset roi start based on warmup:
+  # roiStart + WARMUP = original segment start
+  if [ "$roiStart" -gt "$WARMUP" ]; then
+    # enough room for warmup, extend roi start to the left
+    roiStart=$(( $roiStart - $WARMUP ))
+  else
+    # no enough preceding instructions, can only warmup till segment start
+    WARMUP=$(( $roiStart - 1 ))
+    # new roi start is the very first instruction of the trace
+    roiStart=1
+  fi
+
+  instLimit=$(( $roiEnd - $roiStart + 1 ))
+
+  if [ "$TRACE_TYPE" == "iterative_trace" ]; then
     # with no warmup
     # simultion always simulate the whole trace file with no skip
 
@@ -53,25 +71,7 @@ else
     --inst_limit=$instLimit \
     $SCARABPARAMS \
     &> sim.log"
-  else
-    # roi is initialized by original segment boundary without warmup
-    roiStart=$(( $segID * $SEGSIZE + 1 ))
-    roiEnd=$(( $segID * $SEGSIZE + $SEGSIZE ))
-
-    # now reset roi start based on warmup:
-    # roiStart + WARMUP = original segment start
-    if [ "$roiStart" -gt "$WARMUP" ]; then
-      # enough room for warmup, extend roi start to the left
-      roiStart=$(( $roiStart - $WARMUP ))
-    else
-      # no enough preceding instructions, can only warmup till segment start
-      WARMUP=$(( $roiStart - 1 ))
-      # new roi start is the very first instruction of the trace
-      roiStart=1
-    fi
-
-    instLimit=$(( $roiEnd - $roiStart + 1 ))
-
+  elif [ "$TRACE_TYPE" == "trace_then_cluster" ]; then
     # simultion uses the specific trace file
     # the roiStart is the second chunk, which is assumed to be segment size
     #### if chunk zero chunk is part of the simulation, the roiStart is the first chunk
@@ -106,6 +106,15 @@ else
         $SCARABPARAMS \
         &> sim.log"
     fi
+  elif [ "$TRACE_TYPE" == "cluster_then_trace" ]; then
+    scarabCmd="$SCARABHOME/src/scarab \
+    --frontend memtrace \
+    --cbp_trace_r0=$TRACEFILE \
+    --inst_limit=$instLimit \
+    --full_warmup=$WARMUP \
+    --use_fetched_count=0 \
+    $SCARABPARAMS \
+    &> sim.log"
   fi
 fi
 

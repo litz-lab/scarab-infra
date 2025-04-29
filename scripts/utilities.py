@@ -270,10 +270,10 @@ def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_n
 # Generate command to do a single run of scarab
 def generate_single_scarab_run_command(user, workload_home, experiment, config_key, config,
                                        mode, seg_size, arch, scarab_githash, cluster_id,
-                                       warmup, trace_file,
+                                       warmup, trace_type, trace_file,
                                        env_vars, bincmd, client_bincmd):
     if mode == "memtrace":
-        command = f"run_memtrace_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{seg_size}\\\" \\\"{arch}\\\" \\\"{warmup}\\\" /home/{user}/simulations/{experiment}/scarab {cluster_id} {trace_file}"
+        command = f"run_memtrace_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{seg_size}\\\" \\\"{arch}\\\" \\\"{warmup}\\\" \\\"{trace_type}\\\" /home/{user}/simulations/{experiment}/scarab {cluster_id} {trace_file}"
     elif mode == "pt":
         command = f"run_pt_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{arch}\\\" \\\"{warmup}\\\" /home/{user}/simulations/{experiment}/scarab"
     elif mode == "exec":
@@ -286,12 +286,12 @@ def generate_single_scarab_run_command(user, workload_home, experiment, config_k
 def write_docker_command_to_file_run_by_root(user, local_uid, local_gid, workload, workload_home, experiment_name,
                                              docker_prefix, docker_container_name, traces_dir,
                                              docker_home, githash, config_key, config, scarab_mode, seg_size, scarab_githash,
-                                             architecture, cluster_id, warmup, trace_file,
+                                             architecture, cluster_id, warmup, trace_type, trace_file,
                                              env_vars, bincmd, client_bincmd, filename):
     try:
         scarab_cmd = generate_single_scarab_run_command(user, workload_home, experiment_name, config_key, config,
                                                         scarab_mode, seg_size, architecture, scarab_githash, cluster_id,
-                                                        warmup, trace_file, env_vars, bincmd, client_bincmd)
+                                                        warmup, trace_type, trace_file, env_vars, bincmd, client_bincmd)
         with open(filename, "w") as f:
             f.write("#!/bin/bash\n")
             f.write(f"echo \"Running {config_key} {workload_home} {cluster_id}\"\n")
@@ -312,12 +312,12 @@ def write_docker_command_to_file_run_by_root(user, local_uid, local_gid, workloa
 def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_home, experiment_name,
                                  docker_prefix, docker_container_name, traces_dir,
                                  docker_home, githash, config_key, config, scarab_mode, scarab_githash,
-                                 seg_size, architecture, cluster_id, warmup, trace_file,
+                                 seg_size, architecture, cluster_id, warmup, trace_type, trace_file,
                                  env_vars, bincmd, client_bincmd, filename, infra_dir):
     try:
         scarab_cmd = generate_single_scarab_run_command(user, workload_home, experiment_name, config_key, config,
                                                         scarab_mode, seg_size, architecture, scarab_githash, cluster_id,
-                                                        warmup, trace_file, env_vars, bincmd, client_bincmd)
+                                                        warmup, trace_type, trace_file, env_vars, bincmd, client_bincmd)
         with open(filename, "w") as f:
             f.write("#!/bin/bash\n")
             f.write(f"echo \"Running {config_key} {workload_home} {cluster_id}\"\n")
@@ -708,6 +708,7 @@ def finish_trace(user, descriptor_data, workload_db_path, dbg_lvl):
                         os.system(f"cp -r {trace_source} {trace_dest}")
                 memtrace_dict['warmup'] = 0
                 memtrace_dict['whole_trace_file'] = None
+            memtrace_dict['trace_type'] = config['trace_type']
 
             os.system(f"chmod a+w -R {target_traces_path}")
             simulation_dict['prioritized_mode'] = "memtrace"
