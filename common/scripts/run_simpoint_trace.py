@@ -378,7 +378,7 @@ def iterative(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mo
 
     try:
         workload_home = f"{simpoint_home}/{workload}"
-        for i in range(1, 601):
+        for i in range(1, 101):
             timestep_dir = os.path.join(workload_home, "traces_simp")
             os.makedirs(timestep_dir, exist_ok=True)
 
@@ -399,7 +399,7 @@ def iterative(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mo
 
             for attempt in range(max_retries):
                 try:
-                    subprocess.run(trace_cmd_list, check=True, capture_output=True, text=True, timeout=30)
+                    subprocess.run(trace_cmd_list, check=True, capture_output=True, text=True, timeout=60)
                     break
                 except subprocess.TimeoutExpired as e:
                     print(f"[Timestep {i}] tracing attempt {attempt+1} timed out: {e}")
