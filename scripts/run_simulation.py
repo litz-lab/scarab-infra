@@ -255,7 +255,7 @@ if __name__ == "__main__":
         if workload_manager == "manual":
             local_runner.print_status(user, experiment_name, docker_image_list, dbg_lvl)
         else:
-            slurm_runner.print_status(user, experiment_name, docker_image_list, dbg_lvl)
+            slurm_runner.print_status(user, experiment_name, docker_image_list, descriptor_data, workloads_data, dbg_lvl)
         exit(0)
 
     if args.launch:
