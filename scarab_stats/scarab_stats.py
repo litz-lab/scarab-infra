@@ -612,7 +612,7 @@ class stat_aggregator:
                         for workload in workloads:
                             cluster_ids = self.get_cluster_ids(workload, found_suite, subsuite, top_simpoint_only)
                             for cluster_id in cluster_ids:
-                                experiment, known_stats = self.load_simpoint_data(cluster_id, workload, subsuite, suite,
+                                experiment, known_stats = self.load_simpoint_data(cluster_id, workload, subsuite, found_suite,
                                                                                   config, experiment_name, architecture, simulations_path, top_simpoint_only)
 
         print(f"load_simpoint_data was called {load_simpoint_data_count} times")

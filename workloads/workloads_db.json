@@ -1681,123 +1681,6 @@
             "warmup":49999999
           }
         }
-      },
-      "redis":{
-        "simulation":{
-          "prioritized_mode":"memtrace",
-          "memtrace":{
-            "image_name":"allbench_traces",
-            "segment_size":10000000,
-            "warmup":10000000,
-            "trace_type":"trace_then_cluster",
-            "whole_trace_file":"drmemtrace.redis-server.40792.6868.trace.zip"
-          }
-        },
-        "simpoints":[
-          {
-            "cluster_id":1998,
-            "segment_id":0,
-            "weight":0.0066674
-          },
-          {
-            "cluster_id":126,
-            "segment_id":1,
-            "weight":0.0254903
-          },
-          {
-            "cluster_id":2149,
-            "segment_id":2,
-            "weight":0.123222
-          },
-          {
-            "cluster_id":1017,
-            "segment_id":3,
-            "weight":0.514284
-          },
-          {
-            "cluster_id":32,
-            "segment_id":4,
-            "weight":0.0155846
-          },
-          {
-            "cluster_id":609,
-            "segment_id":6,
-            "weight":0.0200076
-          },
-          {
-            "cluster_id":1928,
-            "segment_id":7,
-            "weight":0.0197151
-          },
-          {
-            "cluster_id":540,
-            "segment_id":8,
-            "weight":0.184063
-          },
-          {
-            "cluster_id":295,
-            "segment_id":9,
-            "weight":0.024127
-          },
-          {
-            "cluster_id":1943,
-            "segment_id":10,
-            "weight":0.0326897
-          },
-          {
-            "cluster_id":1182,
-            "segment_id":12,
-            "weight":0.0341493
-          }
-        ]
-      },
-      "memcached":{
-        "simulation":{
-          "prioritized_mode":"memtrace",
-          "exec":{
-            "image_name":"memcached",
-            "segment_size":10000000,
-            "env_vars":null,
-            "binary_cmd":"/usr/bin/memcached -t 1 -c 32768 -m 64 -p 11211 -u memcache -l 127.0.0.1 -P /var/run/memcached",
-            "client_bincmd":"\\$tmpdir/memcache-perf/mcperf -s localhost --noload -B -T 16 -Q 1000 -D 4 -C 4 -c 4 -q 200000"
-          },
-          "memtrace":{
-            "image_name":"allbench_traces",
-            "segment_size":10000000,
-            "warmup":10000000,
-            "trace_type":"trace_then_cluster",
-            "whole_trace_file":"drmemtrace.memcached.07434.0028.trace.zip"
-          }
-        },
-        "simpoints":[
-          {
-            "cluster_id":3524,
-            "segment_id":0,
-            "weight":0.384243
-          },
-          {
-            "cluster_id":1472,
-            "segment_id":2,
-            "weight":0.577421
-          },
-          {
-            "cluster_id":101,
-            "segment_id":5,
-            "weight":0.0383363
-          }
-        ],
-        "performance":{
-          "topdown":{
-            "retiring":20.9,
-            "bad_speculation":2.0,
-            "frontend_bound":24.9,
-            "backend_bound":52.1
-          },
-          "execution_time":{
-            "min":0,
-            "sec":6.862051228
-          }
-        }
       }
     }
   },
@@ -6158,6 +6041,7 @@
           "clustering_k":null
         },
         "simulation":{
+          "prioritized_mode":"memtrace",
           "exec":{
             "image_name":"geekbench",
             "segment_size":10000000,
@@ -6232,6 +6116,7 @@
           "clustering_k":null
         },
         "simulation":{
+          "prioritized_mode":"memtrace",
           "exec":{
             "image_name":"geekbench",
             "segment_size":10000000,
@@ -6411,6 +6296,7 @@
           "clustering_k":null
         },
         "simulation":{
+          "prioritized_mode":"memtrace",
           "exec":{
             "image_name":"geekbench",
             "segment_size":10000000,
@@ -6640,6 +6526,7 @@
           "clustering_k":null
         },
         "simulation":{
+          "prioritized_mode":"memtrace",
           "exec":{
             "image_name":"geekbench",
             "segment_size":10000000,
@@ -6774,6 +6661,7 @@
           "clustering_k":null
         },
         "simulation":{
+          "prioritized_mode":"memtrace",
           "exec":{
             "image_name":"geekbench",
             "segment_size":10000000,
@@ -6968,6 +6856,7 @@
           "clustering_k":null
         },
         "simulation":{
+          "prioritized_mode":"memtrace",
           "exec":{
             "image_name":"geekbench",
             "segment_size":10000000,
@@ -7122,6 +7011,7 @@
           "clustering_k":null
         },
         "simulation":{
+          "prioritized_mode":"memtrace",
           "exec":{
             "image_name":"geekbench",
             "segment_size":10000000,
@@ -12193,6 +12083,127 @@
           "execution_time":{
             "min":null,
             "sec":null
+          }
+        }
+      }
+    },
+    "redis":{
+      "redis":{
+        "simulation":{
+          "prioritized_mode":"memtrace",
+          "memtrace":{
+            "image_name":"allbench_traces",
+            "segment_size":10000000,
+            "warmup":10000000,
+            "trace_type":"trace_then_cluster",
+            "whole_trace_file":"drmemtrace.redis-server.40792.6868.trace.zip"
+          }
+        },
+        "simpoints":[
+          {
+            "cluster_id":1998,
+            "segment_id":0,
+            "weight":0.0066674
+          },
+          {
+            "cluster_id":126,
+            "segment_id":1,
+            "weight":0.0254903
+          },
+          {
+            "cluster_id":2149,
+            "segment_id":2,
+            "weight":0.123222
+          },
+          {
+            "cluster_id":1017,
+            "segment_id":3,
+            "weight":0.514284
+          },
+          {
+            "cluster_id":32,
+            "segment_id":4,
+            "weight":0.0155846
+          },
+          {
+            "cluster_id":609,
+            "segment_id":6,
+            "weight":0.0200076
+          },
+          {
+            "cluster_id":1928,
+            "segment_id":7,
+            "weight":0.0197151
+          },
+          {
+            "cluster_id":540,
+            "segment_id":8,
+            "weight":0.184063
+          },
+          {
+            "cluster_id":295,
+            "segment_id":9,
+            "weight":0.024127
+          },
+          {
+            "cluster_id":1943,
+            "segment_id":10,
+            "weight":0.0326897
+          },
+          {
+            "cluster_id":1182,
+            "segment_id":12,
+            "weight":0.0341493
+          }
+        ]
+      }
+    },
+    "memcached":{
+      "memcached":{
+        "simulation":{
+          "prioritized_mode":"memtrace",
+          "exec":{
+            "image_name":"memcached",
+            "segment_size":10000000,
+            "env_vars":null,
+            "binary_cmd":"/usr/bin/memcached -t 1 -c 32768 -m 64 -p 11211 -u memcache -l 127.0.0.1 -P /var/run/memcached",
+            "client_bincmd":"\\$tmpdir/memcache-perf/mcperf -s localhost --noload -B -T 16 -Q 1000 -D 4 -C 4 -c 4 -q 200000"
+          },
+          "memtrace":{
+            "image_name":"allbench_traces",
+            "segment_size":10000000,
+            "warmup":10000000,
+            "trace_type":"trace_then_cluster",
+            "whole_trace_file":"drmemtrace.memcached.07434.0028.trace.zip"
+          }
+        },
+        "simpoints":[
+          {
+            "cluster_id":3524,
+            "segment_id":0,
+            "weight":0.384243
+          },
+          {
+            "cluster_id":1472,
+            "segment_id":2,
+            "weight":0.577421
+          },
+          {
+            "cluster_id":101,
+            "segment_id":5,
+            "weight":0.0383363
+          }
+        ],
+        "performance":{
+          "topdown":{
+            "retiring":20.9,
+            "bad_speculation":2.0,
+            "frontend_bound":24.9,
+            "backend_bound":52.1
+          },
+          "execution_time":{
+            "min":0,
+            "sec":6.862051228
           }
         }
       }

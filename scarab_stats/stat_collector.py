@@ -12,7 +12,7 @@ import scarab_stats
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-d','--descriptor_name', required=True, help='Experiment descriptor name. Usage: -d exp.json')
-parser.add_argument('-o','--outfile', required=True, help='Experiment descriptor name. Usage: -d exp.json')
+parser.add_argument('-o','--outfile', required=True, help='Experiment descriptor name. Usage: -d out.csv')
 args = parser.parse_args()
 
 descriptor_name = args.descriptor_name

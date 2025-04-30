@@ -5,6 +5,7 @@
 
 import json
 import argparse
+import copy
 
 def normalize_weights(simpoints):
     total = sum(sp['weight'] for sp in simpoints)
@@ -21,37 +22,29 @@ def process_simpoints(simpoints):
     simpoints = sorted(simpoints, key=lambda x: x['weight'], reverse=True)[:3]
     return normalize_weights(simpoints)
 
-def extract_workloads_with_simpoints(data):
-    result = {}
-
-    def recurse(d, path):
-        if isinstance(d, dict):
-            if 'simpoints' in d and isinstance(d['simpoints'], list):
-                # Process this workload
-                processed = d.copy()
-                processed['simpoints'] = process_simpoints(d['simpoints'])
-                # Set in result
-                sub_result = result
-                for p in path[:-1]:
-                    sub_result = sub_result.setdefault(p, {})
-                sub_result[path[-1]] = processed
-            else:
-                for k, v in d.items():
-                    recurse(v, path + [k])
-
-    recurse(data, [])
-    return result
+def modify_simpoints_in_place(d):
+    if isinstance(d, dict):
+        if 'simpoints' in d and isinstance(d['simpoints'], list):
+            d['simpoints'] = process_simpoints(d['simpoints'])
+        for v in d.values():
+            modify_simpoints_in_place(v)
+    elif isinstance(d, list):
+        for item in d:
+            modify_simpoints_in_place(item)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Extract the top simpoints and recompute their weights')
 
-    # Add arguments
-    parser.add_argument('-s','--src_descriptor_name', required=True, help='Source workloads_db.json descriptor name. Usage: -s workloads_db.json')
-    parser.add_argument('-d','--dest_descriptor_name', required=True, help='Destination workloads_top_simp.json descriptor name. Usage: -d workloads_top_simp.json')
+    parser.add_argument('-s', '--src_descriptor_name', required=True, help='Source workloads_db.json descriptor name.')
+    parser.add_argument('-d', '--dest_descriptor_name', required=True, help='Destination workloads_top_simp.json descriptor name.')
     args = parser.parse_args()
 
     with open(args.src_descriptor_name) as f_in:
         data = json.load(f_in)
-        top_simp = extract_workloads_with_simpoints(data)
+        # Deep copy to avoid modifying input if needed elsewhere
+        modified_data = copy.deepcopy(data)
+        modify_simpoints_in_place(modified_data)
+
         with open(args.dest_descriptor_name, 'w') as f_out:
-            json.dump(top_simp, f_out, indent=2, separators=(",", ":"))
+            json.dump(modified_data, f_out, indent=2, separators=(",", ":"))
+
