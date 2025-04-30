@@ -44,13 +44,13 @@ else
   roiStart=$(( $segID * $SEGSIZE + 1 ))
   roiEnd=$(( $segID * $SEGSIZE + $SEGSIZE ))
 
-  # now reset roi start based on warmup:
+  # now modify roi start based on warmup:
   # roiStart + WARMUP = original segment start
   if [ "$roiStart" -gt "$WARMUP" ]; then
     # enough room for warmup, extend roi start to the left
     roiStart=$(( $roiStart - $WARMUP ))
   else
-    # no enough preceding instructions, can only warmup till segment start
+    # insufficient preceding instructions, can only warmup till segment start
     WARMUP=$(( $roiStart - 1 ))
     # new roi start is the very first instruction of the trace
     roiStart=1
@@ -69,6 +69,8 @@ else
     --frontend memtrace \
     --cbp_trace_r0=$TRACEFILE \
     --inst_limit=$instLimit \
+    --full_warmup=$WARMUP \
+    --use_fetched_count=0 \
     $SCARABPARAMS \
     &> sim.log"
   elif [ "$TRACE_TYPE" == "trace_then_cluster" ]; then
