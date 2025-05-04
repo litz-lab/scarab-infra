@@ -145,6 +145,12 @@ def validate_simulation(workloads_data, simulations, dbg_lvl = 2):
 
         print(f"[{suite}, {subsuite}, {workload}, {cluster_id}, {sim_mode}] is a valid simulation option.")
 
+# Run command with selected slrum node or manual
+def run_on_node(cmd, node=None, **kwargs):
+    if node != None:
+        cmd = ["srun", f"--nodelist={node}"] + cmd
+    return subprocess.run(cmd, **kwargs)
+
 # copy_scarab deprecated
 # new API prepare_simulation
 # Copies specified scarab binary, parameters, and launch scripts
@@ -155,7 +161,7 @@ def validate_simulation(workloads_data, simulations, dbg_lvl = 2):
 #           architecture - Architecture name
 #
 # Outputs:  scarab githash
-def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_name, architecture, docker_prefix, githash, infra_dir, interactive_shell=False, dbg_lvl=1):
+def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_name, architecture, docker_prefix, githash, infra_dir, interactive_shell=False, dbg_lvl=1, target_node=None):
     ## Copy required scarab files into the experiment folder
     try:
         local_uid = os.getuid()
@@ -175,36 +181,36 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
             scarab_bin = f"{scarab_path}/src/build/{scarab_build}/scarab"
             info(f"Scarab binary at '{scarab_bin}', building it first, please wait...", dbg_lvl)
             docker_container_name = f"{docker_prefix}_{user}_scarab_build"
-            subprocess.run(
+            run_on_node(
                     ["docker", "run", "-e", f"user_id={local_uid}",
                      "-e", f"group_id={local_gid}",
                      "-e", f"username={user}",
                      "-dit", "--name", f"{docker_container_name}",
                      "--mount", f"type=bind,source={docker_home},target=/home/{user},readonly=false",
                      "--mount", f"type=bind,source={scarab_path},target=/scarab,readonly=false",
-                     f"{docker_prefix}:{githash}", "/bin/bash"], check=True, capture_output=True, text=True)
-            subprocess.run(
+                     f"{docker_prefix}:{githash}", "/bin/bash"], node=target_node, check=True, capture_output=True, text=True)
+            run_on_node(
                     ["docker", "cp", f"{infra_dir}/common/scripts/root_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
-                    check=True, capture_output=True, text=True)
-            subprocess.run(
+                    node=target_node, check=True, capture_output=True, text=True)
+            run_on_node(
                     ["docker", "cp", f"{infra_dir}/common/scripts/user_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
-                    check=True, capture_output=True, text=True)
+                    node=target_node, check=True, capture_output=True, text=True)
             if os.path.isfile(f"{infra_dir}/workloads/{docker_prefix}/workload_root_entrypoint.sh"):
-                subprocess.run(
+                run_on_node(
                         ["docker", "cp", f"{infra_dir}/workloads/{docker_prefix}/workload_root_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
-                        check=True, capture_output=True, text=True)
+                        node=target_node, check=True, capture_output=True, text=True)
             if os.path.isfile(f"{infra_dir}/workloads/{docker_prefix}/workload_user_entrypoint.sh"):
-                subprocess.run(
+                run_on_node(
                         ["docker", "cp", f"{infra_dir}/workloads/{docker_prefix}/workload_user_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
-                        check=True, capture_output=True, text=True)
+                        node=target_node, check=True, capture_output=True, text=True)
 
-            subprocess.run(
+            run_on_node(
                     ["docker", "exec", "--privileged", f"{docker_container_name}", "/bin/bash", "-c", "\'/usr/local/bin/root_entrypoint.sh\'"],
-                    check=True, capture_output=True, text=True)
-            subprocess.run(
+                    node=target_node, check=True, capture_output=True, text=True)
+            run_on_node(
                     ["docker", "exec", f"--user={user}", f"--workdir=/home/{user}", f"{docker_container_name}", "/bin/bash", "-c", f"cd /scarab/src && make clean && make {scarab_build}"],
-                    check=True, capture_output=True, text=True)
-            subprocess.run(["docker", "rm", "-f", f"{docker_container_name}"], check=True, capture_output=True, text=True)
+                    node=target_node, check=True, capture_output=True, text=True)
+            run_on_node(["docker", "rm", "-f", f"{docker_container_name}"], check=True, capture_output=True, text=True)
 
         experiment_dir = f"{docker_home}/simulations/{experiment_name}"
         os.system(f"mkdir -p {experiment_dir}/logs/")
@@ -244,7 +250,7 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
 
         return scarab_githash
     except Exception as e:
-        subprocess.run(["docker", "rm", "-f", docker_container_name], check=True)
+        run_on_node(["docker", "rm", "-f", docker_container_name], node=target_node, check=True)
         info(f"Removed container: {docker_container_name}", dbg_lvl)
         raise e
 
