@@ -211,7 +211,7 @@ run_scarab () {
   taskPids=()
   start=`date +%s`
 
-  cmd="python3 ${INFRA_ROOT}/scripts/run_simulation.py -dbg 1 -d ${INFRA_ROOT}/json/${SIMULATION}.json"
+  cmd="python3 ${INFRA_ROOT}/scripts/run_simulation.py -dbg 3 -d ${INFRA_ROOT}/json/${SIMULATION}.json"
   eval $cmd &
   taskPids+=($!)
 
