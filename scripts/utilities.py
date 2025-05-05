@@ -225,11 +225,11 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
                 scarab_bin = f"{scarab_path}/src/build/opt/scarab"
             dest_scarab_bin = f"{experiment_dir}/scarab/src/scarab"
             try:
-                result = subprocess.run(['diff', '-q', scarab_bin, dest_scarab_bin], capture_output=True, text=True, check=True)
+                result = run_on_node(['diff', '-q', scarab_bin, dest_scarab_bin], node=target_node, capture_output=True, text=True, check=True)
             except subprocess.CalledProcessError as e:
                 if e.returncode == 1 or e.returncode == 2:
                     info("scarab binaries differ or the destination binary does not exist. Will copy.", dbg_lvl)
-                    result = subprocess.run(["cp", scarab_bin, dest_scarab_bin], capture_output=True, text=True)
+                    result = run_on_node(["cp", scarab_bin, dest_scarab_bin], node=target_node, capture_output=True, text=True)
                     if result.returncode != 0:
                         err(f"Failed to copy scarab binary: {result.stderr}", dbg_lvl)
                         raise RuntimeError(f"Failed to copy scarab binary. Existing binary is in use and differs from the new binary: {result.stderr}")
