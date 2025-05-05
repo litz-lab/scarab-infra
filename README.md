@@ -12,6 +12,10 @@ sudo chmod 666 /var/run/docker.sock
 ```
 conda env create --file quickstart_env.yaml
 ```
+Optional: if you want to remove the existing `scarabinfra` and re-create it, run the following first.
+```
+conda env remove -n scarabinfra
+```
 4. Activate the virtual environment.
 ```
 conda activate scarabinfra
