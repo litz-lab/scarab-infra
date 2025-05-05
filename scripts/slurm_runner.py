@@ -344,7 +344,8 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                 for cluster_id, weight in simpoints.items():
                     info(f"cluster_id: {cluster_id}, weight: {weight}", dbg_lvl)
 
-                    docker_container_name = f"{docker_prefix}_{suite}_{subsuite}_{workload}_{experiment_name}_{config_key.replace("/", "-")}_{cluster_id}_{sim_mode}_{user}"
+                    clean_key = config_key.replace("/", "-")
+                    docker_container_name = f"{docker_prefix}_{suite}_{subsuite}_{workload}_{experiment_name}_{clean_key}_{cluster_id}_{sim_mode}_{user}"
 
                     # TODO: Notification when a run fails, point to output file and command that caused failure
                     # Add help (?)
