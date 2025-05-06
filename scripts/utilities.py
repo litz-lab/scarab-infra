@@ -251,6 +251,7 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
     except Exception as e:
         subprocess.run(["docker", "rm", "-f", docker_container_name], check=True)
         info(f"Removed container: {docker_container_name}", dbg_lvl)
+        info(e.stderr.strip(), dbg_lvl)
         raise e
 
 def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_name, slurm_ids = None):
