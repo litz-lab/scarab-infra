@@ -1595,8 +1595,8 @@ class stat_aggregator:
 
         return self.experiment, known_stats
 
-    # Plot markdown table to easily report to github
-    def plot_markdown_table (self, experiment: Experiment, stats: List[str], workloads: List[str],
+    # Print markdown table to easily report to github
+    def print_markdown_table (self, experiment: Experiment, stats: List[str], workloads: List[str],
                              configs: List[str]):
         configs_to_load = configs
         all_data = experiment.retrieve_stats(configs_to_load, stats, workloads)
@@ -1659,7 +1659,7 @@ if __name__ == "__main__":
     da.plot_workloads(E, stats_to_plot, wls, cfs, title="", average=True, x_label="Benchmarks", y_label="UNUSEFUL_pct", bar_width=0.10, plot_name="a.png")
 
     stats_to_plot = ['Periodic_IPC']
-    da.plot_markdown_table(E, stats_to_plot, wls, cfs)
+    da.print_markdown_table(E, stats_to_plot, wls, cfs)
 
     #E = Experiment("panda3.csv")
     #E2 = Experiment("panda3.csv")
