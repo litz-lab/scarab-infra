@@ -54,6 +54,11 @@ def write_json_descriptor(filename, descriptor_data, dbg_lvl = 1):
     except json.JSONDecodeError as e:
             print(f"JSONDecodeError: {e}")
 
+def run_on_node(cmd, node=None, **kwargs):
+    if node != None:
+        cmd = ["srun", f"--nodelist={node}"] + cmd
+    return subprocess.run(cmd, **kwargs)
+
 def validate_simulation(workloads_data, simulations, dbg_lvl = 2):
     for simulation in simulations:
         suite = simulation["suite"]
@@ -765,9 +770,9 @@ def count_interactive_shells(container_name, dbg_lvl):
         print(f"Error: {e}")
         return 0
 
-def image_exist(image_tag):
+def image_exist(image_tag, node=None):
     try:
-        output = subprocess.check_output(["docker", "images", "-q", image_tag])
-        return bool(output.strip())
+        output = run_on_node(["docker", "images", "-q", image_tag], node, capture_output=True, text=True)
+        return bool(output.stdout.strip())
     except subprocess.CalledProcessError:
         return False
