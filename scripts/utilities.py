@@ -248,6 +248,8 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
         os.system(f"cp {scarab_path}/bin/scarab_globals/*  {experiment_dir}/scarab/bin/scarab_globals/ ")
 
         return scarab_githash
+    except subprocess.CalledProcessError as e:
+        info(e.stderr.strip(), dbg_lvl)
     except Exception as e:
         subprocess.run(["docker", "rm", "-f", docker_container_name], check=True)
         info(f"Removed container: {docker_container_name}", dbg_lvl)
