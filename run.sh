@@ -100,9 +100,11 @@ run () {
 
   # Key to extract
   key="descriptor_type"
+  workload_manager_key="workload_manager"
 
   # Extract the value using fq
   value=$(jq -r ".$key" "$json_file")
+  workload_manager=$(jq -r ".$workload_manager_key" "$json_file")
 
   if [ $value == "simulation" ]; then
     workload_db_json_file="${INFRA_ROOT}/workloads/workloads_db.json"
@@ -122,8 +124,10 @@ run () {
 
     # check if the Docker image '$APP_GROUPNAME:$GIT_HASH' exists
     if ! docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "$APP_GROUPNAME:$GIT_HASH"; then
-      echo "The image with the current Git commit hash does not exist! Build the image first by using '-b'."
-      exit 1
+      if [ $workload_manager == "manual" ]; then
+        echo "The image with the current Git commit hash does not exist! Build the image first by using '-b'."
+        exit 1
+      fi
     fi
 
 

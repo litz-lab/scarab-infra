@@ -54,6 +54,95 @@ def write_json_descriptor(filename, descriptor_data, dbg_lvl = 1):
     except json.JSONDecodeError as e:
             print(f"JSONDecodeError: {e}")
 
+# Check what containers are running in the slurm cluster
+# Inputs: None
+# Outputs: a list containing all node names that are currently available or None
+def check_available_nodes(dbg_lvl = 1):
+    try:
+        # Query sinfo to get all lines with status information for all nodes
+        # Ex: [['LocalQ*', 'up', 'infinite', '2', 'idle', 'bohr[3,5]']]
+        response = subprocess.check_output(["sinfo", "-N"]).decode("utf-8")
+        lines = [r.split() for r in response.split('\n') if r != ''][1:]
+
+        # Check each node is up and available
+        available = []
+        all_nodes = []
+        for line in lines:
+            node = line[0]
+            all_nodes.append(node)
+
+            # Index -1 is STATE. Skip if not partially available
+            if line[-1] != 'idle' and line[-1] != 'mix':
+                info(f"{node} is not available. It is '{line[-1]}'", dbg_lvl)
+                continue
+
+            # If docker is not installed, skip
+            try:
+                docker_installed = subprocess.check_output(["srun", f"--nodelist={node}", "docker", "--version"])
+            except Exception as e:
+                info(f"docker is not installed on {node}", dbg_lvl)
+                continue
+
+            # Now append node(s) to available list. May be single (bohr3) or multiple (bohr[3,5])
+            if '[' in node:
+                err(f"'sinfo -N' should not produce lists (such as bohr[2-5]).", dbg_lvl)
+                print(f"     problematic entry was '{node}'")
+                return None
+
+            available.append(node)
+
+        return available, all_nodes
+    except Exception as e:
+        raise e
+
+# Check if the docker image exists on available slurm nodes
+# Inputs: list of available slurm nodes
+# Output: list of nodes where the docker image is ready
+def check_docker_image(nodes, docker_prefix, githash, dbg_lvl = 1):
+    try:
+        available_nodes = []
+        for node in nodes:
+            # Check if the image exists
+            image = subprocess.check_output(["srun", f"--nodelist={node}", "docker", "images", "-q", f"{docker_prefix}:{githash}"])
+            info(f"{image}", dbg_lvl)
+            if image == [] or image == b'':
+                info(f"Couldn't find image {docker_prefix}:{githash} on {node}", dbg_lvl)
+                continue
+
+            available_nodes.append(node)
+
+        return available_nodes
+    except Exception as e:
+        raise e
+
+# Check if a container is running on the provided nodes, return those that are
+# Inputs: list of nodes, docker_prefix, job_name, user
+# Output: dictionary of node-containers
+def check_docker_container_running(nodes, docker_prefix_list, job_name, user, dbg_lvl = 1):
+    try:
+        running_nodes_dockers = {}
+        for node in nodes:
+            running_nodes_dockers[node] = []
+
+        for docker_prefix in docker_prefix_list:
+            pattern = re.compile(fr"^{docker_prefix}_.*_{job_name}.*_.*_{user}$")
+            print("SEOP: pattern :", pattern)
+            for node in nodes:
+                # Check container is running and no errors
+                try:
+                    dockers = subprocess.run(["srun", f"--nodelist={node}", "docker", "ps", "--format", "{{.Names}}"], capture_output=True, text=True, check=True)
+                    lines = dockers.stdout.strip().split("\n") if dockers.stdout else []
+                    for line in lines:
+                        if pattern.match(line):
+                            running_nodes_dockers[node].append(line)
+                except:
+                    err(f"Error while checking a running docker container named {docker_prefix}_.*_{job_name}_.*_.*_{user} on node {node}", dbg_lvl)
+
+                    continue
+        return running_nodes_dockers
+    except Exception as e:
+        raise e
+
 def validate_simulation(workloads_data, simulations, dbg_lvl = 2):
     for simulation in simulations:
         suite = simulation["suite"]
@@ -740,13 +829,19 @@ def finish_trace(user, descriptor_data, workload_db_path, dbg_lvl):
     except Exception as e:
         raise e
 
-def is_container_running(container_name, dbg_lvl):
-    client = docker.from_env()
+def is_container_running(container_name, dbg_lvl, node=None):
     try:
-        container = client.containers.get(container_name)
-        info(f"container {container_name} is already running.", dbg_lvl)
-        return container.status == "running"
-    except docker.errors.NotFound:
+        if node == None:
+            node = "bohr1" # Fixed control container, bohr1
+        result = subprocess.run(
+            ["srun", f"--nodelist={node}", "docker", "inspect",
+             "-f", "{{.State.Running}}", container_name],
+            capture_output=True, text=True, check=True
+        )
+        running = result.stdout.strip() == "true"
+        info(f"{container_name}@{node}: {'running' if running else 'stopped'}", dbg_lvl)
+        return running
+    except subprocess.CalledProcessError:
         return False
 
 def count_interactive_shells(container_name, dbg_lvl):
