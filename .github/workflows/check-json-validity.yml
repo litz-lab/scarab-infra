@@ -22,3 +22,4 @@ jobs:
           jq empty ./json/perf.json
           jq empty ./json/top_simpoint.json
           jq empty ./workloads/workloads_db.json
+          jq empty ./workloads/workloads_top_simp.json
