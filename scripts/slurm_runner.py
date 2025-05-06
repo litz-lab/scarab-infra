@@ -69,7 +69,7 @@ def prepare_docker_image(nodes, docker_prefix, githash, dbg_lvl = 1):
                 except subprocess.CalledProcessError as e:
                     err("Docker pull failed:\n" + e.output.decode(), dbg_lvl)
                     subprocess.check_output(["srun", f"--nodelist={node}", "./run.sh", "-b", docker_prefix])
-                    if not image_exist(image_tag):
+                    if not image_exist(image_tag, node):
                         err(f"Still couldn't find image {image_tag} after trying to build one", dbg_lvl)
                         exit(1)
             available_nodes.append(node)
