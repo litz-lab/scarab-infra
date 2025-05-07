@@ -23,7 +23,8 @@ from utilities import (
         write_trace_docker_command_to_file,
         get_weight_by_cluster_id,
         image_exist,
-        get_image_name
+        get_image_name,
+        generate_table
         )
 
 # Check if the docker image exists on available slurm nodes
@@ -337,21 +338,6 @@ def get_simulation_jobs(descriptor_data, workloads_data, docker_prefix, user, db
 
 # Print info of docker/slurm nodes and running experiment
 def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_data, dbg_lvl = 1):
-    
-    # TODO: Get githash from scarab binary. In case new release happens after running
-    # Get info on running jobs/simulations. Completed/failed/scheduled
-    # Check sim.log and check running commands
-    # add sinfo timeout - DONE
-    # Please extend the stat_collector when you extend --status command.
-
-    # TODO: Ran status.json and runner ran oon bohr3, but status says no valid image on bohr 3 and thu sno running containers
-    # Its fine now? Maybe not an issue?
-
-    # TODO: Big issue: slurm used to check if nodes are running, but if lots of jobs are running srun will stall for a long time.
-    # Probe using ssh? Or just check on slurm list, DOnt need docker stuff. DO just via squeue
-    # Use squeue --format="%o", prints full command
-    # Make yellow if queued, green if running
-
     # Get GitHash
     try:
         githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).decode("utf-8").strip()
@@ -419,7 +405,7 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
     running_sims = []
     queued_sims = []
 
-    print(f"Summary: ")
+    print(f"Summary of running simulations (by node): ")
     for key, val in slurm_running_sims.items():
         if key == '':
             continue
@@ -431,10 +417,13 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
         print(f"Queued:     {len(slurm_running_sims[''])}")
         queued_sims += slurm_running_sims['']
 
+    if slurm_running_sims == dict():
+        print("No simulation jobs currently running")
+
     not_complete = running_sims + queued_sims
 
     all_jobs = get_simulation_jobs(descriptor_data, workloads_data, docker_prefix_list, user, dbg_lvl)
-    print(f"Completed Jobs: {len(all_jobs) - len(not_complete)}")
+    # print(f"Completed Jobs: {len(all_jobs) - len(not_complete)}")
 
     # completed_jobs = list(set(all_jobs) - set(not_complete))
  
@@ -449,20 +438,103 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
     # We actually dont need to care about counts. Just the status reported in the logs
     # COmpletely independently, read all logs and figure out error rates.
 
+    # TODO: Check if log files are actually from this experiment - Shouldn't be necessary anymore
     if len(log_files) > len(all_jobs) + 1:
         print("More log files than total runs. Maybe same experiment name was run multiple times?")
         print("Any errors from a previous run with the same experiment name will be re-reported now")
 
     error_runs = []
+    skipped = 0
+    stats_generating = False
+
+    confs = list(descriptor_data["configurations"].keys())
+
+    completed = {conf:0 for conf in confs}
+    failed = {conf:0 for conf in confs}
+    running = {conf:0 for conf in confs}
+    pending = {conf:0 for conf in confs}
+
+    # NOTE: Potential Subset issue again. conf2 and conf sims will be added to conf2
+    # Tried to create such a scenario but was unable
+    for sim in queued_sims:
+        print(sim)
+        for conf in confs:
+            if conf in sim:
+                pending[conf] += 1
+                break
+
     for file in log_files:
         with open(root_directory+file, 'r') as f:
             contents = f.read()
-            if 'Error' in contents:
-                error_runs += [file]
+            config = contents.split(" ")[1]
 
+            # Check if currently running, skip if so. Running simulations will not contain
+            # the completion message
+            if "stat_collection_job" not in file:
+                # Non-stat jobs will have 4 lines in their log file until they complete.
+                # Fifth line completion message indicates completion
+                if len(contents.split("\n")) < 5:
+                    skipped += 1
+                    running[config] += 1
+                    continue
+            else:
+                # Stat jobs were modified to print DONE as a final message
+                if "DONE" not in contents:
+                    # skipped += 1
+                    stats_generating = True
+                    continue
+
+
+            # Most scarab runs and all stat runs will have a line with "Error" in them if they fail
+            if 'Error' in contents:
+                error_runs += [root_directory+file]
+                failed[config] += 1
+                continue
+
+            # To be sure, check scarab runs with for final success line
+            if descriptor_data["experiment"] not in contents:
+                error_runs += [root_directory+file]
+                failed[config] += 1
+                continue
+
+            if config != 'stat':
+                completed[config] += 1
+    
+
+
+    print(f"Currently running {len(running_sims)} simulations (from logs: {skipped})")
+    if stats_generating:
+        print("Stat collector is running")
+
+    # print(f"\033[92mSuccessfully Completed Jobs: {len(all_jobs) - len(not_complete) - len(error_runs)}\033[0m")
+    
+    data = {"Configuration":[],"Completed":[],"Failed":[],"Running":[],"Pending":[],"Total":[]}
+    for conf in confs:
+        data["Configuration"].append(conf)
+        data["Completed"].append(completed[conf])
+        data["Failed"].append(failed[conf])
+        data["Running"].append(running[conf])
+        data["Pending"].append(pending[conf])
+        data["Total"].append(completed[conf] + failed[conf] + running[conf] + pending[conf])
+
+
+    print(generate_table(data))
+
+    if skipped != len(running_sims):
+        print("\033[33mWARN: Number of log files skipped due to being 'in progress' does not match number of running simulations.")
+        print("This could indicate the file format has changed in a way where the 'is running' checks need to be modified.")
+        if skipped > len(running_sims):
+            print("Completed jobs' log files were skipped. This could also be caused by running same experiment multiple times (check for prev. err).")
+        else:
+            print("Running jobs' log files were evaluated for success/failure")
+
+        print("\033[0m")
+    
+    # Print up to five of the full paths
     if len(error_runs) > 0:
+        print(f"\033[31mErroneous Jobs: {len(error_runs)}\033[0m")
         print(f"\033[31mErrors found in {len(error_runs)}/{len(log_files)} log files.")
-        print("Error runs:\n", "\n".join(error_runs), "\033[0m", sep='')
+        print("First 5 error runs:\n", "\n".join(error_runs[:5]), "\033[0m", sep='')
     else:
         print(f"\033[92mNo errors found in log files\033[0m")
 
