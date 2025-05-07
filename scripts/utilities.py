@@ -7,6 +7,12 @@ import os
 import subprocess
 import re
 import docker
+import importlib
+import sys
+sys.path.append("../") # go to parent dir
+import workloads.extract_top_simpoints as extract_top_simpoints
+importlib.reload(extract_top_simpoints)
+
 
 # Print an error message if on right debugging level
 def err(msg: str, level: int):
@@ -53,6 +59,11 @@ def write_json_descriptor(filename, descriptor_data, dbg_lvl = 1):
             print(f"ValueError: {e}")
     except json.JSONDecodeError as e:
             print(f"JSONDecodeError: {e}")
+
+def run_on_node(cmd, node=None, **kwargs):
+    if node != None:
+        cmd = ["srun", f"--nodelist={node}"] + cmd
+    return subprocess.run(cmd, **kwargs)
 
 def validate_simulation(workloads_data, simulations, dbg_lvl = 2):
     for simulation in simulations:
@@ -246,6 +257,7 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
     except Exception as e:
         subprocess.run(["docker", "rm", "-f", docker_container_name], check=True)
         info(f"Removed container: {docker_container_name}", dbg_lvl)
+        info(e.stderr.strip(), dbg_lvl)
         raise e
 
 def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_name, slurm_ids = None):
@@ -271,10 +283,10 @@ def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_n
 # Generate command to do a single run of scarab
 def generate_single_scarab_run_command(user, workload_home, experiment, config_key, config,
                                        mode, seg_size, arch, scarab_githash, cluster_id,
-                                       warmup, trace_file,
+                                       warmup, trace_type, trace_file,
                                        env_vars, bincmd, client_bincmd):
     if mode == "memtrace":
-        command = f"run_memtrace_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{seg_size}\\\" \\\"{arch}\\\" \\\"{warmup}\\\" /home/{user}/simulations/{experiment}/scarab {cluster_id} {trace_file}"
+        command = f"run_memtrace_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{seg_size}\\\" \\\"{arch}\\\" \\\"{warmup}\\\" \\\"{trace_type}\\\" /home/{user}/simulations/{experiment}/scarab {cluster_id} {trace_file}"
     elif mode == "pt":
         command = f"run_pt_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{arch}\\\" \\\"{warmup}\\\" /home/{user}/simulations/{experiment}/scarab"
     elif mode == "exec":
@@ -287,12 +299,12 @@ def generate_single_scarab_run_command(user, workload_home, experiment, config_k
 def write_docker_command_to_file_run_by_root(user, local_uid, local_gid, workload, workload_home, experiment_name,
                                              docker_prefix, docker_container_name, traces_dir,
                                              docker_home, githash, config_key, config, scarab_mode, seg_size, scarab_githash,
-                                             architecture, cluster_id, warmup, trace_file,
+                                             architecture, cluster_id, warmup, trace_type, trace_file,
                                              env_vars, bincmd, client_bincmd, filename):
     try:
         scarab_cmd = generate_single_scarab_run_command(user, workload_home, experiment_name, config_key, config,
                                                         scarab_mode, seg_size, architecture, scarab_githash, cluster_id,
-                                                        warmup, trace_file, env_vars, bincmd, client_bincmd)
+                                                        warmup, trace_type, trace_file, env_vars, bincmd, client_bincmd)
         with open(filename, "w") as f:
             f.write("#!/bin/bash\n")
             f.write(f"echo \"Running {config_key} {workload_home} {cluster_id}\"\n")
@@ -313,12 +325,12 @@ def write_docker_command_to_file_run_by_root(user, local_uid, local_gid, workloa
 def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_home, experiment_name,
                                  docker_prefix, docker_container_name, traces_dir,
                                  docker_home, githash, config_key, config, scarab_mode, scarab_githash,
-                                 seg_size, architecture, cluster_id, warmup, trace_file,
+                                 seg_size, architecture, cluster_id, warmup, trace_type, trace_file,
                                  env_vars, bincmd, client_bincmd, filename, infra_dir):
     try:
         scarab_cmd = generate_single_scarab_run_command(user, workload_home, experiment_name, config_key, config,
                                                         scarab_mode, seg_size, architecture, scarab_githash, cluster_id,
-                                                        warmup, trace_file, env_vars, bincmd, client_bincmd)
+                                                        warmup, trace_type, trace_file, env_vars, bincmd, client_bincmd)
         with open(filename, "w") as f:
             f.write("#!/bin/bash\n")
             f.write(f"echo \"Running {config_key} {workload_home} {cluster_id}\"\n")
@@ -610,7 +622,7 @@ def prepare_trace(user, scarab_path, scarab_build, docker_home, job_name, infra_
         info(f"Removed container: {docker_container_name}", dbg_lvl)
         raise e
 
-def finish_trace(user, descriptor_data, workload_db_path, dbg_lvl):
+def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
     def read_first_line(file_path):
         with open(file_path, 'r') as f:
             value = f.readline().rstrip('\n')
@@ -709,7 +721,9 @@ def finish_trace(user, descriptor_data, workload_db_path, dbg_lvl):
                         os.system(f"cp -r {trace_source} {trace_dest}")
                 memtrace_dict['warmup'] = 0
                 memtrace_dict['whole_trace_file'] = None
+            memtrace_dict['trace_type'] = config['trace_type']
 
+            os.system(f"chmod a+w -R {target_traces_path}")
             simulation_dict['prioritized_mode'] = "memtrace"
             simulation_dict['exec'] = exec_dict
             simulation_dict['memtrace'] = memtrace_dict
@@ -726,6 +740,8 @@ def finish_trace(user, descriptor_data, workload_db_path, dbg_lvl):
             workload_db_data[suite][subsuite][workload] = workload_dict
 
         write_json_descriptor(workload_db_path, workload_db_data, dbg_lvl)
+        top_simpoint_workload = extract_top_simpoints.extract_workloads_with_simpoints(workload_db_data)
+        write_json_descriptor(f"{infra_dir}/workloads/workloads_top_simp.json", top_simpoint_workload, dbg_lvl)
 
         print("Recover the ASLR setting with sudo. Provide password..")
         os.system("echo 2 | sudo tee /proc/sys/kernel/randomize_va_space")
@@ -764,10 +780,10 @@ def count_interactive_shells(container_name, dbg_lvl):
         print(f"Error: {e}")
         return 0
 
-def image_exist(image_tag):
+def image_exist(image_tag, node=None):
     try:
-        output = subprocess.check_output(["docker", "images", "-q", image_tag])
-        return bool(output.strip())
+        output = run_on_node(["docker", "images", "-q", image_tag], node, capture_output=True, text=True)
+        return bool(output.stdout.strip())
     except subprocess.CalledProcessError:
         return False
 

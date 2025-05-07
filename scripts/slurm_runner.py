@@ -71,7 +71,7 @@ def prepare_docker_image(nodes, docker_prefix, githash, dbg_lvl = 1):
                 except subprocess.CalledProcessError as e:
                     err("Docker pull failed:\n" + e.output.decode(), dbg_lvl)
                     subprocess.check_output(["srun", f"--nodelist={node}", "./run.sh", "-b", docker_prefix])
-                    if not image_exist(image_tag):
+                    if not image_exist(image_tag, node):
                         err(f"Still couldn't find image {image_tag} after trying to build one", dbg_lvl)
                         exit(1)
             available_nodes.append(node)
@@ -590,6 +590,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
             info(f"Excluding following nodes: {', '.join(excludes)}", dbg_lvl)
             sbatch_cmd = generate_sbatch_command(excludes, experiment_dir)
             warmup = None
+            trace_type = ""
             trace_file = None
             env_vars = ""
             bincmd = ""
@@ -598,6 +599,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
             simulation_data = workloads_data[suite][subsuite][workload]["simulation"][sim_mode]
             if sim_mode == "memtrace":
                 warmup = simulation_data["warmup"]
+                trace_type = simulation_data["trace_type"]
                 trace_file = simulation_data["whole_trace_file"]
                 seg_size = simulation_data["segment_size"]
             if sim_mode == "pt":
@@ -626,7 +628,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                 for cluster_id, weight in simpoints.items():
                     info(f"cluster_id: {cluster_id}, weight: {weight}", dbg_lvl)
 
-                    docker_container_name = f"{docker_prefix}_{workload}_{experiment_name}_{config_key.replace("/", "-")}_{cluster_id}_{sim_mode}_{user}"
+                    docker_container_name = f"{docker_prefix}_{suite}_{subsuite}_{workload}_{experiment_name}_{config_key.replace("/", "-")}_{cluster_id}_{sim_mode}_{user}"
 
                     # TODO: Notification when a run fails, point to output file and command that caused failure
                     # Add help (?)
@@ -641,7 +643,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                     write_docker_command_to_file(user, local_uid, local_gid, workload, workload_home, experiment_name,
                                                  docker_prefix, docker_container_name, traces_dir,
                                                  docker_home, githash, config_key, config, sim_mode, scarab_githash,
-                                                 seg_size, architecture, cluster_id, warmup, trace_file,
+                                                 seg_size, architecture, cluster_id, warmup, trace_type, trace_file,
                                                  env_vars, bincmd, client_bincmd, filename, infra_dir)
                     tmp_files.append(filename)
 
@@ -851,7 +853,7 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
             info(f"Removing temporary run script {tmp}", dbg_lvl)
             os.remove(tmp)
 
-        finish_trace(user, descriptor_data, workload_db_path, dbg_lvl)
+        finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl)
     except Exception as e:
         print("An exception occurred:", e)
         traceback.print_exc()  # Print the full stack trace
