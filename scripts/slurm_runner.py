@@ -430,6 +430,13 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
     print()
 
     root_directory = f"{descriptor_data["root_dir"]}/simulations/{descriptor_data["experiment"]}/logs/"
+
+    # Check that experiment exists
+    if not os.path.exists(root_directory):
+        print("Log file directory does not exist")
+        print("The current experiment does not seem to have been run yet")
+        return
+        
     log_files = os.listdir(root_directory)
 
     # Running sims have log files
@@ -463,10 +470,17 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
                 pending[conf] += 1
                 break
 
+    # Check each log file for errors
     for file in log_files:
         with open(root_directory+file, 'r') as f:
             contents = f.read()
-            config = contents.split(" ")[1]
+            split = contents.split(" ")
+
+            # Cannot get config if file isn't complete
+            if len(split) < 2:
+                continue
+
+            config = split[1] 
 
             # Check if currently running, skip if so. Running simulations will not contain
             # the completion message
@@ -500,7 +514,6 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
             if config != 'stat':
                 completed[config] += 1
     
-
 
     print(f"Currently running {len(running_sims)} simulations (from logs: {skipped})")
     if stats_generating:
