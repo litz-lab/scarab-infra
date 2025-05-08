@@ -228,7 +228,10 @@ if __name__ == "__main__":
     infra_dir = args.scarab_infra
 
     if infra_dir == None:
-        infra_dir = subprocess.check_output(["pwd"]).decode("utf-8").split("\n")[0]
+        infra_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+    # Add the project root to sys.path
+    sys.path.insert(0, infra_dir)
 
     # Get user for commands
     user = subprocess.check_output("whoami").decode('utf-8')[:-1]
