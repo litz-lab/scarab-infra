@@ -10,15 +10,12 @@ import docker
 import importlib
 import sys
 
-# Temporarily add the project root to sys.path
+# Add the project root to sys.path
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, project_root)
 
 import workloads.extract_top_simpoints as extract_top_simpoints
 importlib.reload(extract_top_simpoints)
-
-# Restore sys.path to avoid polluting the global import space
-sys.path.pop(0)
 
 # Print an error message if on right debugging level
 def err(msg: str, level: int):
