@@ -7,6 +7,7 @@ import subprocess
 import argparse
 import os
 import docker
+import sys
 
 from utilities import (
         info,

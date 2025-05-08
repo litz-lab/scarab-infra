@@ -8,7 +8,6 @@ import subprocess
 import re
 import docker
 import importlib
-import sys
 import workloads.extract_top_simpoints as extract_top_simpoints
 importlib.reload(extract_top_simpoints)
 
