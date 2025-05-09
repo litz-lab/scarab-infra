@@ -11,6 +11,7 @@ import os
 import math
 import importlib
 import sys
+sys.path.append("../")
 import scripts.utilities as utilities
 importlib.reload(utilities)
 
