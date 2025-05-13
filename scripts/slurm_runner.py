@@ -458,8 +458,9 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
 
     completed = {conf:0 for conf in confs}
     failed = {conf:0 for conf in confs}
+    slurm_failed = {conf:0 for conf in confs}
     running = {conf:0 for conf in confs}
-    pending = {conf:0 for conf in confs}
+    pending = {conf:0 for conf in confs}    
 
     # NOTE: Potential Subset issue again. conf2 and conf sims will be added to conf2
     # Tried to create such a scenario but was unable
@@ -498,6 +499,11 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
                     stats_generating = True
                     continue
 
+            # Slurm error messages have 'node: error:' in them
+            for node in all_nodes:
+                if f"{node}: error:" in contents:
+                    error_runs += [root_directory+file]
+                    slurm_failed[config] += 1
 
             # Most scarab runs and all stat runs will have a line with "Error" in them if they fail
             if 'Error' in contents:
@@ -521,14 +527,17 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
 
     # print(f"\033[92mSuccessfully Completed Jobs: {len(all_jobs) - len(not_complete) - len(error_runs)}\033[0m")
     
-    data = {"Configuration":[],"Completed":[],"Failed":[],"Running":[],"Pending":[],"Total":[]}
-    for conf in confs:
+    data = {"Configuration":[],"Completed":[],"Failed":[],"Failed - Slurm":[],"Running":[],"Pending":[],"Non-existant":[],"Total":[]}
+    for conf in confs:  
         data["Configuration"].append(conf)
         data["Completed"].append(completed[conf])
         data["Failed"].append(failed[conf])
+        data["Failed - Slurm"].append(slurm_failed[conf])
         data["Running"].append(running[conf])
         data["Pending"].append(pending[conf])
-        data["Total"].append(completed[conf] + failed[conf] + running[conf] + pending[conf])
+        total_found = completed[conf] + failed[conf] + running[conf] + pending[conf]
+        data["Total"].append(total_found)
+        data["Non-existant"].append(int(len(all_jobs)/len(confs)) - total_found)
 
 
     print(generate_table(data))
