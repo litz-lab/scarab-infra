@@ -36,7 +36,7 @@
     {
       "suite":"spec2017",
       "subsuite":"rate_fp",
-      "workload":"503.bwaves_r",
+      "workload":"bwaves",
       "cluster_id":null,
       "simulation_type":"exec"
     },
