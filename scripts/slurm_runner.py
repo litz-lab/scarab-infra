@@ -22,7 +22,8 @@ from utilities import (
         finish_trace,
         write_trace_docker_command_to_file,
         get_weight_by_cluster_id,
-        image_exist
+        image_exist,
+        check_can_skip
         )
 
 # Check if the docker image exists on available slurm nodes
@@ -344,6 +345,10 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                 for cluster_id, weight in simpoints.items():
                     info(f"cluster_id: {cluster_id}, weight: {weight}", dbg_lvl)
 
+                    if check_can_skip(descriptor_data, config_key, suite, subsuite, workload, cluster_id, dbg_lvl):
+                        info(f"Skipping {workload} with config {config_key} and cluster id {cluster_id}", dbg_lvl)
+                        continue
+                        
                     docker_container_name = f"{docker_prefix}_{suite}_{subsuite}_{workload}_{experiment_name}_{config_key.replace("/", "-")}_{cluster_id}_{sim_mode}_{user}"
 
                     # TODO: Notification when a run fails, point to output file and command that caused failure
@@ -406,7 +411,6 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
             if docker_running == []:
                 err(f"Error with preparing docker image for {docker_prefix}:{githash}", dbg_lvl)
                 exit(1)
-
 
         # Generate commands for executing in users docker and sbatching to nodes with containers
         experiment_dir = f"{descriptor_data['root_dir']}/simulations/{experiment_name}"
