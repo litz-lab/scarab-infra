@@ -535,9 +535,15 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
         data["Failed - Slurm"].append(slurm_failed[conf])
         data["Running"].append(running[conf])
         data["Pending"].append(pending[conf])
-        total_found = completed[conf] + failed[conf] + running[conf] + pending[conf]
-        data["Total"].append(total_found)
-        data["Non-existant"].append(int(len(all_jobs)/len(confs)) - total_found)
+
+        # Calculated, number of simpoints that should exist in every config
+        total_per_conf = int(len(all_jobs)/len(confs))
+
+        # Number of simpoints accounted for
+        total_found = completed[conf] + failed[conf] + running[conf] + pending[conf] + slurm_failed[conf]
+
+        data["Total"].append(total_per_conf)
+        data["Non-existant"].append(total_per_conf - total_found) # Unaccounted for simpoints
 
 
     print(generate_table(data))
