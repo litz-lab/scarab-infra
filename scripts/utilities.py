@@ -263,7 +263,14 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
         info(e.stderr.strip(), dbg_lvl)
         raise e
 
-def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_name, slurm_ids = None):
+def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_name, slurm_ids = None, dont_collect = False):
+
+    if dont_collect:
+        return
+
+    if slurm_ids == []:
+        warn("No slurm dependencies provided. Skipping stat collection.", 2)
+        return
 
     # Run stat autocollector 
     experiment_dir = f"{root_dir}/simulations/{experiment_name}"
@@ -788,3 +795,80 @@ def image_exist(image_tag, node=None):
         return bool(output.stdout.strip())
     except subprocess.CalledProcessError:
         return False
+
+# Returns true if experiment exists
+def check_sp_exist (descriptor_data, config_key, suite, subsuite, workload, exp_cluster_id):
+    # Check if simpoint exists
+    experiment_dir =  f"{descriptor_data['root_dir']}/simulations/{descriptor_data['experiment']}/"
+    experiment_dir += f"{config_key}/{suite}/{subsuite}/{workload}/{exp_cluster_id}"
+
+    print(experiment_dir)
+
+    # Non-existance case
+    if os.path.exists(experiment_dir):
+        return True
+    
+    # Existance case
+    return False
+
+# Returns true if experiment failed
+def check_sp_failed (descriptor_data, config_key, suite, subsuite, workload, exp_cluster_id):
+    # Check if simpoint exists
+    experiment_dir =  f"{descriptor_data['root_dir']}/simulations/{descriptor_data['experiment']}/"
+    experiment_dir += f"{config_key}/{suite}/{subsuite}/{workload}/{exp_cluster_id}"
+    
+    # Failed case; CSV files not generated
+    if len(list(filter(lambda x: 'csv' in x, os.listdir(experiment_dir)))) == 0:
+        return True
+    
+    # Success case
+    return False
+
+# Clean up failed run
+def clean_failed_run (descriptor_data, config_key, suite, subsuite, workload, exp_cluster_id):
+    # Wipe run directory
+    experiment_dir =  f"{descriptor_data['root_dir']}/simulations/{descriptor_data['experiment']}/"
+    experiment_dir += f"{config_key}/{suite}/{subsuite}/{workload}/{exp_cluster_id}"
+
+    for file in os.listdir(experiment_dir):
+        try:
+            os.remove(os.path.join(experiment_dir, file))
+        except Exception as e:
+            err(f"Error removing file {file}: {e}", 1)
+
+    os.rmdir(experiment_dir)
+
+    # Wipe log file
+    log_dir =  f"{descriptor_data['root_dir']}/simulations/{descriptor_data['experiment']}/logs/"
+    log_files = os.listdir(log_dir)
+    for file in log_files:
+        with open(os.path.join(log_dir, file), 'r') as f:
+            lines = f.readlines()
+
+            # Logfile will have {config} {suite}/{subsuite}/{workload} {simpoint} as header
+            header = f"{config_key} {suite}/{subsuite}/{workload} {exp_cluster_id}"
+            if header in lines:
+                lines.remove(header)
+                os.remove(os.path.join(log_dir, file))
+
+# Check if run was already successful, and thus skippable
+# Please use as follows:
+# if check_can_skip(...):
+#     continue
+def check_can_skip (descriptor_data, config_key, suite, subsuite, workload, cluster_id, debug_lvl=1):
+    # Check (re)run conditions 
+    if check_sp_exist(descriptor_data, config_key, suite, subsuite, workload, cluster_id):
+        # Previous run exists, check if it failed
+        if not check_sp_failed(descriptor_data, config_key, suite, subsuite, workload, cluster_id):
+            # Previous run exists and was successful
+            info(f"Successful simulation with config {config_key} for workload {workload} already exists.", debug_lvl)
+            return True
+        
+        # Previous run exists but failed
+        info(f"Previous run with config {config_key} for workload {workload} failed. Cleaning directory and Re-running.", debug_lvl)
+        
+        clean_failed_run(descriptor_data, config_key, suite, subsuite, workload, cluster_id)
+    else:
+        info(f"Running simulation with config {config_key} for workload {workload}", debug_lvl)
+
+    False

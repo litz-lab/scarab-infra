@@ -88,7 +88,7 @@ def verify_descriptor(descriptor_data, workloads_data, open_shell = False, dbg_l
 
     # Check if configurations are provided
     if descriptor_data["configurations"] == None:
-        error("Need configurations to simulate. Set in descriptor file under 'configurations'", dbg_lvl)
+        err("Need configurations to simulate. Set in descriptor file under 'configurations'", dbg_lvl)
         exit(1)
 
 def open_interactive_shell(user, descriptor_data, workloads_data, infra_dir, dbg_lvl = 1):
