@@ -334,7 +334,7 @@ def get_simulation_jobs(descriptor_data, workloads_data, docker_prefix, user, db
             # Use docker_container_name to get the job names of all jobs
             all_jobs += [docker_container_name(workload, config, cluster_id, sim_mode_, image_name) for config in configs.keys() for cluster_id in simpoint_ids]
             
-    return all_jobs
+    return set(all_jobs)
 
 # Print info of docker/slurm nodes and running experiment
 def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_data, dbg_lvl = 1):
