@@ -28,11 +28,16 @@ jobs:
           TAGS=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             https://ghcr.io/v2/litz-lab/scarab-infra/allbench_traces/tags/list)
 
-          # Get most recent semver or commit hash style tag
-          LATEST_TAG=$(echo "$TAGS" | jq -r '.tags[]' | grep -E '^[0-9a-f]{7,}$' | sort | tail -n1 || true)
-
-          echo "Latest GIT_HASH tag: $LATEST_TAG"
-          echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+          # Validate the JSON response contains `.tags`
+          if echo "$TAGS" | jq -e '.tags' > /dev/null; then
+            # Proceed to extract the latest tag
+            LATEST_TAG=$(echo "$TAGS" | jq -r '.tags[]' | sort | tail -n1 || true)
+            echo "Latest GIT_HASH tag: $LATEST_TAG"
+            echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+          else
+            echo "GHCR did not return valid tags or .tags is missing/null"
+            echo "latest_tag=" >> $GITHUB_OUTPUT
+          fi
 
       - name: Set current GIT_HASH
         id: current_hash
@@ -69,10 +74,7 @@ jobs:
 
       - name: Build Docker images
         if: steps.changes.outputs.changed == 'true'
-        run: docker build . \
-          --file ./workloads/allbench_traces/Dockerfile \
-          --no-cache \
-          --tag ghcr.io/litz-lab/scarab-infra/allbench_traces:${{ steps.current_hash.outputs.githash }}
+        run: docker build . --file ./workloads/allbench_traces/Dockerfile --no-cache --tag ghcr.io/litz-lab/scarab-infra/allbench_traces:${{ steps.current_hash.outputs.githash }}
 
       - name: Push Docker images to GitHub Packages
         if: steps.changes.outputs.changed == 'true'
