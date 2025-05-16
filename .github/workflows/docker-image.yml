@@ -19,19 +19,61 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      - name: Install dependencies
+        run: sudo apt-get install -y jq curl
+
+      - name: Get latest GIT_HASH tag from GHCR
+        id: latest_tag
+        run: |
+          TAGS=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            https://ghcr.io/v2/litz-lab/scarab-infra/allbench_traces/tags/list)
+
+          # Get most recent semver or commit hash style tag
+          LATEST_TAG=$(echo "$TAGS" | jq -r '.tags[]' | grep -E '^[0-9a-f]{7,}$' | sort | tail -n1 || true)
+
+          echo "Latest GIT_HASH tag: $LATEST_TAG"
+          echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+
+      - name: Set current GIT_HASH
+        id: current_hash
+        run: |
+          echo "githash=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Check if relevant directories changed since last image
+        id: changes
+        run: |
+          if [ -z "${{ steps.latest_tag.outputs.latest_tag }}" ]; then
+            echo "No previous image found — assuming first build."
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            git fetch origin main --depth=50
+            CHANGED=$(git diff --name-only ${{ steps.latest_tag.outputs.latest_tag }} HEAD | grep -E '^(common/|workloads/allbench_traces/)' || true)
+
+            if [[ -n "$CHANGED" ]]; then
+              echo "Relevant changes detected:"
+              echo "$CHANGED"
+              echo "changed=true" >> $GITHUB_OUTPUT
+            else
+              echo "No relevant changes detected."
+              echo "changed=false" >> $GITHUB_OUTPUT
+            fi
+          fi
+
       - name: Log in to GitHub Container Registry
+        if: steps.changes.outputs.changed == 'true'
         uses: docker/login-action@v2
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set GitHash
-        id: githash
-        run: echo "::set-output name=GIT_HASH::$(git rev-parse --short HEAD)"
-
       - name: Build Docker images
-        run: docker build . --file ./workloads/allbench_traces/Dockerfile --no-cache --tag ghcr.io/litz-lab/scarab-infra/allbench_traces:${{ steps.githash.outputs.GIT_HASH }}
+        if: steps.changes.outputs.changed == 'true'
+        run: docker build . \
+          --file ./workloads/allbench_traces/Dockerfile \
+          --no-cache \
+          --tag ghcr.io/litz-lab/scarab-infra/allbench_traces:${{ steps.current_hash.outputs.githash }}
 
       - name: Push Docker images to GitHub Packages
-        run: docker push ghcr.io/litz-lab/scarab-infra/allbench_traces:${{ steps.githash.outputs.GIT_HASH }}
+        if: steps.changes.outputs.changed == 'true'
+        run: docker push ghcr.io/litz-lab/scarab-infra/allbench_traces:${{ steps.current_hash.outputs.githash }}
