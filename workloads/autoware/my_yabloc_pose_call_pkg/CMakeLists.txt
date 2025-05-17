@@ -9,13 +9,21 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(tier4_localization_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
 find_package(rosbag2_interfaces REQUIRED)
+find_package(cv_bridge REQUIRED)
+find_package(yabloc_pose_initializer REQUIRED)
+find_package(OpenCV REQUIRED)
 
 add_executable(call_yabloc_pose src/call_yabloc_pose.cpp)
 ament_target_dependencies(call_yabloc_pose
   rclcpp
   tier4_localization_msgs
+  sensor_msgs
   rosbag2_interfaces
+  cv_bridge
+  yabloc_pose_initializer
+  OpenCV
 )
 
 install(TARGETS
