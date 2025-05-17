@@ -45,7 +45,7 @@ RUN mv autoware.repos $tmpdir/autoware/
 RUN mv simulator.repos $tmpdir/autoware/
 RUN rm -rf /tmp/autoware_repos
 
-# Copy simulator_append.txt to ros2 custom packates(play_next, image republisher)
+# Copy simulator_append.txt to ros2 custom packates(play_next)
 COPY ./workloads/autoware/simulator_append.txt $tmpdir/autoware/
 
 WORKDIR $tmpdir/autoware
@@ -72,8 +72,6 @@ COPY ./workloads/autoware/my_yabloc_pose_call_pkg $tmpdir/autoware/my_yabloc_pos
 RUN cd $tmpdir/autoware/my_yabloc_pose_call_pkg && source /opt/ros/$ROS_DISTRO/setup.bash && source $tmpdir/autoware/install/setup.bash && colcon build --packages-select my_yabloc_pose_call_pkg
 COPY ./workloads/autoware/lane_detector $tmpdir/autoware/lane_detector
 RUN cd $tmpdir/autoware/lane_detector && source /opt/ros/$ROS_DISTRO/setup.bash && source $tmpdir/autoware/install/setup.bash && colcon build --packages-select lane_detector
-COPY ./workloads/autoware/image_republisher $tmpdir/autoware/image_republisher
-RUN cd $tmpdir/autoware/image_republisher && source /opt/ros/$ROS_DISTRO/setup.bash && colcon build --packages-select image_republisher
 COPY ./workloads/autoware/lane_change $tmpdir/autoware/lane_change
 RUN cd $tmpdir/autoware/lane_change && source /opt/ros/$ROS_DISTRO/setup.bash && source $tmpdir/autoware/install/setup.bash && colcon build --packages-select lane_change
 COPY ./workloads/autoware/mpc_controller_test $tmpdir/autoware/mpc_controller_test
