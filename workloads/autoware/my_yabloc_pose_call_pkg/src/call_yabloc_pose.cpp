@@ -2,78 +2,95 @@
 #include <rosbag2_interfaces/srv/play_next.hpp>
 #include <tier4_localization_msgs/srv/pose_with_covariance_stamped.hpp>
 
-int main(int argc, char **argv)
+#include <sensor_msgs/msg/image.hpp>
+#include <sensor_msgs/msg/compressed_image.hpp>
+#include <cv_bridge/cv_bridge.h>
+
+#include "yabloc_pose_initializer/camera/semantic_segmentation.hpp"
+
+#include <filesystem>
+#include <opencv2/imgcodecs.hpp>
+#include <opencv2/core/ocl.hpp>
+
+using ImageMsg = sensor_msgs::msg::CompressedImage;
+
+namespace yabloc
+{
+class MySegmentationNode : public rclcpp::Node
+{
+public:
+  explicit MySegmentationNode(const rclcpp::NodeOptions & options = rclcpp::NodeOptions())
+  : Node("my_segmentation_node", options)
+  {
+    const std::string model_path = "/tmp_home/autoware_data/yabloc_pose_initializer/saved_model/model_float32.pb";
+    RCLCPP_INFO_STREAM(get_logger(), "[MySegmentationNode] Using model path: " << model_path);
+
+    if (std::filesystem::exists(model_path)) {
+      semantic_segmentation_ = std::make_unique<SemanticSegmentation>(model_path);
+      RCLCPP_INFO(get_logger(), "SemanticSegmentation model loaded successfully.");
+    } else {
+      RCLCPP_ERROR_STREAM(get_logger(), "Model file not found: " << model_path);
+      return;
+    }
+
+    sub_image_ = create_subscription<ImageMsg>(
+      "/sensing/camera/traffic_light/image_raw/compressed",
+      rclcpp::SensorDataQoS(),
+      std::bind(&MySegmentationNode::onImage, this, std::placeholders::_1));
+
+    RCLCPP_INFO(get_logger(), "[MySegmentationNode] Node is ready. Waiting for images...");
+  }
+
+private:
+  void onImage(const ImageMsg::SharedPtr msg)
+  {
+    if (!semantic_segmentation_) {
+      RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000,
+        "No segmentation model loaded. Skip inference.");
+      return;
+    }
+
+    cv::Mat src_image = cv::imdecode(cv::Mat(msg->data), cv::IMREAD_COLOR);
+    if (src_image.empty()) {
+      RCLCPP_ERROR(get_logger(), "imdecode failed");  return;
+    }
+
+    cv::Mat segmented_image = semantic_segmentation_->inference(src_image);
+
+    RCLCPP_INFO(
+      get_logger(),
+      "Segmentation done! Input: (%dx%d) => Output: (%dx%d)",
+      src_image.cols, src_image.rows,
+      segmented_image.cols, segmented_image.rows
+    );
+
+    rclcpp::shutdown();
+  }
+
+  std::unique_ptr<SemanticSegmentation> semantic_segmentation_;
+  rclcpp::Subscription<ImageMsg>::SharedPtr sub_image_;
+};
+}
+
+int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
-  auto node = rclcpp::Node::make_shared("combined_client_node");
+  cv::ocl::setUseOpenCL(false);
+  cv::setNumThreads(1);
 
-  {
-    auto client_play_next = node->create_client<rosbag2_interfaces::srv::PlayNext>(
-      "/rosbag2_player/play_next");
+  auto seg_node  = std::make_shared<yabloc::MySegmentationNode>();
 
-    while (!client_play_next->wait_for_service(std::chrono::seconds(1))) {
-      RCLCPP_INFO(node->get_logger(), 
-                  "Waiting for service /rosbag2_player/play_next...");
-      if (!rclcpp::ok()) {
-        RCLCPP_ERROR(node->get_logger(), "Interrupted while waiting for the service.");
-        return 1;
-      }
-    }
+  auto play_node = rclcpp::Node::make_shared("combined_client_node");
 
-    auto request = std::make_shared<rosbag2_interfaces::srv::PlayNext::Request>();
-    auto future = client_play_next->async_send_request(request);
+  rclcpp::executors::SingleThreadedExecutor exec;
+  exec.add_node(seg_node);
+  exec.add_node(play_node);
 
-    RCLCPP_INFO(node->get_logger(), "Calling /rosbag2_player/play_next ...");
-    auto status = rclcpp::spin_until_future_complete(node, future);
-    if (status == rclcpp::FutureReturnCode::SUCCESS) {
-      RCLCPP_INFO(node->get_logger(), "Successfully called /rosbag2_player/play_next.");
-    } else {
-      RCLCPP_ERROR(node->get_logger(), "Failed to call /rosbag2_player/play_next.");
-      rclcpp::shutdown();
-      return 1;
-    }
-  }
+  auto client = play_node->create_client<rosbag2_interfaces::srv::PlayNext>(
+                  "/rosbag2_player/play_next");
+  client->wait_for_service();
+  client->async_send_request(std::make_shared<rosbag2_interfaces::srv::PlayNext::Request>());
 
-  {
-    using YablocSrv = tier4_localization_msgs::srv::PoseWithCovarianceStamped;
-    auto client_yabloc = node->create_client<YablocSrv>(
-      "/localization/pose_estimator/yabloc/initializer/yabloc_align_srv");
-
-    while (!client_yabloc->wait_for_service(std::chrono::seconds(1))) {
-      RCLCPP_INFO(node->get_logger(), 
-                  "Waiting for /localization/pose_estimator/yabloc/initializer/yabloc_align_srv...");
-      if (!rclcpp::ok()) {
-        RCLCPP_ERROR(node->get_logger(), "Interrupted while waiting for the service.");
-        return 1;
-      }
-    }
-
-    auto request = std::make_shared<YablocSrv::Request>();
-    request->pose_with_covariance.header.stamp.sec = 0;
-    request->pose_with_covariance.header.stamp.nanosec = 0;
-    request->pose_with_covariance.header.frame_id = "map";
-    request->pose_with_covariance.pose.pose.position.x = 100.0;
-    request->pose_with_covariance.pose.pose.position.y = 50.0;
-    request->pose_with_covariance.pose.pose.position.z = 0.0;
-    request->pose_with_covariance.pose.pose.orientation.x = 0.0;
-    request->pose_with_covariance.pose.pose.orientation.y = 0.0;
-    request->pose_with_covariance.pose.pose.orientation.z = 0.0;
-    request->pose_with_covariance.pose.pose.orientation.w = 1.0;
-    for (size_t i = 0; i < 36; i++) {
-      request->pose_with_covariance.pose.covariance[i] = 0.0;
-    }
-
-    RCLCPP_INFO(node->get_logger(), "Calling /localization/pose_estimator/yabloc/initializer/yabloc_align_srv ...");
-    auto future = client_yabloc->async_send_request(request);
-
-    auto status = rclcpp::spin_until_future_complete(node, future);
-    if (status == rclcpp::FutureReturnCode::SUCCESS) {
-      RCLCPP_INFO(node->get_logger(), "Successfully called yabloc_align_srv.");
-    } else {
-      RCLCPP_ERROR(node->get_logger(), "Failed to call yabloc_align_srv.");
-    }
-  }
-
+  exec.spin();
   rclcpp::shutdown();
-  return 0;
 }
