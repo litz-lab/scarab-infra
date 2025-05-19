@@ -95,6 +95,44 @@ build () {
   report_time "pull/build-image" "$start" "$end"
 }
 
+prepare_image () {
+  if [[ -n $(git status --porcelain $INFRA_ROOT/common $INFRA_ROOT/workloads/$APP_GROUPNAME | grep '^ M') ]]; then
+    echo "There are uncommitted changes."
+    echo "The repository is not up to date. Make sure to commit all the local changes for the version of the docker image. githash is used to identify the image."
+    echo "If you have an image already in the system you want to overwrite, remove the image first, then build again."
+    exit 1
+  fi
+
+  # get the latest Git commit hash
+  GIT_HASH=$(git rev-parse --short HEAD)
+
+  # check if the Docker image '$APP_GROUPNAME:$GIT_HASH' exists
+  if ! docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "$APP_GROUPNAME:$GIT_HASH"; then
+    echo "The image with the current Git commit hash does not exist. Find the same image but with a different tag.."
+
+    # Fetch latest refs
+    git fetch origin main
+
+    # Get the latest commit hash from origin/main
+    LATEST_HASH=$(git rev-parse origin/main)
+
+    echo "Latest commit on origin/main: $LATEST_HASH"
+
+    # Run git diff for specific directories
+    DIFF_OUTPUT=$(git diff $LATEST_HASH -- $INFRA_ROOT/common $INFRA_ROOT/workloads/$APP_GROUPNAME)
+
+    if [ -n "$DIFF_OUTPUT" ]; then
+      echo "Changes detected in ./common or ./workloads/$APP_GROUPNAME since $LATEST_HASH"
+      echo "$DIFF_OUTPUT"
+      build
+    else
+      echo "No changes in ./common or ./workloads/$APP_GROUPNAME since $LATEST_HASH"
+      SHORT_LATEST_HASH=$(git rev-parse --short origin/main)
+      docker tag $APP_GROUPNAME:$SHORT_LATEST_HASH $APP_GROUPNAME:$GIT_HASH
+    fi
+  fi
+}
+
 run () {
   json_file="${INFRA_ROOT}/json/${RUN}.json"
 
@@ -110,22 +148,7 @@ run () {
     APP_GROUPNAME=$(python3 ${INFRA_ROOT}/scripts/run_db.py -dbg 1 -g ${json_file} -wdb ${workload_db_json_file})
     echo $APP_GROUPNAME
 
-    if [[ -n $(git status --porcelain $INFRA_ROOT/common $INFRA_ROOT/workloads/$APP_GROUPNAME | grep '^ M') ]]; then
-      echo "There are uncommitted changes."
-      echo "The repository is not up to date. Make sure to commit all the local changes for the version of the docker image. githash is used to identify the image."
-      echo "If you have an image already in the system you want to overwrite, remove the image first, then build again."
-      exit 1
-    fi
-
-    # get the latest Git commit hash
-    GIT_HASH=$(git rev-parse --short HEAD)
-
-    # check if the Docker image '$APP_GROUPNAME:$GIT_HASH' exists
-    if ! docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "$APP_GROUPNAME:$GIT_HASH"; then
-      echo "The image with the current Git commit hash does not exist! Build the image first by using '-b'."
-      exit 1
-    fi
-
+    prepare_image
 
     # open an interactive shell of docker container
     echo "open an interactive shell.."
@@ -140,22 +163,7 @@ run () {
     echo $APP_GROUPNAME
     APP_GROUPNAME=$(echo "$APP_GROUPNAME" | tr -d '"')
 
-    if [[ -n $(git status --porcelain $INFRA_ROOT/common $INFRA_ROOT/workloads/$APP_GROUPNAME | grep '^ M') ]]; then
-      echo "There are uncommitted changes."
-      echo "The repository is not up to date. Make sure to commit all the local changes for the version of the docker image. githash is used to identify the image."
-      echo "If you have an image already in the system you want to overwrite, remove the image first, then build again."
-      exit 1
-    fi
-
-    # get the latest Git commit hash
-    GIT_HASH=$(git rev-parse --short HEAD)
-
-    # check if the Docker image '$APP_GROUPNAME:$GIT_HASH' exists
-    if ! docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "$APP_GROUPNAME:$GIT_HASH"; then
-      echo "The image with the current Git commit hash does not exist! Build the image first by using '-b'."
-      exit 1
-    fi
-
+    prepare_image
 
     # open an interactive shell of docker container
     echo "open an interactive shell.."
@@ -170,14 +178,7 @@ run () {
     echo $APP_GROUPNAME
     APP_GROUPNAME=$(echo "$APP_GROUPNAME" | tr -d '"')
 
-    # get the latest Git commit hash
-    GIT_HASH=$(git rev-parse --short HEAD)
-
-    # check if the Docker image '$APP_GROUPNAME:$GIT_HASH' exists
-    if ! docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "$APP_GROUPNAME:$GIT_HASH"; then
-      echo "The image with the current Git commit hash does not exist! Build the image first by using '-b'."
-      exit 1
-    fi
+    prepare_image
 
     # open an interactive shell of docker container
     echo "open an interactive shell.."
