@@ -27,13 +27,17 @@ jobs:
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAGS=$(curl -s -H "Authorization: Bearer $GHCR_TOKEN" \
-            https://ghcr.io/litz-lab/scarab-infra/allbench_traces/tags/list)
+          LATEST_TAG=$(curl -s -H "Authorization: Bearer $GHCR_TOKEN" \
+            https://api.github.com/orgs/litz-lab/packages/container/scarab-infra%2Fallbench_traces/versions \
+            | jq -r '[.[] | {created_at, tags: .metadata.container.tags}]
+            | sort_by(.created_at)
+            | reverse
+            | .[0].tags[0]')
 
+          echo $LATEST_TAG
           # Validate the JSON response contains `.tags`
-          if echo "$TAGS" | jq -e '.tags' > /dev/null; then
+          if [ -n "$LATEST_TAG" ]; then
             # Proceed to extract the latest tag
-            LATEST_TAG=$(echo "$TAGS" | jq -r '.tags[]' | sort | tail -n1 || true)
             echo "Latest GIT_HASH tag: $LATEST_TAG"
             echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
           else
