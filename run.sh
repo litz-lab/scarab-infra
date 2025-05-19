@@ -110,13 +110,14 @@ prepare_image () {
   if ! docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "$APP_GROUPNAME:$GIT_HASH"; then
     echo "The image with the current Git commit hash does not exist. Find the same image but with a different tag.."
 
-    # Fetch latest refs
-    git fetch origin main
+    LATEST_HASH=$(curl -s -H "Authorization: Bearer $GHCR_TOKEN" \
+      https://api.github.com/orgs/litz-lab/packages/container/scarab-infra%2Fallbench_traces/versions \
+      | jq -r '[.[] | {created_at, tags: .metadata.container.tags}]
+      | sort_by(.created_at)
+      | reverse
+      | .[0].tags[0]')
 
-    # Get the latest commit hash from origin/main
-    LATEST_HASH=$(git rev-parse origin/main)
-
-    echo "Latest commit on origin/main: $LATEST_HASH"
+    echo "Latest tag of the pre-built image: $LATEST_HASH"
 
     # Run git diff for specific directories
     DIFF_OUTPUT=$(git diff $LATEST_HASH -- $INFRA_ROOT/common $INFRA_ROOT/workloads/$APP_GROUPNAME)
