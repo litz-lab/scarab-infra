@@ -28,7 +28,7 @@ jobs:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAGS=$(curl -s -H "Authorization: Bearer $GHCR_TOKEN" \
-            https://ghcr.io/v2/litz-lab/scarab-infra/allbench_traces/tags/list)
+            https://ghcr.io/litz-lab/scarab-infra/allbench_traces/tags/list)
 
           # Validate the JSON response contains `.tags`
           if echo "$TAGS" | jq -e '.tags' > /dev/null; then
