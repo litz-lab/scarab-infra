@@ -24,8 +24,10 @@ jobs:
 
       - name: Get latest GIT_HASH tag from GHCR
         id: latest_tag
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAGS=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+          TAGS=$(curl -s -H "Authorization: Bearer $GHCR_TOKEN" \
             https://ghcr.io/v2/litz-lab/scarab-infra/allbench_traces/tags/list)
 
           # Validate the JSON response contains `.tags`
