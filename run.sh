@@ -76,7 +76,7 @@ build () {
   if ! docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "$APP_GROUPNAME:$GIT_HASH"; then
     echo "The image with the current Git commit hash does not exist. Find the same image but with the latest tag.."
 
-    LATEST_HASH=$(curl -s -H "Authorization: Bearer $GHCR_TOKEN" \
+    LATEST_HASH=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
       https://api.github.com/orgs/litz-lab/packages/container/scarab-infra%2Fallbench_traces/versions \
       | jq -r '[.[] | {created_at, tags: .metadata.container.tags}]
       | sort_by(.created_at)
@@ -196,12 +196,21 @@ simpoint_trace () {
 }
 
 run_scarab () {
+  json_file="${INFRA_ROOT}/json/${SIMULATION}.json"
+  workload_db_json_file="${INFRA_ROOT}/workloads/workloads_db.json"
+  APP_GROUPNAME=$(python3 ${INFRA_ROOT}/scripts/run_db.py -dbg 1 -g ${json_file} -wdb ${workload_db_json_file})
+  echo $APP_GROUPNAME
+
+  # make sure the corresponding docker image exists locally (required for scarab build)
+  BUILD=$APP_GROUPNAME
+  build
+
   # run Scarab simulation
   echo "run Scarab simulation.."
   taskPids=()
   start=`date +%s`
 
-  cmd="python3 ${INFRA_ROOT}/scripts/run_simulation.py -dbg 1 -d ${INFRA_ROOT}/json/${SIMULATION}.json"
+  cmd="python3 ${INFRA_ROOT}/scripts/run_simulation.py -dbg 1 -d ${json_file}"
   eval $cmd &
   taskPids+=($!)
 
@@ -299,6 +308,13 @@ if [ -f "README.md" ]; then
 else
   echo "Run this script in the root directory of the repository."
   exit 1
+fi
+
+# Prompt for GH_TOKEN if not set
+if [[ -z "$GH_TOKEN" ]]; then
+  read -s -p "Enter your GitHub Token (GH_TOKEN): " GH_TOKEN
+  echo
+  export GH_TOKEN
 fi
 
 SHORT=h,b:,k:,c:
