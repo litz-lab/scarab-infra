@@ -279,7 +279,8 @@ def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_n
     
     # For slurm, add slurm dependencies
     if slurm_ids != None:
-        sbatch_cmd = f"sbatch --dependency=afterok:{','.join(slurm_ids)} -o {experiment_dir}/logs/stat_collection_job_%j.out " 
+        # afterok will not run if jobs fail. afterany used with stat_collector's error checking
+        sbatch_cmd = f"sbatch --dependency=afterany:{','.join(slurm_ids)} -o {experiment_dir}/logs/stat_collection_job_%j.out " 
         collect_stats_cmd = sbatch_cmd + collect_stats_cmd
 
     os.system(collect_stats_cmd)
@@ -872,3 +873,51 @@ def check_can_skip (descriptor_data, config_key, suite, subsuite, workload, clus
         info(f"Running simulation with config {config_key} for workload {workload}", debug_lvl)
 
     False
+    
+def generate_table(data, title=""):
+    """
+    Generates a formatted table as a string, handling potential formatting issues
+    with varying integer sizes.
+
+    Args:
+        data (dict): A dictionary containing the table data.  The keys of the
+            dictionary are the column headers, and the values are lists
+            representing the data for each column.  It is assumed that all
+            lists have the same length.
+        title (str, optional): An optional title for the table. Defaults to "".
+
+    Returns:
+        str: A string representing the formatted table.
+    """
+    
+    if not data:
+        return "No data provided."
+
+    headers = list(data.keys())
+    num_cols = len(headers)
+    num_rows = len(data[headers[0]])
+
+    # Calculate maximum width for each column based on header and data lengths
+    column_widths = [len(header) for header in headers]
+    for i in range(num_cols):
+        for j in range(num_rows):
+            column_widths[i] = max(column_widths[i], len(str(data[headers[i]][j])))
+
+    # Create the table format string
+    format_string = " | ".join(f"{{:<{width}}}" for width in column_widths)
+    separator = "-" * (sum(column_widths) + 3 * (num_cols - 1))
+
+    table_string = ""
+    if title:
+        table_string += f"{title.center(len(separator))}\n"
+
+    # Add the header row
+    table_string += format_string.format(*headers) + "\n"
+    table_string += separator + "\n"
+
+    # Add the data rows
+    for j in range(num_rows):
+        row_data = [data[header][j] for header in headers]
+        table_string += format_string.format(*row_data) + "\n"
+
+    return table_string

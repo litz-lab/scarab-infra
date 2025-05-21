@@ -23,7 +23,9 @@ from utilities import (
         write_trace_docker_command_to_file,
         get_weight_by_cluster_id,
         image_exist,
-        check_can_skip
+        check_can_skip,
+        get_image_name,
+        generate_table
         )
 
 # Check if the docker image exists on available slurm nodes
@@ -105,6 +107,41 @@ def check_docker_container_running(nodes, docker_prefix_list, job_name, user, db
         return running_nodes_dockers
     except Exception as e:
         raise e
+    
+# Check to see what tasks are currently queued or running on the slurm cluster
+# Inputs: The docker container prefix(s), job name, and user
+# Outputs: a dictionary of node names and the tasks running on them
+def check_slurm_task_queued_or_running (docker_prefix_list, job_name, user, dbg_lvl = 1):
+    output = subprocess.run(["squeue", "-u", user, "--format='%N %o'"], capture_output=True, text=True, check=True)
+    output = output.stdout.split("\n")[1:-1] if output.stdout else []
+
+    tasks_per_node = {}
+
+    for docker_prefix in docker_prefix_list:
+        # Naming scheme for run commands contains the docker prefix, experiment name, and user
+        pattern = re.compile(fr"^{docker_prefix}_.*_{job_name}.*_.*_{user}_tmp_run.sh$")
+
+        for line in output:
+            # Get the node, and the command
+            node, command = line.split(" ")
+            node = node.strip("'")
+            command = command.strip("'")
+
+            # Remove the path from the command
+            command = command[command.rfind("/")+1:]
+
+            if pattern.match(command):
+                command = command[:-11] # Remove the _tmp_run.sh part
+                # Check if the command is already in the list
+                if node not in tasks_per_node.keys():
+                    tasks_per_node[node] = []
+
+                # Add this command to the list of tasks for this node
+                tasks_per_node[node].append(command)
+    
+    return tasks_per_node
+
+        
 
 # Check if a container is running on the provided nodes, return those that are
 # Inputs: list of nodes, docker container name, path to container mount
@@ -144,7 +181,12 @@ def check_available_nodes(dbg_lvl = 1):
     try:
         # Query sinfo to get all lines with status information for all nodes
         # Ex: [['LocalQ*', 'up', 'infinite', '2', 'idle', 'bohr[3,5]']]
-        response = subprocess.check_output(["sinfo", "-N"]).decode("utf-8")
+        try:
+            response = subprocess.check_output(["sinfo", "-N"], timeout=10).decode("utf-8")
+        except subprocess.TimeoutExpired as e:
+            err("sinfo command timed out. Please check slurm control node.", dbg_lvl)
+            raise e
+        
         lines = [r.split() for r in response.split('\n') if r != ''][1:]
 
         # Check each node is up and available
@@ -213,20 +255,107 @@ def launch_docker(infra_dir, docker_home, available_nodes, node=None, dbg_lvl=1)
     except Exception as e:
         raise
 
+def get_simulation_jobs(descriptor_data, workloads_data, docker_prefix, user, dbg_lvl = 1):
+    architecture = descriptor_data["architecture"]
+    experiment_name = descriptor_data["experiment"]
+    docker_home = descriptor_data["root_dir"]
+    scarab_path = descriptor_data["scarab_path"]
+    scarab_build = descriptor_data["scarab_build"]
+    traces_dir = descriptor_data["traces_dir"]
+    configs = descriptor_data["configurations"]
+    simulations = descriptor_data["simulations"]
+
+    # Returns list of simpoints for a given workload
+    # Inputs: suite, subsuite, workload, exp_cluster_id
+    # Outputs: list of simpoints
+    def get_simpoints_wrapper(suite, subsuite, workload, exp_cluster_id, sim_mode):
+        if "simpoints" not in workloads_data[suite][subsuite][workload].keys():
+            return [0]
+        elif exp_cluster_id == None:
+            return list(map(int, get_simpoints(workloads_data[suite][subsuite][workload], sim_mode, dbg_lvl).keys()))
+        elif exp_cluster_id > 0:
+            assert isinstance(exp_cluster_id, int), f"exp_cluster_id must be of type int, but got {type(exp_cluster_id)}"
+            return [exp_cluster_id]
+        
+    all_jobs = []
+
+    def docker_container_name(workload, config, cluster, sim_mode, img_name): 
+        return f"{img_name}_{workload}_{experiment_name}_{config.replace("/", "-")}_{cluster}_{sim_mode}_{user}"
+
+    for simulation in simulations:
+        suite = simulation["suite"]
+        subsuite = simulation["subsuite"]
+        workload = simulation["workload"]
+        exp_cluster_id = simulation["cluster_id"]
+        sim_mode = simulation["simulation_type"]
+
+        image_name = get_image_name(workloads_data, simulation)
+
+        if image_name not in docker_prefix:
+            print(f"suite {image_name} not in docker_prefix")
+            exit()
+        
+        # Run all the workloads within suite
+        if workload == None and subsuite == None:
+            for subsuite_ in workloads_data[suite].keys():
+                for workload_ in workloads_data[suite][subsuite_].keys():
+                    # For each workload...
+
+                    sim_mode_ = sim_mode
+                    if sim_mode_ == None:
+                        sim_mode_ = workloads_data[suite][subsuite_][workload_]["simulation"]["prioritized_mode"]
+
+                    # Number of running jobs is the number of simpoints * number of configs
+                    simpoint_ids = get_simpoints_wrapper(suite, subsuite_, workload_, exp_cluster_id, sim_mode_)*len(configs)
+
+                    # Use docker_container_name to get the job names of all jobs
+                    all_jobs += [docker_container_name(workload_, config, cluster_id, sim_mode_, image_name) for config in configs.keys() for cluster_id in simpoint_ids]
+                    
+
+        elif workload == None and subsuite != None:
+            for workload_ in workloads_data[suite][subsuite].keys():
+                sim_mode_ = sim_mode
+                if sim_mode_ == None:
+                    sim_mode_ = workloads_data[suite][subsuite][workload_]["simulation"]["prioritized_mode"]
+
+                # Number of running jobs is the number of simpoints * number of configs
+                simpoint_ids = get_simpoints_wrapper(suite, subsuite, workload_, exp_cluster_id, sim_mode_)*len(configs)
+
+                # Use docker_container_name to get the job names of all jobs
+                all_jobs += [docker_container_name(workload_, config, cluster_id, sim_mode_, image_name) for config in configs.keys() for cluster_id in simpoint_ids]
+
+        else:
+            sim_mode_ = sim_mode
+            if sim_mode_ == None:
+                sim_mode_ = workloads_data[suite][subsuite][workload]["simulation"]["prioritized_mode"]
+                
+            # Number of running jobs is the number of simpoints * number of configs
+            simpoint_ids = get_simpoints_wrapper(suite, subsuite, workload, exp_cluster_id, sim_mode_)*len(configs)
+
+            # Use docker_container_name to get the job names of all jobs
+            all_jobs += [docker_container_name(workload, config, cluster_id, sim_mode_, image_name) for config in configs.keys() for cluster_id in simpoint_ids]
+            
+    return set(all_jobs)
+
 # Print info of docker/slurm nodes and running experiment
-def print_status(user, job_name, docker_prefix_list, dbg_lvl = 1):
+def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_data, dbg_lvl = 1):
     # Get GitHash
     try:
         githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).decode("utf-8").strip()
         info(f"Git hash: {githash}", dbg_lvl)
     except FileNotFoundError:
-        err("Error: 'git' command not found. Make sure Git is installed and in your PATH.")
+        err("Error: 'git' command not found. Make sure Git is installed and in your PATH.", dbg_lvl)
     except subprocess.CalledProcessError:
-        err("Error: Not in a Git repository or unable to retrieve Git hash.")
+        err("Error: Not in a Git repository or unable to retrieve Git hash.", dbg_lvl)
 
     info(f"Getting information about all nodes", dbg_lvl)
-    available_slurm_nodes, all_nodes = check_available_nodes(dbg_lvl)
 
+    try:
+        available_slurm_nodes, all_nodes = check_available_nodes(dbg_lvl)
+    except:
+        exit(1)
+
+    # General info, not helpful for --status <job>?
     print(f"Checking resource availability of slurm nodes:")
     for node in all_nodes:
         if node in available_slurm_nodes:
@@ -234,26 +363,209 @@ def print_status(user, job_name, docker_prefix_list, dbg_lvl = 1):
         else:
             print(f"\033[31mUNAVAILABLE: {node}\033[0m")
 
+    # Again general info. Not helpful for --status <job>? 
+    # for docker_prefix in docker_prefix_list:
+    #     print(f"\nChecking what nodes have {docker_prefix}:{githash} image:")
+    #     docker_available_slurm_nodes = check_docker_image(all_nodes, docker_prefix, githash, dbg_lvl)
+    #     for node in all_nodes:
+    #         if node in docker_available_slurm_nodes:
+    #             print(f"\033[92mAVAILABLE:   {node}\033[0m")
+    #         else:
+    #             print(f"\033[31mUNAVAILABLE: {node}\033[0m")
+
+    # Get dictionary of {node: [processes]}
+    # NOTE: This is a list of run commands, not the actual containers. Container name will be same miunus tmp_run.sh
+    slurm_running_sims = check_slurm_task_queued_or_running(docker_prefix_list, job_name, user, dbg_lvl)
+
+    print(f"\nChecking what nodes currently have a running job with the following name(s):")
     for docker_prefix in docker_prefix_list:
-        print(f"\nChecking what nodes have {docker_prefix}:{githash} image:")
-        available_slurm_nodes = check_docker_image(available_slurm_nodes, docker_prefix, githash, dbg_lvl)
-        for node in all_nodes:
-            if node in available_slurm_nodes:
-                print(f"\033[92mAVAILABLE:   {node}\033[0m")
+        print(f"{docker_prefix}_*_{job_name}_*_*_{user}")
+
+    print()
+
+    # Print out every running job
+    # for key, val in running_sims.items():
+    #     if key == '':
+    #         print("Fount not running")
+    #         continue
+
+    #     if len(val) > 0:
+    #         print(f"\033[92mRUNNING:     {key}\033[0m")
+    #         for docker in val:
+    #             print(f"\033[92m    COMMAND: {docker}\033[0m")
+    #     else:
+    #         print(f"\033[31mNOT RUNNING: {key}\033[0m")
+
+    # if '' in running_sims.keys():
+    #     for val in running_sims['']:
+    #         if len(val) > 0:
+    #             print(f"\033[92mQUEUED:     {val}\033[0m")
+    # else:
+    #     print(f"\033[31mNO COMMANDS IN QUEUE\033[0m")
+
+    running_sims = []
+    queued_sims = []
+
+    print(f"Summary of running simulations (by node): ")
+    for key, val in slurm_running_sims.items():
+        if key == '':
+            continue
+        print(f"{key}: {len(val)} Jobs")
+        running_sims += val
+
+    # Print queued jobs last
+    if '' in slurm_running_sims.keys():
+        print(f"Queued:     {len(slurm_running_sims[''])}")
+        queued_sims += slurm_running_sims['']
+
+    if slurm_running_sims == dict():
+        print("No simulation jobs currently running")
+
+    not_complete = running_sims + queued_sims
+
+    all_jobs = get_simulation_jobs(descriptor_data, workloads_data, docker_prefix_list, user, dbg_lvl)
+    # print(f"Completed Jobs: {len(all_jobs) - len(not_complete)}")
+
+    # completed_jobs = list(set(all_jobs) - set(not_complete))
+ 
+    print()
+
+    root_directory = f"{descriptor_data["root_dir"]}/simulations/{descriptor_data["experiment"]}/logs/"
+
+    # Check that experiment exists
+    if not os.path.exists(root_directory):
+        print("Log file directory does not exist")
+        print("The current experiment does not seem to have been run yet")
+        return
+        
+    log_files = os.listdir(root_directory)
+
+    # Running sims have log files
+
+    # Ignore stat collector. If log file found, ignore it
+    # We actually dont need to care about counts. Just the status reported in the logs
+    # COmpletely independently, read all logs and figure out error rates.
+
+    # TODO: Check if log files are actually from this experiment - Shouldn't be necessary anymore
+    if len(log_files) > len(all_jobs) + 1:
+        print("More log files than total runs. Maybe same experiment name was run multiple times?")
+        print("Any errors from a previous run with the same experiment name will be re-reported now")
+
+    error_runs = []
+    skipped = 0
+    stats_generating = False
+
+    confs = list(descriptor_data["configurations"].keys())
+
+    completed = {conf:0 for conf in confs}
+    failed = {conf:0 for conf in confs}
+    slurm_failed = {conf:0 for conf in confs}
+    running = {conf:0 for conf in confs}
+    pending = {conf:0 for conf in confs}    
+
+    # NOTE: Potential Subset issue again. conf2 and conf sims will be added to conf2
+    # Tried to create such a scenario but was unable
+    for sim in queued_sims:
+        print(sim)
+        for conf in confs:
+            if conf in sim:
+                pending[conf] += 1
+                break
+
+    # Check each log file for errors
+    for file in log_files:
+        with open(root_directory+file, 'r') as f:
+            contents = f.read()
+            split = contents.split(" ")
+
+            # Cannot get config if file isn't complete
+            if len(split) < 2:
+                continue
+
+            config = split[1] 
+
+            # Check if currently running, skip if so. Running simulations will not contain
+            # the completion message
+            if "stat_collection_job" not in file:
+                # Non-stat jobs will have 4 lines in their log file until they complete.
+                # Fifth line completion message indicates completion
+                if len(contents.split("\n")) < 5:
+                    skipped += 1
+                    running[config] += 1
+                    continue
             else:
-                print(f"\033[31mUNAVAILABLE: {node}\033[0m")
+                # Stat jobs were modified to print DONE as a final message
+                if "DONE" not in contents:
+                    # skipped += 1
+                    stats_generating = True
+                    continue
 
-    print(f"\nChecking what nodes have a running container with name {docker_prefix}_*_{job_name}_*_*_{user}")
-    node_docker_running = check_docker_container_running(available_slurm_nodes, docker_prefix_list, job_name, user, dbg_lvl)
+            # Slurm error messages have 'node: error:' in them
+            for node in all_nodes:
+                if f"{node}: error:" in contents:
+                    error_runs += [root_directory+file]
+                    slurm_failed[config] += 1
 
-    for node in all_nodes:
-        if node in node_docker_running.keys() and len(node_docker_running.get(node)) > 0:
-            print(f"\033[92mRUNNING:     {node}\033[0m")
-            for docker in node_docker_running[node]:
-                print(f"\033[92m    CONTAINER: {docker}\033[0m")
+            # Most scarab runs and all stat runs will have a line with "Error" in them if they fail
+            if 'Error' in contents:
+                error_runs += [root_directory+file]
+                failed[config] += 1
+                continue
+
+            # To be sure, check scarab runs with for final success line
+            if descriptor_data["experiment"] not in contents:
+                error_runs += [root_directory+file]
+                failed[config] += 1
+                continue
+
+            if config != 'stat':
+                completed[config] += 1
+    
+
+    print(f"Currently running {len(running_sims)} simulations (from logs: {skipped})")
+    if stats_generating:
+        print("Stat collector is running")
+
+    # print(f"\033[92mSuccessfully Completed Jobs: {len(all_jobs) - len(not_complete) - len(error_runs)}\033[0m")
+    
+    data = {"Configuration":[],"Completed":[],"Failed":[],"Failed - Slurm":[],"Running":[],"Pending":[],"Non-existant":[],"Total":[]}
+    for conf in confs:  
+        data["Configuration"].append(conf)
+        data["Completed"].append(completed[conf])
+        data["Failed"].append(failed[conf])
+        data["Failed - Slurm"].append(slurm_failed[conf])
+        data["Running"].append(running[conf])
+        data["Pending"].append(pending[conf])
+
+        # Calculated, number of simpoints that should exist in every config
+        total_per_conf = int(len(all_jobs)/len(confs))
+
+        # Number of simpoints accounted for
+        total_found = completed[conf] + failed[conf] + running[conf] + pending[conf] + slurm_failed[conf]
+
+        data["Total"].append(total_per_conf)
+        data["Non-existant"].append(total_per_conf - total_found) # Unaccounted for simpoints
+
+
+    print(generate_table(data))
+
+    if skipped != len(running_sims):
+        print("\033[33mWARN: Number of log files skipped due to being 'in progress' does not match number of running simulations.")
+        print("This could indicate the file format has changed in a way where the 'is running' checks need to be modified.")
+        if skipped > len(running_sims):
+            print("Completed jobs' log files were skipped. This could also be caused by running same experiment multiple times (check for prev. err).")
         else:
-            print(f"\033[31mNOT RUNNING: {node}\033[0m")
+            print("Running jobs' log files were evaluated for success/failure")
 
+        print("\033[0m")
+    
+    # Print up to five of the full paths
+    if len(error_runs) > 0:
+        print(f"\033[31mErroneous Jobs: {len(error_runs)}\033[0m")
+        print(f"\033[31mErrors found in {len(error_runs)}/{len(log_files)} log files.")
+        print("First 5 error runs:\n", "\n".join(error_runs[:5]), "\033[0m", sep='')
+    else:
+        print(f"\033[92mNo errors found in log files\033[0m")
 
 # Kills all jobs for job_name, if associated with user
 def kill_jobs(user, job_name, docker_prefix_list, dbg_lvl = 2):
@@ -392,9 +704,9 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
             githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).decode("utf-8").strip()
             info(f"Git hash: {githash}", dbg_lvl)
         except FileNotFoundError:
-            err("Error: 'git' command not found. Make sure Git is installed and in your PATH.")
+            err("Error: 'git' command not found. Make sure Git is installed and in your PATH.", dbg_lvl)
         except subprocess.CalledProcessError:
-            err("Error: Not in a Git repository or unable to retrieve Git hash.")
+            err("Error: Not in a Git repository or unable to retrieve Git hash.", dbg_lvl)
 
 
         # Get avlailable nodes. Error if none available
@@ -527,9 +839,9 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
             githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).decode("utf-8").strip()
             info(f"Git hash: {githash}", dbg_lvl)
         except FileNotFoundError:
-            err("Error: 'git' command not found. Make sure Git is installed and in your PATH.")
+            err("Error: 'git' command not found. Make sure Git is installed and in your PATH.", dbg_lvl)
         except subprocess.CalledProcessError:
-            err("Error: Not in a Git repository or unable to retrieve Git hash.")
+            err("Error: Not in a Git repository or unable to retrieve Git hash.", dbg_lvl)
 
 
         # Get avlailable nodes. Error if none available
