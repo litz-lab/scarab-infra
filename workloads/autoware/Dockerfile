@@ -76,6 +76,8 @@ COPY ./workloads/autoware/lane_change $tmpdir/autoware/lane_change
 RUN cd $tmpdir/autoware/lane_change && source /opt/ros/$ROS_DISTRO/setup.bash && source $tmpdir/autoware/install/setup.bash && colcon build --packages-select lane_change
 COPY ./workloads/autoware/mpc_controller_test $tmpdir/autoware/mpc_controller_test
 RUN cd $tmpdir/autoware/mpc_controller_test && source /opt/ros/$ROS_DISTRO/setup.bash && source $tmpdir/autoware/install/setup.bash && colcon build --packages-select mpc_controller_test
+COPY ./workloads/autoware/euclidean_cluster $tmpdir/autoware/euclidean_cluster
+RUN cd $tmpdir/autoware/euclidean_cluster && source /opt/ros/$ROS_DISTRO/setup.bash && source $tmpdir/autoware/install/setup.bash && colcon build --packages-select euclidean_cluster
 
 # Install driving_log_replayer via pipx
 RUN apt-get remove -y python3-termcolor || true
