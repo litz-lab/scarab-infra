@@ -8,6 +8,7 @@ import psutil
 import signal
 import re
 import traceback
+import json
 from utilities import (
         err,
         warn,
@@ -27,17 +28,40 @@ from utilities import (
         check_can_skip
         )
 
-def prepare_docker_image(docker_prefix, githash, dbg_lvl):
+def prepare_docker_image(docker_prefix, githash, infra_dir, dbg_lvl):
+    gh_token = os.environ.get("GH_TOKEN")
+    common_dir = os.path.join(infra_dir, "common")
+    workload_dir = os.path.join(infra_dir, "workloads", f"{docker_prefix}")
+    url = "https://api.github.com/orgs/litz-lab/packages/container/scarab-infra%2Fallbench_traces/versions"
+    headers = ["-H", f"Authorization: Bearer {gh_token}"]
+    response = subprocess.check_output(["curl", "-s"] + headers + [url], text=True)
+    data = json.loads(response)
+    # Sort by upload date
+    sorted_versions = sorted(data, key=lambda x: x["created_at"], reverse=True)
+    tags = sorted_versions[0]["metadata"]["container"]["tags"]
+    print(tags)
+    latest_hash = tags[0]
+    diff_output = subprocess.run(f"git diff {latest_hash} -- {common_dir} {workload_dir}", capture_output=True, text=True)
     image_tag = f"{docker_prefix}:{githash}"
+    latest_image_tag = f"{docker_prefix}:{latest_hash}"
+    ghcr_tag = f"ghcr.io/litz-lab/scarab-infra/{latest_image_tag}"
+
     if not image_exist(image_tag):
         print(f"Couldn't find image {image_tag} locally")
-        ghcr_tag = f"ghcr.io/litz-lab/scarab-infra/{image_tag}"
         try:
-            print("Pulling docker image...")
-            subprocess.check_output(["docker", "pull", ghcr_tag])
-            subprocess.check_output(["docker", "tag", ghcr_tag, image_tag])
-            subprocess.check_output(["docker", "rmi", ghcr_tag])
-            print(f"{image_tag} has succesfully pulled!")
+            if not image_exist(latest_image_tag):
+                print("Pulling docker image...")
+                subprocess.check_output(["docker", "pull", ghcr_tag])
+                subprocess.check_output(["docker", "tag", ghcr_tag, latest_image_tag])
+                subprocess.check_output(["docker", "rmi", ghcr_tag])
+                print(f"{docker_prefix}:{latest_hash} has succesfully pulled!")
+
+            if diff_output:
+                print(f"Changes detected in ./common or ./workloads/{docker_prefix} since {latest_hash}. Build docker image locally..")
+                subprocess.check_output(["./run.sh", "-b", docker_prefix])
+            else:
+                print(f"No changes in ./common or ./workloads/{docker_prefix} since {latest_hash}.")
+                subprocess.check_output(["docker", "tag", ghcr_tag, image_tag])
         except subprocess.CalledProcessError as e:
             err("Docker pull failed:\n" + e.output.decode(), dbg_lvl)
             subprocess.check_output(["./run.sh", "-b", docker_prefix])
@@ -234,7 +258,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
             err("Error: Not in a Git repository or unable to retrieve Git hash.")
 
         for docker_prefix in docker_prefix_list:
-            prepare_docker_image(docker_prefix, githash, dbg_lvl)
+            prepare_docker_image(docker_prefix, githash, infra_dir, dbg_lvl)
 
         docker_prefix = docker_prefix_list[0]
         scarab_githash = prepare_simulation(user, scarab_path, scarab_build, descriptor_data['root_dir'], experiment_name, architecture, docker_prefix, githash, infra_dir, False, dbg_lvl)

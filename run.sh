@@ -312,7 +312,7 @@ fi
 
 # Prompt for GH_TOKEN if not set
 if [[ -z "$GH_TOKEN" ]]; then
-  read -s -p "Enter your GitHub Token (GH_TOKEN): " GH_TOKEN
+  read -s -p "Enter your GitHub Token (GH_TOKEN) to check the latest valid tag of the docker image: " GH_TOKEN
   echo
   export GH_TOKEN
 fi

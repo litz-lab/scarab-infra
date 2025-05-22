@@ -8,6 +8,7 @@ import random
 import subprocess
 import re
 import traceback
+import json
 from utilities import (
         err,
         warn,
@@ -25,7 +26,8 @@ from utilities import (
         image_exist,
         check_can_skip,
         get_image_name,
-        generate_table
+        generate_table,
+        run_on_node
         )
 
 # Check if the docker image exists on available slurm nodes
@@ -52,29 +54,52 @@ def check_docker_image(nodes, docker_prefix, githash, dbg_lvl = 1):
 # Prepare the docker image on each slurm node
 # Inputs: list of available slurm nodes
 # Output: list of nodes where the docker image is ready
-def prepare_docker_image(nodes, docker_prefix, githash, dbg_lvl = 1):
+def prepare_docker_image(nodes, docker_prefix, githash, infra_dir, dbg_lvl = 1):
     try:
+        gh_token = os.environ.get("GH_TOKEN")
+        common_dir = os.path.join(infra_dir, "common")
+        workload_dir = os.path.join(infra_dir, "workloads", f"{docker_prefix}")
+        url = "https://api.github.com/orgs/litz-lab/packages/container/scarab-infra%2Fallbench_traces/versions"
+        headers = ["-H", f"Authorization: Bearer {gh_token}"]
+        response = subprocess.check_output(["curl", "-s"] + headers + [url], text=True)
+        data = json.loads(response)
+        # Sort by upload date
+        sorted_versions = sorted(data, key=lambda x: x["created_at"], reverse=True)
+        tags = sorted_versions[0]["metadata"]["container"]["tags"]
+        print(tags)
+        latest_hash = tags[0]
+        diff_output = subprocess.run(f"git diff {latest_hash} -- {common_dir} {workload_dir}", shell=True, capture_output=True, text=True, check=True)
+        image_tag = f"{docker_prefix}:{githash}"
+        latest_image_tag = f"{docker_prefix}:{latest_hash}"
+        ghcr_tag = f"ghcr.io/litz-lab/scarab-infra/{latest_image_tag}"
+
         available_nodes = []
         for node in nodes:
             # Check if the image exists
-            image_tag = f"{docker_prefix}:{githash}"
-            image = subprocess.check_output(["srun", f"--nodelist={node}", "docker", "images", "-q", image_tag])
-            if image == [] or image == b'':
+            if not image_exist(image_tag, node):
                 print(f"Couldn't find image {docker_prefix}:{githash} on {node}")
                 try:
                     print(f"Pulling docker image on {node}...")
-                    subprocess.check_output(["srun", f"--nodelist={node}", "docker", "pull", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}"])
-                    image = subprocess.check_output(["srun", f"--nodelist={node}", "docker", "images", "-q", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}"])
-                    if image != []:
-                        print(f"{image_tag} has succesfully pulled on {node}!")
-                        subprocess.check_output(["srun", f"--nodelist={node}", "docker", "tag", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}", f"{docker_prefix}:{githash}"])
-                        subprocess.check_output(["srun", f"--nodelist={node}", "docker", "rmi", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}"])
+                    if not image_exist(latest_image_tag, node):
+                        print(f"Pulling docker image on {node}...")
+                        run_on_node(["docker", "pull", ghcr_tag], node, capture_output=True, text=True)
+                        run_on_node(["docker", "tag", ghcr_tag, latest_image_tag], node, capture_output=True, text=True)
+                        run_on_node(["docker", "rmi", ghcr_tag], node, capture_output=True, text=True)
+                        print(f"{docker_prefix}:{latest_hash} has succesfully pulled on {node}!")
+
+                    if diff_output:
+                        print(f"Changes detected in ./common or ./workloads/{docker_prefix} since {latest_hash}. Build docker image locally..")
+                        run_on_node(["./run.sh", "-b", docker_prefix], node, capture_output=True, text=True)
+                    else:
+                        print(f"No changes in ./common or ./workloads/{docker_prefix} since {latest_hash}.")
+                        run_on_node(["docker", "tag", ghcr_tag, image_tag], node, capture_output=True)
                 except subprocess.CalledProcessError as e:
                     err("Docker pull failed:\n" + e.output.decode(), dbg_lvl)
-                    subprocess.check_output(["srun", f"--nodelist={node}", "./run.sh", "-b", docker_prefix])
+                    run_on_node(["./run.sh", "-b", docker_prefix], node, capture_output=True)
                     if not image_exist(image_tag, node):
                         err(f"Still couldn't find image {image_tag} after trying to build one", dbg_lvl)
                         exit(1)
+
             available_nodes.append(node)
 
         return available_nodes
@@ -724,7 +749,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
             exit(1)
 
         for docker_prefix in docker_prefix_list:
-            docker_running = prepare_docker_image(available_slurm_nodes, docker_prefix, githash, dbg_lvl)
+            docker_running = prepare_docker_image(available_slurm_nodes, docker_prefix, githash, infra_dir, dbg_lvl)
             # If docker image still does not exist, exit
             if docker_running == []:
                 err(f"Error with preparing docker image for {docker_prefix}:{githash}", dbg_lvl)
