@@ -16,6 +16,7 @@ find_package(rosbag2_interfaces REQUIRED)
 find_package(autoware_euclidean_cluster REQUIRED)
 find_package(autoware_point_types REQUIRED)
 find_package(tier4_perception_msgs REQUIRED)
+find_package(rosbag2_transport   REQUIRED)
 
 add_executable(cluster_test_exec src/cluster_test_node.cpp)
 ament_target_dependencies(cluster_test_exec
@@ -23,7 +24,8 @@ ament_target_dependencies(cluster_test_exec
   rosbag2_interfaces
   autoware_euclidean_cluster 
   autoware_point_types 
-  tier4_perception_msgs)
+  tier4_perception_msgs
+  rosbag2_transport)
 
 install(TARGETS cluster_test_exec
   DESTINATION lib/${PROJECT_NAME}
