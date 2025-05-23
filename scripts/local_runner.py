@@ -355,7 +355,7 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
             clustering_k = config["clustering_k"]
 
             run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd,
-                             trace_type, drio_args, clustering_k)
+                             trace_type, drio_args, clustering_k, infra_dir)
 
         print("Wait processes...")
         for p in processes:
