@@ -7,6 +7,7 @@
 #include <rosbag2_storage/storage_options.hpp>
 
 #include <nav_msgs/msg/odometry.hpp>
+#include <nav_msgs/msg/occupancy_grid.hpp> 
 #include <autoware_perception_msgs/msg/predicted_objects.hpp>
 #include <autoware_planning_msgs/msg/path.hpp>
 
@@ -37,24 +38,18 @@ using tier4_planning_msgs::msg::PathWithLaneId;
 using autoware::behavior_velocity_planner::CrosswalkModule;
 using PlannerParam  = CrosswalkModule::PlannerParam;
 
-namespace avp = autoware::behavior_velocity_planner;
 using autoware::behavior_velocity_planner::PlannerData;
 
 template<typename T>
 T get_or_declare_parameter(
   rclcpp::Node & node, const std::string & param_name, const T & default_value)
 {
-  // Declare with default if not declared yet
   if (!node.has_parameter(param_name)) {
     node.declare_parameter<T>(param_name, default_value);
   }
-  // Then retrieve its value
   return node.get_parameter(param_name).get_value<T>();
 }
 
-/********************************************************************************
-* CrosswalkTestNode
-*******************************************************************************/
 class CrosswalkTestNode : public rclcpp::Node
 {
 public:
@@ -223,13 +218,15 @@ public:
     odom_sub_ = this->create_subscription<Odometry>(
       "/localization/kinematic_state", 10,
       [this](Odometry::SharedPtr msg) {
+        // std::cout << "KINEMATIC_STATE EVENT" << std::endl;
         odom_ = msg;
         tryRunModule();
       }
     );
     preds_sub_ = this->create_subscription<PredictedObjects>(
-      "/perception/object_recognition/objects", 10,
+      "/perception/object_recognition/objects", rclcpp::QoS{1}.best_effort(),
       [this](PredictedObjects::SharedPtr msg) {
+        // std::cout << "object_recognition EVENT" << std::endl;
         preds_ = msg;
         tryRunModule();
       }
@@ -237,68 +234,27 @@ public:
     path_sub_ = this->create_subscription<Path>(
       "/planning/scenario_planning/lane_driving/behavior_planning/path", 10,
       [this](Path::SharedPtr msg) {
+        // std::cout << "behavior_planning/path EVENT" << std::endl;
         path_ = msg;
         tryRunModule();
       }
     );
+    // occu_sub_ = this->create_subscription<nav_msgs::msg::OccupancyGrid>(
+    //   "/perception/occupancy_grid_map/map", 10,
+    //   [this](nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
+    //     // std::cout << "occupancy_grid_map EVENT" << std::endl;
+    //     occu_ = msg;
+    //     tryRunModule();
+    //   }
+    // );
   }
 
 private:
-  [[nodiscard]] rclcpp::NodeOptions get_node_options() const
-  {
-    rclcpp::NodeOptions node_options;
-
-    const auto common_param =
-      get_absolute_path_to_config("autoware_test_utils", "test_common.param.yaml");
-    const auto nearest_search_param =
-      get_absolute_path_to_config("autoware_test_utils", "test_nearest_search.param.yaml");
-    const auto vehicle_info_param =
-      get_absolute_path_to_config("autoware_test_utils", "test_vehicle_info.param.yaml");
-
-    std::string bpp_dir{"autoware_behavior_path_planner"};
-    const auto bpp_param = get_absolute_path_to_config(bpp_dir, "behavior_path_planner.param.yaml");
-    const auto drivable_area_expansion_param =
-      get_absolute_path_to_config(bpp_dir, "drivable_area_expansion.param.yaml");
-    const auto scene_module_manager_param =
-      get_absolute_path_to_config(bpp_dir, "scene_module_manager.param.yaml");
-
-    autoware::test_utils::updateNodeOptions(
-      node_options,
-      {common_param, nearest_search_param, vehicle_info_param,
-      bpp_param, drivable_area_expansion_param,
-      scene_module_manager_param});
-
-    return node_options;
-  }
-
   void tryRunModule()
   {
     if (odom_ && preds_ && path_) {
       RCLCPP_INFO(this->get_logger(), "All data ready => modifyPathVelocity start!");
-
-      rclcpp::NodeOptions pd_opts;
-      pd_opts.start_parameter_services(false)
-             .automatically_declare_parameters_from_overrides(false)
-             .parameter_overrides({
-               {"max_accel",           rclcpp::ParameterValue(5.0)},
-               {"max_jerk",            rclcpp::ParameterValue(5.0)},
-               {"system_delay",        rclcpp::ParameterValue(0.3)},
-               {"delay_response_time", rclcpp::ParameterValue(0.1)},
-               // vehicle_info_utils
-               {"wheel_radius",        rclcpp::ParameterValue(0.39)},
-               {"wheel_width",         rclcpp::ParameterValue(0.42)},
-               {"wheel_base",          rclcpp::ParameterValue(2.74)},
-               {"wheel_tread",         rclcpp::ParameterValue(1.63)},
-               {"front_overhang",      rclcpp::ParameterValue(1.0)},
-               {"rear_overhang",       rclcpp::ParameterValue(1.03)},
-               {"left_overhang",       rclcpp::ParameterValue(0.1)},
-               {"right_overhang",      rclcpp::ParameterValue(0.1)},
-               {"vehicle_height",      rclcpp::ParameterValue(2.5)},
-               {"max_steer_angle",     rclcpp::ParameterValue(0.70)}
-             });
-      
-      auto pd_node      = std::make_shared<rclcpp::Node>("planner_data_node", pd_opts);
-      auto planner_data = std::make_shared<PlannerData>(*pd_node);
+      auto planner_data = std::make_shared<autoware::behavior_velocity_planner::PlannerData>();
 
       // odom
       geometry_msgs::msg::PoseStamped ps;
@@ -329,15 +285,17 @@ private:
         nav_msgs::msg::OccupancyGrid fake_grid;
         fake_grid.header.frame_id = "map";
         fake_grid.info.resolution = 0.5;   // 1 cell = 0.5 meter
-        fake_grid.info.width = 100;       // 100 cells in x-direction
-        fake_grid.info.height = 100;      // 100 cells in y-direction
-        fake_grid.info.origin.position.x = 0.0;
-        fake_grid.info.origin.position.y = 0.0;
+        fake_grid.info.width = 300;       // 100 cells in x-direction
+        fake_grid.info.height = 300;      // 100 cells in y-direction
+        fake_grid.info.origin.position.x = 3711.0;
+        fake_grid.info.origin.position.y = 73678.5;
+        fake_grid.info.origin.position.z = 19.36497688293457;
         fake_grid.info.origin.orientation.w = 1.0;
       
-        fake_grid.data.resize(fake_grid.info.width * fake_grid.info.height, 0);
+        fake_grid.data.resize(fake_grid.info.width * fake_grid.info.height, 1);
       
         planner_data->occupancy_grid = std::make_shared<nav_msgs::msg::OccupancyGrid>(fake_grid);
+        // planner_data->occupancy_grid = occu_;
       }
 
       using autoware::route_handler::RouteHandler;
@@ -349,13 +307,14 @@ private:
       planner_data->route_handler_ = route_handler_ptr;
 
       crosswalk_module_->setPlannerData(planner_data);
-      bool result = crosswalk_module_->modifyPathVelocity(&path_wlid);
 
+      bool result = crosswalk_module_->modifyPathVelocity(&path_wlid);
       RCLCPP_INFO(get_logger(), "modifyPathVelocity result: %s", result ? "true" : "false");
 
       odom_.reset();
       preds_.reset();
       path_.reset();
+      occu_.reset();
     }
   }
 
@@ -367,53 +326,53 @@ private:
   rclcpp::Subscription<Odometry>::SharedPtr odom_sub_;
   rclcpp::Subscription<PredictedObjects>::SharedPtr preds_sub_;
   rclcpp::Subscription<Path>::SharedPtr path_sub_;
+  rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr occu_sub_;
 
   Odometry::SharedPtr         odom_;
   PredictedObjects::SharedPtr preds_;
   Path::SharedPtr             path_;
+  nav_msgs::msg::OccupancyGrid::SharedPtr occu_;
 };
-
 
 int main(int argc, char ** argv)
 {
-  rclcpp::init(argc, argv);
+  try {
+    rclcpp::init(argc, argv);
 
-  // rosbag2
-  rosbag2_storage::StorageOptions storage_options;
-  storage_options.uri        = "/tmp_home/autoware/crosswalk_velocity/crosswalk_bag/crosswalk_bag.db3";
-  storage_options.storage_id = "sqlite3";
+    auto crosswalk_node = std::make_shared<CrosswalkTestNode>("/tmp_home/autoware/crosswalk_velocity/crosswalk_map/crosswalk_map.osm");
 
-  rosbag2_transport::PlayOptions play_options;
-  play_options.read_ahead_queue_size = 1000;
-  play_options.start_paused = true;
-  play_options.rate = 1.0;
+    using PlayNextSrv = rosbag2_interfaces::srv::PlayNext;
+    auto client_play_next = crosswalk_node->create_client<PlayNextSrv>("/rosbag2_player/play_next");
 
-  auto player = std::make_shared<rosbag2_transport::Player>(
-    storage_options, play_options, "my_bag_player_node");
+    while (!client_play_next->wait_for_service(std::chrono::seconds(1))) {
+      RCLCPP_INFO(crosswalk_node->get_logger(), "Waiting for service /rosbag2_player/play_next…");
+      if (!rclcpp::ok()) {
+        RCLCPP_ERROR(crosswalk_node->get_logger(), "Interrupted while waiting for service.");
+        rclcpp::shutdown();
+        return 1;
+      }
+    }
 
-  auto crosswalk_node = std::make_shared<CrosswalkTestNode>(
-    "/tmp_home/autoware/crosswalk_velocity/crosswalk_map/crosswalk_map.osm");
+    for (int i = 1; i <= 3; i++) {
+      RCLCPP_INFO(crosswalk_node->get_logger(), ">> play_next() call #%d", i);
 
-  rclcpp::executors::SingleThreadedExecutor exec;
-  exec.add_node(player);
-  exec.add_node(crosswalk_node);
+      auto request  = std::make_shared<PlayNextSrv::Request>();
+      auto future   = client_play_next->async_send_request(request);
 
-  std::thread spin_thread([&exec]() {
-    exec.spin();
-  });
+      auto status = rclcpp::spin_until_future_complete(crosswalk_node, future, std::chrono::milliseconds(500));
+      if (status == rclcpp::FutureReturnCode::SUCCESS) {
+        RCLCPP_INFO(crosswalk_node->get_logger(), "play_next #%d succeeded", i);
+      } else {
+        RCLCPP_ERROR(crosswalk_node->get_logger(), "play_next #%d FAILED / TIMEOUT", i);
+        break;
+      }
+      std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    }
 
-  // play_next()
-  std::this_thread::sleep_for(std::chrono::seconds(1));
-  for (int i = 1; i <= 3; i++) {
-    RCLCPP_INFO(rclcpp::get_logger("main"), ">>> play_next() call #%d", i);
-    player->play_next();
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    rclcpp::shutdown();
+  } catch (const std::exception & e) {
+    std::cerr << "[ERROR] " << e.what() << std::endl;
+    return 1;
   }
-
-  std::this_thread::sleep_for(std::chrono::seconds(2));
-  RCLCPP_INFO(rclcpp::get_logger("main"), "Shutting down...");
-  exec.cancel();
-  spin_thread.join();
-  rclcpp::shutdown();
   return 0;
 }
