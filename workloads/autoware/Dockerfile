@@ -78,6 +78,8 @@ COPY ./workloads/autoware/mpc_controller_test $tmpdir/autoware/mpc_controller_te
 RUN cd $tmpdir/autoware/mpc_controller_test && source /opt/ros/$ROS_DISTRO/setup.bash && source $tmpdir/autoware/install/setup.bash && colcon build --packages-select mpc_controller_test
 COPY ./workloads/autoware/euclidean_cluster $tmpdir/autoware/euclidean_cluster
 RUN cd $tmpdir/autoware/euclidean_cluster && source /opt/ros/$ROS_DISTRO/setup.bash && source $tmpdir/autoware/install/setup.bash && colcon build --packages-select euclidean_cluster
+COPY ./workloads/autoware/crosswalk_velocity $tmpdir/autoware/crosswalk_velocity
+RUN cd $tmpdir/autoware/crosswalk_velocity && source /opt/ros/$ROS_DISTRO/setup.bash && source $tmpdir/autoware/install/setup.bash && colcon build --packages-select crosswalk_velocity
 
 # Install driving_log_replayer via pipx
 RUN apt-get remove -y python3-termcolor || true
