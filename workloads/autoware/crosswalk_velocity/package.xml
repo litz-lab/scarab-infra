@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>crosswalk_velocity</name>
+  <version>0.0.0</version>
+  <description>TODO: Package description</description>
+  <maintainer email="mkim293@ucsc.edu">root</maintainer>
+  <license>TODO: License declaration</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>rclcpp</depend>
+  <depend>rosbag2_cpp</depend>
+  <depend>lanelet2_core</depend>
+  <depend>lanelet2_io</depend>
+  <depend>lanelet2_projection</depend>
+  <depend>autoware_lanelet2_extension</depend>
+  <depend>nav_msgs</depend>
+  <depend>tier4_planning_msgs</depend>
+  <depend>autoware_behavior_velocity_crosswalk_module</depend>
+  <depend>rosbag2_transport</depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
