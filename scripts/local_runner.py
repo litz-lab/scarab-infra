@@ -193,8 +193,8 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                     docker_container_name = f"{docker_prefix}_{suite}_{subsuite}_{workload}_{experiment_name}_{config_key.replace("/", "-")}_{cluster_id}_{sim_mode}_{user}"
                     # Create temp file with run command and run it
                     filename = f"{docker_container_name}_tmp_run.sh"
-                    
-                    if check_can_skip(descriptor_data, config_key, suite, subsuite, workload, cluster_id, filename, dbg_lvl):
+
+                    if check_can_skip(descriptor_data, config_key, suite, subsuite, workload, cluster_id, filename, debug_lvl=dbg_lvl):
                         info(f"Skipping {workload} with config {config_key} and cluster id {cluster_id}", dbg_lvl)
                         continue
 
