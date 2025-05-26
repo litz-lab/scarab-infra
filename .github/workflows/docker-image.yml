@@ -76,7 +76,7 @@ jobs:
 
       - name: Push Docker image to GitHub Packages
         if: steps.changes.outputs.changed == 'true'
-        #run: docker push ghcr.io/litz-lab/scarab-infra/allbench_traces:${{ steps.current_hash.outputs.githash }}
+        run: docker push ghcr.io/litz-lab/scarab-infra/allbench_traces:${{ steps.current_hash.outputs.githash }}
 
       - name: Save short GIT_HASH to last_built_tag.txt
         if: steps.changes.outputs.changed == 'true'
@@ -97,7 +97,7 @@ jobs:
             echo "Change in last_built_tag.txt"
             git add last_built_tag.txt
             git commit -m "Update last built Docker image tag"
-            #git push
+            git push
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
