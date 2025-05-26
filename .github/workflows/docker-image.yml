@@ -22,44 +22,33 @@ jobs:
       - name: Install dependencies
         run: sudo apt-get install -y jq curl
 
-      - name: Get latest GIT_HASH tag from GHCR
-        id: latest_tag
-        env:
-          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          LATEST_TAG=$(curl -s -H "Authorization: Bearer $GHCR_TOKEN" \
-            https://api.github.com/orgs/litz-lab/packages/container/scarab-infra%2Fallbench_traces/versions \
-            | jq -r '[.[] | {created_at, tags: .metadata.container.tags}]
-            | sort_by(.created_at)
-            | reverse
-            | .[0].tags[0]')
-
-          echo $LATEST_TAG
-          # Validate the JSON response contains `.tags`
-          if [ -n "$LATEST_TAG" ]; then
-            # Proceed to extract the latest tag
-            echo "Latest GIT_HASH tag: $LATEST_TAG"
-            echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
-          else
-            echo "GHCR did not return valid tags or .tags is missing/null"
-            echo "latest_tag=" >> $GITHUB_OUTPUT
-          fi
-
       - name: Set current GIT_HASH
         id: current_hash
-        run: |
-          echo "githash=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+        run: echo "githash=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
-      - name: Check if relevant directories changed since last image
-        id: changes
+      - name: Read last built tag from last_built_tag.txt
+        id: last_tag
         run: |
-          if [ -z "${{ steps.latest_tag.outputs.latest_tag }}" ]; then
-            echo "No previous image found — assuming first build."
+          if [[ -f last_built_tag.txt ]]; then
+            TAG=$(cat last_built_tag.txt)
+            echo "Found last built tag: $TAG"
+            echo "tag=$TAG" >> $GITHUB_OUTPUT
+          else
+            echo "No last_built_tag.txt found, assuming first build."
+            echo "tag=" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check if relevant directories changed since last build
+        id: changes
+        env:
+          LAST_TAG: ${{ steps.last_tag.outputs.tag }}
+        run: |
+          if [[ -z "$LAST_TAG" ]]; then
+            echo "No previous tag — assuming first build."
             echo "changed=true" >> $GITHUB_OUTPUT
           else
             git fetch origin main --depth=50
-            CHANGED=$(git diff --name-only ${{ steps.latest_tag.outputs.latest_tag }} HEAD | grep -E '^(common/|workloads/allbench_traces/)' || true)
-
+            CHANGED=$(git diff --name-only "$LAST_TAG" HEAD | grep -E '^(common/|workloads/allbench_traces/)' || true)
             if [[ -n "$CHANGED" ]]; then
               echo "Relevant changes detected:"
               echo "$CHANGED"
@@ -78,10 +67,37 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build Docker images
+      - name: Build Docker image
         if: steps.changes.outputs.changed == 'true'
-        run: docker build . --file ./workloads/allbench_traces/Dockerfile --no-cache --tag ghcr.io/litz-lab/scarab-infra/allbench_traces:${{ steps.current_hash.outputs.githash }}
+        run: docker build . \
+          --file ./workloads/allbench_traces/Dockerfile \
+          --no-cache \
+          --tag ghcr.io/litz-lab/scarab-infra/allbench_traces:${{ steps.current_hash.outputs.githash }}
 
-      - name: Push Docker images to GitHub Packages
+      - name: Push Docker image to GitHub Packages
         if: steps.changes.outputs.changed == 'true'
-        run: docker push ghcr.io/litz-lab/scarab-infra/allbench_traces:${{ steps.current_hash.outputs.githash }}
+        #run: docker push ghcr.io/litz-lab/scarab-infra/allbench_traces:${{ steps.current_hash.outputs.githash }}
+
+      - name: Save short GIT_HASH to last_built_tag.txt
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          SHORT_HASH=$(git rev-parse --short HEAD)
+          echo "Saving GIT_HASH: $SHORT_HASH"
+          echo "$SHORT_HASH" > last_built_tag.txt
+
+      - name: Commit and push updated last_built_tag.txt
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+          if git diff --quiet last_built_tag.txt; then
+            echo "No change in last_built_tag.txt"
+          else
+            echo "Change in last_built_tag.txt"
+            git add last_built_tag.txt
+            git commit -m "Update last built Docker image tag"
+            #git push
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

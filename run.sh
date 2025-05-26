@@ -76,12 +76,7 @@ build () {
   if ! docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "$APP_GROUPNAME:$GIT_HASH"; then
     echo "The image with the current Git commit hash does not exist. Find the same image but with the latest tag.."
 
-    LATEST_HASH=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
-      https://api.github.com/orgs/litz-lab/packages/container/scarab-infra%2Fallbench_traces/versions \
-      | jq -r '[.[] | {created_at, tags: .metadata.container.tags}]
-      | sort_by(.created_at)
-      | reverse
-      | .[0].tags[0]')
+    LATEST_HASH=$(cat $INFRA_ROOT/last_built_tag.txt)
 
     echo "Latest tag of the pre-built image: $LATEST_HASH"
     # check if the latest Docker image exists locally
@@ -110,7 +105,7 @@ build () {
       # build from the beginning and overwrite whatever image with the same name
       docker build . -f ./workloads/$APP_GROUPNAME/Dockerfile --no-cache -t $APP_GROUPNAME:$GIT_HASH
     else
-      echo "No changes in ./common or ./workloads/$APP_GROUPNAME since $LATEST_HASH"
+      echo "No changes in ./common or ./workloads/$APP_GROUPNAME since $LATEST_HASH, tag with $GIT_HASH"
       docker tag $APP_GROUPNAME:$LATEST_HASH $APP_GROUPNAME:$GIT_HASH
     fi
   fi
@@ -308,13 +303,6 @@ if [ -f "README.md" ]; then
 else
   echo "Run this script in the root directory of the repository."
   exit 1
-fi
-
-# Prompt for GH_TOKEN if not set
-if [[ -z "$GH_TOKEN" ]]; then
-  read -s -p "Enter your GitHub Token (GH_TOKEN) to check the latest valid tag of the docker image: " GH_TOKEN
-  echo
-  export GH_TOKEN
 fi
 
 SHORT=h,b:,k:,c:

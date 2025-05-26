@@ -159,6 +159,50 @@ def validate_simulation(workloads_data, simulations, dbg_lvl = 2):
 
         print(f"[{suite}, {subsuite}, {workload}, {cluster_id}, {sim_mode}] is a valid simulation option.")
 
+# Prepare the docker image on each node
+# Inputs:   docker_prefix - docker image name
+#           image_tag - image name with the tag to build
+#           latest_image_tag - the latest pre-built image name with the tag
+#           nodes - list of available nodes (local runner when it's none)
+#           diff_output - diff of two git hashes in the directories that change the docker image
+# Output: list of nodes where the docker image is ready
+def prepare_docker_image(docker_prefix, image_tag, latest_hash, diff_output, nodes=None, dbg_lvl=1):
+    latest_image_tag = f"{docker_prefix}:{latest_hash}"
+    ghcr_tag = f"ghcr.io/litz-lab/scarab-infra/{latest_image_tag}"
+    org_available_nodes = nodes
+    # build the image also locally
+    nodes = [None] + nodes
+    available_nodes = []
+    for node in nodes:
+        if not image_exist(image_tag, node):
+            print(f"Couldn't find image {image_tag} on {node}")
+            try:
+                print(f"Pulling docker image on {node}...")
+                if not image_exist(latest_image_tag, node):
+                    print(f"Pulling docker image on {node}...")
+                    run_on_node(["docker", "pull", ghcr_tag], node, capture_output=True, text=True)
+                    run_on_node(["docker", "tag", ghcr_tag, latest_image_tag], node, capture_output=True, text=True)
+                    run_on_node(["docker", "rmi", ghcr_tag], node, capture_output=True, text=True)
+                    print(f"{docker_prefix}:{latest_hash} has succesfully pulled on {node}!")
+
+                if diff_output:
+                    print(f"Changes detected in ./common or ./workloads/{docker_prefix} since {latest_hash}. Build docker image locally..")
+                    run_on_node(["./run.sh", "-b", docker_prefix], node, capture_output=True, text=True)
+                else:
+                    print(f"No changes in ./common or ./workloads/{docker_prefix} since {latest_hash}.")
+                    run_on_node(["docker", "tag", ghcr_tag, image_tag], node, capture_output=True)
+            except subprocess.CalledProcessError as e:
+                err("Docker pull failed:\n" + e.output.decode(), dbg_lvl)
+                run_on_node(["./run.sh", "-b", docker_prefix], node, capture_output=True)
+                if not image_exist(image_tag, node):
+                    err(f"Still couldn't find image {image_tag} after trying to build one", dbg_lvl)
+                    exit(1)
+        available_nodes.append(node)
+    # If docker image still does not exist anywhere, exit
+    if available_nodes == []:
+        err(f"Error with preparing docker image for {image_tag}", dbg_lvl)
+        exit(1)
+
 # copy_scarab deprecated
 # new API prepare_simulation
 # Copies specified scarab binary, parameters, and launch scripts
@@ -169,8 +213,24 @@ def validate_simulation(workloads_data, simulations, dbg_lvl = 2):
 #           architecture - Architecture name
 #
 # Outputs:  scarab githash
-def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_name, architecture, docker_prefix, githash, infra_dir, interactive_shell=False, dbg_lvl=1):
+def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_name, architecture, docker_prefix_list, githash, infra_dir, interactive_shell=False, available_slurm_nodes=[], dbg_lvl=1):
+    # prepare docker images
+    image_tag_list = []
+    try:
+        for docker_prefix in docker_prefix_list:
+            common_dir = os.path.join(infra_dir, "common")
+            workload_dir = os.path.join(infra_dir, "workloads", f"{docker_prefix}")
+            latest_hash = subprocess.run(f"cat {infra_dir}/last_built_tag.txt", shell=True, capture_output=True, text=True, check=True).stdout.strip()
+            diff_output = subprocess.run(f"git diff {latest_hash} -- {common_dir} {workload_dir}", shell=True, capture_output=True, text=True, check=True)
+            image_tag = f"{docker_prefix}:{githash}"
+            image_tag_list.append(image_tag)
+            prepare_docker_image(docker_prefix, image_tag, latest_hash, diff_output, available_slurm_nodes, dbg_lvl)
+    except Exception as e:
+        info(e.stderr.strip(), dbg_lvl)
+        raise e
+
     ## Copy required scarab files into the experiment folder
+    docker_prefix = docker_prefix_list[0]
     try:
         local_uid = os.getuid()
         local_gid = os.getgid()
@@ -256,14 +316,26 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
         os.system(f"cp {scarab_path}/bin/scarab_launch.py  {experiment_dir}/scarab/bin/scarab_launch.py ")
         os.system(f"cp {scarab_path}/bin/scarab_globals/*  {experiment_dir}/scarab/bin/scarab_globals/ ")
 
-        return scarab_githash
+        return scarab_githash, image_tag_list
     except Exception as e:
         subprocess.run(["docker", "rm", "-f", docker_container_name], check=True)
         info(f"Removed container: {docker_container_name}", dbg_lvl)
         info(e.stderr.strip(), dbg_lvl)
         raise e
 
-def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_name, slurm_ids = None, dont_collect = False):
+def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_name, image_tag_list, available_nodes, slurm_ids = None, dont_collect = False):
+    # clean up docker images only when no container is running on top of the image (the other user may be using it)
+    # ignore the exception to ignore the rmi failure due to existing containers
+    nodes = ' '.join(available_nodes)
+    images = ' '.join(image_tag_list)
+    clean_cmd = f"python3 scripts/docker_cleaner.py --images {images}"
+    if nodes:
+        clean_cmd = clean_cmd + f" --nodes {nodes}"
+    if slurm_ids != None:
+        sbatch_cmd = f"sbatch --dependency=afterany:{','.join(slurm_ids)} -o {experiment_dir}/logs/stat_collection_job_%j.out "
+        clean_cmd = sbatch_cmd + clean_cmd
+    print(clean_cmd)
+    os.system(clean_cmd)
 
     if dont_collect:
         return
@@ -272,19 +344,19 @@ def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_n
         warn("No slurm dependencies provided. Skipping stat collection.", 2)
         return
 
-    # Run stat autocollector 
+    # Run stat autocollector
     experiment_dir = f"{root_dir}/simulations/{experiment_name}"
     collect_stats_cmd =  f"scarab_stats/stat_collector.py -d {descriptor_path} "
     collect_stats_cmd += f"-o {experiment_dir}/collected_stats.csv"
-    
+
     # For slurm, add slurm dependencies
     if slurm_ids != None:
         # afterok will not run if jobs fail. afterany used with stat_collector's error checking
-        sbatch_cmd = f"sbatch --dependency=afterany:{','.join(slurm_ids)} -o {experiment_dir}/logs/stat_collection_job_%j.out " 
+        sbatch_cmd = f"sbatch --dependency=afterany:{','.join(slurm_ids)} -o {experiment_dir}/logs/stat_collection_job_%j.out "
         collect_stats_cmd = sbatch_cmd + collect_stats_cmd
 
     os.system(collect_stats_cmd)
-    
+
     try:
         print("Finish simulation..")
     except Exception as e:
@@ -554,7 +626,22 @@ def get_weight_by_cluster_id(exp_cluster_id, simpoints):
         if simpoint["cluster_id"] == exp_cluster_id:
             return simpoint["weight"]
 
-def prepare_trace(user, scarab_path, scarab_build, docker_home, job_name, infra_dir, docker_prefix, githash, interactive_shell=False, dbg_lvl=1):
+def prepare_trace(user, scarab_path, scarab_build, docker_home, job_name, infra_dir, docker_prefix_list, githash, interactive_shell=False, available_slurm_nodes=None, dbg_lvl=1):
+    # prepare docker images
+    try:
+        for docker_prefix in docker_prefix_list:
+            common_dir = os.path.join(infra_dir, "common")
+            workload_dir = os.path.join(infra_dir, "workloads", f"{docker_prefix}")
+            latest_hash = subprocess.run(f"cat {infra_dir}/last_built_tag.txt", shell=True, capture_output=True, text=True, check=True).stdout.strip()
+            diff_output = subprocess.run(f"git diff {latest_hash} -- {common_dir} {workload_dir}", shell=True, capture_output=True, text=True, check=True)
+            image_tag = f"{docker_prefix}:{githash}"
+            latest_image_tag = f"{docker_prefix}:{latest_hash}"
+            prepare_docker_image(docker_prefix, image_tag, latest_hash, diff_output, available_slurm_nodes, dbg_lvl)
+    except Exception as e:
+        info(e.stderr.strip(), dbg_lvl)
+        raise e
+
+    docker_prefix = docker_prefix_list[0]
     try:
         local_uid = os.getuid()
         local_gid = os.getgid()
