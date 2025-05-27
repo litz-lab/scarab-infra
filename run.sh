@@ -70,25 +70,44 @@ build () {
   # get the latest Git commit hash
   GIT_HASH=$(git rev-parse --short HEAD)
 
-  # check if the Docker image '$APP_GROUPNAME:$GIT_HASH' exists
-  if docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "$APP_GROUPNAME:$GIT_HASH"; then
-    echo "The image with the same Git commit hash already exists! If you want to overwrite it, remove the old one first and try again."
-    exit 1
-  fi
-
   start=`date +%s`
 
-  # Local image not found. Trying to pull pre-built image from GitHub Packages...
-  if docker pull ghcr.io/litz-lab/scarab-infra/"$APP_GROUPNAME:$GIT_HASH"; then
-    echo "Successfully pulled pre-built image."
-    docker tag ghcr.io/litz-lab/scarab-infra/"$APP_GROUPNAME:$GIT_HASH" "$APP_GROUPNAME:$GIT_HASH"
-    echo "Tagged pulled image as $APP_GROUPNAME:$GIT_HASH"
-    docker rmi ghcr.io/litz-lab/scarab-infra/"$APP_GROUPNAME:$GIT_HASH"
-  else
-    echo "No pre-built image found for $APP_GROUPNAME:$GIT_HASH (or pull failed)."
-    echo "Build docker image locally..."
-    # build from the beginning and overwrite whatever image with the same name
-    docker build . -f ./workloads/$APP_GROUPNAME/Dockerfile --no-cache -t $APP_GROUPNAME:$GIT_HASH
+  # check if the Docker image '$APP_GROUPNAME:$GIT_HASH' exists
+  if ! docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "$APP_GROUPNAME:$GIT_HASH"; then
+    echo "The image with the current Git commit hash does not exist. Find the same image but with the latest tag.."
+
+    LATEST_HASH=$(cat $INFRA_ROOT/last_built_tag.txt)
+
+    echo "Latest tag of the pre-built image: $LATEST_HASH"
+    # check if the latest Docker image exists locally
+    if ! docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "$APP_GROUPNAME:$LATEST_HASH"; then
+      echo "The image with the latest tag does not exist. Pull first.."
+
+      # Local image not found. Trying to pull pre-built image from GitHub Packages...
+      if docker pull ghcr.io/litz-lab/scarab-infra/"$APP_GROUPNAME:$LATEST_HASH"; then
+        echo "Successfully pulled pre-built image."
+        docker tag ghcr.io/litz-lab/scarab-infra/"$APP_GROUPNAME:$LATEST_HASH" "$APP_GROUPNAME:$LATEST_HASH"
+        echo "Tagged pulled image as $APP_GROUPNAME:$LATEST_HASH"
+        docker rmi ghcr.io/litz-lab/scarab-infra/"$APP_GROUPNAME:$LATEST_HASH"
+      else
+        echo "No pre-built image found for $APP_GROUPNAME:$LATEST_HASH (or pull failed). This should not happen as the latest tag retrieved from the registry."
+        exit 1
+      fi
+    fi
+
+    # Run git diff for specific directories
+    DIFF_OUTPUT=$(git diff $LATEST_HASH -- $INFRA_ROOT/common $INFRA_ROOT/workloads/$APP_GROUPNAME)
+
+    if [ -n "$DIFF_OUTPUT" ]; then
+      echo "Changes detected in ./common or ./workloads/$APP_GROUPNAME since $LATEST_HASH"
+      echo "$DIFF_OUTPUT"
+      echo "Build docker image locally..."
+      # build from the beginning and overwrite whatever image with the same name
+      docker build . -f ./workloads/$APP_GROUPNAME/Dockerfile --no-cache -t $APP_GROUPNAME:$GIT_HASH
+    else
+      echo "No changes in ./common or ./workloads/$APP_GROUPNAME since $LATEST_HASH, tag with $GIT_HASH"
+      docker tag $APP_GROUPNAME:$LATEST_HASH $APP_GROUPNAME:$GIT_HASH
+    fi
   fi
 
   end=`date +%s`
@@ -110,22 +129,8 @@ run () {
     APP_GROUPNAME=$(python3 ${INFRA_ROOT}/scripts/run_db.py -dbg 1 -g ${json_file} -wdb ${workload_db_json_file})
     echo $APP_GROUPNAME
 
-    if [[ -n $(git status --porcelain $INFRA_ROOT/common $INFRA_ROOT/workloads/$APP_GROUPNAME | grep '^ M') ]]; then
-      echo "There are uncommitted changes."
-      echo "The repository is not up to date. Make sure to commit all the local changes for the version of the docker image. githash is used to identify the image."
-      echo "If you have an image already in the system you want to overwrite, remove the image first, then build again."
-      exit 1
-    fi
-
-    # get the latest Git commit hash
-    GIT_HASH=$(git rev-parse --short HEAD)
-
-    # check if the Docker image '$APP_GROUPNAME:$GIT_HASH' exists
-    if ! docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "$APP_GROUPNAME:$GIT_HASH"; then
-      echo "The image with the current Git commit hash does not exist! Build the image first by using '-b'."
-      exit 1
-    fi
-
+    BUILD=$APP_GROUPNAME
+    build
 
     # open an interactive shell of docker container
     echo "open an interactive shell.."
@@ -140,22 +145,8 @@ run () {
     echo $APP_GROUPNAME
     APP_GROUPNAME=$(echo "$APP_GROUPNAME" | tr -d '"')
 
-    if [[ -n $(git status --porcelain $INFRA_ROOT/common $INFRA_ROOT/workloads/$APP_GROUPNAME | grep '^ M') ]]; then
-      echo "There are uncommitted changes."
-      echo "The repository is not up to date. Make sure to commit all the local changes for the version of the docker image. githash is used to identify the image."
-      echo "If you have an image already in the system you want to overwrite, remove the image first, then build again."
-      exit 1
-    fi
-
-    # get the latest Git commit hash
-    GIT_HASH=$(git rev-parse --short HEAD)
-
-    # check if the Docker image '$APP_GROUPNAME:$GIT_HASH' exists
-    if ! docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "$APP_GROUPNAME:$GIT_HASH"; then
-      echo "The image with the current Git commit hash does not exist! Build the image first by using '-b'."
-      exit 1
-    fi
-
+    BUILD=$APP_GROUPNAME
+    build
 
     # open an interactive shell of docker container
     echo "open an interactive shell.."
@@ -170,14 +161,8 @@ run () {
     echo $APP_GROUPNAME
     APP_GROUPNAME=$(echo "$APP_GROUPNAME" | tr -d '"')
 
-    # get the latest Git commit hash
-    GIT_HASH=$(git rev-parse --short HEAD)
-
-    # check if the Docker image '$APP_GROUPNAME:$GIT_HASH' exists
-    if ! docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "$APP_GROUPNAME:$GIT_HASH"; then
-      echo "The image with the current Git commit hash does not exist! Build the image first by using '-b'."
-      exit 1
-    fi
+    BUILD=$APP_GROUPNAME
+    build
 
     # open an interactive shell of docker container
     echo "open an interactive shell.."
@@ -206,12 +191,21 @@ simpoint_trace () {
 }
 
 run_scarab () {
+  json_file="${INFRA_ROOT}/json/${SIMULATION}.json"
+  workload_db_json_file="${INFRA_ROOT}/workloads/workloads_db.json"
+  APP_GROUPNAME=$(python3 ${INFRA_ROOT}/scripts/run_db.py -dbg 1 -g ${json_file} -wdb ${workload_db_json_file})
+  echo $APP_GROUPNAME
+
+  # make sure the corresponding docker image exists locally (required for scarab build)
+  BUILD=$APP_GROUPNAME
+  build
+
   # run Scarab simulation
   echo "run Scarab simulation.."
   taskPids=()
   start=`date +%s`
 
-  cmd="python3 ${INFRA_ROOT}/scripts/run_simulation.py -dbg 1 -d ${INFRA_ROOT}/json/${SIMULATION}.json"
+  cmd="python3 ${INFRA_ROOT}/scripts/run_simulation.py -dbg 1 -d ${json_file}"
   eval $cmd &
   taskPids+=($!)
 

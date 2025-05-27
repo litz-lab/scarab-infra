@@ -117,6 +117,7 @@ def open_interactive_shell(user, descriptor_data, workloads_data, infra_dir, dbg
         # currently open it on local
 
         docker_prefix = get_image_name(workloads_data, descriptor_data['simulations'][0])
+        docker_prefix_list = [docker_prefix]
         docker_home = descriptor_data['root_dir']
 
         # Set the env for simulation again (already set in Dockerfile.common) in case user's bashrc overwrite the existing ones when the home directory is mounted
@@ -128,16 +129,17 @@ def open_interactive_shell(user, descriptor_data, workloads_data, infra_dir, dbg
                 f.write(f"\n{entry}\n")
 
         # Generate commands for executing in users docker and sbatching to nodes with containers
-        scarab_githash = prepare_simulation(user,
+        scarab_githash, image_tag_list = prepare_simulation(user,
                                             scarab_path,
                                             descriptor_data['scarab_build'],
                                             docker_home,
                                             experiment_name,
                                             descriptor_data['architecture'],
-                                            docker_prefix,
+                                            docker_prefix_list,
                                             githash,
                                             infra_dir,
                                             True,
+                                            [],
                                             dbg_lvl)
         workload = descriptor_data['simulations'][0]['workload']
         mode = descriptor_data['simulations'][0]['simulation_type']

@@ -8,6 +8,7 @@ import random
 import subprocess
 import re
 import traceback
+import json
 from utilities import (
         err,
         warn,
@@ -25,7 +26,8 @@ from utilities import (
         image_exist,
         check_can_skip,
         get_image_name,
-        generate_table
+        generate_table,
+        run_on_node
         )
 
 # Check if the docker image exists on available slurm nodes
@@ -43,43 +45,10 @@ def check_docker_image(nodes, docker_prefix, githash, dbg_lvl = 1):
                 continue
 
             available_nodes.append(node)
-
         return available_nodes
     except Exception as e:
         raise e
 
-
-# Prepare the docker image on each slurm node
-# Inputs: list of available slurm nodes
-# Output: list of nodes where the docker image is ready
-def prepare_docker_image(nodes, docker_prefix, githash, dbg_lvl = 1):
-    try:
-        available_nodes = []
-        for node in nodes:
-            # Check if the image exists
-            image_tag = f"{docker_prefix}:{githash}"
-            image = subprocess.check_output(["srun", f"--nodelist={node}", "docker", "images", "-q", image_tag])
-            if image == [] or image == b'':
-                print(f"Couldn't find image {docker_prefix}:{githash} on {node}")
-                try:
-                    print(f"Pulling docker image on {node}...")
-                    subprocess.check_output(["srun", f"--nodelist={node}", "docker", "pull", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}"])
-                    image = subprocess.check_output(["srun", f"--nodelist={node}", "docker", "images", "-q", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}"])
-                    if image != []:
-                        print(f"{image_tag} has succesfully pulled on {node}!")
-                        subprocess.check_output(["srun", f"--nodelist={node}", "docker", "tag", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}", f"{docker_prefix}:{githash}"])
-                        subprocess.check_output(["srun", f"--nodelist={node}", "docker", "rmi", f"ghcr.io/litz-lab/scarab-infra/{docker_prefix}:{githash}"])
-                except subprocess.CalledProcessError as e:
-                    err("Docker pull failed:\n" + e.output.decode(), dbg_lvl)
-                    subprocess.check_output(["srun", f"--nodelist={node}", "./run.sh", "-b", docker_prefix])
-                    if not image_exist(image_tag, node):
-                        err(f"Still couldn't find image {image_tag} after trying to build one", dbg_lvl)
-                        exit(1)
-            available_nodes.append(node)
-
-        return available_nodes
-    except Exception as e:
-        raise e
 
 # Check if a container is running on the provided nodes, return those that are
 # Inputs: list of nodes, docker_prefix, job_name, user
@@ -610,11 +579,11 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
 
     docker_prefix_list = get_image_list(simulations, workloads_data)
 
-    def run_single_workload(suite, subsuite, workload, exp_cluster_id, sim_mode, all_nodes, docker_running):
+    def run_single_workload(suite, subsuite, workload, exp_cluster_id, sim_mode, all_nodes):
         try:
             docker_prefix = get_docker_prefix(sim_mode, workloads_data[suite][subsuite][workload]["simulation"])
             info(f"Using docker image with name {docker_prefix}:{githash}", dbg_lvl)
-            docker_running = check_docker_image(docker_running, docker_prefix, githash, dbg_lvl)
+            docker_running = check_docker_image(available_slurm_nodes, docker_prefix, githash, dbg_lvl)
             excludes = set(all_nodes) - set(docker_running)
             info(f"Excluding following nodes: {', '.join(excludes)}", dbg_lvl)
             sbatch_cmd = generate_sbatch_command(excludes, experiment_dir)
@@ -723,17 +692,9 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
             err("Cannot find any running slurm nodes", dbg_lvl)
             exit(1)
 
-        for docker_prefix in docker_prefix_list:
-            docker_running = prepare_docker_image(available_slurm_nodes, docker_prefix, githash, dbg_lvl)
-            # If docker image still does not exist, exit
-            if docker_running == []:
-                err(f"Error with preparing docker image for {docker_prefix}:{githash}", dbg_lvl)
-                exit(1)
-
         # Generate commands for executing in users docker and sbatching to nodes with containers
         experiment_dir = f"{descriptor_data['root_dir']}/simulations/{experiment_name}"
-        docker_prefix = docker_prefix_list[0]
-        scarab_githash = prepare_simulation(user, scarab_path, scarab_build, descriptor_data['root_dir'], experiment_name, architecture, docker_prefix, githash, infra_dir, False, dbg_lvl)
+        scarab_githash, image_tag_list = prepare_simulation(user, scarab_path, scarab_build, descriptor_data['root_dir'], experiment_name, architecture, docker_prefix_list, githash, infra_dir, False, available_slurm_nodes, dbg_lvl)
 
         # Iterate over each workload and config combo
         tmp_files = []
@@ -753,25 +714,25 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                         sim_mode_ = sim_mode
                         if sim_mode_ == None:
                             sim_mode_ = workloads_data[suite][subsuite_][workload_]["simulation"]["prioritized_mode"]
-                        slurm_ids += run_single_workload(suite, subsuite_, workload_, exp_cluster_id, sim_mode_, all_nodes, docker_running)
+                        slurm_ids += run_single_workload(suite, subsuite_, workload_, exp_cluster_id, sim_mode_, all_nodes)
             elif workload == None and subsuite != None:
                 for workload_ in workloads_data[suite][subsuite].keys():
                     sim_mode_ = sim_mode
                     if sim_mode_ == None:
                         sim_mode_ = workloads_data[suite][subsuite][workload_]["simulation"]["prioritized_mode"]
-                    slurm_ids += run_single_workload(suite, subsuite, workload_, exp_cluster_id, sim_mode_, all_nodes, docker_running)
+                    slurm_ids += run_single_workload(suite, subsuite, workload_, exp_cluster_id, sim_mode_, all_nodes)
             else:
                 sim_mode_ = sim_mode
                 if sim_mode_ == None:
                     sim_mode_ = workloads_data[suite][subsuite][workload]["simulation"]["prioritized_mode"]
-                slurm_ids += run_single_workload(suite, subsuite, workload, exp_cluster_id, sim_mode_, all_nodes, docker_running)
+                slurm_ids += run_single_workload(suite, subsuite, workload, exp_cluster_id, sim_mode_, all_nodes)
 
         # Clean up temp files
         for tmp in tmp_files:
             info(f"Removing temporary run script {tmp}", dbg_lvl)
             os.remove(tmp)
 
-        finish_simulation(user, docker_home, descriptor_path, descriptor_data['root_dir'], experiment_name, slurm_ids)        
+        finish_simulation(user, docker_home, descriptor_path, descriptor_data['root_dir'], experiment_name, image_tag_list, available_slurm_nodes, slurm_ids)
 
         # TODO: check resource capping policies, add kill/info options
 
@@ -858,16 +819,8 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
             err("Cannot find any running slurm nodes", dbg_lvl)
             exit(1)
 
-        for docker_prefix in docker_prefix_list:
-            docker_running = prepare_docker_image(available_slurm_nodes, docker_prefix, githash, dbg_lvl)
-            # If docker image still does not exist, exit
-            if docker_running == []:
-                err(f"Error with preparing docker image for {docker_prefix}:{githash}", dbg_lvl)
-                exit(1)
-
         trace_dir = f"{descriptor_data['root_dir']}/simpoint_flow/{trace_name}"
-        docker_prefix = docker_prefix_list[0]
-        prepare_trace(user, scarab_path, scarab_build, docker_home, trace_name, infra_dir, docker_prefix, githash, False, dbg_lvl)
+        prepare_trace(user, scarab_path, scarab_build, docker_home, trace_name, infra_dir, docker_prefix_list, githash, False, available_slurm_nodes, dbg_lvl)
 
         # Iterate over each trace configuration
         for config in trace_configs:
