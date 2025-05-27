@@ -23,7 +23,8 @@ from utilities import (
         finish_trace,
         write_trace_docker_command_to_file,
         get_weight_by_cluster_id,
-        image_exist
+        image_exist,
+        check_can_skip
         )
 
 def prepare_docker_image(docker_prefix, githash, dbg_lvl):
@@ -143,6 +144,8 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
     processes = set()
     tmp_files = []
 
+    dont_collect = True
+
     def run_single_workload(suite, subsuite, workload, exp_cluster_id, sim_mode):
         try:
             docker_prefix = get_docker_prefix(sim_mode, workloads_data[suite][subsuite][workload]["simulation"])
@@ -184,10 +187,17 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
 
                 for cluster_id, weight in simpoints.items():
                     info(f"cluster_id: {cluster_id}, weight: {weight}", dbg_lvl)
+                    
+                    dont_collect = False
 
                     docker_container_name = f"{docker_prefix}_{suite}_{subsuite}_{workload}_{experiment_name}_{config_key.replace("/", "-")}_{cluster_id}_{sim_mode}_{user}"
                     # Create temp file with run command and run it
                     filename = f"{docker_container_name}_tmp_run.sh"
+
+                    if check_can_skip(descriptor_data, config_key, suite, subsuite, workload, cluster_id, filename, debug_lvl=dbg_lvl):
+                        info(f"Skipping {workload} with config {config_key} and cluster id {cluster_id}", dbg_lvl)
+                        continue
+
                     workload_home = f"{suite}/{subsuite}/{workload}"
                     write_docker_command_to_file(user, local_uid, local_gid, workload, workload_home, experiment_name,
                                                  docker_prefix, docker_container_name, traces_dir,
@@ -266,7 +276,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
             info(f"Removing temporary run script {tmp}", dbg_lvl)
             os.remove(tmp)
 
-        finish_simulation(user, docker_home, descriptor_path, descriptor_data['root_dir'], experiment_name)
+        finish_simulation(user, docker_home, descriptor_path, descriptor_data['root_dir'], experiment_name, dont_collect=dont_collect)
 
     except Exception as e:
         print("An exception occurred:", e)

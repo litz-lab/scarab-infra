@@ -263,7 +263,14 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
         info(e.stderr.strip(), dbg_lvl)
         raise e
 
-def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_name, slurm_ids = None):
+def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_name, slurm_ids = None, dont_collect = False):
+
+    if dont_collect:
+        return
+
+    if slurm_ids == []:
+        warn("No slurm dependencies provided. Skipping stat collection.", 2)
+        return
 
     # Run stat autocollector 
     experiment_dir = f"{root_dir}/simulations/{experiment_name}"
@@ -790,6 +797,98 @@ def image_exist(image_tag, node=None):
     except subprocess.CalledProcessError:
         return False
 
+# Returns true if experiment exists
+def check_sp_exist (descriptor_data, config_key, suite, subsuite, workload, exp_cluster_id):
+    # Check if simpoint exists
+    experiment_dir =  f"{descriptor_data['root_dir']}/simulations/{descriptor_data['experiment']}/"
+    experiment_dir += f"{config_key}/{suite}/{subsuite}/{workload}/{exp_cluster_id}"
+
+    print(experiment_dir)
+
+    # Non-existance case
+    if os.path.exists(experiment_dir):
+        return True
+    
+    # Existance case
+    return False
+
+# Returns true if experiment failed
+def check_sp_failed (descriptor_data, config_key, suite, subsuite, workload, exp_cluster_id):
+    # Check if simpoint exists
+    experiment_dir =  f"{descriptor_data['root_dir']}/simulations/{descriptor_data['experiment']}/"
+    experiment_dir += f"{config_key}/{suite}/{subsuite}/{workload}/{exp_cluster_id}"
+    
+    # Failed case; CSV files not generated. Ignoring .csv.warmup files.
+    if len(list(filter(lambda x: x.endswith('.csv'), os.listdir(experiment_dir)))) == 0:
+        return True
+    
+    # Success case
+    return False
+
+# Clean up failed run
+def clean_failed_run (descriptor_data, config_key, suite, subsuite, workload, exp_cluster_id):
+    # Wipe run directory
+    experiment_dir =  f"{descriptor_data['root_dir']}/simulations/{descriptor_data['experiment']}/"
+    experiment_dir += f"{config_key}/{suite}/{subsuite}/{workload}/{exp_cluster_id}"
+
+    try:
+        os.system(f"rm -rf {experiment_dir}")
+    except Exception as e:
+        err(f"Error removing directory {experiment_dir}: {e}", 1)
+
+    # Wipe log file
+    log_dir =  f"{descriptor_data['root_dir']}/simulations/{descriptor_data['experiment']}/logs/"
+    log_files = os.listdir(log_dir)
+    for file in log_files:
+        with open(os.path.join(log_dir, file), 'r') as f:
+            lines = f.readlines()
+
+            # Logfile will have {config} {suite}/{subsuite}/{workload} {simpoint} as header
+            header = f"{config_key} {suite}/{subsuite}/{workload} {exp_cluster_id}"
+            if header in lines:
+                os.remove(os.path.join(log_dir, file))
+
+# Check if run was already successful, and thus skippable
+# Please use as follows:
+# if check_can_skip(...):
+#     continue
+def check_can_skip (descriptor_data, config_key, suite, subsuite, workload, cluster_id, filename, slurm_queue=None, debug_lvl=1):
+    # Check (re)run conditions 
+    if check_sp_exist(descriptor_data, config_key, suite, subsuite, workload, cluster_id):
+        # Previous run exists, check if it failed
+        if not check_sp_failed(descriptor_data, config_key, suite, subsuite, workload, cluster_id):
+            # Previous run exists and was successful
+            info(f"Successful simulation with config {config_key} for workload {workload} already exists.", debug_lvl)
+            return True
+        
+        # Previous run exists but failed
+        info(f"Previous run with config {config_key} for workload {workload} failed. Cleaning directory and Re-running.", debug_lvl)
+        
+        clean_failed_run(descriptor_data, config_key, suite, subsuite, workload, cluster_id)
+    else:
+        # No previous run exists
+
+        # Check if it is about to be run 
+        if os.path.exists(filename):
+            # Run script has generated run file, it will be run shortly.
+            info(f"Run script for {config_key} for workload {workload} exists. Other script will run it.", debug_lvl)
+            return True
+
+        # If using slurm, check queue too
+        if not slurm_queue is None:
+            # Check each entry
+            for entry in slurm_queue:
+                # Check for following identifier. Should be of form <docker_prefix>_...as below..._<sim_mode>_<user>
+                # Docker prefix and username checked in slurm_runner
+                if f"{suite}_{subsuite}_{workload}_{descriptor_data["experiment"]}_{config_key}_{cluster_id}" in entry:
+                    # Job is in the queue, it will be run shortly.
+                    info(f"Job for {config_key} for workload {workload} is in the queue. Other script will run it.", debug_lvl)
+                    return True
+        
+        info(f"Running simulation with config {config_key} for workload {workload}", debug_lvl)
+        
+    return False
+    
 def generate_table(data, title=""):
     """
     Generates a formatted table as a string, handling potential formatting issues

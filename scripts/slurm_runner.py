@@ -23,6 +23,7 @@ from utilities import (
         write_trace_docker_command_to_file,
         get_weight_by_cluster_id,
         image_exist,
+        check_can_skip,
         get_image_name,
         generate_table
         )
@@ -667,6 +668,16 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
 
                     # Create temp file with run command and run it
                     filename = f"{docker_container_name}_tmp_run.sh"
+
+                    slurm_running_sims = check_slurm_task_queued_or_running(docker_prefix_list, experiment_name, user, dbg_lvl)
+                    running_sims = []
+                    for node_list in slurm_running_sims.values():
+                        running_sims += node_list
+
+                    if check_can_skip(descriptor_data, config_key, suite, subsuite, workload, cluster_id, filename, running_sims, dbg_lvl):
+                        info(f"Skipping {workload} with config {config_key} and cluster id {cluster_id}", dbg_lvl)
+                        continue
+
                     workload_home = f"{suite}/{subsuite}/{workload}"
                     write_docker_command_to_file(user, local_uid, local_gid, workload, workload_home, experiment_name,
                                                  docker_prefix, docker_container_name, traces_dir,
@@ -718,7 +729,6 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
             if docker_running == []:
                 err(f"Error with preparing docker image for {docker_prefix}:{githash}", dbg_lvl)
                 exit(1)
-
 
         # Generate commands for executing in users docker and sbatching to nodes with containers
         experiment_dir = f"{descriptor_data['root_dir']}/simulations/{experiment_name}"
