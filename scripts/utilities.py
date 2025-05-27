@@ -831,7 +831,10 @@ def clean_failed_run (descriptor_data, config_key, suite, subsuite, workload, ex
     experiment_dir =  f"{descriptor_data['root_dir']}/simulations/{descriptor_data['experiment']}/"
     experiment_dir += f"{config_key}/{suite}/{subsuite}/{workload}/{exp_cluster_id}"
 
-    os.system(f"rm -rf {experiment_dir}")
+    try:
+        os.system(f"rm -rf {experiment_dir}")
+    except Exception as e:
+        err(f"Error removing directory {experiment_dir}: {e}", 1)
 
     # Wipe log file
     log_dir =  f"{descriptor_data['root_dir']}/simulations/{descriptor_data['experiment']}/logs/"
