@@ -53,6 +53,8 @@ T get_or_declare_parameter(
 class CrosswalkTestNode : public rclcpp::Node
 {
 public:
+  bool isFinished() const { return finished_; }
+
   explicit CrosswalkTestNode(const std::string & map_path)
   : Node("crosswalk_test_node")
   {
@@ -311,6 +313,8 @@ private:
       bool result = crosswalk_module_->modifyPathVelocity(&path_wlid);
       RCLCPP_INFO(get_logger(), "modifyPathVelocity result: %s", result ? "true" : "false");
 
+
+      finished_ = true; 
       odom_.reset();
       preds_.reset();
       path_.reset();
@@ -332,6 +336,8 @@ private:
   PredictedObjects::SharedPtr preds_;
   Path::SharedPtr             path_;
   nav_msgs::msg::OccupancyGrid::SharedPtr occu_;
+
+  std::atomic<bool> finished_{false};
 };
 
 int main(int argc, char ** argv)
@@ -359,14 +365,19 @@ int main(int argc, char ** argv)
       auto request  = std::make_shared<PlayNextSrv::Request>();
       auto future   = client_play_next->async_send_request(request);
 
-      auto status = rclcpp::spin_until_future_complete(crosswalk_node, future, std::chrono::milliseconds(500));
+      auto status = rclcpp::spin_until_future_complete(crosswalk_node, future);
       if (status == rclcpp::FutureReturnCode::SUCCESS) {
         RCLCPP_INFO(crosswalk_node->get_logger(), "play_next #%d succeeded", i);
       } else {
         RCLCPP_ERROR(crosswalk_node->get_logger(), "play_next #%d FAILED / TIMEOUT", i);
         break;
       }
-      std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+      std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    }
+
+    while (rclcpp::ok() && !crosswalk_node->isFinished()) {
+      rclcpp::spin_some(crosswalk_node);
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 
     rclcpp::shutdown();
