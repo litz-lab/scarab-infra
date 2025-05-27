@@ -324,11 +324,12 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
         raise e
 
 def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_name, image_tag_list, available_nodes, slurm_ids = None, dont_collect = False):
+    experiment_dir = f"{root_dir}/simulations/{experiment_name}"
     # clean up docker images only when no container is running on top of the image (the other user may be using it)
     # ignore the exception to ignore the rmi failure due to existing containers
     nodes = ' '.join(available_nodes)
     images = ' '.join(image_tag_list)
-    clean_cmd = f"python3 scripts/docker_cleaner.py --images {images}"
+    clean_cmd = f"scripts/docker_cleaner.py --images {images}"
     if nodes:
         clean_cmd = clean_cmd + f" --nodes {nodes}"
     if slurm_ids != None:
@@ -345,7 +346,6 @@ def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_n
         return
 
     # Run stat autocollector
-    experiment_dir = f"{root_dir}/simulations/{experiment_name}"
     collect_stats_cmd =  f"scarab_stats/stat_collector.py -d {descriptor_path} "
     collect_stats_cmd += f"-o {experiment_dir}/collected_stats.csv"
 
