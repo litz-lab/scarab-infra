@@ -818,8 +818,8 @@ def check_sp_failed (descriptor_data, config_key, suite, subsuite, workload, exp
     experiment_dir =  f"{descriptor_data['root_dir']}/simulations/{descriptor_data['experiment']}/"
     experiment_dir += f"{config_key}/{suite}/{subsuite}/{workload}/{exp_cluster_id}"
     
-    # Failed case; CSV files not generated
-    if len(list(filter(lambda x: 'csv' in x, os.listdir(experiment_dir)))) == 0:
+    # Failed case; CSV files not generated. Ignoring .csv.warmup files.
+    if len(list(filter(lambda x: x.endswith('.csv'), os.listdir(experiment_dir)))) == 0:
         return True
     
     # Success case
@@ -831,13 +831,7 @@ def clean_failed_run (descriptor_data, config_key, suite, subsuite, workload, ex
     experiment_dir =  f"{descriptor_data['root_dir']}/simulations/{descriptor_data['experiment']}/"
     experiment_dir += f"{config_key}/{suite}/{subsuite}/{workload}/{exp_cluster_id}"
 
-    for file in os.listdir(experiment_dir):
-        try:
-            os.remove(os.path.join(experiment_dir, file))
-        except Exception as e:
-            err(f"Error removing file {file}: {e}", 1)
-
-    os.rmdir(experiment_dir)
+    os.system(f"rm -rf {experiment_dir}")
 
     # Wipe log file
     log_dir =  f"{descriptor_data['root_dir']}/simulations/{descriptor_data['experiment']}/logs/"
@@ -849,7 +843,6 @@ def clean_failed_run (descriptor_data, config_key, suite, subsuite, workload, ex
             # Logfile will have {config} {suite}/{subsuite}/{workload} {simpoint} as header
             header = f"{config_key} {suite}/{subsuite}/{workload} {exp_cluster_id}"
             if header in lines:
-                lines.remove(header)
                 os.remove(os.path.join(log_dir, file))
 
 # Check if run was already successful, and thus skippable
@@ -882,7 +875,7 @@ def check_can_skip (descriptor_data, config_key, suite, subsuite, workload, clus
         if not slurm_queue is None:
             # Check each entry
             for entry in slurm_queue:
-                # Check for following identifier. Should be of form <docker_prefix>_...as below..._<trace_method>_<user>
+                # Check for following identifier. Should be of form <docker_prefix>_...as below..._<sim_mode>_<user>
                 # Docker prefix and username checked in slurm_runner
                 if f"{suite}_{subsuite}_{workload}_{descriptor_data["experiment"]}_{config_key}_{cluster_id}" in entry:
                     # Job is in the queue, it will be run shortly.
