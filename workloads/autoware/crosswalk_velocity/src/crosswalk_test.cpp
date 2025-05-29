@@ -200,8 +200,10 @@ public:
     param.occlusion_extra_objects_size =
       get_or_declare_parameter<double>(*this, ns + ".occlusion.extra_predicted_objects_size", 0.5);
 
-    crosswalk_id_ = 166;
-    ego_lane_id_  = 49;
+    // crosswalk_id_ = 166;
+    // ego_lane_id_  = 49;
+    crosswalk_id_ = 24;
+    ego_lane_id_  = 7;
 
     crosswalk_module_ = std::make_shared<CrosswalkModule>(
       *this, ego_lane_id_, crosswalk_id_, std::nullopt,
@@ -220,7 +222,7 @@ public:
     odom_sub_ = this->create_subscription<Odometry>(
       "/localization/kinematic_state", 10,
       [this](Odometry::SharedPtr msg) {
-        // std::cout << "KINEMATIC_STATE EVENT" << std::endl;
+        std::cout << "KINEMATIC_STATE EVENT" << std::endl;
         odom_ = msg;
         tryRunModule();
       }
@@ -228,7 +230,7 @@ public:
     preds_sub_ = this->create_subscription<PredictedObjects>(
       "/perception/object_recognition/objects", rclcpp::QoS{1}.best_effort(),
       [this](PredictedObjects::SharedPtr msg) {
-        // std::cout << "object_recognition EVENT" << std::endl;
+        std::cout << "object_recognition EVENT" << std::endl;
         preds_ = msg;
         tryRunModule();
       }
@@ -236,7 +238,7 @@ public:
     path_sub_ = this->create_subscription<Path>(
       "/planning/scenario_planning/lane_driving/behavior_planning/path", 10,
       [this](Path::SharedPtr msg) {
-        // std::cout << "behavior_planning/path EVENT" << std::endl;
+        std::cout << "behavior_planning/path EVENT" << std::endl;
         path_ = msg;
         tryRunModule();
       }
@@ -254,7 +256,8 @@ public:
 private:
   void tryRunModule()
   {
-    if (odom_ && preds_ && path_) {
+    if (odom_ && preds_ && path_ && !executed_ && !finished_) {
+      executed_ = true;
       RCLCPP_INFO(this->get_logger(), "All data ready => modifyPathVelocity start!");
       auto planner_data = std::make_shared<autoware::behavior_velocity_planner::PlannerData>();
 
@@ -275,12 +278,17 @@ private:
       // path
       PathWithLaneId path_wlid;
       path_wlid.header = path_->header;
+      // std::cout << "SEOP : " << ego_lane_id_ << std::endl;
       for (const auto & pt : path_->points) {
         tier4_planning_msgs::msg::PathPointWithLaneId pp;
         pp.point.pose = pt.pose;
         pp.point.longitudinal_velocity_mps = 0.0f;
         pp.lane_ids.push_back(ego_lane_id_);
         path_wlid.points.push_back(pp);
+        // const auto & pos = pt.pose.position;
+        // std::cout << "  · [" << 1 << "] (x=" << pos.x
+        //           << ", y=" << pos.y << ", z=" << pos.z << ") added with lane_id "
+        //           << ego_lane_id_ << std::endl;
       }
 
       {
@@ -302,18 +310,17 @@ private:
 
       using autoware::route_handler::RouteHandler;
       auto map_bin_msg = autoware::test_utils::make_map_bin_msg(
-        "/tmp_home/autoware/crosswalk_velocity/crosswalk_map/crosswalk_map.osm", 5.0);
+        "/tmp_home/autoware/crosswalk_velocity/crosswalk_map/crosswalk_map_simple.osm", 5.0);
       
       auto route_handler_ptr = std::make_shared<RouteHandler>(map_bin_msg);
       
       planner_data->route_handler_ = route_handler_ptr;
 
       crosswalk_module_->setPlannerData(planner_data);
-
-      bool result = crosswalk_module_->modifyPathVelocity(&path_wlid);
+      bool result = false;
+      result = crosswalk_module_->modifyPathVelocity(&path_wlid);
       RCLCPP_INFO(get_logger(), "modifyPathVelocity result: %s", result ? "true" : "false");
-
-
+      std::cout << "path_ data : " << path_wlid.points.size() << std::endl;
       finished_ = true; 
       odom_.reset();
       preds_.reset();
@@ -338,6 +345,7 @@ private:
   nav_msgs::msg::OccupancyGrid::SharedPtr occu_;
 
   std::atomic<bool> finished_{false};
+  std::atomic<bool> executed_{false};
 };
 
 int main(int argc, char ** argv)
@@ -345,7 +353,7 @@ int main(int argc, char ** argv)
   try {
     rclcpp::init(argc, argv);
 
-    auto crosswalk_node = std::make_shared<CrosswalkTestNode>("/tmp_home/autoware/crosswalk_velocity/crosswalk_map/crosswalk_map.osm");
+    auto crosswalk_node = std::make_shared<CrosswalkTestNode>("/tmp_home/autoware/crosswalk_velocity/crosswalk_map/crosswalk_map_simple.osm");
 
     using PlayNextSrv = rosbag2_interfaces::srv::PlayNext;
     auto client_play_next = crosswalk_node->create_client<PlayNextSrv>("/rosbag2_player/play_next");
@@ -365,14 +373,13 @@ int main(int argc, char ** argv)
       auto request  = std::make_shared<PlayNextSrv::Request>();
       auto future   = client_play_next->async_send_request(request);
 
-      auto status = rclcpp::spin_until_future_complete(crosswalk_node, future);
+      auto status = rclcpp::spin_until_future_complete(crosswalk_node, future, std::chrono::seconds(15));
       if (status == rclcpp::FutureReturnCode::SUCCESS) {
         RCLCPP_INFO(crosswalk_node->get_logger(), "play_next #%d succeeded", i);
       } else {
         RCLCPP_ERROR(crosswalk_node->get_logger(), "play_next #%d FAILED / TIMEOUT", i);
         break;
       }
-      std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
 
     while (rclcpp::ok() && !crosswalk_node->isFinished()) {
