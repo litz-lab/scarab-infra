@@ -83,7 +83,7 @@ public:
     planner_data_->self_odometry = set_odometry(ego_pose_);
 
     sub_objects_ = node_->create_subscription<PredictedObjects>(
-      "/filtered/objects",
+      "/perception/object_recognition/objects",
       rclcpp::QoS{1}.best_effort(),
       [this](const PredictedObjects::SharedPtr msg) {
         RCLCPP_INFO(node_->get_logger(), "Received PredictedObjects from topic. size=%zu", msg->objects.size());
@@ -177,23 +177,13 @@ private:
 
   [[nodiscard]] RouteHandlerPtr init_route_handler() const
   {
-    std::string autoware_route_handler_dir{"autoware_route_handler"};
-    std::string lane_change_right_test_route_filename{"lane_change_test_route.yaml"};
-    std::string lanelet_map_filename{"2km_test.osm"};
-
-    const auto lanelet2_path =
-      get_absolute_path_to_lanelet_map(test_utils_dir_, lanelet_map_filename);
-
     // Load lanelet map into LaneletMapBin
-    const auto map_bin_msg = autoware::test_utils::make_map_bin_msg(lanelet2_path, 5.0);
+    const auto map_bin_msg = autoware::test_utils::make_map_bin_msg("/tmp_home/autoware/lane_change/lane_change_map/lane_change_map_simple.osm", 5.0);
 
     auto route_handler_ptr = std::make_shared<RouteHandler>(map_bin_msg);
 
     // Load route
-    const auto rh_test_route = get_absolute_path_to_route(
-      autoware_route_handler_dir, lane_change_right_test_route_filename);
-
-    if (const auto route_opt = autoware::test_utils::parse<std::optional<LaneletRoute>>(rh_test_route)) {
+    if (const auto route_opt = autoware::test_utils::parse<std::optional<LaneletRoute>>("/tmp_home/autoware/lane_change/input_bag/lane_change_test_route2.yaml")) {
       route_handler_ptr->setRoute(*route_opt);
     }
 
