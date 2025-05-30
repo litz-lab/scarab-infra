@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(mpc_controller_test)
+project(path_optimizer)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -8,25 +8,24 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(autoware_control_msgs REQUIRED)
-find_package(autoware_planning_msgs REQUIRED)
-find_package(autoware_vehicle_msgs REQUIRED)
-find_package(nav_msgs REQUIRED)
-find_package(autoware_mpc_lateral_controller REQUIRED)
+find_package(autoware_test_utils REQUIRED)
+find_package(autoware_planning_test_manager REQUIRED)
+find_package(tier4_planning_msgs REQUIRED)
+find_package(autoware_motion_utils REQUIRED)
+find_package(autoware_path_optimizer REQUIRED)
 find_package(rosbag2_interfaces REQUIRED)
 
-add_executable(mpc_controller_exec src/test_mpc_controller_test.cpp)
-ament_target_dependencies(mpc_controller_exec
+add_executable(path_optimizer_exec src/path_optimizer.cpp)
+ament_target_dependencies(path_optimizer_exec
   rclcpp
-  autoware_control_msgs
-  autoware_planning_msgs
-  autoware_vehicle_msgs
-  nav_msgs
-  autoware_mpc_lateral_controller
+  autoware_test_utils
+  autoware_planning_test_manager
+  tier4_planning_msgs
+  autoware_motion_utils
+  autoware_path_optimizer
   rosbag2_interfaces
 )
-
-install(TARGETS mpc_controller_exec
+install(TARGETS path_optimizer_exec
   DESTINATION lib/${PROJECT_NAME}
 )
 

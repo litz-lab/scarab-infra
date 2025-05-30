@@ -1,168 +1,202 @@
+#include <rosbag2_interfaces/srv/play_next.hpp> 
+
 #include <rclcpp/rclcpp.hpp>
 
 #include "autoware/mpc_lateral_controller/mpc.hpp"
-#include "autoware/mpc_lateral_controller/qp_solver/qp_solver_osqp.hpp"
 #include "autoware/mpc_lateral_controller/qp_solver/qp_solver_unconstraint_fast.hpp"
-#include "autoware/mpc_lateral_controller/vehicle_model/vehicle_model_bicycle_dynamics.hpp"
 #include "autoware/mpc_lateral_controller/vehicle_model/vehicle_model_bicycle_kinematics.hpp"
-#include "autoware/mpc_lateral_controller/vehicle_model/vehicle_model_bicycle_kinematics_no_delay.hpp"
-
-#include <autoware/trajectory_follower_base/control_horizon.hpp>
 
 #include "autoware_control_msgs/msg/lateral.hpp"
 #include "autoware_internal_debug_msgs/msg/float32_multi_array_stamped.hpp"
 #include "autoware_planning_msgs/msg/trajectory.hpp"
-#include "autoware_planning_msgs/msg/trajectory_point.hpp"
 #include "autoware_vehicle_msgs/msg/steering_report.hpp"
-#include "geometry_msgs/msg/pose.hpp"
 #include "nav_msgs/msg/odometry.hpp"
 
-#include "autoware/motion_utils/trajectory/trajectory.hpp"
-#include "autoware/mpc_lateral_controller/mpc_utils.hpp"
-
-#include <chrono>
-#include <random>
-
 using namespace autoware::motion::control::mpc_lateral_controller;
-
 using autoware_control_msgs::msg::Lateral;
 using autoware_internal_debug_msgs::msg::Float32MultiArrayStamped;
 using autoware_planning_msgs::msg::Trajectory;
-using autoware_planning_msgs::msg::TrajectoryPoint;
 using autoware_vehicle_msgs::msg::SteeringReport;
 using nav_msgs::msg::Odometry;
- 
 using autoware::motion::control::trajectory_follower::LateralHorizon;
+using PlayNextSrv = rosbag2_interfaces::srv::PlayNext;
 
-TrajectoryPoint makePoint(const double x, const double y, const float vx)
+class MPCRunner
 {
-  TrajectoryPoint p;
-  p.pose.position.x = x;
-  p.pose.position.y = y;
-  p.longitudinal_velocity_mps = vx;
-  return p;
-}
- 
+public:
+  explicit MPCRunner(const rclcpp::Node::SharedPtr & node)
+  : node_(node), logger_(node_->get_logger())
+  {
+    mpc_ = std::make_unique<MPC>(*node_);
+    mpc_->setLogger(logger_);
+    mpc_->setClock(node_->get_clock());
+    mpc_->initializeSteeringPredictor();
+
+    mpc_->m_ctrl_period = 0.03;
+    mpc_->m_steer_rate_lim_map_by_curvature = {{0.0, 2.0}, {9999.0, 2.0}};
+    mpc_->m_steer_rate_lim_map_by_velocity  = {{0.0, 2.0}, {9999.0, 2.0}};
+    mpc_->setVehicleModel(std::make_shared<KinematicsBicycleModel>(2.7, 0.610865, 0.1));
+    mpc_->setQPSolver(std::make_shared<QPSolverEigenLeastSquareLLT>());
+
+    auto & p = mpc_->m_param;
+    p.prediction_horizon = 8;
+    p.prediction_dt = 0.1;
+    p.zero_ff_steer_deg = 1.0;
+    p.min_prediction_length = 2.0;
+    p.acceleration_limit = 2.0;
+    p.velocity_time_constant = 0.3;
+   
+    p.nominal_weight.lat_error = 1.0;
+    p.nominal_weight.heading_error = 1.0;
+    p.nominal_weight.heading_error_squared_vel = 1.0;
+    p.nominal_weight.terminal_lat_error = 1.0;
+    p.nominal_weight.terminal_heading_error = 0.1;
+  
+    p.nominal_weight.steering_input = 1.0;
+    p.nominal_weight.steering_input_squared_vel = 0.25;
+    p.nominal_weight.lat_jerk = 0.0;
+    p.nominal_weight.steer_rate = 0.0;
+    p.nominal_weight.steer_acc = 0.000001;
+  
+    p.low_curvature_weight.lat_error = 0.1;
+    p.low_curvature_weight.heading_error = 0.0;
+    p.low_curvature_weight.heading_error_squared_vel = 0.3;
+    p.low_curvature_weight.steering_input = 1.0;
+    p.low_curvature_weight.steering_input_squared_vel = 0.25;
+    p.low_curvature_weight.lat_jerk = 0.0;
+    p.low_curvature_weight.steer_rate = 0.0;
+    p.low_curvature_weight.steer_acc = 0.000001;
+  }
+
+  bool run(const Trajectory & ref_traj, const Odometry & odom, const SteeringReport & steer)
+  {
+    TrajectoryFilteringParam traj_filter;
+    traj_filter.traj_resample_dist = 0.1;
+    traj_filter.enable_path_smoothing = false;
+    traj_filter.path_filter_moving_ave_num = 5;
+    traj_filter.curvature_smoothing_num_traj = 3;
+    traj_filter.curvature_smoothing_num_ref_steer = 3;
+    traj_filter.extend_trajectory_for_end_yaw_control = false;
+
+    mpc_->setReferenceTrajectory(ref_traj, traj_filter, odom);
+
+    Lateral cmd; 
+    Trajectory pred; 
+    Float32MultiArrayStamped diag; 
+    LateralHorizon hz;
+
+    auto res = mpc_->calculateMPC(steer, odom, cmd, pred, diag, hz);
+
+    if (!res.result) {
+      RCLCPP_ERROR(logger_, "MPC failed: %s", res.reason.c_str());
+      return false;
+    }
+
+    RCLCPP_INFO(logger_, "steer = %.6f  rate = %.6f", cmd.steering_tire_angle, cmd.steering_tire_rotation_rate);
+    RCLCPP_INFO(logger_, "input_steer steer = %.6f", steer.steering_tire_angle);
+
+    return true;
+  }
+
+private:
+  rclcpp::Node::SharedPtr node_;
+  rclcpp::Logger          logger_;
+  std::unique_ptr<MPC>    mpc_;
+};
+
+class MPCTestNode : public rclcpp::Node
+{
+public:
+  bool isFinished() const { return executed_; }
+  explicit MPCTestNode() : Node("mpc_test_node") {}
+
+  void initRunner(const std::shared_ptr<MPCRunner> & runner)
+  {
+    runner_ = runner;
+
+    odom_sub_ = create_subscription<Odometry>(
+      "/localization/kinematic_state", 10,
+      [this](Odometry::SharedPtr msg) { odom_ = std::move(msg); tryRun(); });
+
+    steer_sub_ = create_subscription<SteeringReport>(
+      "/vehicle/status/steering_status", 10,
+      [this](SteeringReport::SharedPtr msg) { steer_ = std::move(msg); tryRun(); });
+
+    traj_sub_ = create_subscription<Trajectory>(
+      "/planning/scenario_planning/lane_driving/trajectory", 10,
+      [this](Trajectory::SharedPtr msg) { traj_ = std::move(msg); tryRun(); });
+  }
+
+private:
+  void tryRun()
+  {
+    if (executed_ || !runner_) return;
+    if (odom_ && steer_ && traj_) {
+      executed_ = true;
+      bool ok = runner_->run(*traj_, *odom_, *steer_);
+      RCLCPP_INFO(get_logger(), "MPC test %s", ok ? "passed" : "failed");
+      rclcpp::shutdown();
+    }
+  }
+
+  rclcpp::Subscription<Odometry>::SharedPtr       odom_sub_;
+  rclcpp::Subscription<SteeringReport>::SharedPtr steer_sub_;
+  rclcpp::Subscription<Trajectory>::SharedPtr     traj_sub_;
+  Odometry::SharedPtr       odom_;
+  SteeringReport::SharedPtr steer_;
+  Trajectory::SharedPtr     traj_;
+
+  std::shared_ptr<MPCRunner> runner_;
+  bool executed_{false};
+};
+
 int main(int argc, char ** argv)
 {
-  auto start_time = std::chrono::steady_clock::now();
-  rclcpp::init(argc, argv);
-  auto node = std::make_shared<rclcpp::Node>("test_mpc_controller_test_node");
+  try {
+    rclcpp::init(argc, argv);
 
-  auto mpc = std::make_unique<MPC>(*node);
-  mpc->setLogger(node->get_logger());
-  mpc->setClock(node->get_clock());
-  mpc->initializeSteeringPredictor();
+    auto mpc_node = std::make_shared<MPCTestNode>();
+    auto runner   = std::make_shared<MPCRunner>(mpc_node);
+    mpc_node->initRunner(runner);
 
-  mpc->m_ctrl_period = 0.03;
+    auto play_cli = mpc_node->create_client<PlayNextSrv>("/rosbag2_player/play_next");
 
-  mpc->m_steer_rate_lim_map_by_curvature.emplace_back(0.0, 2.0);
-  mpc->m_steer_rate_lim_map_by_curvature.emplace_back(9999.0, 2.0);
-  mpc->m_steer_rate_lim_map_by_velocity.emplace_back(0.0, 2.0);
-  mpc->m_steer_rate_lim_map_by_velocity.emplace_back(9999.0, 2.0);
- 
-  auto vehicle_model_ptr = std::make_shared<KinematicsBicycleModel>(2.7, 0.610865, 0.1);
-  mpc->setVehicleModel(vehicle_model_ptr);
- 
-  auto qpsolver_ptr = std::make_shared<QPSolverEigenLeastSquareLLT>();
-  mpc->setQPSolver(qpsolver_ptr);
+    while (!play_cli->wait_for_service(std::chrono::seconds(1))) {
+      RCLCPP_INFO(mpc_node->get_logger(), "Waiting for /rosbag2_player/play_next …");
+      if (!rclcpp::ok()) {
+        RCLCPP_ERROR(mpc_node->get_logger(), "Interrupted while waiting.");
+        rclcpp::shutdown();
+        return 1;
+      }
+    }
 
-  auto & p = mpc->m_param;
-  p.prediction_horizon = 8;
-  p.prediction_dt = 0.1;
-  p.zero_ff_steer_deg = 1.0;
-  p.min_prediction_length = 2.0;
-  p.acceleration_limit = 2.0;
-  p.velocity_time_constant = 0.3;
- 
-  p.nominal_weight.lat_error = 1.0;
-  p.nominal_weight.heading_error = 1.0;
-  p.nominal_weight.heading_error_squared_vel = 1.0;
-  p.nominal_weight.terminal_lat_error = 1.0;
-  p.nominal_weight.terminal_heading_error = 0.1;
+    for (int i = 1; i <= 3; ++i) {
+      RCLCPP_INFO(mpc_node->get_logger(), ">> play_next() call #%d", i);
+      auto req  = std::make_shared<PlayNextSrv::Request>();
+      auto fut  = play_cli->async_send_request(req);
+    
+      auto stat = rclcpp::spin_until_future_complete(mpc_node, fut, std::chrono::seconds(15));
+    
+      if (mpc_node->isFinished()) break;
+    
+      if (stat == rclcpp::FutureReturnCode::SUCCESS) {
+        RCLCPP_INFO(mpc_node->get_logger(), "play_next #%d succeeded", i);
+      } else {
+        RCLCPP_ERROR(mpc_node->get_logger(), "play_next #%d TIMEOUT / FAILED", i);
+        break;
+      }
+    }
 
-  p.nominal_weight.steering_input = 1.0;
-  p.nominal_weight.steering_input_squared_vel = 0.25;
-  p.nominal_weight.lat_jerk = 0.0;
-  p.nominal_weight.steer_rate = 0.0;
-  p.nominal_weight.steer_acc = 0.000001;
+    while (rclcpp::ok() && !mpc_node->isFinished()) {
+      rclcpp::spin_some(mpc_node);
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
 
-  p.low_curvature_weight.lat_error = 0.1;
-  p.low_curvature_weight.heading_error = 0.0;
-  p.low_curvature_weight.heading_error_squared_vel = 0.3;
-  p.low_curvature_weight.steering_input = 1.0;
-  p.low_curvature_weight.steering_input_squared_vel = 0.25;
-  p.low_curvature_weight.lat_jerk = 0.0;
-  p.low_curvature_weight.steer_rate = 0.0;
-  p.low_curvature_weight.steer_acc = 0.000001;
-
-  TrajectoryFilteringParam traj_filter;
-  traj_filter.traj_resample_dist = 0.1;
-  traj_filter.enable_path_smoothing = false;
-  traj_filter.path_filter_moving_ave_num = 5;
-  traj_filter.curvature_smoothing_num_traj = 3;
-  traj_filter.curvature_smoothing_num_ref_steer = 3;
-  traj_filter.extend_trajectory_for_end_yaw_control = false;
-
-  std::random_device rd;
-  std::mt19937 gen(rd());
-
-  double max_step = 3.0;
-  std::uniform_real_distribution<double> dist_step(-max_step, max_step);
-
-  Trajectory dummy_trajectory;
-  int num_points = 10;
-  double y_current = 0.0;
-  for (int i = 0; i < num_points; ++i) {
-    double x = static_cast<double>(i);
-    double step = dist_step(gen);
-    y_current += step;
-
-    dummy_trajectory.points.push_back(makePoint(x, y_current, 1.0f));
-  }
-
-  SteeringReport neutral_steer;
-  neutral_steer.steering_tire_angle = 0.0F;
- 
-  Odometry odom;
-  odom.pose.pose.position.x = 0.0;
-  odom.pose.pose.position.y = 0.0;
-  odom.twist.twist.linear.x = 1.0;
- 
-  mpc->setReferenceTrajectory(dummy_trajectory, traj_filter, odom);
- 
-  Lateral ctrl_cmd;
-  Trajectory pred_traj;
-  Float32MultiArrayStamped diag;
-  LateralHorizon ctrl_cmd_horizon;
- 
-  const auto result =
-    mpc->calculateMPC(neutral_steer, odom, ctrl_cmd, pred_traj, diag, ctrl_cmd_horizon);
- 
-  if (!result.result) {
-    RCLCPP_ERROR(node->get_logger(), "MPC calculation failed: %s", result.reason.c_str());
     rclcpp::shutdown();
+  } catch (const std::exception & e) {
+    std::cerr << "[ERROR] " << e.what() << std::endl;
     return 1;
   }
-
-  double eps = 0.0f;
-  bool steer_ok = (ctrl_cmd.steering_tire_angle < eps);
-  bool steer_rate_ok = (ctrl_cmd.steering_tire_rotation_rate < eps);
- 
-  RCLCPP_INFO(
-    node->get_logger(),
-    "Calculated steer=%.6f, steer_rate=%.6f",
-    ctrl_cmd.steering_tire_angle,
-    ctrl_cmd.steering_tire_rotation_rate
-  );
-
-  RCLCPP_INFO(node->get_logger(), "MPC test passed successfully!");
-  rclcpp::shutdown();
-
-  auto end_time = std::chrono::steady_clock::now();
-  auto duration_ms = std::chrono::duration<double, std::milli>(end_time - start_time).count();
-
-  RCLCPP_INFO(node->get_logger(), "Execution time: %.3f ms", duration_ms);
 
   return 0;
 }
