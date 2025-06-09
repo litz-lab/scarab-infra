@@ -35,13 +35,11 @@ public:
   {
     using namespace std::placeholders;
 
-    sub_image_ = create_subscription<ImageMsg>(
-      "/sensing/camera/traffic_light/image_raw/compressed",
+    sub_image_ = create_subscription<ImageMsg>("/sensing/camera/traffic_light/image_raw/compressed",
       rclcpp::SensorDataQoS(),
       std::bind(&LaneDetectorCpp::imageCallback, this, std::placeholders::_1));
 
-    pub_image_ = create_publisher<sensor_msgs::msg::Image>(
-      "/custom/line_detection_result_final", 10);
+    pub_image_ = create_publisher<sensor_msgs::msg::Image>("/custom/line_detection_result_final", 10);
 
     RCLCPP_INFO(get_logger(), "LaneDetectorCpp node has started.");
   }
@@ -119,8 +117,7 @@ int main(int argc, char ** argv)
   exec.add_node(node);
   exec.add_node(play_node);
 
-  auto client = play_node->create_client<rosbag2_interfaces::srv::PlayNext>(
-                  "/rosbag2_player/play_next");
+  auto client = play_node->create_client<rosbag2_interfaces::srv::PlayNext>("/rosbag2_player/play_next");
   client->wait_for_service();
   client->async_send_request(std::make_shared<rosbag2_interfaces::srv::PlayNext::Request>());
 

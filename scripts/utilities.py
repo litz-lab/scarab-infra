@@ -171,6 +171,8 @@ def prepare_docker_image(docker_prefix, image_tag, latest_hash, diff_output, nod
     ghcr_tag = f"ghcr.io/litz-lab/scarab-infra/{latest_image_tag}"
     org_available_nodes = nodes
     # build the image also locally
+    if nodes is None:
+        nodes = []
     nodes = [None] + nodes
     available_nodes = []
     for node in nodes:

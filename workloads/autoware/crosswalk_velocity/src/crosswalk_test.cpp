@@ -297,9 +297,9 @@ private:
         fake_grid.info.resolution = 0.5;   // 1 cell = 0.5 meter
         fake_grid.info.width = 300;       // 100 cells in x-direction
         fake_grid.info.height = 300;      // 100 cells in y-direction
-        fake_grid.info.origin.position.x = 3711.0;
-        fake_grid.info.origin.position.y = 73678.5;
-        fake_grid.info.origin.position.z = 19.36497688293457;
+        fake_grid.info.origin.position.x = 119.0;
+        fake_grid.info.origin.position.y = 6.0;
+        fake_grid.info.origin.position.z = 0.0;
         fake_grid.info.origin.orientation.w = 1.0;
       
         fake_grid.data.resize(fake_grid.info.width * fake_grid.info.height, 1);

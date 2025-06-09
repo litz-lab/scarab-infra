@@ -64,10 +64,12 @@ public:
     rclcpp::shutdown();
   }
 
+  bool done_ = false; 
+
+  bool is_done() const { return done_; }
+  
   void init_param()
   {
-    rclcpp::init(0, nullptr);
-
     auto node_options = get_node_options();
     node_ = std::make_shared<rclcpp::Node>(test_node_name_, node_options);
 
@@ -79,7 +81,7 @@ public:
     planner_data_->route_handler = init_route_handler();
 
     // Ego pose
-    ego_pose_ = autoware::test_utils::createPose(-50.0, 1.75, 0.0, 0.0, 0.0, 0.0);
+    ego_pose_ = autoware::test_utils::createPose(92.1, 0.8, 0.0, 0.0, 0.0, 0.0);
     planner_data_->self_odometry = set_odometry(ego_pose_);
 
     sub_objects_ = node_->create_subscription<PredictedObjects>(
@@ -93,6 +95,7 @@ public:
         this->checkLaneChangeStatus();
     
         std::cout << "[INFO] All checks passed successfully.\n";
+        done_ = true;
       }
     );
   }
@@ -109,29 +112,36 @@ public:
     normal_lane_change_->prev_module_output_.path = create_previous_approved_path();
   }
 
+  void set_previous_approved_path()
+  {
+    normal_lane_change_->prev_module_output_.path = create_previous_approved_path();
+  }
+
   void checkLaneChangeStatus()
   {
     constexpr auto is_approved = true;
-
-    // First, call update_lanes with is_approved == true
-    normal_lane_change_->update_lanes(is_approved);
-
-    // We expect "lanes_available" to be false
-    if (normal_lane_change_->common_data_ptr_->is_lanes_available()) {
-      std::cerr << "[ERROR] Lanes should NOT be available when is_approved == true.\n";
-    } else {
-      std::cout << "[PASS] Lanes are not available as expected (is_approved == true).\n";
-    }
-
-    // Second, call update_lanes with is_approved == false
+    ego_pose_ = autoware::test_utils::createPose(92.1, 0.8, 0.0, 0.0, 0.0, 0.0);
+    planner_data_->self_odometry = set_odometry(ego_pose_);
+    normal_lane_change_->setData(planner_data_);
+    set_previous_approved_path();
     normal_lane_change_->update_lanes(!is_approved);
+    normal_lane_change_->update_filtered_objects();
+    normal_lane_change_->update_transient_data(!is_approved);
+    const auto lane_change_required = normal_lane_change_->isLaneChangeRequired();
+  
+    if (lane_change_required == true)
+      std::cout << "[PASS] step1 lane change" << std::endl;
+    else
+      std::cout << "[FAIL] step1 lane change" << std::endl;
+    
+    normal_lane_change_->updateLaneChangeStatus();
+    const auto & lc_status = normal_lane_change_->getLaneChangeStatus();
 
-    // We expect "lanes_available" to be true
-    if (!normal_lane_change_->common_data_ptr_->is_lanes_available()) {
-      std::cerr << "[ERROR] Lanes should be available when is_approved == false.\n";
-    } else {
-      std::cout << "[PASS] Lanes are available as expected (is_approved == false).\n";
-    }
+    std::cout << lc_status.is_valid_path << std::endl;
+    if (lc_status.is_valid_path == true)
+      std::cout << "[PASS] step2 lane change" << std::endl;
+    else
+      std::cout << "[FAIL] step2 lane change" << std::endl;
   }
 
   bool hasObjects() const
@@ -231,43 +241,28 @@ private:
   Direction lc_direction_{Direction::RIGHT};
 };
 
-int main(int, char **)
+int main(int argc, char ** argv)
 {
-  try {
-    TestNormalLaneChangeNoGTest test;
+  rclcpp::init(argc, argv);
 
-    test.init_param();
+  auto test = std::make_shared<TestNormalLaneChangeNoGTest>();
+  test->init_param();
 
-    auto node_handle = test.getNode();
+  auto play_node = rclcpp::Node::make_shared("combined_client_node");
+  auto client = play_node->create_client<rosbag2_interfaces::srv::PlayNext>("/rosbag2_player/play_next");
+  client->wait_for_service();
+  client->async_send_request(std::make_shared<rosbag2_interfaces::srv::PlayNext::Request>());
 
-    auto client_play_next =
-      node_handle->create_client<rosbag2_interfaces::srv::PlayNext>("/rosbag2_player/play_next");
+  rclcpp::executors::SingleThreadedExecutor exec;
+  exec.add_node(test->getNode());
+  exec.add_node(play_node);
 
-    while (!client_play_next->wait_for_service(std::chrono::seconds(1))) {
-      RCLCPP_INFO(node_handle->get_logger(), "Waiting for service /rosbag2_player/play_next...");
-      if (!rclcpp::ok()) {
-        RCLCPP_ERROR(node_handle->get_logger(), "Interrupted while waiting for service.");
-        rclcpp::shutdown();
-        return 1;
-      }
-    }
-
-    auto request = std::make_shared<rosbag2_interfaces::srv::PlayNext::Request>();
-    RCLCPP_INFO(node_handle->get_logger(), "Calling /rosbag2_player/play_next...");
-    auto future = client_play_next->async_send_request(request);
-
-    auto status = rclcpp::spin_until_future_complete(node_handle, future);
-    if (status == rclcpp::FutureReturnCode::SUCCESS) {
-      RCLCPP_INFO(node_handle->get_logger(), "Successfully called /rosbag2_player/play_next.");
-    } else {
-      RCLCPP_ERROR(node_handle->get_logger(), "Failed to call /rosbag2_player/play_next.");
-      rclcpp::shutdown();
-      return 1;
-    }
-  } catch (const std::exception & e) {
-    std::cerr << "[ERROR] " << e.what() << std::endl;
-    return 1;
+  rclcpp::Rate r(50);
+  while (rclcpp::ok() && !test->is_done()) {
+    exec.spin_some();
+    r.sleep();
   }
 
+  rclcpp::shutdown();
   return 0;
 }

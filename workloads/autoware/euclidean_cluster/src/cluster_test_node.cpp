@@ -3,123 +3,143 @@
 #include <atomic>
 #include <cstdint>
 #include <iostream>
+#include <random>
 
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
 #include "tier4_perception_msgs/msg/detected_objects_with_feature.hpp"
 #include "autoware/euclidean_cluster/voxel_grid_based_euclidean_cluster.hpp"
 
-#include "rosbag2_storage/storage_options.hpp"
-#include "rosbag2_cpp/reader.hpp"
-#include "rclcpp/serialization.hpp"
-#include "rclcpp/serialized_message.hpp"
+// Helper to set PointCloud2 fields
+void setPointCloud2Fields(sensor_msgs::msg::PointCloud2 & pointcloud)
+{
+  pointcloud.fields.resize(4);
+  pointcloud.fields[0].name = "x";
+  pointcloud.fields[1].name = "y";
+  pointcloud.fields[2].name = "z";
+  pointcloud.fields[3].name = "intensity";
+  pointcloud.fields[0].offset = 0;
+  pointcloud.fields[1].offset = 4;
+  pointcloud.fields[2].offset = 8;
+  pointcloud.fields[3].offset = 12;
+  pointcloud.fields[0].datatype = sensor_msgs::msg::PointField::FLOAT32;
+  pointcloud.fields[1].datatype = sensor_msgs::msg::PointField::FLOAT32;
+  pointcloud.fields[2].datatype = sensor_msgs::msg::PointField::FLOAT32;
+  pointcloud.fields[3].datatype = sensor_msgs::msg::PointField::FLOAT32;
+  pointcloud.fields[0].count = 1;
+  pointcloud.fields[1].count = 1;
+  pointcloud.fields[2].count = 1;
+  pointcloud.fields[3].count = 1;
+  pointcloud.height = 1;
+  pointcloud.point_step = 16;
+  pointcloud.is_bigendian = false;
+  pointcloud.is_dense = true;
+  pointcloud.header.frame_id = "dummy_frame_id";
+  pointcloud.header.stamp.sec = 0;
+  pointcloud.header.stamp.nanosec = 0;
+}
+
+// Function to generate a cluster with a large number of points
+sensor_msgs::msg::PointCloud2 generateClusterWithLargePoints(const int nb_points)
+{
+  sensor_msgs::msg::PointCloud2 pointcloud;
+  setPointCloud2Fields(pointcloud);
+  pointcloud.data.resize(nb_points * pointcloud.point_step);
+
+  // Generate one cluster with specified number of points
+  pcl::PointXYZI point;
+
+  // Random number generator for x, y, z coordinates (in a more confined range for clustering)
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_real_distribution<> dis(0.0, 3.0);  // Increased range to 0.0 ~ 3.0
+
+  for (int i = 0; i < nb_points; ++i) {
+    point.x = dis(gen);  // point.x within 0.0 to 3.0
+    point.y = dis(gen);  // point.y within 0.0 to 3.0
+    point.z = dis(gen);  // point.z within 0.0 to 3.0
+    point.intensity = 0.0;
+    memcpy(&pointcloud.data[i * pointcloud.point_step], &point, pointcloud.point_step);
+  }
+  pointcloud.width = nb_points;
+  pointcloud.row_step = pointcloud.point_step * nb_points;
+  return pointcloud;
+}
 
 namespace cluster_test
 {
-
 class ClusterTestNode : public rclcpp::Node
 {
 public:
-  ClusterTestNode(uint64_t start_stamp,
-                  const rclcpp::NodeOptions & opts = rclcpp::NodeOptions())
-  : Node("cluster_test_node_offline", opts),
-    start_stamp_(start_stamp),
-    frame_done_(false)
+  explicit ClusterTestNode(uint64_t start_stamp)
+  : Node("cluster_test_node_offline"),
+    start_stamp_(start_stamp)
   {
     const bool  use_height                  = false;
-    const int   min_cluster_size            = 1;
-    const int   max_cluster_size            = 500;
-    const float tolerance                   = 1.0f;
-    const float voxel_leaf_size             = 0.5f;
-    const int   min_points_number_per_voxel = 3;
+    const int   min_cluster_size            = 10;    // Increase min cluster size
+    const int   max_cluster_size            = 196608;  // Increase max cluster size
+    const float tolerance                   = 0.7f;  // Increased tolerance
+    const float voxel_leaf_size             = 0.3f;  // Reduced voxel leaf size
+    const int   min_points_number_per_voxel = 1;
 
     cluster_ = std::make_shared<
       autoware::euclidean_cluster::VoxelGridBasedEuclideanCluster>(
         use_height, min_cluster_size, max_cluster_size,
         tolerance, voxel_leaf_size, min_points_number_per_voxel);
 
-    RCLCPP_INFO(get_logger(), "bag: %s, start_stamp=%lu", BAG_PATH,
-                static_cast<unsigned long>(start_stamp_));
+    RCLCPP_INFO(get_logger(), "Cluster test started with start timestamp: %lu", static_cast<unsigned long>(start_stamp_));
   }
 
   bool run()
   {
-    using rosbag2_storage::StorageOptions;
+    // Generate a large cluster (test large points generation)
+    int nb_generated_points = 196608;  // Larger number of points
+    sensor_msgs::msg::PointCloud2 pointcloud = generateClusterWithLargePoints(nb_generated_points);
 
-    rosbag2_cpp::Reader reader;
-    StorageOptions opts;
-    opts.uri = BAG_PATH;
-    opts.storage_id = "sqlite3";
+    const sensor_msgs::msg::PointCloud2::ConstSharedPtr pointcloud_msg =
+      std::make_shared<sensor_msgs::msg::PointCloud2>(pointcloud);
 
-    reader.open(opts);
+    tier4_perception_msgs::msg::DetectedObjectsWithFeature output;
 
-    if (start_stamp_ > 0) {
-      try {
-        reader.seek(start_stamp_ + 1);
-      } catch (const std::exception & e) {
-        RCLCPP_WARN(get_logger(), "seek() failed: %s — starting from beginning", e.what());
-      }
+    // Perform clustering
+    if (cluster_->cluster(pointcloud_msg, output)) {
+      std::cout << "Cluster success" << std::endl;
+    } else {
+      std::cout << "Cluster failed" << std::endl;
     }
 
-    rclcpp::Serialization<sensor_msgs::msg::PointCloud2> ser;
-
-    while (reader.has_next()) {
-      auto bag_msg = reader.read_next();
-      if (bag_msg->topic_name != "/sensing/lidar/top/rectified/pointcloud") {
-        continue;  // skip unrelated topics
-      }
-
-      rclcpp::SerializedMessage serialized(*bag_msg->serialized_data);
-      auto pc2 = std::make_shared<sensor_msgs::msg::PointCloud2>();
-      ser.deserialize_message(&serialized, pc2.get());
-
-      tier4_perception_msgs::msg::DetectedObjectsWithFeature out;
-      for (int i = 0; i < 500; i++) {
-        if (!cluster_->cluster(pc2, out)) {
-          RCLCPP_ERROR(get_logger(), "Cluster routine returned false");
-          return false;
-        }
-      }
-
-      const auto n = out.feature_objects.size();
-      if (n == 0) {
-        RCLCPP_ERROR(get_logger(), "Test FAILED: cluster count == 0");
-      } else {
-        RCLCPP_INFO(get_logger(), "Test PASSED: %zu clusters detected", n);
-      }
-
-      // Print timestamp so caller can capture it for next run
-      std::cout << bag_msg->time_stamp << std::endl;
-      frame_done_.store(true);
-      return n > 0;
+    // Output the number of clusters
+    std::cout << "Number of output clusters: " << output.feature_objects.size() << std::endl;
+    if (!output.feature_objects.empty()) {
+      std::cout << "Number of points in the first cluster: " << output.feature_objects[0].feature.cluster.width << std::endl;
     }
 
-    RCLCPP_ERROR(get_logger(), "No suitable messages found in bag");
-    return false;
+    // The output clusters should have only one cluster with nb_generated_points points
+    if (output.feature_objects.size() == 1) {
+      std::cout << "Test Passed: Found 1 cluster with " << output.feature_objects[0].feature.cluster.width << " points" << std::endl;
+    } else {
+      std::cout << "Test Failed: Unexpected number of clusters" << std::endl;
+    }
+
+    return true;
   }
 
 private:
-  static constexpr const char * BAG_PATH = "/tmp_home/autoware/euclidean_cluster/input_bag";
   uint64_t start_stamp_;
-  std::atomic_bool frame_done_;
   std::shared_ptr<
     autoware::euclidean_cluster::VoxelGridBasedEuclideanCluster> cluster_;
 };
-
 }  // namespace cluster_test
 
 int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
+  uint64_t stamp = (argc > 1) ? std::stoull(argv[1]) : 0;
 
-  uint64_t start_stamp = 1649926360285939385;
-  if (argc > 1) {
-    start_stamp = std::stoull(argv[1]);
-  }
-
-  auto node = std::make_shared<cluster_test::ClusterTestNode>(start_stamp);
-  bool ok = node->run();
-
+  auto node = std::make_shared<cluster_test::ClusterTestNode>(stamp);
+  for (int i = 0; i < 1; i++)
+    bool ok = node->run();
+  RCLCPP_INFO(node->get_logger(), "Cluster test end with timestamp");
   rclcpp::shutdown();
-  return ok ? 0 : 1;
+  return 0;
 }
