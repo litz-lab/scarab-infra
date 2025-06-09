@@ -80,6 +80,12 @@ COPY ./workloads/autoware/euclidean_cluster $tmpdir/autoware/euclidean_cluster
 RUN cd $tmpdir/autoware/euclidean_cluster && source /opt/ros/$ROS_DISTRO/setup.bash && source $tmpdir/autoware/install/setup.bash && colcon build --packages-select euclidean_cluster
 COPY ./workloads/autoware/crosswalk_velocity $tmpdir/autoware/crosswalk_velocity
 RUN cd $tmpdir/autoware/crosswalk_velocity && source /opt/ros/$ROS_DISTRO/setup.bash && source $tmpdir/autoware/install/setup.bash && colcon build --packages-select crosswalk_velocity
+COPY ./workloads/autoware/pid_longitudinal_controller_test $tmpdir/autoware/pid_longitudinal_controller_test
+RUN cd $tmpdir/autoware/pid_longitudinal_controller_test && source /opt/ros/$ROS_DISTRO/setup.bash && source $tmpdir/autoware/install/setup.bash && colcon build --packages-select pid_longitudinal_controller_test
+COPY ./workloads/autoware/path_optimizer $tmpdir/autoware/path_optimizer
+RUN cd $tmpdir/autoware/path_optimizer && source /opt/ros/$ROS_DISTRO/setup.bash && source $tmpdir/autoware/install/setup.bash && colcon build --packages-select path_optimizer
+COPY ./workloads/autoware/control_validator_full_test $tmpdir/autoware/control_validator_full_test
+RUN cd $tmpdir/autoware/control_validator_full_test && source /opt/ros/$ROS_DISTRO/setup.bash && source $tmpdir/autoware/install/setup.bash && colcon build --packages-select control_validator_full_test
 
 # Install driving_log_replayer via pipx
 RUN apt-get remove -y python3-termcolor || true
