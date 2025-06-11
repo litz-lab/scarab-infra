@@ -166,7 +166,7 @@ def validate_simulation(workloads_data, simulations, dbg_lvl = 2):
 #           nodes - list of available nodes (local runner when it's none)
 #           diff_output - diff of two git hashes in the directories that change the docker image
 # Output: list of nodes where the docker image is ready
-def prepare_docker_image(docker_prefix, image_tag, latest_hash, diff_output, nodes=None, dbg_lvl=1):
+def prepare_docker_image(docker_prefix, image_tag, latest_hash, diff_output, nodes=[], dbg_lvl=1):
     latest_image_tag = f"{docker_prefix}:{latest_hash}"
     ghcr_tag = f"ghcr.io/litz-lab/scarab-infra/{latest_image_tag}"
     org_available_nodes = nodes
@@ -626,7 +626,7 @@ def get_weight_by_cluster_id(exp_cluster_id, simpoints):
         if simpoint["cluster_id"] == exp_cluster_id:
             return simpoint["weight"]
 
-def prepare_trace(user, scarab_path, scarab_build, docker_home, job_name, infra_dir, docker_prefix_list, githash, interactive_shell=False, available_slurm_nodes=None, dbg_lvl=1):
+def prepare_trace(user, scarab_path, scarab_build, docker_home, job_name, infra_dir, docker_prefix_list, githash, interactive_shell=False, available_slurm_nodes=[], dbg_lvl=1):
     # prepare docker images
     try:
         for docker_prefix in docker_prefix_list:
