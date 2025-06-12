@@ -83,9 +83,13 @@ jobs:
           echo "Saving GIT_HASH: $SHORT_HASH"
           echo "$SHORT_HASH" > last_built_tag.txt
 
-      - name: Install GitHub CLI
+      - name: Install GitHub CLI manually
         if: steps.changes.outputs.changed == 'true'
-        uses: cli/cli-action@v2
+        run: |
+          sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-key C99B11DEB97541F0
+          sudo apt-add-repository https://cli.github.com/packages
+          sudo apt update
+          sudo apt install gh -y
 
       - name: Commit and push new branch, create PR
         if: steps.changes.outputs.changed == 'true'
