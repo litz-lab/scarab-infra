@@ -83,7 +83,7 @@ jobs:
           echo "Saving GIT_HASH: $SHORT_HASH"
           echo "$SHORT_HASH" > last_built_tag.txt
 
-      - name: Create and merge PR using REST API
+      - name: Create and auto-merge PR using REST API
         if: steps.changes.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -104,22 +104,22 @@ jobs:
             -H "Accept: application/vnd.github+json" \
             https://api.github.com/repos/$GITHUB_REPO/pulls \
             -d @- <<EOF
-            {
-              "title": "Update Docker tag to $BRANCH_NAME",
-              "head": "$BRANCH_NAME",
-              "base": "main",
-              "body": "Automated update to \`last_built_tag.txt\` after pushing Docker image."
-            }
-            EOF
-            )
+{
+  "title": "Update Docker tag to $BRANCH_NAME",
+  "head": "$BRANCH_NAME",
+  "base": "main",
+  "body": "Automated update to \`last_built_tag.txt\` after pushing Docker image."
+}
+EOF
+          )
 
-            PR_NUMBER=$(echo "$PR_RESPONSE" | jq -r .number)
-            echo "Created PR #$PR_NUMBER"
+          PR_NUMBER=$(echo "$PR_RESPONSE" | jq -r .number)
+          echo "Created PR #$PR_NUMBER"
 
-            # Enable auto-merge (if checks pass) — optional
-            curl -s -X PUT -H "Authorization: Bearer $GH_TOKEN" \
-              -H "Accept: application/vnd.github+json" \
-              https://api.github.com/repos/$GITHUB_REPO/pulls/$PR_NUMBER/auto-merge \
-              -d '{"merge_method":"squash"}'
+          # Enable auto-merge (squash) if checks pass
+          curl -s -X PUT -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/$GITHUB_REPO/pulls/$PR_NUMBER/auto-merge \
+            -d '{"merge_method":"squash"}'
 
-            echo "Enabled auto-merge for PR #$PR_NUMBER (squash)"
+          echo "Enabled auto-merge for PR #$PR_NUMBER (squash)"
