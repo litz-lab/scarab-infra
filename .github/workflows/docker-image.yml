@@ -83,36 +83,43 @@ jobs:
           echo "Saving GIT_HASH: $SHORT_HASH"
           echo "$SHORT_HASH" > last_built_tag.txt
 
-      - name: Install Latest GitHub CLI
-        if: steps.changes.outputs.changed == 'true'
-        run: |
-          GH_VERSION=$(curl -s https://api.github.com/repos/cli/cli/releases/latest | jq -r .tag_name | sed 's/^v//')
-
-          echo "Installing gh version $GH_VERSION"
-          curl -LO https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_amd64.deb
-          sudo dpkg -i gh_${GH_VERSION}_linux_amd64.deb
-
-          gh --version
-
-      - name: Commit and push new branch, create PR
+      - name: Create and merge PR using REST API
         if: steps.changes.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPO: ${{ github.repository }}
         run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
+          set -e
 
           BRANCH_NAME=auto/update-tag-${{ steps.current_hash.outputs.githash }}
-
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
           git checkout -b $BRANCH_NAME
           git add last_built_tag.txt
           git commit -m "Auto update Docker image tag to $BRANCH_NAME"
           git push origin $BRANCH_NAME
 
-          gh pr create \
-            --title "Update Docker tag to $BRANCH_NAME" \
-            --body "Automated update to \`last_built_tag.txt\` after pushing Docker image." \
-            --base main \
-            --head $BRANCH_NAME
+          # Create the PR via REST API
+          PR_RESPONSE=$(curl -s -X POST -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/$GITHUB_REPO/pulls \
+            -d @- <<EOF
+            {
+              "title": "Update Docker tag to $BRANCH_NAME",
+              "head": "$BRANCH_NAME",
+              "base": "main",
+              "body": "Automated update to \`last_built_tag.txt\` after pushing Docker image."
+            }
+            EOF
+            )
 
-          gh pr merge --squash --admin
+            PR_NUMBER=$(echo "$PR_RESPONSE" | jq -r .number)
+            echo "Created PR #$PR_NUMBER"
+
+            # Enable auto-merge (if checks pass) — optional
+            curl -s -X PUT -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              https://api.github.com/repos/$GITHUB_REPO/pulls/$PR_NUMBER/auto-merge \
+              -d '{"merge_method":"squash"}'
+
+            echo "Enabled auto-merge for PR #$PR_NUMBER (squash)"
