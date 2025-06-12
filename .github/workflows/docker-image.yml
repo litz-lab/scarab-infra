@@ -83,9 +83,9 @@ jobs:
           echo "Saving GIT_HASH: $SHORT_HASH"
           echo "$SHORT_HASH" > last_built_tag.txt
 
-      - name: Create Pull Request to update tag
+      - name: Install GitHub CLI
         if: steps.changes.outputs.changed == 'true'
-        uses: cli/gh-action@v2
+        uses: cli/cli-action@v2
 
       - name: Commit and push new branch, create PR
         if: steps.changes.outputs.changed == 'true'
