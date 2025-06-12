@@ -107,3 +107,5 @@ jobs:
             --body "Automated update to \`last_built_tag.txt\` after pushing Docker image." \
             --base main \
             --head $BRANCH_NAME
+
+          gh pr merge --squash --admin
