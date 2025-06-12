@@ -1,0 +1,32 @@
+rosbag2_bagfile_information:
+  version: 5
+  storage_identifier: sqlite3
+  duration:
+    nanoseconds: 16502341169
+  starting_time:
+    nanoseconds_since_epoch: 1748688901787158837
+  message_count: 332
+  topics_with_message_count:
+    - topic_metadata:
+        name: /localization/kinematic_state
+        type: nav_msgs/msg/Odometry
+        serialization_format: cdr
+        offered_qos_profiles: ""
+      message_count: 166
+    - topic_metadata:
+        name: /planning/scenario_planning/lane_driving/behavior_planning/path_with_lane_id
+        type: tier4_planning_msgs/msg/PathWithLaneId
+        serialization_format: cdr
+        offered_qos_profiles: ""
+      message_count: 166
+  compression_format: ""
+  compression_mode: ""
+  relative_file_paths:
+    - path_optimizer_0.db3
+  files:
+    - path: path_optimizer_0.db3
+      starting_time:
+        nanoseconds_since_epoch: 1748688901787158837
+      duration:
+        nanoseconds: 16502341169
+      message_count: 332

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(my_yabloc_pose_call_pkg)
+project(euclidean_cluster)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -8,26 +8,26 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(tier4_localization_msgs REQUIRED)
+find_package(rclcpp_components REQUIRED)
 find_package(sensor_msgs REQUIRED)
-find_package(rosbag2_interfaces REQUIRED)
 find_package(cv_bridge REQUIRED)
-find_package(yabloc_pose_initializer REQUIRED)
 find_package(OpenCV REQUIRED)
+find_package(rosbag2_interfaces REQUIRED)
+find_package(autoware_euclidean_cluster REQUIRED)
+find_package(autoware_point_types REQUIRED)
+find_package(tier4_perception_msgs REQUIRED)
+find_package(rosbag2_transport   REQUIRED)
 
-add_executable(call_yabloc_pose src/call_yabloc_pose.cpp)
-ament_target_dependencies(call_yabloc_pose
-  rclcpp
-  tier4_localization_msgs
-  sensor_msgs
+add_executable(cluster_test_exec src/cluster_test_node.cpp)
+ament_target_dependencies(cluster_test_exec
+  rclcpp sensor_msgs 
   rosbag2_interfaces
-  cv_bridge
-  yabloc_pose_initializer
-  OpenCV
-)
+  autoware_euclidean_cluster 
+  autoware_point_types 
+  tier4_perception_msgs
+  rosbag2_transport)
 
-install(TARGETS
-  call_yabloc_pose
+install(TARGETS cluster_test_exec
   DESTINATION lib/${PROJECT_NAME}
 )
 

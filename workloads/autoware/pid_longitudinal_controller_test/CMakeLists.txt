@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(my_yabloc_pose_call_pkg)
+project(pid_longitudinal_controller_test)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -8,26 +8,31 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(tier4_localization_msgs REQUIRED)
-find_package(sensor_msgs REQUIRED)
+find_package(diagnostic_updater REQUIRED)
+find_package(nav_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(autoware_planning_msgs REQUIRED)
+find_package(autoware_control_msgs REQUIRED)
+find_package(autoware_vehicle_msgs REQUIRED)
+find_package(autoware_adapi_v1_msgs REQUIRED)
 find_package(rosbag2_interfaces REQUIRED)
-find_package(cv_bridge REQUIRED)
-find_package(yabloc_pose_initializer REQUIRED)
-find_package(OpenCV REQUIRED)
+find_package(autoware_pid_longitudinal_controller REQUIRED)
 
-add_executable(call_yabloc_pose src/call_yabloc_pose.cpp)
-ament_target_dependencies(call_yabloc_pose
+add_executable(pid_longitudinal_controller_test src/pid_longitudinal_controller.cpp)
+ament_target_dependencies(pid_longitudinal_controller_test
   rclcpp
-  tier4_localization_msgs
-  sensor_msgs
+  diagnostic_updater
+  nav_msgs
+  geometry_msgs
+  autoware_planning_msgs
+  autoware_control_msgs
+  autoware_vehicle_msgs
+  autoware_adapi_v1_msgs
   rosbag2_interfaces
-  cv_bridge
-  yabloc_pose_initializer
-  OpenCV
+  autoware_pid_longitudinal_controller
 )
 
-install(TARGETS
-  call_yabloc_pose
+install(TARGETS pid_longitudinal_controller_test
   DESTINATION lib/${PROJECT_NAME}
 )
 

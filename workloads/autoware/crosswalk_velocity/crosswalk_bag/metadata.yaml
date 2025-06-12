@@ -1,0 +1,38 @@
+rosbag2_bagfile_information:
+  version: 5
+  storage_identifier: sqlite3
+  duration:
+    nanoseconds: 20921011147
+  starting_time:
+    nanoseconds_since_epoch: 1748458575964575794
+  message_count: 630
+  topics_with_message_count:
+    - topic_metadata:
+        name: /planning/scenario_planning/lane_driving/behavior_planning/path
+        type: autoware_planning_msgs/msg/Path
+        serialization_format: cdr
+        offered_qos_profiles: ""
+      message_count: 210
+    - topic_metadata:
+        name: /perception/object_recognition/objects
+        type: autoware_perception_msgs/msg/PredictedObjects
+        serialization_format: cdr
+        offered_qos_profiles: ""
+      message_count: 210
+    - topic_metadata:
+        name: /localization/kinematic_state
+        type: nav_msgs/msg/Odometry
+        serialization_format: cdr
+        offered_qos_profiles: ""
+      message_count: 210
+  compression_format: ""
+  compression_mode: ""
+  relative_file_paths:
+    - crosswalk_bag_simple.db3
+  files:
+    - path: crosswalk_bag_simple.db3
+      starting_time:
+        nanoseconds_since_epoch: 1748458575964575794
+      duration:
+        nanoseconds: 20921011147
+      message_count: 630

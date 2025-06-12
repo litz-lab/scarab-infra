@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(my_yabloc_pose_call_pkg)
+project(path_optimizer)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -8,26 +8,24 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(tier4_localization_msgs REQUIRED)
-find_package(sensor_msgs REQUIRED)
+find_package(autoware_test_utils REQUIRED)
+find_package(autoware_planning_test_manager REQUIRED)
+find_package(tier4_planning_msgs REQUIRED)
+find_package(autoware_motion_utils REQUIRED)
+find_package(autoware_path_optimizer REQUIRED)
 find_package(rosbag2_interfaces REQUIRED)
-find_package(cv_bridge REQUIRED)
-find_package(yabloc_pose_initializer REQUIRED)
-find_package(OpenCV REQUIRED)
 
-add_executable(call_yabloc_pose src/call_yabloc_pose.cpp)
-ament_target_dependencies(call_yabloc_pose
+add_executable(path_optimizer_exec src/path_optimizer.cpp)
+ament_target_dependencies(path_optimizer_exec
   rclcpp
-  tier4_localization_msgs
-  sensor_msgs
+  autoware_test_utils
+  autoware_planning_test_manager
+  tier4_planning_msgs
+  autoware_motion_utils
+  autoware_path_optimizer
   rosbag2_interfaces
-  cv_bridge
-  yabloc_pose_initializer
-  OpenCV
 )
-
-install(TARGETS
-  call_yabloc_pose
+install(TARGETS path_optimizer_exec
   DESTINATION lib/${PROJECT_NAME}
 )
 

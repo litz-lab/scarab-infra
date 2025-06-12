@@ -1,21 +1,24 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>my_yabloc_pose_call_pkg</name>
+  <name>pid_longitudinal_controller_test</name>
   <version>0.0.0</version>
   <description>TODO: Package description</description>
-  <maintainer email="root@todo.todo">root</maintainer>
-  <license>TODO: License declaration</license>
+  <maintainer email="mkim293@ucsc.edu">root</maintainer>
+  <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <depend>rclcpp</depend>
-  <depend>tier4_localization_msgs</depend>
-  <depend>sensor_msgs</depend>
+  <depend>diagnostic_updater</depend>
+  <depend>nav_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>autoware_planning_msgs</depend>
+  <depend>autoware_control_msgs</depend>
+  <depend>autoware_vehicle_msgs</depend>
+  <depend>autoware_adapi_v1_msgs</depend>
   <depend>rosbag2_interfaces</depend>
-  <depend>cv_bridge</depend>
-  <depend>yabloc_pose_initializer</depend>
-  <depend>OpenCV</depend>
+  <depend>autoware_pid_longitudinal_controller</depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

@@ -1,0 +1,38 @@
+rosbag2_bagfile_information:
+  version: 5
+  storage_identifier: sqlite3
+  duration:
+    nanoseconds: 12499169859
+  starting_time:
+    nanoseconds_since_epoch: 1748571348483030679
+  message_count: 378
+  topics_with_message_count:
+    - topic_metadata:
+        name: /planning/scenario_planning/lane_driving/trajectory
+        type: autoware_planning_msgs/msg/Trajectory
+        serialization_format: cdr
+        offered_qos_profiles: ""
+      message_count: 126
+    - topic_metadata:
+        name: /vehicle/status/steering_status
+        type: autoware_vehicle_msgs/msg/SteeringReport
+        serialization_format: cdr
+        offered_qos_profiles: ""
+      message_count: 126
+    - topic_metadata:
+        name: /localization/kinematic_state
+        type: nav_msgs/msg/Odometry
+        serialization_format: cdr
+        offered_qos_profiles: ""
+      message_count: 126
+  compression_format: ""
+  compression_mode: ""
+  relative_file_paths:
+    - linear_mpc_controller_0.db3
+  files:
+    - path: linear_mpc_controller_0.db3
+      starting_time:
+        nanoseconds_since_epoch: 1748571348483030679
+      duration:
+        nanoseconds: 12499169859
+      message_count: 378
