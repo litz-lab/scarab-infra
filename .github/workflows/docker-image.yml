@@ -83,7 +83,7 @@ jobs:
           echo "Saving GIT_HASH: $SHORT_HASH"
           echo "$SHORT_HASH" > last_built_tag.txt
 
-      - name: Create and auto-merge PR using REST API
+      - name: Create and auto-merge PR
         if: steps.changes.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -99,25 +99,16 @@ jobs:
           git commit -m "Auto update Docker image tag to $BRANCH_NAME"
           git push origin $BRANCH_NAME
 
-          PR_RESPONSE=$(curl -s -X POST -H "Authorization: Bearer $GH_TOKEN" \
+          # Use jq to generate safe JSON inline
+          PR_PAYLOAD=$(jq -n \
+            --arg title "Auto-generated PR" \
+            --arg head "$BRANCH_NAME" \
+            --arg base "main" \
+            --arg body "This is a PR created to update Docker image tag." \
+            '{title: $title, head: $head, base: $base, body: $body}')
+
+          PR_RESPONSE=$(curl -s -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github+json" \
-            https://api.github.com/repos/$GITHUB_REPO/pulls \
-            -d @- <<EOF
-{
-  "title": "Update Docker tag to $BRANCH_NAME",
-  "head": "$BRANCH_NAME",
-  "base": "main",
-  "body": "Automated update to \`last_built_tag.txt\` after pushing Docker image."
-}
-EOF
-          )
-
-          PR_NUMBER=$(echo "$PR_RESPONSE" | jq -r .number)
-          echo "Created PR #$PR_NUMBER"
-
-          curl -s -X PUT -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            https://api.github.com/repos/$GITHUB_REPO/pulls/$PR_NUMBER/auto-merge \
-            -d '{"merge_method":"squash"}'
-
-          echo "Enabled auto-merge for PR #$PR_NUMBER (squash)"
+            -d "$PR_PAYLOAD" \
+            https://api.github.com/repos/$GITHUB_REPO/pulls)
