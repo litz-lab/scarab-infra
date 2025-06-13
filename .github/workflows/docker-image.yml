@@ -99,7 +99,7 @@ jobs:
           git commit -m "Auto update Docker image tag to $BRANCH_NAME"
           git push origin $BRANCH_NAME
 
-          # Use jq to generate safe JSON inline
+          # Create PR using safe jq-based JSON
           PR_PAYLOAD=$(jq -n \
             --arg title "Auto-generated PR" \
             --arg head "$BRANCH_NAME" \
@@ -112,3 +112,25 @@ jobs:
             -H "Accept: application/vnd.github+json" \
             -d "$PR_PAYLOAD" \
             https://api.github.com/repos/$GITHUB_REPO/pulls)
+
+          echo "PR creation response:"
+          echo "$PR_RESPONSE"
+
+          PR_NUMBER=$(echo "$PR_RESPONSE" | jq -r .number)
+
+          if [[ "$PR_NUMBER" == "null" || -z "$PR_NUMBER" ]]; then
+            echo "Failed to create PR. Exiting."
+            exit 1
+          fi
+
+          # Only enable auto-merge if this is not a manual trigger
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            echo "Enabling auto-merge for PR #$PR_NUMBER"
+            curl -s -X PUT \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              https://api.github.com/repos/$GITHUB_REPO/pulls/$PR_NUMBER/auto-merge \
+              -d '{"merge_method":"squash"}'
+          else
+            echo "Skipping auto-merge because this is a manual run (workflow_dispatch)"
+          fi
