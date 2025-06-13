@@ -1,0 +1,48 @@
+name: Safe PR Creation Without Heredoc
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  safe-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Create PR without heredoc
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPO: ${{ github.repository }}
+        run: |
+          set -e
+
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+          BRANCH_NAME=test-no-heredoc-$(date +%s)
+          git checkout -b $BRANCH_NAME
+          echo "Test content" > test.txt
+          git add test.txt
+          git commit -m "Test commit without heredoc"
+          git push origin $BRANCH_NAME
+
+          # Use jq to generate safe JSON inline
+          PR_PAYLOAD=$(jq -n \
+            --arg title "Safe PR Without Heredoc" \
+            --arg head "$BRANCH_NAME" \
+            --arg base "main" \
+            --arg body "This is a test PR created without heredoc." \
+            '{title: $title, head: $head, base: $base, body: $body}')
+
+          PR_RESPONSE=$(curl -s -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -d "$PR_PAYLOAD" \
+            https://api.github.com/repos/$GITHUB_REPO/pulls)
+
+          echo "$PR_RESPONSE" | jq .
