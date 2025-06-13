@@ -8,13 +8,13 @@ permissions:
   pull-requests: write
 
 jobs:
-  heredoc-test:
+  heredoc-safe:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Create PR using heredoc (safe form)
+      - name: Create PR safely using temp JSON file
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPO: ${{ github.repository }}
@@ -24,25 +24,28 @@ jobs:
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
 
-          BRANCH_NAME=test-heredoc-branch-$(date +%s)
+          BRANCH_NAME=test-heredoc-fix-$(date +%s)
           git checkout -b $BRANCH_NAME
-          echo "hello" > test.txt
+          echo "hello world" > test.txt
           git add test.txt
-          git commit -m "Test commit"
+          git commit -m "Test commit for safe PR"
           git push origin $BRANCH_NAME
 
-          PR_RESPONSE=$(cat <<EOF | curl -s -X POST \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            https://api.github.com/repos/$GITHUB_REPO/pulls \
-            -d @-
+          # Write JSON payload to a file to avoid YAML parsing issues
+          cat > payload.json <<EOF
 {
-  "title": "Heredoc PR Test",
+  "title": "Safe Heredoc PR",
   "head": "$BRANCH_NAME",
   "base": "main",
-  "body": "This is a test PR using heredoc and GITHUB_TOKEN"
+  "body": "Testing PR creation using a file-based JSON payload."
 }
 EOF
-          )
+
+          # Submit the PR via REST API
+          PR_RESPONSE=$(curl -s -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -d @payload.json \
+            https://api.github.com/repos/$GITHUB_REPO/pulls)
 
           echo "$PR_RESPONSE" | jq .
