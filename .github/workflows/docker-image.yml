@@ -9,6 +9,7 @@ on:
 permissions:
     contents: write
     packages: write
+    pull-requests: write
 
 jobs:
   build-and-publish:
@@ -74,7 +75,13 @@ jobs:
 
       - name: Push Docker image to GitHub Packages
         if: steps.changes.outputs.changed == 'true'
-        run: docker push ghcr.io/litz-lab/scarab-infra/allbench_traces:${{ steps.current_hash.outputs.githash }}
+        run: |
+          # Only push if this is not a manual trigger
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            docker push ghcr.io/litz-lab/scarab-infra/allbench_traces:${{ steps.current_hash.outputs.githash }}
+          else
+            echo "Skipping pushing the image to GitHub Packages because this is a manual run (workflow_dispatch)"
+          fi
 
       - name: Save short GIT_HASH to last_built_tag.txt
         if: steps.changes.outputs.changed == 'true'
@@ -83,36 +90,54 @@ jobs:
           echo "Saving GIT_HASH: $SHORT_HASH"
           echo "$SHORT_HASH" > last_built_tag.txt
 
-      - name: Install Latest GitHub CLI
-        if: steps.changes.outputs.changed == 'true'
-        run: |
-          GH_VERSION=$(curl -s https://api.github.com/repos/cli/cli/releases/latest | jq -r .tag_name | sed 's/^v//')
-
-          echo "Installing gh version $GH_VERSION"
-          curl -LO https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_amd64.deb
-          sudo dpkg -i gh_${GH_VERSION}_linux_amd64.deb
-
-          gh --version
-
-      - name: Commit and push new branch, create PR
+      - name: Create and auto-merge PR
         if: steps.changes.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPO: ${{ github.repository }}
         run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
+          set -e
 
           BRANCH_NAME=auto/update-tag-${{ steps.current_hash.outputs.githash }}
-
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
           git checkout -b $BRANCH_NAME
           git add last_built_tag.txt
           git commit -m "Auto update Docker image tag to $BRANCH_NAME"
           git push origin $BRANCH_NAME
 
-          gh pr create \
-            --title "Update Docker tag to $BRANCH_NAME" \
-            --body "Automated update to \`last_built_tag.txt\` after pushing Docker image." \
-            --base main \
-            --head $BRANCH_NAME
+          # Create PR using safe jq-based JSON
+          PR_PAYLOAD=$(jq -n \
+            --arg title "Auto-generated PR" \
+            --arg head "$BRANCH_NAME" \
+            --arg base "main" \
+            --arg body "This is a PR created to update Docker image tag." \
+            '{title: $title, head: $head, base: $base, body: $body}')
 
-          gh pr merge --squash --admin
+          PR_RESPONSE=$(curl -s -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -d "$PR_PAYLOAD" \
+            https://api.github.com/repos/$GITHUB_REPO/pulls)
+
+          echo "PR creation response:"
+          echo "$PR_RESPONSE"
+
+          PR_NUMBER=$(echo "$PR_RESPONSE" | jq -r .number)
+
+          if [[ "$PR_NUMBER" == "null" || -z "$PR_NUMBER" ]]; then
+            echo "Failed to create PR. Exiting."
+            exit 1
+          fi
+
+          # Only enable auto-merge if this is not a manual trigger
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            echo "Enabling auto-merge for PR #$PR_NUMBER"
+            curl -s -X PUT \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              https://api.github.com/repos/$GITHUB_REPO/pulls/$PR_NUMBER/auto-merge \
+              -d '{"merge_method":"squash"}'
+          else
+            echo "Skipping auto-merge because this is a manual run (workflow_dispatch)"
+          fi
