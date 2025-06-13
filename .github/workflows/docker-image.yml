@@ -9,7 +9,7 @@ on:
 permissions:
     contents: write
     packages: write
-    pull-request: write
+    pull-requests: write
 
 jobs:
   build-and-publish:
