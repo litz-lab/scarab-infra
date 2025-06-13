@@ -99,7 +99,6 @@ jobs:
           git commit -m "Auto update Docker image tag to $BRANCH_NAME"
           git push origin $BRANCH_NAME
 
-          # Create the PR via REST API
           PR_RESPONSE=$(curl -s -X POST -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github+json" \
             https://api.github.com/repos/$GITHUB_REPO/pulls \
@@ -116,7 +115,6 @@ EOF
           PR_NUMBER=$(echo "$PR_RESPONSE" | jq -r .number)
           echo "Created PR #$PR_NUMBER"
 
-          # Enable auto-merge (squash) if checks pass
           curl -s -X PUT -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github+json" \
             https://api.github.com/repos/$GITHUB_REPO/pulls/$PR_NUMBER/auto-merge \
