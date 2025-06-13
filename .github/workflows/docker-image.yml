@@ -9,6 +9,7 @@ on:
 permissions:
     contents: write
     packages: write
+    pull-request: write
 
 jobs:
   build-and-publish:
@@ -74,7 +75,13 @@ jobs:
 
       - name: Push Docker image to GitHub Packages
         if: steps.changes.outputs.changed == 'true'
-        run: docker push ghcr.io/litz-lab/scarab-infra/allbench_traces:${{ steps.current_hash.outputs.githash }}
+        run: |
+          # Only push if this is not a manual trigger
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            docker push ghcr.io/litz-lab/scarab-infra/allbench_traces:${{ steps.current_hash.outputs.githash }}
+          else
+            echo "Skipping pushing the image to GitHub Packages because this is a manual run (workflow_dispatch)"
+          fi
 
       - name: Save short GIT_HASH to last_built_tag.txt
         if: steps.changes.outputs.changed == 'true'
