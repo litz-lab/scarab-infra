@@ -75,6 +75,7 @@ def validate_simulation(workloads_data, simulations, dbg_lvl = 2):
         workload = simulation["workload"]
         cluster_id = simulation["cluster_id"]
         sim_mode = simulation["simulation_type"]
+        sim_warmup = simulation["warmup"]
 
         if suite == None:
             err(f"Suite field cannot be null.", dbg_lvl)
@@ -103,6 +104,10 @@ def validate_simulation(workloads_data, simulations, dbg_lvl = 2):
                         if sim_mode_ not in workloads_data[suite][subsuite_][workload_]["simulation"].keys():
                             err(f"{sim_mode_} is not a valid simulation mode for workload {workload_}.", dbg_lvl)
                             exit(1)
+                        if sim_warmup is not None and sim_mode_ == "memtrace" and sim_warmup > workloads_data[suite][subsuite_][workload_]["simulation"]["memtrace"]["warmup"]:
+                            err(f"{sim_warmup} is not a valid warmup for workload {workload_} and {sim_mode_}.", dbg_lvl)
+                            exit(1)
+
             else:
                 for workload_ in workloads_data[suite][subsuite].keys():
                     predef_mode = workloads_data[suite][subsuite][workload_]["simulation"]["prioritized_mode"]
@@ -111,6 +116,9 @@ def validate_simulation(workloads_data, simulations, dbg_lvl = 2):
                         sim_mode_ = predef_mode
                     if sim_mode_ not in workloads_data[suite][subsuite][workload_]["simulation"].keys():
                         err(f"{sim_mode_} is not a valid simulation mode for workload {workload_}.", dbg_lvl)
+                        exit(1)
+                    if sim_warmup is not None and sim_mode_ == "memtrace" and sim_warmup > workloads_data[suite][subsuite][workload_]["simulation"]["memtrace"]["warmup"]:
+                        err(f"{sim_warmup} is not a valid warmup for workload {workload_} and {sim_mode_}.", dbg_lvl)
                         exit(1)
         else:
             if subsuite == None:
@@ -126,6 +134,9 @@ def validate_simulation(workloads_data, simulations, dbg_lvl = 2):
                     if sim_mode_ not in workloads_data[suite][subsuite_][workload]["simulation"].keys():
                         err(f"{sim_mode_} is not a valid simulation mode for workload {workload}.", dbg_lvl)
                         exit(1)
+                    if sim_warmup is not None and sim_mode_ == "memtrace" and sim_warmup > workloads_data[suite][subsuite_][workload]["simulation"]["memtrace"]["warmup"]:
+                        err(f"{sim_warmup} is not a valid warmup for workload {workload} and {sim_mode_}.", dbg_lvl)
+                        exit(1)
                 if not found:
                     err(f"Workload '{workload}' is not valid in suite {suite}", dbg_lvl)
                     exit(1)
@@ -138,6 +149,9 @@ def validate_simulation(workloads_data, simulations, dbg_lvl = 2):
                     sim_mode_ = predef_mode
                 if sim_mode_ not in workloads_data[suite][subsuite][workload]["simulation"].keys():
                     err(f"{sim_mode_} is not a valid simulation mode for workload {workload}.", dbg_lvl)
+                    exit(1)
+                if sim_warmup is not None and sim_mode_ == "memtrace" and sim_warmup > workloads_data[suite][subsuite][workload]["simulation"]["memtrace"]["warmup"]:
+                    err(f"{sim_warmup} is not a valid warmup for workload {workload} and {sim_mode_}.", dbg_lvl)
                     exit(1)
 
             if cluster_id != None:
@@ -365,14 +379,15 @@ def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_n
 # Generate command to do a single run of scarab
 def generate_single_scarab_run_command(user, workload_home, experiment, config_key, config,
                                        mode, seg_size, arch, scarab_githash, cluster_id,
-                                       warmup, trace_type, trace_file,
+                                       warmup, trace_warmup, trace_type, trace_file,
                                        env_vars, bincmd, client_bincmd):
     if mode == "memtrace":
-        command = f"run_memtrace_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{seg_size}\\\" \\\"{arch}\\\" \\\"{warmup}\\\" \\\"{trace_type}\\\" /home/{user}/simulations/{experiment}/scarab {cluster_id} {trace_file}"
+        command = f"run_memtrace_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" {config} \\\"{seg_size}\\\" \\\"{arch}\\\" \\\"{warmup}\\\" \\\"{trace_warmup}\\\" \\\"{trace_type}\\\" /home/{user}/simulations/{experiment}/scarab {cluster_id} {trace_file}"
     elif mode == "pt":
-        command = f"run_pt_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{arch}\\\" \\\"{warmup}\\\" /home/{user}/simulations/{experiment}/scarab"
+        command = f"run_pt_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" {config} \\\"{arch}\\\" \\\"{warmup}\\\" /home/{user}/simulations/{experiment}/scarab"
+
     elif mode == "exec":
-        command = f"run_exec_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{arch}\\\" /home/{user}/simulations/{experiment}/scarab {env_vars} {bincmd} {client_bincmd}"
+        command = f"run_exec_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" {config} \\\"{arch}\\\" /home/{user}/simulations/{experiment}/scarab {env_vars} {bincmd} {client_bincmd}"
     else:
         command = ""
 
@@ -381,12 +396,12 @@ def generate_single_scarab_run_command(user, workload_home, experiment, config_k
 def write_docker_command_to_file_run_by_root(user, local_uid, local_gid, workload, workload_home, experiment_name,
                                              docker_prefix, docker_container_name, traces_dir,
                                              docker_home, githash, config_key, config, scarab_mode, seg_size, scarab_githash,
-                                             architecture, cluster_id, warmup, trace_type, trace_file,
+                                             architecture, cluster_id, warmup, trace_warmup, trace_type, trace_file,
                                              env_vars, bincmd, client_bincmd, filename):
     try:
         scarab_cmd = generate_single_scarab_run_command(user, workload_home, experiment_name, config_key, config,
                                                         scarab_mode, seg_size, architecture, scarab_githash, cluster_id,
-                                                        warmup, trace_type, trace_file, env_vars, bincmd, client_bincmd)
+                                                        warmup, trace_warmup, trace_type, trace_file, env_vars, bincmd, client_bincmd)
         with open(filename, "w") as f:
             f.write("#!/bin/bash\n")
             f.write(f"echo \"Running {config_key} {workload_home} {cluster_id}\"\n")
@@ -407,12 +422,12 @@ def write_docker_command_to_file_run_by_root(user, local_uid, local_gid, workloa
 def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_home, experiment_name,
                                  docker_prefix, docker_container_name, traces_dir,
                                  docker_home, githash, config_key, config, scarab_mode, scarab_githash,
-                                 seg_size, architecture, cluster_id, warmup, trace_type, trace_file,
-                                 env_vars, bincmd, client_bincmd, filename, infra_dir):
+                                 seg_size, architecture, cluster_id, warmup, trace_warmup, trace_type,
+                                 trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir):
     try:
         scarab_cmd = generate_single_scarab_run_command(user, workload_home, experiment_name, config_key, config,
                                                         scarab_mode, seg_size, architecture, scarab_githash, cluster_id,
-                                                        warmup, trace_type, trace_file, env_vars, bincmd, client_bincmd)
+                                                        warmup, trace_warmup, trace_type, trace_file, env_vars, bincmd, client_bincmd)
         with open(filename, "w") as f:
             f.write("#!/bin/bash\n")
             f.write(f"echo \"Running {config_key} {workload_home} {cluster_id}\"\n")

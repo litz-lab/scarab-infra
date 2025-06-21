@@ -257,6 +257,7 @@ def get_simulation_jobs(descriptor_data, workloads_data, docker_prefix, user, db
         workload = simulation["workload"]
         exp_cluster_id = simulation["cluster_id"]
         sim_mode = simulation["simulation_type"]
+        sim_warmup = simulation["warmup"]
 
         image_name = get_image_name(workloads_data, simulation)
 
@@ -579,7 +580,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
 
     docker_prefix_list = get_image_list(simulations, workloads_data)
 
-    def run_single_workload(suite, subsuite, workload, exp_cluster_id, sim_mode, all_nodes):
+    def run_single_workload(suite, subsuite, workload, exp_cluster_id, sim_mode, warmup, all_nodes):
         try:
             docker_prefix = get_docker_prefix(sim_mode, workloads_data[suite][subsuite][workload]["simulation"])
             info(f"Using docker image with name {docker_prefix}:{githash}", dbg_lvl)
@@ -587,7 +588,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
             excludes = set(all_nodes) - set(docker_running)
             info(f"Excluding following nodes: {', '.join(excludes)}", dbg_lvl)
             sbatch_cmd = generate_sbatch_command(excludes, experiment_dir)
-            warmup = None
+            trace_warmup = None
             trace_type = ""
             trace_file = None
             env_vars = ""
@@ -596,12 +597,12 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
             seg_size = None
             simulation_data = workloads_data[suite][subsuite][workload]["simulation"][sim_mode]
             if sim_mode == "memtrace":
-                warmup = simulation_data["warmup"]
+                trace_warmup = simulation_data["warmup"]
                 trace_type = simulation_data["trace_type"]
                 trace_file = simulation_data["whole_trace_file"]
                 seg_size = simulation_data["segment_size"]
             if sim_mode == "pt":
-                warmup = simulation_data["warmup"]
+                trace_warmup = simulation_data["warmup"]
             if sim_mode == "exec":
                 env_vars = simulation_data["env_vars"]
                 bincmd = simulation_data["binary_cmd"]
@@ -622,6 +623,8 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
             slurm_ids = []
             for config_key in configs:
                 config = configs[config_key]
+                if config == "":
+                    config = None
 
                 for cluster_id, weight in simpoints.items():
                     info(f"cluster_id: {cluster_id}, weight: {weight}", dbg_lvl)
@@ -651,8 +654,8 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                     write_docker_command_to_file(user, local_uid, local_gid, workload, workload_home, experiment_name,
                                                  docker_prefix, docker_container_name, traces_dir,
                                                  docker_home, githash, config_key, config, sim_mode, scarab_githash,
-                                                 seg_size, architecture, cluster_id, warmup, trace_type, trace_file,
-                                                 env_vars, bincmd, client_bincmd, filename, infra_dir)
+                                                 seg_size, architecture, cluster_id, warmup, trace_warmup, trace_type,
+                                                 trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir)
                     tmp_files.append(filename)
 
                     info(f"Running sbatch command '{sbatch_cmd + filename}'", dbg_lvl)
@@ -704,6 +707,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
             workload = simulation["workload"]
             exp_cluster_id = simulation["cluster_id"]
             sim_mode = simulation["simulation_type"]
+            sim_warmup = simulation["warmup"]
 
             slurm_ids = []
 
@@ -714,18 +718,24 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                         sim_mode_ = sim_mode
                         if sim_mode_ == None:
                             sim_mode_ = workloads_data[suite][subsuite_][workload_]["simulation"]["prioritized_mode"]
-                        slurm_ids += run_single_workload(suite, subsuite_, workload_, exp_cluster_id, sim_mode_, all_nodes)
+                        if sim_warmup == None:  # Use the whole warmup available in the trace if not specified
+                            sim_warmup = workloads_data[suite][subsuite_][workload_]["simulation"][sim_mode_]["warmup"]
+                        slurm_ids += run_single_workload(suite, subsuite_, workload_, exp_cluster_id, sim_mode_, sim_warmup, all_nodes)
             elif workload == None and subsuite != None:
                 for workload_ in workloads_data[suite][subsuite].keys():
                     sim_mode_ = sim_mode
                     if sim_mode_ == None:
                         sim_mode_ = workloads_data[suite][subsuite][workload_]["simulation"]["prioritized_mode"]
-                    slurm_ids += run_single_workload(suite, subsuite, workload_, exp_cluster_id, sim_mode_, all_nodes)
+                    if sim_warmup == None:  # Use the whole warmup available in the trace if not specified
+                        sim_warmup = workloads_data[suite][subsuite][workload_]["simulation"][sim_mode_]["warmup"]
+                    slurm_ids += run_single_workload(suite, subsuite, workload_, exp_cluster_id, sim_mode_, sim_warmup, all_nodes)
             else:
                 sim_mode_ = sim_mode
                 if sim_mode_ == None:
                     sim_mode_ = workloads_data[suite][subsuite][workload]["simulation"]["prioritized_mode"]
-                slurm_ids += run_single_workload(suite, subsuite, workload, exp_cluster_id, sim_mode_, all_nodes)
+                if sim_warmup == None:  # Use the whole warmup available in the trace if not specified
+                    sim_warmup = workloads_data[suite][subsuite][workload]["simulation"][sim_mode_]["warmup"]
+                slurm_ids += run_single_workload(suite, subsuite, workload, exp_cluster_id, sim_mode_, sim_warmup, all_nodes)
 
         # Clean up temp files
         for tmp in tmp_files:

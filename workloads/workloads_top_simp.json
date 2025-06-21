@@ -829,7 +829,7 @@
           "memtrace":{
             "image_name":"allbench_traces",
             "segment_size":10000000,
-            "warmup":10000000,
+            "warmup":50000000,
             "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
@@ -865,7 +865,7 @@
           "memtrace":{
             "image_name":"allbench_traces",
             "segment_size":10000000,
-            "warmup":10000000,
+            "warmup":50000000,
             "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
@@ -901,7 +901,7 @@
           "memtrace":{
             "image_name":"allbench_traces",
             "segment_size":10000000,
-            "warmup":10000000,
+            "warmup":50000000,
             "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
@@ -937,7 +937,7 @@
           "memtrace":{
             "image_name":"allbench_traces",
             "segment_size":10000000,
-            "warmup":10000000,
+            "warmup":50000000,
             "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
@@ -973,7 +973,7 @@
           "memtrace":{
             "image_name":"allbench_traces",
             "segment_size":10000000,
-            "warmup":10000000,
+            "warmup":50000000,
             "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
@@ -1009,7 +1009,7 @@
           "memtrace":{
             "image_name":"allbench_traces",
             "segment_size":10000000,
-            "warmup":10000000,
+            "warmup":50000000,
             "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
@@ -1045,7 +1045,7 @@
           "memtrace":{
             "image_name":"allbench_traces",
             "segment_size":10000000,
-            "warmup":10000000,
+            "warmup":50000000,
             "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
@@ -1081,7 +1081,7 @@
           "memtrace":{
             "image_name":"allbench_traces",
             "segment_size":10000000,
-            "warmup":10000000,
+            "warmup":50000000,
             "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
@@ -1117,7 +1117,7 @@
           "memtrace":{
             "image_name":"allbench_traces",
             "segment_size":10000000,
-            "warmup":10000000,
+            "warmup":50000000,
             "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
@@ -1153,7 +1153,7 @@
           "memtrace":{
             "image_name":"allbench_traces",
             "segment_size":10000000,
-            "warmup":10000000,
+            "warmup":50000000,
             "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
@@ -1191,7 +1191,7 @@
           "memtrace":{
             "image_name":"allbench_traces",
             "segment_size":10000000,
-            "warmup":10000000,
+            "warmup":50000000,
             "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
@@ -1227,7 +1227,7 @@
           "memtrace":{
             "image_name":"allbench_traces",
             "segment_size":10000000,
-            "warmup":10000000,
+            "warmup":50000000,
             "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
@@ -1263,7 +1263,7 @@
           "memtrace":{
             "image_name":"allbench_traces",
             "segment_size":10000000,
-            "warmup":10000000,
+            "warmup":50000000,
             "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
@@ -1299,7 +1299,7 @@
           "memtrace":{
             "image_name":"allbench_traces",
             "segment_size":10000000,
-            "warmup":10000000,
+            "warmup":50000000,
             "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
@@ -1335,7 +1335,7 @@
           "memtrace":{
             "image_name":"allbench_traces",
             "segment_size":10000000,
-            "warmup":10000000,
+            "warmup":50000000,
             "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
@@ -1371,7 +1371,7 @@
           "memtrace":{
             "image_name":"allbench_traces",
             "segment_size":10000000,
-            "warmup":10000000,
+            "warmup":50000000,
             "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
@@ -1407,7 +1407,7 @@
           "memtrace":{
             "image_name":"allbench_traces",
             "segment_size":10000000,
-            "warmup":10000000,
+            "warmup":50000000,
             "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
@@ -1443,7 +1443,7 @@
           "memtrace":{
             "image_name":"allbench_traces",
             "segment_size":10000000,
-            "warmup":10000000,
+            "warmup":50000000,
             "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
@@ -1479,7 +1479,7 @@
           "memtrace":{
             "image_name":"allbench_traces",
             "segment_size":10000000,
-            "warmup":10000000,
+            "warmup":50000000,
             "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
@@ -1515,7 +1515,7 @@
           "memtrace":{
             "image_name":"allbench_traces",
             "segment_size":10000000,
-            "warmup":10000000,
+            "warmup":50000000,
             "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
@@ -1551,7 +1551,7 @@
           "memtrace":{
             "image_name":"allbench_traces",
             "segment_size":10000000,
-            "warmup":10000000,
+            "warmup":50000000,
             "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
@@ -1587,7 +1587,7 @@
           "memtrace":{
             "image_name":"allbench_traces",
             "segment_size":10000000,
-            "warmup":10000000,
+            "warmup":50000000,
             "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
@@ -1623,7 +1623,7 @@
           "memtrace":{
             "image_name":"allbench_traces",
             "segment_size":10000000,
-            "warmup":10000000,
+            "warmup":50000000,
             "trace_type":"cluster_then_trace",
             "whole_trace_file":null
           }
