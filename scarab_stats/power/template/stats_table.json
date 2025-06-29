@@ -1,0 +1,131 @@
+{
+  "system": {
+    "total_cycles": "1402855",
+    "idle_cycles": "0",
+    "busy_cycles": "1402855"
+  },
+  "system.core0": {
+    "total_instructions": "1201428",
+    "uop_miss": "0",
+    "uop_hit": "0",
+    "uop_cache_access": "0",
+    "uop_cache_miss": "0",
+    "int_instructions": "1135088",
+    "fp_instructions": "31243",
+    "branch_instructions": "188232",
+    "branch_mispredictions": "6557",
+    "load_instructions": "261539",
+    "store_instructions": "90079",
+    "committed_instructions": "1122078",
+    "committed_int_instructions": "1082868",
+    "committed_fp_instructions": "39210",
+    "pipeline_duty_cycle": "0.142736",
+    "total_cycles": "1402855",
+    "idle_cycles": "0",
+    "busy_cycles": "1402855",
+    "ROB_reads": "1201428",
+    "ROB_writes": "1201428",
+    "rename_reads": "2402856",
+    "rename_writes": "1201428",
+    "fp_rename_reads": "0",
+    "fp_rename_writes": "0",
+    "inst_window_reads": "1201428",
+    "inst_window_writes": "1201428",
+    "inst_window_wakeup_accesses": "1201428",
+    "fp_inst_window_reads": "0",
+    "fp_inst_window_writes": "0",
+    "fp_inst_window_wakeup_accesses": "0",
+    "int_regfile_reads": "1370727",
+    "float_regfile_reads": "0",
+    "int_regfile_writes": "1108828",
+    "float_regfile_writes": "0",
+    "function_calls": "9130",
+    "context_switches": "0",
+    "ialu_accesses": "1200246",
+    "fpu_accesses": "0",
+    "mul_accesses": "1182",
+    "cdb_alu_accesses": "1200246",
+    "cdb_mul_accesses": "1182",
+    "cdb_fpu_accesses": "0",
+    "IFU_duty_cycle": "1",
+    "LSU_duty_cycle": "0.500000",
+    "MemManU_I_duty_cycle": "1",
+    "MemManU_D_duty_cycle": "0.500000",
+    "ALU_duty_cycle": "1",
+    "MUL_duty_cycle": "0.300000",
+    "FPU_duty_cycle": "0.300000",
+    "ALU_cdb_duty_cycle": "1",
+    "MUL_cdb_duty_cycle": "0.300000",
+    "FPU_cdb_duty_cycle": "0.300000"
+  },
+  "system.core0.predictor": {},
+  "system.core0.itlb": {
+    "total_accesses": "16401",
+    "total_misses": "0",
+    "conflicts": "0"
+  },
+  "system.core0.icache": {
+    "read_accesses": "16401",
+    "read_misses": "590",
+    "conflicts": "0"
+  },
+  "system.core0.dtlb": {
+    "total_accesses": "90079",
+    "total_misses": "0",
+    "conflicts": "0"
+  },
+  "system.core0.dcache": {
+    "read_accesses": "258641",
+    "write_accesses": "92011",
+    "read_misses": "12917",
+    "write_misses": "9260",
+    "conflicts": "0"
+  },
+  "system.core0.BTB": {
+    "read_accesses": "478302",
+    "write_accesses": "6557"
+  },
+  "system.L1Directory0": {
+    "read_accesses": "0",
+    "write_accesses": "0",
+    "read_misses": "0",
+    "write_misses": "0",
+    "conflicts": "0"
+  },
+  "system.L2Directory0": {
+    "read_accesses": "0",
+    "write_accesses": "0",
+    "read_misses": "0",
+    "write_misses": "0",
+    "conflicts": "0"
+  },
+  "system.L30": {
+    "read_accesses": "12240",
+    "write_accesses": "12",
+    "read_misses": "9480",
+    "write_misses": "0",
+    "conflicts": "0",
+    "duty_cycle": "1"
+  },
+  "system.NoC0": {
+    "total_accesses": "0",
+    "duty_cycle": "1"
+  },
+  "system.mc": {
+    "memory_accesses": "9480",
+    "memory_reads": "9480",
+    "memory_writes": "0"
+  },
+  "system.niu": {
+    "duty_cycle": "1.000000",
+    "total_load_perc": "0.700000"
+  },
+  "system.pcie": {
+    "duty_cycle": "1.000000",
+    "total_load_perc": "0.700000"
+  },
+  "system.flashc": {
+    "duty_cycle": "1.000000",
+    "total_load_perc": "0.700000"
+  }
+}

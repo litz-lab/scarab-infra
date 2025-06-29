@@ -1,0 +1,1059 @@
+{
+  "system": {
+    "name": "system",
+    "children": {
+      "number_of_cores": [
+        "param",
+        null
+      ],
+      "number_of_L1Directories": [
+        "param",
+        null
+      ],
+      "number_of_L2Directories": [
+        "param",
+        null
+      ],
+      "number_of_L2s": [
+        "param",
+        null
+      ],
+      "Private_L2": [
+        "param",
+        null
+      ],
+      "number_of_L3s": [
+        "param",
+        null
+      ],
+      "number_of_NoCs": [
+        "param",
+        null
+      ],
+      "homogeneous_cores": [
+        "param",
+        null
+      ],
+      "homogeneous_L2s": [
+        "param",
+        null
+      ],
+      "homogeneous_L1Directorys": [
+        "param",
+        null
+      ],
+      "homogeneous_L2Directorys": [
+        "param",
+        null
+      ],
+      "homogeneous_L3s": [
+        "param",
+        null
+      ],
+      "homogeneous_ccs": [
+        "param",
+        null
+      ],
+      "homogeneous_NoCs": [
+        "param",
+        null
+      ],
+      "core_tech_node": [
+        "param",
+        null
+      ],
+      "target_core_clockrate": [
+        "param",
+        null
+      ],
+      "temperature": [
+        "param",
+        null
+      ],
+      "number_cache_levels": [
+        "param",
+        null
+      ],
+      "interconnect_projection_type": [
+        "param",
+        null
+      ],
+      "device_type": [
+        "param",
+        null
+      ],
+      "longer_channel_device": [
+        "param",
+        null
+      ],
+      "machine_bits": [
+        "param",
+        null
+      ],
+      "virtual_address_width": [
+        "param",
+        null
+      ],
+      "physical_address_width": [
+        "param",
+        null
+      ],
+      "virtual_memory_page_size": [
+        "param",
+        null
+      ],
+      "total_cycles": [
+        "stat",
+        null
+      ],
+      "idle_cycles": [
+        "stat",
+        null
+      ],
+      "busy_cycles": [
+        "stat",
+        null
+      ],
+      "system.core0": [
+        "component",
+        {
+          "name": "core0",
+          "children": {
+            "clock_rate": [
+              "param",
+              null
+            ],
+            "vdd": [
+              "param",
+              null
+            ],
+            "power_gating_vcc": [
+              "param",
+              null
+            ],
+            "opt_local": [
+              "param",
+              null
+            ],
+            "instruction_length": [
+              "param",
+              null
+            ],
+            "opcode_width": [
+              "param",
+              null
+            ],
+            "x86": [
+              "param",
+              null
+            ],
+            "micro_opcode_width": [
+              "param",
+              null
+            ],
+            "machine_type": [
+              "param",
+              null
+            ],
+            "number_hardware_threads": [
+              "param",
+              null
+            ],
+            "fetch_width": [
+              "param",
+              null
+            ],
+            "number_instruction_fetch_ports": [
+              "param",
+              null
+            ],
+            "decode_width": [
+              "param",
+              null
+            ],
+            "issue_width": [
+              "param",
+              null
+            ],
+            "peak_issue_width": [
+              "param",
+              null
+            ],
+            "commit_width": [
+              "param",
+              null
+            ],
+            "fp_issue_width": [
+              "param",
+              null
+            ],
+            "prediction_width": [
+              "param",
+              null
+            ],
+            "pipelines_per_core": [
+              "param",
+              null
+            ],
+            "pipeline_depth": [
+              "param",
+              null
+            ],
+            "ALU_per_core": [
+              "param",
+              null
+            ],
+            "MUL_per_core": [
+              "param",
+              null
+            ],
+            "FPU_per_core": [
+              "param",
+              null
+            ],
+            "instruction_buffer_size": [
+              "param",
+              null
+            ],
+            "decoded_stream_buffer_size": [
+              "param",
+              null
+            ],
+            "instruction_window_scheme": [
+              "param",
+              null
+            ],
+            "instruction_window_size": [
+              "param",
+              null
+            ],
+            "fp_instruction_window_size": [
+              "param",
+              null
+            ],
+            "ROB_size": [
+              "param",
+              null
+            ],
+            "archi_Regs_IRF_size": [
+              "param",
+              null
+            ],
+            "archi_Regs_FRF_size": [
+              "param",
+              null
+            ],
+            "phy_Regs_IRF_size": [
+              "param",
+              null
+            ],
+            "phy_Regs_FRF_size": [
+              "param",
+              null
+            ],
+            "rename_scheme": [
+              "param",
+              null
+            ],
+            "register_windows_size": [
+              "param",
+              null
+            ],
+            "LSU_order": [
+              "param",
+              null
+            ],
+            "store_buffer_size": [
+              "param",
+              null
+            ],
+            "load_buffer_size": [
+              "param",
+              null
+            ],
+            "memory_ports": [
+              "param",
+              null
+            ],
+            "RAS_size": [
+              "param",
+              null
+            ],
+            "total_instructions": [
+              "stat",
+              null
+            ],
+            "uop_miss": [
+              "stat",
+              null
+            ],
+            "uop_hit": [
+              "stat",
+              null
+            ],
+            "uop_cache_access": [
+              "stat",
+              null
+            ],
+            "uop_cache_miss": [
+              "stat",
+              null
+            ],
+            "int_instructions": [
+              "stat",
+              null
+            ],
+            "fp_instructions": [
+              "stat",
+              null
+            ],
+            "branch_instructions": [
+              "stat",
+              null
+            ],
+            "branch_mispredictions": [
+              "stat",
+              null
+            ],
+            "load_instructions": [
+              "stat",
+              null
+            ],
+            "store_instructions": [
+              "stat",
+              null
+            ],
+            "committed_instructions": [
+              "stat",
+              null
+            ],
+            "committed_int_instructions": [
+              "stat",
+              null
+            ],
+            "committed_fp_instructions": [
+              "stat",
+              null
+            ],
+            "pipeline_duty_cycle": [
+              "stat",
+              null
+            ],
+            "total_cycles": [
+              "stat",
+              null
+            ],
+            "idle_cycles": [
+              "stat",
+              null
+            ],
+            "busy_cycles": [
+              "stat",
+              null
+            ],
+            "ROB_reads": [
+              "stat",
+              null
+            ],
+            "ROB_writes": [
+              "stat",
+              null
+            ],
+            "rename_reads": [
+              "stat",
+              null
+            ],
+            "rename_writes": [
+              "stat",
+              null
+            ],
+            "fp_rename_reads": [
+              "stat",
+              null
+            ],
+            "fp_rename_writes": [
+              "stat",
+              null
+            ],
+            "inst_window_reads": [
+              "stat",
+              null
+            ],
+            "inst_window_writes": [
+              "stat",
+              null
+            ],
+            "inst_window_wakeup_accesses": [
+              "stat",
+              null
+            ],
+            "fp_inst_window_reads": [
+              "stat",
+              null
+            ],
+            "fp_inst_window_writes": [
+              "stat",
+              null
+            ],
+            "fp_inst_window_wakeup_accesses": [
+              "stat",
+              null
+            ],
+            "int_regfile_reads": [
+              "stat",
+              null
+            ],
+            "float_regfile_reads": [
+              "stat",
+              null
+            ],
+            "int_regfile_writes": [
+              "stat",
+              null
+            ],
+            "float_regfile_writes": [
+              "stat",
+              null
+            ],
+            "function_calls": [
+              "stat",
+              null
+            ],
+            "context_switches": [
+              "stat",
+              null
+            ],
+            "ialu_accesses": [
+              "stat",
+              null
+            ],
+            "fpu_accesses": [
+              "stat",
+              null
+            ],
+            "mul_accesses": [
+              "stat",
+              null
+            ],
+            "cdb_alu_accesses": [
+              "stat",
+              null
+            ],
+            "cdb_mul_accesses": [
+              "stat",
+              null
+            ],
+            "cdb_fpu_accesses": [
+              "stat",
+              null
+            ],
+            "IFU_duty_cycle": [
+              "stat",
+              null
+            ],
+            "LSU_duty_cycle": [
+              "stat",
+              null
+            ],
+            "MemManU_I_duty_cycle": [
+              "stat",
+              null
+            ],
+            "MemManU_D_duty_cycle": [
+              "stat",
+              null
+            ],
+            "ALU_duty_cycle": [
+              "stat",
+              null
+            ],
+            "MUL_duty_cycle": [
+              "stat",
+              null
+            ],
+            "FPU_duty_cycle": [
+              "stat",
+              null
+            ],
+            "ALU_cdb_duty_cycle": [
+              "stat",
+              null
+            ],
+            "MUL_cdb_duty_cycle": [
+              "stat",
+              null
+            ],
+            "FPU_cdb_duty_cycle": [
+              "stat",
+              null
+            ],
+            "number_of_BPT": [
+              "param",
+              null
+            ],
+            "system.core0.predictor": [
+              "component",
+              {
+                "name": "PBT",
+                "children": {
+                  "local_predictor_size": [
+                    "param",
+                    null
+                  ],
+                  "local_predictor_entries": [
+                    "param",
+                    null
+                  ],
+                  "global_predictor_entries": [
+                    "param",
+                    null
+                  ],
+                  "global_predictor_bits": [
+                    "param",
+                    null
+                  ],
+                  "chooser_predictor_entries": [
+                    "param",
+                    null
+                  ],
+                  "chooser_predictor_bits": [
+                    "param",
+                    null
+                  ]
+                }
+              }
+            ],
+            "system.core0.itlb": [
+              "component",
+              {
+                "name": "itlb",
+                "children": {
+                  "number_entries": [
+                    "param",
+                    null
+                  ],
+                  "total_accesses": [
+                    "stat",
+                    null
+                  ],
+                  "total_misses": [
+                    "stat",
+                    null
+                  ],
+                  "conflicts": [
+                    "stat",
+                    null
+                  ]
+                }
+              }
+            ],
+            "system.core0.icache": [
+              "component",
+              {
+                "name": "icache",
+                "children": {
+                  "icache_config": [
+                    "param",
+                    null
+                  ],
+                  "buffer_sizes": [
+                    "param",
+                    null
+                  ],
+                  "read_accesses": [
+                    "stat",
+                    null
+                  ],
+                  "read_misses": [
+                    "stat",
+                    null
+                  ],
+                  "conflicts": [
+                    "stat",
+                    null
+                  ]
+                }
+              }
+            ],
+            "system.core0.dtlb": [
+              "component",
+              {
+                "name": "dtlb",
+                "children": {
+                  "number_entries": [
+                    "param",
+                    null
+                  ],
+                  "total_accesses": [
+                    "stat",
+                    null
+                  ],
+                  "total_misses": [
+                    "stat",
+                    null
+                  ],
+                  "conflicts": [
+                    "stat",
+                    null
+                  ]
+                }
+              }
+            ],
+            "system.core0.dcache": [
+              "component",
+              {
+                "name": "dcache",
+                "children": {
+                  "dcache_config": [
+                    "param",
+                    null
+                  ],
+                  "buffer_sizes": [
+                    "param",
+                    null
+                  ],
+                  "read_accesses": [
+                    "stat",
+                    null
+                  ],
+                  "write_accesses": [
+                    "stat",
+                    null
+                  ],
+                  "read_misses": [
+                    "stat",
+                    null
+                  ],
+                  "write_misses": [
+                    "stat",
+                    null
+                  ],
+                  "conflicts": [
+                    "stat",
+                    null
+                  ]
+                }
+              }
+            ],
+            "number_of_BTB": [
+              "param",
+              null
+            ],
+            "system.core0.BTB": [
+              "component",
+              {
+                "name": "BTB",
+                "children": {
+                  "BTB_config": [
+                    "param",
+                    null
+                  ],
+                  "read_accesses": [
+                    "stat",
+                    null
+                  ],
+                  "write_accesses": [
+                    "stat",
+                    null
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "system.L1Directory0": [
+        "component",
+        {
+          "name": "system.L1Directory0",
+          "children": {
+            "Directory_type": [
+              "param",
+              null
+            ],
+            "Dir_config": [
+              "param",
+              null
+            ],
+            "buffer_sizes": [
+              "param",
+              null
+            ],
+            "clockrate": [
+              "param",
+              null
+            ],
+            "ports": [
+              "param",
+              null
+            ],
+            "device_type": [
+              "param",
+              null
+            ],
+            "read_accesses": [
+              "stat",
+              null
+            ],
+            "write_accesses": [
+              "stat",
+              null
+            ],
+            "read_misses": [
+              "stat",
+              null
+            ],
+            "write_misses": [
+              "stat",
+              null
+            ],
+            "conflicts": [
+              "stat",
+              null
+            ]
+          }
+        }
+      ],
+      "system.L2Directory0": [
+        "component",
+        {
+          "name": "system.L2Directory0",
+          "children": {
+            "Directory_type": [
+              "param",
+              null
+            ],
+            "Dir_config": [
+              "param",
+              null
+            ],
+            "buffer_sizes": [
+              "param",
+              null
+            ],
+            "clockrate": [
+              "param",
+              null
+            ],
+            "ports": [
+              "param",
+              null
+            ],
+            "device_type": [
+              "param",
+              null
+            ],
+            "read_accesses": [
+              "stat",
+              null
+            ],
+            "write_accesses": [
+              "stat",
+              null
+            ],
+            "read_misses": [
+              "stat",
+              null
+            ],
+            "write_misses": [
+              "stat",
+              null
+            ],
+            "conflicts": [
+              "stat",
+              null
+            ]
+          }
+        }
+      ],
+      "system.L30": [
+        "component",
+        {
+          "name": "L30",
+          "children": {
+            "L3_config": [
+              "param",
+              null
+            ],
+            "clockrate": [
+              "param",
+              null
+            ],
+            "ports": [
+              "param",
+              null
+            ],
+            "device_type": [
+              "param",
+              null
+            ],
+            "buffer_sizes": [
+              "param",
+              null
+            ],
+            "read_accesses": [
+              "stat",
+              null
+            ],
+            "write_accesses": [
+              "stat",
+              null
+            ],
+            "read_misses": [
+              "stat",
+              null
+            ],
+            "write_misses": [
+              "stat",
+              null
+            ],
+            "conflicts": [
+              "stat",
+              null
+            ],
+            "duty_cycle": [
+              "stat",
+              null
+            ]
+          }
+        }
+      ],
+      "system.NoC0": [
+        "component",
+        {
+          "name": "noc0",
+          "children": {
+            "clockrate": [
+              "param",
+              null
+            ],
+            "type": [
+              "param",
+              null
+            ],
+            "horizontal_nodes": [
+              "param",
+              null
+            ],
+            "vertical_nodes": [
+              "param",
+              null
+            ],
+            "has_global_link": [
+              "param",
+              null
+            ],
+            "link_throughput": [
+              "param",
+              null
+            ],
+            "link_latency": [
+              "param",
+              null
+            ],
+            "input_ports": [
+              "param",
+              null
+            ],
+            "output_ports": [
+              "param",
+              null
+            ],
+            "virtual_channel_per_port": [
+              "param",
+              null
+            ],
+            "input_buffer_entries_per_vc": [
+              "param",
+              null
+            ],
+            "flit_bits": [
+              "param",
+              null
+            ],
+            "chip_coverage": [
+              "param",
+              null
+            ],
+            "link_routing_over_percentage": [
+              "param",
+              null
+            ],
+            "total_accesses": [
+              "stat",
+              null
+            ],
+            "duty_cycle": [
+              "stat",
+              null
+            ]
+          }
+        }
+      ],
+      "system.mc": [
+        "component",
+        {
+          "name": "mc",
+          "children": {
+            "type": [
+              "param",
+              null
+            ],
+            "mc_clock": [
+              "param",
+              null
+            ],
+            "peak_transfer_rate": [
+              "param",
+              null
+            ],
+            "block_size": [
+              "param",
+              null
+            ],
+            "number_mcs": [
+              "param",
+              null
+            ],
+            "memory_channels_per_mc": [
+              "param",
+              null
+            ],
+            "number_ranks": [
+              "param",
+              null
+            ],
+            "withPHY": [
+              "param",
+              null
+            ],
+            "req_window_size_per_channel": [
+              "param",
+              null
+            ],
+            "IO_buffer_size_per_channel": [
+              "param",
+              null
+            ],
+            "databus_width": [
+              "param",
+              null
+            ],
+            "addressbus_width": [
+              "param",
+              null
+            ],
+            "memory_accesses": [
+              "stat",
+              null
+            ],
+            "memory_reads": [
+              "stat",
+              null
+            ],
+            "memory_writes": [
+              "stat",
+              null
+            ]
+          }
+        }
+      ],
+      "system.niu": [
+        "component",
+        {
+          "name": "niu",
+          "children": {
+            "type": [
+              "param",
+              null
+            ],
+            "clockrate": [
+              "param",
+              null
+            ],
+            "number_units": [
+              "param",
+              null
+            ],
+            "duty_cycle": [
+              "stat",
+              null
+            ],
+            "total_load_perc": [
+              "stat",
+              null
+            ]
+          }
+        }
+      ],
+      "system.pcie": [
+        "component",
+        {
+          "name": "pcie",
+          "children": {
+            "type": [
+              "param",
+              null
+            ],
+            "withPHY": [
+              "param",
+              null
+            ],
+            "clockrate": [
+              "param",
+              null
+            ],
+            "number_units": [
+              "param",
+              null
+            ],
+            "num_channels": [
+              "param",
+              null
+            ],
+            "duty_cycle": [
+              "stat",
+              null
+            ],
+            "total_load_perc": [
+              "stat",
+              null
+            ]
+          }
+        }
+      ],
+      "system.flashc": [
+        "component",
+        {
+          "name": "flashc",
+          "children": {
+            "number_flashcs": [
+              "param",
+              null
+            ],
+            "type": [
+              "param",
+              null
+            ],
+            "withPHY": [
+              "param",
+              null
+            ],
+            "peak_transfer_rate": [
+              "param",
+              null
+            ],
+            "duty_cycle": [
+              "stat",
+              null
+            ],
+            "total_load_perc": [
+              "stat",
+              null
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

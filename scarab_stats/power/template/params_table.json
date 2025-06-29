@@ -1,0 +1,169 @@
+{
+  "system": {
+    "number_of_cores": "1",
+    "number_of_L1Directories": "0",
+    "number_of_L2Directories": "0",
+    "number_of_L2s": "0",
+    "Private_L2": "0",
+    "number_of_L3s": "1",
+    "number_of_NoCs": "0",
+    "homogeneous_cores": "0",
+    "homogeneous_L2s": "0",
+    "homogeneous_L1Directorys": "1",
+    "homogeneous_L2Directorys": "1",
+    "homogeneous_L3s": "1",
+    "homogeneous_ccs": "1",
+    "homogeneous_NoCs": "1",
+    "core_tech_node": "22",
+    "target_core_clockrate": "3200.000000",
+    "temperature": "380",
+    "number_cache_levels": "2",
+    "interconnect_projection_type": "0",
+    "device_type": "0",
+    "longer_channel_device": "0",
+    "machine_bits": "64",
+    "virtual_address_width": "64",
+    "physical_address_width": "52",
+    "virtual_memory_page_size": "4096"
+  },
+  "system.core0": {
+    "clock_rate": "3200.000000",
+    "vdd": "1.250000",
+    "power_gating_vcc": "-1",
+    "opt_local": "0",
+    "instruction_length": "32",
+    "opcode_width": "16",
+    "x86": "1",
+    "micro_opcode_width": "8",
+    "machine_type": "0",
+    "number_hardware_threads": "1",
+    "fetch_width": "4",
+    "number_instruction_fetch_ports": "1",
+    "decode_width": "6",
+    "issue_width": "8",
+    "peak_issue_width": "8",
+    "commit_width": "8",
+    "fp_issue_width": "6",
+    "prediction_width": "6",
+    "pipelines_per_core": "1,1",
+    "pipeline_depth": "14,14",
+    "ALU_per_core": "4",
+    "MUL_per_core": "2",
+    "FPU_per_core": "6",
+    "instruction_buffer_size": "32",
+    "decoded_stream_buffer_size": "16",
+    "instruction_window_scheme": "0",
+    "instruction_window_size": "96",
+    "fp_instruction_window_size": "64",
+    "ROB_size": "256",
+    "archi_Regs_IRF_size": "192",
+    "archi_Regs_FRF_size": "0",
+    "phy_Regs_IRF_size": "192",
+    "phy_Regs_FRF_size": "160",
+    "rename_scheme": "0",
+    "register_windows_size": "0",
+    "LSU_order": "out-of-order",
+    "store_buffer_size": "85",
+    "load_buffer_size": "85",
+    "memory_ports": "2",
+    "RAS_size": "32",
+    "number_of_BPT": "2",
+    "number_of_BTB": "1"
+  },
+  "system.core0.predictor": {
+    "local_predictor_size": "10,3",
+    "local_predictor_entries": "1024",
+    "global_predictor_entries": "4096",
+    "global_predictor_bits": "2",
+    "chooser_predictor_entries": "4096",
+    "chooser_predictor_bits": "2"
+  },
+  "system.core0.itlb": {
+    "number_entries": "128"
+  },
+  "system.core0.icache": {
+    "icache_config": "32768,64,8,1,1,3,32,1",
+    "buffer_sizes": "16,16,16,0"
+  },
+  "system.core0.dtlb": {
+    "number_entries": "128"
+  },
+  "system.core0.dcache": {
+    "dcache_config": "32768,64,8,2,1,2,64,1",
+    "buffer_sizes": "16, 16, 16, 16"
+  },
+  "system.core0.BTB": {
+    "BTB_config": "8192,8,4,1,1,1"
+  },
+  "system.L1Directory0": {
+    "Directory_type": "0",
+    "Dir_config": "4096,2,0,1,100,100, 8",
+    "buffer_sizes": "8, 8, 8, 8",
+    "clockrate": "3400",
+    "ports": "1,1,1",
+    "device_type": "0"
+  },
+  "system.L2Directory0": {
+    "Directory_type": "0",
+    "Dir_config": "512,4,0,1,1, 1",
+    "buffer_sizes": "16, 16, 16, 16",
+    "clockrate": "1200",
+    "ports": "1,1,1",
+    "device_type": "0"
+  },
+  "system.L30": {
+    "L3_config": "524288,64,4,1,1,18,32, 1",
+    "clockrate": "3200.000000",
+    "ports": "1,1,1",
+    "device_type": "0",
+    "buffer_sizes": "16, 16, 16, 16"
+  },
+  "system.NoC0": {
+    "clockrate": "1200",
+    "type": "1",
+    "horizontal_nodes": "1",
+    "vertical_nodes": "1",
+    "has_global_link": "1",
+    "link_throughput": "1",
+    "link_latency": "1",
+    "input_ports": "8",
+    "output_ports": "7",
+    "virtual_channel_per_port": "2",
+    "input_buffer_entries_per_vc": "128",
+    "flit_bits": "40",
+    "chip_coverage": "1",
+    "link_routing_over_percentage": "1.000000"
+  },
+  "system.mc": {
+    "type": "0",
+    "mc_clock": "1200",
+    "peak_transfer_rate": "19200",
+    "block_size": "64",
+    "number_mcs": "1",
+    "memory_channels_per_mc": "1",
+    "number_ranks": "1",
+    "withPHY": "0",
+    "req_window_size_per_channel": "64",
+    "IO_buffer_size_per_channel": "64",
+    "databus_width": "64",
+    "addressbus_width": "49.000000"
+  },
+  "system.niu": {
+    "type": "0",
+    "clockrate": "350",
+    "number_units": "0"
+  },
+  "system.pcie": {
+    "type": "0",
+    "withPHY": "1",
+    "clockrate": "350",
+    "number_units": "0",
+    "num_channels": "8"
+  },
+  "system.flashc": {
+    "number_flashcs": "0",
+    "type": "1",
+    "withPHY": "1",
+    "peak_transfer_rate": "200"
+  }
+}
