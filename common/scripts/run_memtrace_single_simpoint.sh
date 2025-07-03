@@ -14,10 +14,11 @@ SCARABPARAMS="$3"
 SEGSIZE="$4"
 SCARABARCH="$5"
 WARMUP="$6"
-TRACE_TYPE="$7"
-SCARABHOME="$8"
-SEGMENT_ID="$9"
-TRACEFILE="$10"
+TRACE_WARMUP="$7"
+TRACE_TYPE="$8"
+SCARABHOME="$9"
+SEGMENT_ID="${10}"
+TRACEFILE="${11}"
 
 SIMHOME=$SCENARIO/$WORKLOAD_HOME
 mkdir -p $SIMHOME
@@ -82,41 +83,54 @@ else
 
     # roiStart 1 means simulation starts with chunk 0
     if [ "$roiStart" == "1" ]; then
-        #echo "ROISTART"
-        #echo "$TRACEFILE"
-        #echo "$segID"
-        scarabCmd="$SCARABHOME/src/scarab \
-        --frontend memtrace \
-        --cbp_trace_r0=$TRACEFILE \
-        --memtrace_roi_begin=1 \
-        --memtrace_roi_end=$instLimit \
-        --inst_limit=$instLimit \
-        --full_warmup=$WARMUP \
-        --use_fetched_count=1 \
-        $SCARABPARAMS \
-        &> sim.log"
+      #echo "ROISTART"
+      #echo "$TRACEFILE"
+      #echo "$segID"
+      scarabCmd="$SCARABHOME/src/scarab \
+      --frontend memtrace \
+      --cbp_trace_r0=$TRACEFILE \
+      --memtrace_roi_begin=1 \
+      --memtrace_roi_end=$instLimit \
+      --inst_limit=$instLimit \
+      --full_warmup=$WARMUP \
+      --use_fetched_count=1 \
+      $SCARABPARAMS \
+      &> sim.log"
     else
-        #echo "!ROISTART"
-        scarabCmd="$SCARABHOME/src/scarab \
-        --frontend memtrace \
-        --cbp_trace_r0=$TRACEFILE \
-        --memtrace_roi_begin=$(( $SEGSIZE + 1)) \
-        --memtrace_roi_end=$(( $SEGSIZE + $instLimit )) \
-        --inst_limit=$instLimit \
-        --full_warmup=$WARMUP \
-        --use_fetched_count=1 \
-        $SCARABPARAMS \
-        &> sim.log"
+      #echo "!ROISTART"
+      scarabCmd="$SCARABHOME/src/scarab \
+      --frontend memtrace \
+      --cbp_trace_r0=$TRACEFILE \
+      --memtrace_roi_begin=$(( $SEGSIZE + 1)) \
+      --memtrace_roi_end=$(( $SEGSIZE + $instLimit )) \
+      --inst_limit=$instLimit \
+      --full_warmup=$WARMUP \
+      --use_fetched_count=1 \
+      $SCARABPARAMS \
+      &> sim.log"
     fi
   elif [ "$TRACE_TYPE" == "cluster_then_trace" ]; then
-    scarabCmd="$SCARABHOME/src/scarab \
-    --frontend memtrace \
-    --cbp_trace_r0=$TRACEFILE \
-    --inst_limit=$instLimit \
-    --full_warmup=$WARMUP \
-    --use_fetched_count=0 \
-    $SCARABPARAMS \
-    &> sim.log"
+    if [ "$WARMUP" -lt "$TRACE_WARMUP" ]; then
+      scarabCmd="$SCARABHOME/src/scarab \
+      --frontend memtrace \
+      --cbp_trace_r0=$TRACEFILE \
+      --fast_forward=1 \
+      --fast_forward_trace_ins=$(( $TRACE_WARMUP - $WARMUP )) \
+      --inst_limit=$instLimit \
+      --full_warmup=$WARMUP \
+      --use_fetched_count=0 \
+      $SCARABPARAMS \
+      &> sim.log"
+    else
+      scarabCmd="$SCARABHOME/src/scarab \
+      --frontend memtrace \
+      --cbp_trace_r0=$TRACEFILE \
+      --inst_limit=$instLimit \
+      --full_warmup=$WARMUP \
+      --use_fetched_count=0 \
+      $SCARABPARAMS \
+      &> sim.log"
+    fi
   fi
 fi
 
