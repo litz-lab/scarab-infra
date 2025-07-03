@@ -131,7 +131,7 @@ jobs:
           fi
 
           echo "Created PR #$PR_NUMBER"
-          sleep 5  # Delay to ensure PR is available for auto-merge
+          sleep 10  # Delay to ensure PR is available for auto-merge
 
           if [[ "${{ github.event_name }}" == "push" ]]; then
             echo "Enabling auto-merge for PR #$PR_NUMBER"
