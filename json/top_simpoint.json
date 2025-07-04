@@ -24,7 +24,8 @@
       "subsuite":"rate_int",
       "workload":"perlbench",
       "cluster_id":29229,
-      "simulation_type":"memtrace"
+      "simulation_type":"memtrace",
+      "warmup":null
     }
   ],
   "_configurations": "scarab configurations to sweep",
