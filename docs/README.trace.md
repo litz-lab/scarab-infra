@@ -4,19 +4,26 @@ scarab-infra is a set of tools that collect DynamoRIO traces based on SimPoint m
 This document describes the steps to collect traces of a new application and add them to scarab-infra workload DB.
 
 ## Requirements
-1. Install Docker [docker docs](https://docs.docker.com/engine/install/) and python docker library.
-```
-apt-get install python3-docker
-```
+1. Install Docker [docker docs](https://docs.docker.com/engine/install/).
 2. Configure Docker to run as non-root user ([ref](https://stackoverflow.com/questions/48957195/how-to-fix-docker-got-permission-denied-issue)):
 ```
 sudo chmod 666 /var/run/docker.sock
 ```
-3. Add the SSH key of the machine(s) running the Docker container to your GitHub account ([link](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent?platform=linux)).
-
-4. Optional: Install [Slurm](docs/slurm_install_guide.md)
-
-5. Prepare new applications/benchmarks where you want to collect traces. We use [DCPerf from Meta](https://github.com/facebookresearch/DCPerf) as a benchmark suite here as an example.
+3. Install pip libraries by using conda (create virtual environment `scarabinfra`)
+```
+conda env create --file quickstart_env.yaml
+```
+Optional: if you want to remove the existing `scarabinfra` and re-create it, run the following first.
+```
+conda env remove -n scarabinfra
+```
+4. Activate the virtual environment.
+```
+conda activate scarabinfra
+```
+5. Add the SSH key of the machine(s) running the Docker container to your GitHub account ([link](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent?platform=linux)).
+6. Optional: Install [Slurm](docs/slurm_install_guide.md)
+7. Prepare new applications/benchmarks where you want to collect traces. We use [DCPerf from Meta](https://github.com/facebookresearch/DCPerf) as a benchmark suite here as an example.
 
 ## Limitations
 DynamoRIO does not always work for non-C/C++ applications. This README assumes C/C++ benchmarks to be added to this repository.
@@ -148,8 +155,8 @@ docker pull ghcr.io/litz-lab/scarab-infra/$WORKLOAD_GROUPNAME:<GitHash>
 ```
 cp json/trace.json json/your_trace.json
 ```
-2. Edit your_trace.json to describe your trace scenarios. Please refer to json/trace.json for the describtion. To set the 'workload manager' = slurm, Slurm should be installed.
-3. Run all traces
+2. Edit your_trace.json to describe your trace scenarios. We strongly recommend starting with a single trace scenario instead of multiple trace configurations, as it may require a significant amount of memory, even for a single scenario, which can cause an out-of-memory issue depending on the system. Please refer to json/trace.json for the describtion. To set the 'workload manager' = slurm, Slurm should be installed.
+3. Run tracing with the JSON desciptor.
 
 ```
 ./run.sh --trace your_trace
