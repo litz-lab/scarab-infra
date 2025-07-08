@@ -27,8 +27,8 @@ cd /home/$USER/traces
 gdown https://drive.google.com/uc?id=1tfKL7wYK1mUqpCH8yPaPVvxk2UIAJrOX
 tar -xzvf simpoint_traces.tar.gz
 ```
-5. Optional: Install [Slurm](docs/slurm_install_guide.md)
-6. Optional: To pull the pre-built docker image from GitHub Packages, make sure your token has `read:packages` permission.
+7. Optional: Install [Slurm](docs/slurm_install_guide.md)
+8. Optional: To pull the pre-built docker image from GitHub Packages, make sure your token has `read:packages` permission.
 You should be able to `docker login`
 ```
 echo <YOUR_GITHUB_TOKEN> | docker login ghcr.io -u <YOUR_GITHUB_USERNAME> --password-stdin
