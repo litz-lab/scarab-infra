@@ -8,20 +8,19 @@ import argparse
 import os
 import docker
 
-from utilities import (
-        info,
-        err,
-        read_descriptor_from_json,
-        remove_docker_containers,
-        get_image_list,
-        prepare_simulation,
-        get_image_name,
-        validate_simulation,
-        is_container_running,
-        count_interactive_shells
-        )
-import slurm_runner
-import local_runner
+from scripts.utilities import (
+    info,
+    err,
+    read_descriptor_from_json,
+    remove_docker_containers,
+    get_image_list,
+    prepare_simulation,
+    get_image_name,
+    validate_simulation,
+    is_container_running,
+    count_interactive_shells
+)
+from scripts import slurm_runner, local_runner
 
 client = docker.from_env()
 
@@ -41,7 +40,7 @@ def verify_descriptor(descriptor_data, workloads_data, open_shell = False, dbg_l
 
     # Check the scarab build mode
     if descriptor_data["scarab_build"] != None and descriptor_data["scarab_build"] != 'opt' and descriptor_data["scarab_build"] != 'dbg':
-        err("Need a valid scarab build mode (\'opt\' or \'dbg\' or null). Set in descriptor file under 'scarab_build'", dbg_lvl)
+        err("Need a valid scarab build mode ('opt' or 'dbg' or null). Set in descriptor file under 'scarab_build'", dbg_lvl)
         exit(1)
 
     # Check if a correct architecture spec is provided

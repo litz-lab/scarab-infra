@@ -8,13 +8,13 @@ import argparse
 import os
 import docker
 
-from utilities import (
-        info,
-        err,
-        read_descriptor_from_json,
-        is_container_running,
-        count_interactive_shells
-        )
+from scripts.utilities import (
+    info,
+    err,
+    read_descriptor_from_json,
+    is_container_running,
+    count_interactive_shells
+)
 
 client = docker.from_env()
 
