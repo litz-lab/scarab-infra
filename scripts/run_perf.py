@@ -8,7 +8,7 @@ import argparse
 import os
 import docker
 
-from scripts.utilities import (
+from .utilities import (
     info,
     err,
     read_descriptor_from_json,

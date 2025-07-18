@@ -8,7 +8,7 @@ import argparse
 import os
 import docker
 
-from scripts.utilities import (
+from .utilities import (
     info,
     err,
     read_descriptor_from_json,
@@ -20,7 +20,7 @@ from scripts.utilities import (
     is_container_running,
     count_interactive_shells
 )
-from scripts import slurm_runner, local_runner
+from . import slurm_runner, local_runner
 
 client = docker.from_env()
 
