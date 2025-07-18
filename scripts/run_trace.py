@@ -8,18 +8,16 @@ import argparse
 import os
 import docker
 
-from utilities import (
-        info,
-        err,
-        read_descriptor_from_json,
-        remove_docker_containers,
-        prepare_trace,
-        is_container_running,
-        count_interactive_shells
-        )
-
-import slurm_runner
-import local_runner
+from .utilities import (
+    info,
+    err,
+    read_descriptor_from_json,
+    remove_docker_containers,
+    prepare_trace,
+    is_container_running,
+    count_interactive_shells
+)
+from . import slurm_runner, local_runner
 
 client = docker.from_env()
 
