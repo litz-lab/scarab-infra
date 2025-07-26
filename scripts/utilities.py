@@ -10,9 +10,10 @@ import docker
 import importlib
 import sys
 
-# Add the project root to sys.path
+# Add the project root to sys.path for imports
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-sys.path.insert(0, project_root)
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
 import workloads.extract_top_simpoints as extract_top_simpoints
 importlib.reload(extract_top_simpoints)
@@ -239,12 +240,16 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
             image_tag = f"{docker_prefix}:{githash}"
             image_tag_list.append(image_tag)
             prepare_docker_image(docker_prefix, image_tag, latest_hash, diff_output, available_slurm_nodes, dbg_lvl)
+    except subprocess.CalledProcessError as e:
+        info(f"Docker image preparation failed: {e.stderr if isinstance(e.stderr, str) else e.stderr.decode() if e.stderr else str(e)}", dbg_lvl)
+        raise e
     except Exception as e:
-        info(e.stderr.strip(), dbg_lvl)
+        info(f"Unexpected error during docker image preparation: {str(e)}", dbg_lvl)
         raise e
 
     ## Copy required scarab files into the experiment folder
     docker_prefix = docker_prefix_list[0]
+    docker_container_name = None
     try:
         local_uid = os.getuid()
         local_gid = os.getgid()
@@ -289,9 +294,15 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
             subprocess.run(
                     ["docker", "exec", "--privileged", f"{docker_container_name}", "/bin/bash", "-c", "\'/usr/local/bin/root_entrypoint.sh\'"],
                     check=True, capture_output=True, text=True)
-            subprocess.run(
-                    ["docker", "exec", f"--user={user}", f"--workdir=/home/{user}", f"{docker_container_name}", "/bin/bash", "-c", f"cd /scarab/src && make clean && make {scarab_build}"],
-                    check=True, capture_output=True, text=True)
+
+            build_result = subprocess.run(
+                    ["docker", "exec", f"--user={user}", f"--workdir=/home/{user}", f"{docker_container_name}", "/bin/bash", "-c", f"cd /scarab/src && make {scarab_build}"],
+                    capture_output=True, text=True)
+
+            if build_result.returncode != 0:
+                err(f"Build stdout: {build_result.stdout}", dbg_lvl)
+                err(f"Build stderr: {build_result.stderr}", dbg_lvl)
+                build_result.check_returncode()  # This will raise CalledProcessError
             subprocess.run(["docker", "rm", "-f", f"{docker_container_name}"], check=True, capture_output=True, text=True)
 
         experiment_dir = f"{docker_home}/simulations/{experiment_name}"
@@ -331,10 +342,23 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
         os.system(f"cp {scarab_path}/bin/scarab_globals/*  {experiment_dir}/scarab/bin/scarab_globals/ ")
 
         return scarab_githash, image_tag_list
+    except subprocess.CalledProcessError as e:
+        if docker_container_name:
+            try:
+                subprocess.run(["docker", "rm", "-f", docker_container_name], check=True)
+                info(f"Removed container: {docker_container_name}", dbg_lvl)
+            except subprocess.CalledProcessError:
+                info(f"Could not remove container: {docker_container_name}", dbg_lvl)
+        info(f"Scarab build failed: {e.stderr if isinstance(e.stderr, str) else e.stderr.decode() if e.stderr else str(e)}", dbg_lvl)
+        raise e
     except Exception as e:
-        subprocess.run(["docker", "rm", "-f", docker_container_name], check=True)
-        info(f"Removed container: {docker_container_name}", dbg_lvl)
-        info(e.stderr.strip(), dbg_lvl)
+        if docker_container_name:
+            try:
+                subprocess.run(["docker", "rm", "-f", docker_container_name], check=True)
+                info(f"Removed container: {docker_container_name}", dbg_lvl)
+            except subprocess.CalledProcessError:
+                info(f"Could not remove container: {docker_container_name}", dbg_lvl)
+        info(f"Unexpected error during scarab build: {str(e)}", dbg_lvl)
         raise e
 
 def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_name, image_tag_list, available_nodes, slurm_ids = None, dont_collect = False):
@@ -652,11 +676,15 @@ def prepare_trace(user, scarab_path, scarab_build, docker_home, job_name, infra_
             image_tag = f"{docker_prefix}:{githash}"
             latest_image_tag = f"{docker_prefix}:{latest_hash}"
             prepare_docker_image(docker_prefix, image_tag, latest_hash, diff_output, available_slurm_nodes, dbg_lvl)
+    except subprocess.CalledProcessError as e:
+        info(f"Docker image preparation failed: {e.stderr if isinstance(e.stderr, str) else e.stderr.decode() if e.stderr else str(e)}", dbg_lvl)
+        raise e
     except Exception as e:
-        info(e.stderr.strip(), dbg_lvl)
+        info(f"Unexpected error during docker image preparation: {str(e)}", dbg_lvl)
         raise e
 
     docker_prefix = docker_prefix_list[0]
+    docker_container_name = None
     try:
         local_uid = os.getuid()
         local_gid = os.getgid()
@@ -729,9 +757,23 @@ def prepare_trace(user, scarab_path, scarab_build, docker_home, job_name, infra_
         os.system(f"cp {scarab_path}/bin/scarab_globals/*  {trace_dir}/scarab/bin/scarab_globals/ ")
         os.system(f"mkdir -p {trace_dir}/scarab/utils/memtrace")
         os.system(f"cp {scarab_path}/utils/memtrace/* {trace_dir}/scarab/utils/memtrace/ ")
+    except subprocess.CalledProcessError as e:
+        if docker_container_name:
+            try:
+                subprocess.run(["docker", "rm", "-f", docker_container_name], check=True)
+                info(f"Removed container: {docker_container_name}", dbg_lvl)
+            except subprocess.CalledProcessError:
+                info(f"Could not remove container: {docker_container_name}", dbg_lvl)
+        info(f"Scarab build failed: {e.stderr if isinstance(e.stderr, str) else e.stderr.decode() if e.stderr else str(e)}", dbg_lvl)
+        raise e
     except Exception as e:
-        subprocess.run(["docker", "rm", "-f", docker_container_name], check=True)
-        info(f"Removed container: {docker_container_name}", dbg_lvl)
+        if docker_container_name:
+            try:
+                subprocess.run(["docker", "rm", "-f", docker_container_name], check=True)
+                info(f"Removed container: {docker_container_name}", dbg_lvl)
+            except subprocess.CalledProcessError:
+                info(f"Could not remove container: {docker_container_name}", dbg_lvl)
+        info(f"Unexpected error during scarab build: {str(e)}", dbg_lvl)
         raise e
 
 def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):

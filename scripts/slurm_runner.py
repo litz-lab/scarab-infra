@@ -9,7 +9,7 @@ import subprocess
 import re
 import traceback
 import json
-from utilities import (
+from .utilities import (
         err,
         warn,
         info,
