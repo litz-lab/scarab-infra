@@ -208,7 +208,7 @@ def open_interactive_shell(user, descriptor_data, workloads_data, infra_dir, dbg
     except Exception as e:
         raise e
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(description='Runs scarab on local or a slurm network')
 
     # Add arguments
@@ -276,3 +276,6 @@ if __name__ == "__main__":
         local_runner.run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_path, dbg_lvl)
     else:
         slurm_runner.run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_path, dbg_lvl)
+
+if __name__ == "__main__":
+    main()
