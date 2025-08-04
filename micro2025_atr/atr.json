@@ -1,0 +1,51 @@
+{
+  "_descriptor_type":"A type of descriptor. One of 'simulation', 'trace', and 'perf'.",
+  "descriptor_type":"simulation",
+  "_architecture":"A name of the available architectures (PARAMS.<architecture>) found in scarab repository, which defines the machine parameters of the default configuration.",
+  "architecture":"golden_cove",
+  "_experiment":"The name of the experiment. scarab-infra will create a new folder named containing all files needed to execute the simulation in the <ROOT_DIR>/simulations/<experiment> directory. The folder will also contain all generated simulation statistics/outputs.",
+  "experiment":"atr",
+  "_workload_manager":"manual: run each exp scenario with all the simpoints at a time, slurm: Slurm schedules simulations based on its policy",
+  "workload_manager":"slurm",
+  "_root_dir":"Root directory mounted into the docker container home, for instance, the user's home directory",
+  "root_dir":"/soe/yzhao321/workplace/core_cpu/container_dir",
+  "_scarab_path":"The path to the scarab repository that contains the scarab binary used to run the experiment.",
+  "scarab_path":"/soe/yzhao321/workplace/core_cpu/container_dir/impl/online/sim/scarab",
+  "_scarab_build":"scarab build mode. 'opt', 'dbg', or null",
+  "scarab_build":"opt",
+  "_traces_dir":"The local directory containing all simpointed traces",
+  "traces_dir":"/soe/hlitz/lab/traces",
+  "_top_simpoint":"Run only top 3 simpoints stored in 'workloads_top_simp.json' instead of the entire simpoints in 'workloads_db.json'",
+  "top_simpoint":true,
+  "_simulations":"A list of [suite, subsuite, workload, simpoint's cluster #, simulation type]. Available suite and subsuite are found in workloads/suite_db.json and workload's available cluster_id and simulation_type are found in workloads/workloads_db.json where it runs all the simpoints if cluster_id is null and simulation type is one of 'exec', 'memtrace', 'pt'. When only 'suite' or 'suite'+'subsuite' is given and the rest are null, it launches simulations for all the workloads, all the simpoints if available, and in predefined simulation mode in workloads/suite_db.json.",
+  "simulations":[
+    {
+      "suite": "spec2017",
+      "subsuite": "rate_int",
+      "workload": null,
+      "cluster_id": null,
+      "simulation_type": null,
+      "warmup":null
+    },
+    {
+      "suite": "spec2017",
+      "subsuite": "rate_fp",
+      "workload": null,
+      "cluster_id": null,
+      "simulation_type": null,
+      "warmup":null
+    }
+  ],
+  "_configurations":"scarab configurations to sweep",
+  "configurations":{
+    "stat_p280_v332":"--reg_renaming_scheme 8 --reg_table_integer_physical_size 280 --reg_table_vector_physical_size 332 --reg_renaming_scheme_early_release_pending_consumed_max 32",
+    "realistic_p64_v64":"--reg_renaming_scheme 1 --reg_table_integer_physical_size 64 --reg_table_vector_physical_size 64",
+    "nonspec_p64_v64_d0":"--reg_renaming_scheme 4 --reg_table_integer_physical_size 64 --reg_table_vector_physical_size 64",
+    "atomic_p64_v64_d0":"--reg_renaming_scheme 6 --reg_table_integer_physical_size 64 --reg_table_vector_physical_size 64",
+    "combine_p64_v64_d0":"--reg_renaming_scheme 7 --reg_table_integer_physical_size 64 --reg_table_vector_physical_size 64",
+    "realistic_p224_v224":"--reg_renaming_scheme 1 --reg_table_integer_physical_size 224 --reg_table_vector_physical_size 224",
+    "nonspec_p224_v224_d0":"--reg_renaming_scheme 4 --reg_table_integer_physical_size 224 --reg_table_vector_physical_size 224",
+    "atomic_p224_v224_d0":"--reg_renaming_scheme 6 --reg_table_integer_physical_size 224 --reg_table_vector_physical_size 224",
+    "combine_p224_v224_d0":"--reg_renaming_scheme 7 --reg_table_integer_physical_size 224 --reg_table_vector_physical_size 224"
+  }
+}
