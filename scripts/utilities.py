@@ -387,7 +387,9 @@ def generate_single_scarab_run_command(user, workload_home, experiment, config_k
         command = f"run_pt_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{arch}\\\" \\\"{warmup}\\\" /home/{user}/simulations/{experiment}/scarab"
 
     elif mode == "exec":
-        command = f"run_exec_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{arch}\\\" /home/{user}/simulations/{experiment}/scarab {env_vars} {bincmd} {client_bincmd}"
+        # Properly quote all parameters to prevent shell splitting and handle None values
+        # env_vars_quoted = f'\\\"{env_vars}\\\"' if env_vars else '\\\"\\\""'
+        command = f"run_exec_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{seg_size}\\\" \\\"{arch}\\\" \\\"\\\" /home/{user}/simulations/{experiment}/scarab {cluster_id} \\\"{env_vars}\\\" \\\"{bincmd}\\\" \\\"{client_bincmd}\\\""
     else:
         command = ""
 

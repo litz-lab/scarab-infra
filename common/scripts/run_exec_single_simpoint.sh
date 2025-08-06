@@ -20,6 +20,7 @@ CLIENT_BINCMD="${11}"
 for token in $ENVVAR;
 do
   export $token
+  echo "export $token"
 done
 
 # 10M warmup for segmented simulation (simpoints) and 50M warmup for whole simulation
@@ -83,6 +84,7 @@ else
   --pin_stderr=\"$SIMHOME/$SCENARIONUM/$clusterID/pin.err\" \
   "
 fi
+
 
 #echo "simulating clusterID ${clusterID}, segment $segID..."
 #echo "command: ${scarabCmd}"
