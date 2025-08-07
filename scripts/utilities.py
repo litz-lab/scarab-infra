@@ -380,7 +380,7 @@ def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_n
 def generate_single_scarab_run_command(user, workload_home, experiment, config_key, config,
                                        mode, seg_size, arch, scarab_githash, cluster_id,
                                        warmup, trace_warmup, trace_type, trace_file,
-                                       env_vars, bincmd, client_bincmd):
+                                       env_vars, bincmd, client_bincmd, scarab_path=None):
     if mode == "memtrace":
         command = f"run_memtrace_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{seg_size}\\\" \\\"{arch}\\\" \\\"{warmup}\\\" \\\"{trace_warmup}\\\" \\\"{trace_type}\\\" /home/{user}/simulations/{experiment}/scarab {cluster_id} {trace_file}"
     elif mode == "pt":
@@ -388,8 +388,9 @@ def generate_single_scarab_run_command(user, workload_home, experiment, config_k
 
     elif mode == "exec":
         # Properly quote all parameters to prevent shell splitting and handle None values
-        # env_vars_quoted = f'\\\"{env_vars}\\\"' if env_vars else '\\\"\\\""'
-        command = f"run_exec_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{seg_size}\\\" \\\"{arch}\\\" \\\"\\\" /home/{user}/simulations/{experiment}/scarab {cluster_id} \\\"{env_vars}\\\" \\\"{bincmd}\\\" \\\"{client_bincmd}\\\""
+        # Use /home/{user}/scarab inside container (maps to host's scarab_path)
+        scarab_home_in_container = f"/home/{user}/scarab"
+        command = f"run_exec_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{seg_size}\\\" \\\"{arch}\\\" \\\"\\\" {scarab_home_in_container} {cluster_id} \\\"{env_vars}\\\" \\\"{bincmd}\\\" \\\"{client_bincmd}\\\""
     else:
         command = ""
 
@@ -399,11 +400,11 @@ def write_docker_command_to_file_run_by_root(user, local_uid, local_gid, workloa
                                              docker_prefix, docker_container_name, traces_dir,
                                              docker_home, githash, config_key, config, scarab_mode, seg_size, scarab_githash,
                                              architecture, cluster_id, warmup, trace_warmup, trace_type, trace_file,
-                                             env_vars, bincmd, client_bincmd, filename):
+                                             env_vars, bincmd, client_bincmd, filename, scarab_path=None):
     try:
         scarab_cmd = generate_single_scarab_run_command(user, workload_home, experiment_name, config_key, config,
                                                         scarab_mode, seg_size, architecture, scarab_githash, cluster_id,
-                                                        warmup, trace_warmup, trace_type, trace_file, env_vars, bincmd, client_bincmd)
+                                                        warmup, trace_warmup, trace_type, trace_file, env_vars, bincmd, client_bincmd, scarab_path)
         with open(filename, "w") as f:
             f.write("#!/bin/bash\n")
             f.write(f"echo \"Running {config_key} {workload_home} {cluster_id}\"\n")
@@ -425,11 +426,11 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
                                  docker_prefix, docker_container_name, traces_dir,
                                  docker_home, githash, config_key, config, scarab_mode, scarab_githash,
                                  seg_size, architecture, cluster_id, warmup, trace_warmup, trace_type,
-                                 trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir):
+                                 trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir, scarab_path=None):
     try:
         scarab_cmd = generate_single_scarab_run_command(user, workload_home, experiment_name, config_key, config,
                                                         scarab_mode, seg_size, architecture, scarab_githash, cluster_id,
-                                                        warmup, trace_warmup, trace_type, trace_file, env_vars, bincmd, client_bincmd)
+                                                        warmup, trace_warmup, trace_type, trace_file, env_vars, bincmd, client_bincmd, scarab_path)
         with open(filename, "w") as f:
             f.write("#!/bin/bash\n")
             f.write(f"echo \"Running {config_key} {workload_home} {cluster_id}\"\n")
