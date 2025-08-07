@@ -46,7 +46,8 @@ if [ "$SEGMENT_ID" == "0" ]; then
   start_inst=100000000
   scarabCmd="
   python3 $SCARABHOME/bin/scarab_launch.py --program=\"$BINCMD\" \
-    --simdir=\"$SIMHOME/$SCENARIONUM/\" \
+    --simdir=\"$SIMHOME/$SCENARIONUM/$segID\" \
+    --frontend_pin_tool=\"$SCARABHOME/src/pin/pin_exec/obj-intel64/pin_exec.so\" \
     --pintool_args=\"-hyper_fast_forward_count $start_inst\" \
     --scarab_args=\"--inst_limit $SEGSIZE --full_warmup $WARMUP $SCARABPARAMS\" \
     --scarab_stdout=\"$SIMHOME/$SCENARIONUM/scarab.out\" \
