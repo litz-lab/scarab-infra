@@ -77,6 +77,7 @@ else
   scarabCmd="
   python3 $SCARABHOME/bin/scarab_launch.py --program=\"$BINCMD\" \
   --simdir=\"$SIMHOME/$SCENARIONUM/$clusterID\" \
+  --frontend_pin_tool=\"$SCARABHOME/src/pin/pin_exec/obj-intel64/pin_exec.so\" \
   --pintool_args=\"-hyper_fast_forward_count $roiStart\" \
   --scarab_args=\"--inst_limit $instLimit --full_warmup $WARMUP $SCARABPARAMS\" \
   --scarab_stdout=\"$SIMHOME/$SCENARIONUM/$clusterID/scarab.out\" \
