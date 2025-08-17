@@ -12,7 +12,8 @@ USER root
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y \
     gfortran \
     lsb-release \
-    software-properties-common
+    software-properties-common \
+    libarchive-tools
 
 WORKDIR $tmpdir
 
@@ -24,12 +25,13 @@ COPY ./workloads/spec2017/compile-538-clang.sh $tmpdir
 COPY ./workloads/spec2017/memtrace.cfg $tmpdir
 
 RUN mkdir -p $tmpdir/cpu2017_install
-RUN mount -t iso9660 -o ro,exec,loop $tmpdir/cpu2017-1_0_5.iso $tmpdir/cpu2017_install
+RUN bsdtar -C $tmpdir/cpu2017_install -xf $tmpdir/cpu2017-1_0_5.iso
 
 RUN mkdir -p $tmpdir/cpu2017
 RUN cd $tmpdir/cpu2017_install && echo "yes" | ./install.sh -d $tmpdir/cpu2017
 RUN cp $tmpdir/memtrace.cfg $tmpdir/cpu2017/config/memtrace.cfg
 RUN cp $tmpdir/compile-538-clang.sh $tmpdir/cpu2017/benchspec/CPU
+RUN rm -f $tmpdir/cpu2017-1_0_5.iso && rm -rf $tmpdir/cpu2017_install
 
 # Start your application
 CMD ["/bin/bash"]
