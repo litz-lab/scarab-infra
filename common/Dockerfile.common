@@ -71,10 +71,11 @@ ENV LD_LIBRARY_PATH $DYNAMORIO_HOME/lib64/release:$LD_LIBRARY_PATH
 # Build SimPoint 3.2
 # Reference:
 # https://github.com/intel/pinplay-tools/blob/main/pinplay-scripts/PinPointsHome/Linux/bin/Makefile
-RUN cd $tmpdir/ && \
-    git clone https://github.com/kofyou/SimPoint.3.2.git && \
-    make -C SimPoint.3.2 && \
-    ln -s SimPoint.3.2/bin/simpoint ./simpoint
+# Base code: 
+# https://github.com/kofyou/SimPoint.3.2.git
+COPY ./common/SimPoint.3.2 /tmp_home/SimPoint.3.2
+RUN make -C /tmp_home/SimPoint.3.2 && \
+    ln -sf /tmp_home/SimPoint.3.2/bin/simpoint ./simpoint
 
 RUN cd $tmpdir/ && git clone https://github.com/litz-lab/scarab
 RUN pip3 install -r $tmpdir/scarab/bin/requirements.txt

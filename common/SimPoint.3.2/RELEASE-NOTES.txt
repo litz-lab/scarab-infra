@@ -1,0 +1,10 @@
+
+SimPoint 3.2 makes the following fixes to 3.1
+     - fixed compile bug on 64 bit machines (i.e. AMD64 and PPC/OSX)
+     - unrolled inner k-means loop for added performance
+     - added our own random number generator (in Utilities.h), so we get
+       consistent random numbers across platforms
+     - removed some old code in Datapoint/Dataset classes that are not
+       currently being used (e.g. computing early indexes)
+     - fixed bug in k-means that would give incorrect answer when 0  iterations
+       were chosen
