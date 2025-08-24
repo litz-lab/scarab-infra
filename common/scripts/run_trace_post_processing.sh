@@ -74,13 +74,20 @@ do
   mkdir $segmentID
   # do not care about the params file
   cd $segmentID
+
+  ROI_BEGIN=$(( segmentID * SEGSIZE + 1 ))
+  ROI_END=$(( segmentID * SEGSIZE + SEGSIZE ))
+  if [ "$segmentID" -eq 0 ]; then
+    ROI_BEGIN=2
+    ROI_END=$(( SEGSIZE + 1 ))
+  fi
+  
   scarabCmd="$SIMPOINTHOME/scarab/src/scarab --frontend memtrace \
             --cbp_trace_r0=$TRACEFILE \
-            --memtrace_modules_log=$MODULESDIR \
             --mode=trace_bbv_distributed \
             --segment_instr_count=$SEGSIZE \
-            --memtrace_roi_begin=$(( $segmentID * $SEGSIZE + 1 )) \
-            --memtrace_roi_end=$(( $segmentID * $SEGSIZE + $SEGSIZE )) \
+            --memtrace_roi_begin=$ROI_BEGIN \
+            --memtrace_roi_end=$ROI_END \
             --trace_bbv_output=$OUTDIR/fingerprint/pieces/segment.$segmentID \
             --trace_footprint_output=$OUTDIR/fingerprint/footprint_pieces/segment.$segmentID \
             --use_fetched_count=1 \

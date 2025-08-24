@@ -135,7 +135,7 @@ def open_interactive_shell(user, descriptor_data, infra_dir, dbg_lvl = 1):
             if entry not in f.read():
                 f.write(f"\n{entry}\n")
 
-        prepare_trace(user, scarab_path, scarab_build, docker_home, trace_name, infra_dir, docker_prefix, githash, True, dbg_lvl)
+        prepare_trace(user, scarab_path, scarab_build, docker_home, trace_name, infra_dir, docker_prefix, githash, True, dbg_lvl=dbg_lvl)
         if trace_scenario["env_vars"] != None:
             env_vars = trace_scenario["env_vars"].split()
         else:

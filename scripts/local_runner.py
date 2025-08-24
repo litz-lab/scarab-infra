@@ -347,7 +347,7 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
             err("Error: Not in a Git repository or unable to retrieve Git hash.")
 
 
-        prepare_trace(user, scarab_path, scarab_build, docker_home, trace_name, infra_dir, docker_prefix_list, githash, False, None, dbg_lvl)
+        prepare_trace(user, scarab_path, scarab_build, docker_home, trace_name, infra_dir, docker_prefix_list, githash, False, dbg_lvl=dbg_lvl)
 
         # Iterate over each trace configuration
         for config in trace_configs:
