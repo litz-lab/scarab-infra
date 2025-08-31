@@ -16,12 +16,6 @@ OUTDIR=$5
 
 cd $OUTDIR
 
-mkdir raw
-cp -r $BINDIR bin
-
-mkdir trace
-cd trace
-
 # read in simpoints
 declare -A clusterMap
 while IFS=" " read -r segID clusterID; do
