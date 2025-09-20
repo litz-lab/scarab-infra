@@ -33,5 +33,11 @@ RUN cp $tmpdir/memtrace.cfg $tmpdir/cpu2017/config/memtrace.cfg
 RUN cp $tmpdir/compile-538-clang.sh $tmpdir/cpu2017/benchspec/CPU
 RUN rm -f $tmpdir/cpu2017-1_0_5.iso && rm -rf $tmpdir/cpu2017_install
 
+RUN bash -lc 'cd /tmp_home/cpu2017 && source shrc && \
+  runcpu --config=memtrace --noreportable --size=train --action=runsetup intrate fprate'
+
+RUN bash -lc 'find /tmp_home/cpu2017/benchspec/CPU -type d \
+  -path "*/run/run_base_train_memtrace-m64.*" -exec chmod -R a+w {} + || true'
+
 # Start your application
 CMD ["/bin/bash"]
