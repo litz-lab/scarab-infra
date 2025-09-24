@@ -646,7 +646,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                     for node_list in slurm_running_sims.values():
                         running_sims += node_list
 
-                    if check_can_skip(descriptor_data, config_key, suite, subsuite, workload, cluster_id, filename, running_sims, dbg_lvl):
+                    if check_can_skip(descriptor_data, config_key, suite, subsuite, workload, cluster_id, filename, running_sims, sim_mode, user, dbg_lvl):
                         info(f"Skipping {workload} with config {config_key} and cluster id {cluster_id}", dbg_lvl)
                         continue
 
