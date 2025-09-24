@@ -830,7 +830,7 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
             exit(1)
 
         trace_dir = f"{descriptor_data['root_dir']}/simpoint_flow/{trace_name}"
-        prepare_trace(user, scarab_path, scarab_build, docker_home, trace_name, infra_dir, docker_prefix_list, githash, False, available_slurm_nodes, dbg_lvl)
+        prepare_trace(user, scarab_path, scarab_build, docker_home, trace_name, infra_dir, docker_prefix_list, githash, False, available_slurm_nodes, dbg_lvl=dbg_lvl)
 
         # Iterate over each trace configuration
         for config in trace_configs:
