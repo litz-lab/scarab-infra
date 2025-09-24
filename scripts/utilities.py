@@ -984,7 +984,7 @@ def check_can_skip (descriptor_data, config_key, suite, subsuite, workload, clus
             for entry in slurm_queue:
                 # Check for following identifier. Should be of form <docker_prefix>_...as below..._<sim_mode>_<user>
                 # Docker prefix and username checked in slurm_runner
-                if f"{suite}_{subsuite}_{workload}_{descriptor_data["experiment"]}_{config_key}_{cluster_id}_{sim_mode}_{user}" in entry:
+                if f"{suite}_{subsuite}_{workload}_{descriptor_data["experiment"]}_{config_key.replace("/", "-")}_{cluster_id}_{sim_mode}_{user}" in entry:
                     # Job is in the queue, it will be run shortly.
                     info(f"Job for {config_key} for workload {workload} is in the queue. Other script will run it.", debug_lvl)
                     return True
