@@ -9,7 +9,7 @@ import signal
 import re
 import traceback
 import json
-from utilities import (
+from .utilities import (
         err,
         warn,
         info,
@@ -59,9 +59,9 @@ def print_status(user, job_name, docker_prefix_list, dbg_lvl = 2):
 def kill_jobs(user, job_type, job_name, docker_prefix_list, infra_dir, dbg_lvl):
     # Define the process name pattern
     if job_type == "simulation":
-        pattern = re.compile(f"python3 {infra_dir}/scripts/run_simulation.py -dbg 3 -d {infra_dir}/json/{job_name}.json")
+        pattern = re.compile(f"python3 -m scripts.run_simulation -dbg 3 -d {infra_dir}/json/{job_name}.json")
     elif job_type == "trace":
-        pattern = re.compile(f"python3 {infra_dir}/scripts/run_trace.py -dbg 3 -d {infra_dir}/json/{job_name}.json")
+        pattern = re.compile(f"python3 -m scripts.run_trace -dbg 3 -d {infra_dir}/json/{job_name}.json")
 
     # Iterate over all processes
     found_process = []

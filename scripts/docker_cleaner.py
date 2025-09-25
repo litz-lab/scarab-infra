@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
-from utilities import run_on_node
+from .utilities import run_on_node
 
 parser = argparse.ArgumentParser(description="Clean up dangling docker images.")
 
