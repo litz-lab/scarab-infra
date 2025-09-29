@@ -8,18 +8,16 @@ import argparse
 import os
 import docker
 
-from utilities import (
-        info,
-        err,
-        read_descriptor_from_json,
-        remove_docker_containers,
-        prepare_trace,
-        is_container_running,
-        count_interactive_shells
-        )
-
-import slurm_runner
-import local_runner
+from .utilities import (
+    info,
+    err,
+    read_descriptor_from_json,
+    remove_docker_containers,
+    prepare_trace,
+    is_container_running,
+    count_interactive_shells
+)
+from . import slurm_runner, local_runner
 
 client = docker.from_env()
 
@@ -208,7 +206,7 @@ def open_interactive_shell(user, descriptor_data, infra_dir, dbg_lvl = 1):
     except Exception as e:
         raise e
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(description='Runs clustering/tracing on local or a slurm network')
 
     # Add arguments
@@ -272,3 +270,6 @@ if __name__ == "__main__":
         local_runner.run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl)
     else:
         slurm_runner.run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl)
+
+if __name__ == "__main__":
+    main()

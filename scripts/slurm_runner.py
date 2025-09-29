@@ -9,7 +9,7 @@ import subprocess
 import re
 import traceback
 import json
-from utilities import (
+from .utilities import (
         err,
         warn,
         info,
@@ -461,7 +461,8 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
                 # Fifth line completion message indicates completion
                 if len(contents.split("\n")) < 5:
                     skipped += 1
-                    running[config] += 1
+                    if config in running:
+                        running[config] += 1
                     continue
             else:
                 # Stat jobs were modified to print DONE as a final message
@@ -474,21 +475,24 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
             for node in all_nodes:
                 if f"{node}: error:" in contents:
                     error_runs += [root_directory+file]
-                    slurm_failed[config] += 1
+                    if config in slurm_failed:
+                        slurm_failed[config] += 1
 
             # Most scarab runs and all stat runs will have a line with "Error" in them if they fail
             if 'Error' in contents:
                 error_runs += [root_directory+file]
-                failed[config] += 1
+                if config in failed:
+                    failed[config] += 1
                 continue
 
             # To be sure, check scarab runs with for final success line
             if descriptor_data["experiment"] not in contents:
                 error_runs += [root_directory+file]
-                failed[config] += 1
+                if config in failed:
+                    failed[config] += 1
                 continue
 
-            if config != 'stat':
+            if config != 'stat' and config in completed:
                 completed[config] += 1
     
 

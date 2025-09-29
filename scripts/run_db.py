@@ -4,7 +4,7 @@
 
 import argparse
 import subprocess
-from utilities import (
+from .utilities import (
         err,
         info,
         read_descriptor_from_json,
@@ -24,7 +24,7 @@ def list_workloads(workloads_data, dbg_lvl = 2):
                 image_name = workloads_data[workload]["simulation"][mode]["image_name"]
                 print(f"            <\033[92m{mode}\033[0m : \033[31m{image_name}\033[0m>")
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(description='Query workload database')
 
     # Add arguments
@@ -60,3 +60,6 @@ if __name__ == "__main__":
         exp_data = read_descriptor_from_json(args.group, dbg_lvl)
         print(get_image_name(workloads_data, exp_data["simulations"][0]))
         exit(0)
+
+if __name__ == "__main__":
+    main()

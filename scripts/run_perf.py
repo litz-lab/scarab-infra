@@ -8,13 +8,13 @@ import argparse
 import os
 import docker
 
-from utilities import (
-        info,
-        err,
-        read_descriptor_from_json,
-        is_container_running,
-        count_interactive_shells
-        )
+from .utilities import (
+    info,
+    err,
+    read_descriptor_from_json,
+    is_container_running,
+    count_interactive_shells
+)
 
 client = docker.from_env()
 
@@ -64,7 +64,7 @@ def open_interactive_shell(user, docker_home, image_name, infra_dir, dbg_lvl = 1
     except Exception as e:
         raise e
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(description='Run perf on local')
 
     # Add arguments
@@ -93,3 +93,6 @@ if __name__ == "__main__":
     if args.launch:
         open_interactive_shell(user, root_dir, image_name, infra_dir, dbg_lvl)
         exit(0)
+
+if __name__ == "__main__":
+    main()

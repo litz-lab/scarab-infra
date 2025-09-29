@@ -40,7 +40,7 @@ help () {
 list () {
   workload_db_json_file="${INFRA_ROOT}/workloads/workloads_db.json"
 
-  python3 ${INFRA_ROOT}/scripts/run_db.py -dbg 3 -l -wdb ${workload_db_json_file}
+  python3 -m scripts.run_db -dbg 3 -l -wdb ${workload_db_json_file}
 }
 
 # build function
@@ -126,7 +126,7 @@ run () {
   if [ $value == "simulation" ]; then
     workload_db_json_file="${INFRA_ROOT}/workloads/workloads_db.json"
 
-    APP_GROUPNAME=$(python3 ${INFRA_ROOT}/scripts/run_db.py -dbg 1 -g ${json_file} -wdb ${workload_db_json_file})
+    APP_GROUPNAME=$(python3 -m scripts.run_db -dbg 1 -g ${json_file} -wdb ${workload_db_json_file})
     echo $APP_GROUPNAME
 
     BUILD=$APP_GROUPNAME
@@ -136,7 +136,7 @@ run () {
     echo "open an interactive shell.."
     start=`date +%s`
 
-    python3 ${INFRA_ROOT}/scripts/run_simulation.py -dbg 3 -l -d ${json_file}
+    python3 -m scripts.run_simulation -dbg 3 -l -d ${json_file}
 
     end=`date +%s`
     report_time "interactive-shell" "$start" "$end"
@@ -152,7 +152,7 @@ run () {
     echo "open an interactive shell.."
     start=`date +%s`
 
-    python3 ${INFRA_ROOT}/scripts/run_trace.py -dbg 3 -l -d ${json_file}
+    python3 -m scripts.run_trace -dbg 3 -l -d ${json_file}
 
     end=`date +%s`
     report_time "interactive-shell" "$start" "$end"
@@ -168,7 +168,7 @@ run () {
     echo "open an interactive shell.."
     start=`date +%s`
 
-    python3 ${INFRA_ROOT}/scripts/run_perf.py -dbg 3 -l -d ${json_file}
+    python3 -m scripts.run_perf -dbg 3 -l -d ${json_file}
 
     end=`date +%s`
     report_time "interactive-shell" "$start" "$end"
@@ -181,7 +181,7 @@ simpoint_trace () {
   taskPids=()
   start=`date +%s`
 
-  cmd="python3 ${INFRA_ROOT}/scripts/run_trace.py -dbg 3 -d ${INFRA_ROOT}/json/${SIMPOINT}.json"
+  cmd="python3 -m scripts.run_trace -dbg 3 -d ${INFRA_ROOT}/json/${SIMPOINT}.json"
   eval $cmd &
   taskPids+=($!)
 
@@ -193,7 +193,7 @@ simpoint_trace () {
 run_scarab () {
   json_file="${INFRA_ROOT}/json/${SIMULATION}.json"
   workload_db_json_file="${INFRA_ROOT}/workloads/workloads_db.json"
-  APP_GROUPNAME=$(python3 ${INFRA_ROOT}/scripts/run_db.py -dbg 1 -g ${json_file} -wdb ${workload_db_json_file})
+  APP_GROUPNAME=$(python3 -m scripts.run_db -dbg 1 -g ${json_file} -wdb ${workload_db_json_file})
   echo $APP_GROUPNAME
 
   # make sure the corresponding docker image exists locally (required for scarab build)
@@ -205,7 +205,7 @@ run_scarab () {
   taskPids=()
   start=`date +%s`
 
-  cmd="python3 ${INFRA_ROOT}/scripts/run_simulation.py -dbg 1 -d ${json_file}"
+  cmd="python3 -m scripts.run_simulation -dbg 1 -d ${json_file}"
   eval $cmd &
   taskPids+=($!)
 
@@ -227,14 +227,14 @@ kill () {
     # kill Scarab simulation
     echo "kill scarab simulation of experiment $KILL .."
     start=`date +%s`
-    python3 ${INFRA_ROOT}/scripts/run_simulation.py -dbg 1 -k -d ${INFRA_ROOT}/json/${KILL}.json
+    python3 -m scripts.run_simulation -dbg 1 -k -d ${INFRA_ROOT}/json/${KILL}.json
     end=`date +%s`
     report_time "kill-Scarab-simulation" "$start" "$end"
   elif [ $value == "trace" ]; then
     # kill running clustering+tracing
     echo "kill tracing of $KILL.json .."
     start=`date +%s`
-    python3 ${INFRA_ROOT}/scripts/run_trace.py -dbg 3 -k -d ${INFRA_ROOT}/json/${KILL}.json
+    python3 -m scripts.run_trace -dbg 3 -k -d ${INFRA_ROOT}/json/${KILL}.json
     end=`date +%s`
     report_time "kill-Tracing" "$start" "$end"
   fi
@@ -254,7 +254,7 @@ status () {
     echo "print docker/slurm node info and status of scarab simulation of experiment ${STATUS} .."
     start=`date +%s`
 
-    python3 ${INFRA_ROOT}/scripts/run_simulation.py -dbg 1 -i -d ${json_file}
+    python3 -m scripts.run_simulation -dbg 1 -i -d ${json_file}
 
     end=`date +%s`
     report_time "print-status" "$start" "$end"
@@ -263,7 +263,7 @@ status () {
     echo "print docker/slurm node info and status of tracing jobs of trace ${STATUS} .."
     start=`date +%s`
 
-    python3 ${INFRA_ROOT}/scripts/run_trace.py -dbg 3 -i -d ${json_file}
+    python3 -m scripts.run_trace -dbg 3 -i -d ${json_file}
 
     end=`date +%s`
     report_time "print-status" "$start" "$end"
@@ -283,7 +283,7 @@ cleanup () {
     echo "clean up the containers running simulations from ${CLEANUP}.json .."
     start=`date +%s`
 
-    python3 ${INFRA_ROOT}/scripts/run_simulation.py -dbg 1 -c -d ${json_file}
+    python3 -m scripts.run_simulation -dbg 1 -c -d ${json_file}
 
     end=`date +%s`
     report_time "container-cleanup" "$start" "$end"
@@ -291,7 +291,7 @@ cleanup () {
     echo "clean up the containers running tracing from ${CLEANUP}.json .."
     start=`date +%s`
 
-    python3 ${INFRA_ROOT}/scripts/run_trace.py -dbg 3 -c -d ${json_file}
+    python3 -m scripts.run_trace -dbg 3 -c -d ${json_file}
 
     end=`date +%s`
     report_time "container-cleanup" "$start" "$end"

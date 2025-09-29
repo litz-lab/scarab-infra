@@ -72,6 +72,7 @@
             "image_name":"allbench_traces",
             "segment_size":10000000,
             "warmup":10000000,
+            "trace_type":"trace_then_cluster",
             "whole_trace_file":null
           }
         },
