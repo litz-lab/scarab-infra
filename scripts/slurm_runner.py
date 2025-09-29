@@ -15,10 +15,12 @@ from utilities import (
         info,
         get_simpoints,
         write_docker_command_to_file,
-        prepare_simulation,
+        write_singularity_command_to_file,
+        prepare_docker_simulation,
+        prepare_singularity_simulation,
         finish_simulation,
         get_image_list,
-        get_docker_prefix,
+        get_container_prefix,
         prepare_trace,
         finish_trace,
         write_trace_docker_command_to_file,
@@ -146,7 +148,7 @@ def check_docker_container_running_by_mount_path(nodes, container_name, mount_pa
 # Check what containers are running in the slurm cluster
 # Inputs: None
 # Outputs: a list containing all node names that are currently available or None
-def check_available_nodes(dbg_lvl = 1):
+def check_available_nodes(container_manager="docker", dbg_lvl = 1):
     try:
         # Query sinfo to get all lines with status information for all nodes
         # Ex: [['LocalQ*', 'up', 'infinite', '2', 'idle', 'bohr[3,5]']]
@@ -171,11 +173,19 @@ def check_available_nodes(dbg_lvl = 1):
                 continue
 
             # If docker is not installed, skip
-            try:
-                docker_installed = subprocess.check_output(["srun", f"--nodelist={node}", "docker", "--version"])
-            except Exception as e:
-                info(f"docker is not installed on {node}", dbg_lvl)
-                continue
+            if container_manager == "singularity":
+                try:
+                    singularity_installed = subprocess.check_output(["srun", f"--nodelist={node}", "which", "singularity"])
+                except Exception as e:
+                    info(f"docker is not installed on {node}", dbg_lvl)
+                    continue
+
+            else:
+                try:
+                    docker_installed = subprocess.check_output(["srun", f"--nodelist={node}", "docker", "--version"])
+                except Exception as e:
+                    info(f"docker is not installed on {node}", dbg_lvl)
+                    continue
 
             # Now append node(s) to available list. May be single (bohr3) or multiple (bohr[3,5])
             if '[' in node:
@@ -577,14 +587,27 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
     traces_dir = descriptor_data["traces_dir"]
     configs = descriptor_data["configurations"]
     simulations = descriptor_data["simulations"]
+    container_manager = descriptor_data["container_manager"]
 
-    docker_prefix_list = get_image_list(simulations, workloads_data)
+    if not container_manager in ["docker", "singularity"]:
+        err(f"Container_manager {container_manager} unknown", dbg_lvl)
+        exit(1)
+
+    image_prefix_list = get_image_list(simulations, workloads_data)
 
     def run_single_workload(suite, subsuite, workload, exp_cluster_id, sim_mode, warmup, all_nodes):
         try:
-            docker_prefix = get_docker_prefix(sim_mode, workloads_data[suite][subsuite][workload]["simulation"])
-            info(f"Using docker image with name {docker_prefix}:{githash}", dbg_lvl)
-            docker_running = check_docker_image(available_slurm_nodes, docker_prefix, githash, dbg_lvl)
+            container_prefix = get_container_prefix(sim_mode, workloads_data[suite][subsuite][workload]["simulation"]
+                                                    )
+            info(f"Using docker image with name {container_prefix}:{githash}", dbg_lvl)
+
+            if container_manager == "docker":
+                docker_running = check_docker_image(available_slurm_nodes, container_prefix, githash, dbg_lvl)
+            else:
+                # Previous check (prepare_singularity_simulation) found sif on nfs. Checking is not required
+                # TODO: Is this okay? Problematic if not run on NFS
+                docker_running = all_nodes
+
             excludes = set(all_nodes) - set(docker_running)
             info(f"Excluding following nodes: {', '.join(excludes)}", dbg_lvl)
             sbatch_cmd = generate_sbatch_command(excludes, experiment_dir)
@@ -629,7 +652,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                 for cluster_id, weight in simpoints.items():
                     info(f"cluster_id: {cluster_id}, weight: {weight}", dbg_lvl)
 
-                    docker_container_name = f"{docker_prefix}_{suite}_{subsuite}_{workload}_{experiment_name}_{config_key.replace("/", "-")}_{cluster_id}_{sim_mode}_{user}"
+                    docker_container_name = f"{container_prefix}_{suite}_{subsuite}_{workload}_{experiment_name}_{config_key.replace("/", "-")}_{cluster_id}_{sim_mode}_{user}"
 
                     # TODO: Notification when a run fails, point to output file and command that caused failure
                     # Add help (?)
@@ -641,7 +664,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                     # Create temp file with run command and run it
                     filename = f"{docker_container_name}_tmp_run.sh"
 
-                    slurm_running_sims = check_slurm_task_queued_or_running(docker_prefix_list, experiment_name, user, dbg_lvl)
+                    slurm_running_sims = check_slurm_task_queued_or_running(image_prefix_list, experiment_name, user, dbg_lvl)
                     running_sims = []
                     for node_list in slurm_running_sims.values():
                         running_sims += node_list
@@ -651,8 +674,11 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                         continue
 
                     workload_home = f"{suite}/{subsuite}/{workload}"
-                    write_docker_command_to_file(user, local_uid, local_gid, workload, workload_home, experiment_name,
-                                                 docker_prefix, docker_container_name, traces_dir,
+
+                    write_command_to_file = write_singularity_command_to_file if container_manager == "singularity" else write_docker_command_to_file
+
+                    write_command_to_file(user, local_uid, local_gid, workload, workload_home, experiment_name,
+                                                 container_prefix, docker_container_name, traces_dir,
                                                  docker_home, githash, config_key, config, sim_mode, scarab_githash,
                                                  seg_size, architecture, cluster_id, warmup, trace_warmup, trace_type,
                                                  trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir)
@@ -688,7 +714,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
 
 
         # Get avlailable nodes. Error if none available
-        available_slurm_nodes, all_nodes = check_available_nodes(dbg_lvl)
+        available_slurm_nodes, all_nodes = check_available_nodes(container_manager, dbg_lvl)
         info(f"Available nodes: {', '.join(available_slurm_nodes)}", dbg_lvl)
 
         if available_slurm_nodes == []:
@@ -697,7 +723,9 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
 
         # Generate commands for executing in users docker and sbatching to nodes with containers
         experiment_dir = f"{descriptor_data['root_dir']}/simulations/{experiment_name}"
-        scarab_githash, image_tag_list = prepare_simulation(user, scarab_path, scarab_build, descriptor_data['root_dir'], experiment_name, architecture, docker_prefix_list, githash, infra_dir, False, available_slurm_nodes, dbg_lvl)
+
+        prepare_simulation = prepare_singularity_simulation if container_manager == "singularity" else prepare_docker_simulation
+        scarab_githash, image_tag_list = prepare_simulation(user, scarab_path, scarab_build, descriptor_data['root_dir'], experiment_name, architecture, image_prefix_list, githash, infra_dir, False, available_slurm_nodes, dbg_lvl)
 
         # Iterate over each workload and config combo
         tmp_files = []
@@ -742,7 +770,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
             info(f"Removing temporary run script {tmp}", dbg_lvl)
             os.remove(tmp)
 
-        finish_simulation(user, docker_home, descriptor_path, descriptor_data['root_dir'], experiment_name, image_tag_list, available_slurm_nodes, slurm_ids)
+        finish_simulation(user, docker_home, descriptor_path, descriptor_data['root_dir'], experiment_name, image_tag_list, available_slurm_nodes, slurm_ids, container_manager=container_manager)
 
         # TODO: check resource capping policies, add kill/info options
 
@@ -756,7 +784,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
             info(f"Removing temporary run script {tmp}", dbg_lvl)
             os.remove(tmp)
 
-        kill_jobs(user, experiment_name, docker_prefix_list, dbg_lvl)
+        kill_jobs(user, experiment_name, image_prefix_list, dbg_lvl)
 
 def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2):
     trace_name = descriptor_data["trace_name"]

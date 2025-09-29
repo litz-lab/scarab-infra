@@ -14,7 +14,7 @@ from utilities import (
         read_descriptor_from_json,
         remove_docker_containers,
         get_image_list,
-        prepare_simulation,
+        prepare_docker_simulation,
         get_image_name,
         validate_simulation,
         is_container_running,
@@ -129,7 +129,7 @@ def open_interactive_shell(user, descriptor_data, workloads_data, infra_dir, dbg
                 f.write(f"\n{entry}\n")
 
         # Generate commands for executing in users docker and sbatching to nodes with containers
-        scarab_githash, image_tag_list = prepare_simulation(user,
+        scarab_githash, image_tag_list = prepare_docker_simulation(user,
                                             scarab_path,
                                             descriptor_data['scarab_build'],
                                             docker_home,

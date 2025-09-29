@@ -110,6 +110,17 @@ build () {
     fi
   fi
 
+  # Build singularity image from docker image
+  SINGULARITY_IMAGE=singularity_images/$APP_GROUPNAME\_$GIT_HASH.sif
+  if [ ! -f $SINGULARITY_IMAGE ]; then
+    if command -v singularity &>/dev/null; then
+        echo "Singularity installed. Building singularity image file..."
+        singularity build singularity_images/$APP_GROUPNAME\_$GIT_HASH.sif docker-daemon://$APP_GROUPNAME:$GIT_HASH
+    else
+        echo "Singularity not installed. Not building singularity image file"
+    fi
+  fi
+
   end=`date +%s`
   report_time "pull/build-image" "$start" "$end"
 }
