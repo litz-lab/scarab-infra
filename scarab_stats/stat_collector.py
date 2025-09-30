@@ -17,15 +17,21 @@ print("START stat collector")
 parser = argparse.ArgumentParser()
 parser.add_argument('-d','--descriptor_name', required=True, help='Experiment descriptor name. Usage: -d exp.json')
 parser.add_argument('-o','--outfile', required=True, help='Experiment descriptor name. Usage: -d out.csv')
+parser.add_argument('--skip-incomplete', action='store_true', help='Skips incomplete simpoints')
 args = parser.parse_args()
 
 descriptor_name = args.descriptor_name
 outfile = args.outfile
+skip_incomplete = args.skip_incomplete
 
 json = read_descriptor_from_json(descriptor_name)
 if json is None:
     print("Error: JSON file not found or invalid.")
     exit(1)
+
+if skip_incomplete:
+    print("WARNING: Will skip any simpoint that appears incomplete")
+    print("WARNING: Only simpoint level stats are accurate")
     
 root_directory = json["root_dir"] + "/simulations/" + json["experiment"] + "/logs/"
 
@@ -47,7 +53,7 @@ if len(error_runs) > 0:
 try:
     da = scarab_stats.stat_aggregator()
     print(f"Loading {descriptor_name}")
-    E = da.load_experiment_json(descriptor_name, True)
+    E = da.load_experiment_json(descriptor_name, True, skip_incomplete=skip_incomplete)
     E.to_csv(f"{outfile}")
 
     # This is the 'success' message

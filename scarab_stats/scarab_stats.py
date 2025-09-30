@@ -454,7 +454,11 @@ class stat_aggregator:
 
         for file in stat_files:
             filename = f"{path}{file}"
-            df = pd.read_csv(filename).T
+            try:
+                df = pd.read_csv(filename).T
+            except Exception as e:
+                print(f"ERR: Simpoint data not found at {path}{file}")
+                raise e
             df.columns = df.iloc[0]
             df = df.drop(df.index[0])
 
@@ -530,12 +534,29 @@ class stat_aggregator:
         if not return_stats: return data, group
         else: return all_stats
 
+    def sp_is_complete(self, suite, subsuite, workload, config, cluster_id, experiment_name, simulations_path):
+        directory = f"{simulations_path}{experiment_name}/{config}/{suite}/{subsuite}/{workload}/{str(cluster_id)}/"
+
+        if not os.path.exists(directory):
+            print(f"WARN: Simpoint directory <{directory}> not found")
+            return False
+
+        files = os.listdir(directory)
+
+        for stat_file in stat_files:
+            if stat_file not in files:
+                print(f"WARN: Couldn't find csv file {directory}/{stat_file}")
+                return False
+
+        return True
+
+
     # Load experiment from saved file
     def load_experiment_csv(self, path):
         return Experiment(path)
 
     # Load experiment form json file
-    def load_experiment_json(self, experiment_file: str, slurm: bool = False):
+    def load_experiment_json(self, experiment_file: str, slurm: bool = False, skip_incomplete = False):
         # Load json data from experiment file
         json_data = None
         try:
@@ -573,6 +594,56 @@ class stat_aggregator:
             workload_db_path = f"{infra_dir}/workloads/workloads_db.json"
         workloads_data = utilities.read_descriptor_from_json(workload_db_path)
 
+        # Pre-check which simpoints are complete
+        incomplete_simpoints = []
+        if skip_incomplete:
+            for config in json_data["configurations"]:
+                config = config.replace("/", "-")
+                # Use first workload
+                for simulation in json_data["simulations"]:
+                    found_suite = simulation["suite"]
+                    found_subsuite = simulation["subsuite"]
+                    found_workload = simulation["workload"]
+                    found_cluster_id = simulation["cluster_id"]
+
+                    if found_cluster_id != None:
+                        assert found_workload is not None, "Workload cannot be None when cluster_id is specified"
+                        assert found_suite is not None, "Suite cannot be None when cluster_id is specified"
+                        assert found_subsuite is not None, "Subsuite cannot be None when cluster_id is specified"
+                        if not self.sp_is_complete(found_suite, found_subsuite, found_workload, config, found_cluster_id, experiment_name, simulations_path):
+                            incomplete_simpoints.append(found_cluster_id)
+
+                    elif found_workload != None:
+                        assert found_suite is not None, "Suite cannot be None when workload is specified"
+                        assert found_subsuite is not None, "Subsuite cannot be None when workload is specified"
+                        cluster_ids = self.get_cluster_ids(found_workload, found_suite, found_subsuite, top_simpoint_only)
+                        for cluster_id in cluster_ids:
+                            if not self.sp_is_complete(found_suite, found_subsuite, found_workload, config, cluster_id, experiment_name, simulations_path):
+                                incomplete_simpoints.append(cluster_id)
+
+                    elif found_subsuite != None:
+                        assert found_suite is not None, "Suite cannot be None when subsuite is specified"
+                        workloads = list(workloads_data[found_suite][found_subsuite].keys())
+                        for workload in workloads:
+                            cluster_ids = self.get_cluster_ids(workload, found_suite, found_subsuite, top_simpoint_only)
+                            for cluster_id in cluster_ids:
+                                if not self.sp_is_complete(found_suite, found_subsuite, workload, config, cluster_id, experiment_name, simulations_path):
+                                    incomplete_simpoints.append(cluster_id)
+
+                    else:
+                        subsuites = list(workloads_data[found_suite].keys())
+                        for subsuite in subsuites:
+                            workloads = list(workloads_data[found_suite][subsuite].keys())
+                            for workload in workloads:
+                                cluster_ids = self.get_cluster_ids(workload, found_suite, subsuite, top_simpoint_only)
+                                for cluster_id in cluster_ids:
+                                    if not self.sp_is_complete(found_suite, subsuite, workload, config, cluster_id, experiment_name, simulations_path):
+                                        incomplete_simpoints.append(cluster_id)
+
+            if len(incomplete_simpoints) > 0:
+                print(f"WARN: The following simpoints were not found, and will be ignored for ALL configs:")
+                print(f"WARN: {', '.join(list(map(str, incomplete_simpoints)))}")
+
         experiment = None
         # Set set of all stats. Should only differ by config
         for config in json_data["configurations"]:
@@ -588,6 +659,8 @@ class stat_aggregator:
                     assert found_workload is not None, "Workload cannot be None when cluster_id is specified"
                     assert found_suite is not None, "Suite cannot be None when cluster_id is specified"
                     assert found_subsuite is not None, "Subsuite cannot be None when cluster_id is specified"
+                    if found_cluster_id in incomplete_simpoints:
+                        continue
                     experiment, known_stats = self.load_simpoint_data(found_cluster_id, found_workload, found_subsuite, found_suite,
                                                                       config, experiment_name, architecture, simulations_path, top_simpoint_only)
                 elif found_workload != None:
@@ -595,6 +668,8 @@ class stat_aggregator:
                     assert found_subsuite is not None, "Subsuite cannot be None when workload is specified"
                     cluster_ids = self.get_cluster_ids(found_workload, found_suite, found_subsuite, top_simpoint_only)
                     for cluster_id in cluster_ids:
+                        if cluster_id in incomplete_simpoints:
+                            continue
                         experiment, known_stats = self.load_simpoint_data(cluster_id, found_workload, found_subsuite, found_suite,
                                                                           config, experiment_name, architecture, simulations_path, top_simpoint_only)
                 elif found_subsuite != None:
@@ -603,6 +678,8 @@ class stat_aggregator:
                     for workload in workloads:
                         cluster_ids = self.get_cluster_ids(workload, found_suite, found_subsuite, top_simpoint_only)
                         for cluster_id in cluster_ids:
+                            if cluster_id in incomplete_simpoints:
+                                continue
                             experiment, known_stats = self.load_simpoint_data(cluster_id, workload, found_subsuite, found_suite,
                                                                               config, experiment_name, architecture, simulations_path, top_simpoint_only)
                 else:
@@ -612,6 +689,8 @@ class stat_aggregator:
                         for workload in workloads:
                             cluster_ids = self.get_cluster_ids(workload, found_suite, subsuite, top_simpoint_only)
                             for cluster_id in cluster_ids:
+                                if cluster_id in incomplete_simpoints:
+                                    continue
                                 experiment, known_stats = self.load_simpoint_data(cluster_id, workload, subsuite, found_suite,
                                                                                   config, experiment_name, architecture, simulations_path, top_simpoint_only)
 
@@ -1581,6 +1660,7 @@ class stat_aggregator:
             return None, None
 
         directory = f"{simulations_path}{experiment_name}/{config}/{suite}/{subsuite}/{workload}/{str(cluster_id)}/"
+
         known_stats = self.load_simpoint(directory, return_stats=True)
 
         if self.experiment is None:
