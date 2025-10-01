@@ -34,7 +34,7 @@ SCARAB_HOME="${SIM_HOME}/simulations/${EXPERIMENT_NAME}/scarab:/home/${USERNAME}
 # Run root entrypoint as root inside the container
 echo "Running root entrypoint in $CONTAINER_NAME"
 singularity exec \
-    --bind "$BIND_TRACES","$BIND_HOME" \
+    --bind "$BIND_TRACES","$BIND_HOME","$SCARAB_HOME" \
     --env username=root \
     --home $WORKDIR \
     --env APP_GROUPNAME=${APP_GROUPNAME} \
@@ -46,7 +46,7 @@ singularity exec \
 # Last line (scarab run) removed. Will be injected by run script
 echo "Running user entrypoint in $CONTAINER_NAME"
 singularity exec \
-    --bind "$BIND_TRACES","$BIND_HOME" \
+    --bind "$BIND_TRACES","$BIND_HOME","$SCARAB_HOME" \
     --env user_id=${USER_ID} \
     --env group_id=${GID} \
     --env username=${USERNAME} \

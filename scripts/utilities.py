@@ -242,7 +242,7 @@ def prepare_singularity_simulation(user, scarab_path, scarab_build, singularity_
         image_tag_list.append(image_tag)
 
     ## Copy required scarab files into the experiment folder
-    docker_prefix = image_tag_list[0]
+    container_prefix = image_tag_list[0]
 
     local_uid = os.getuid()
     local_gid = os.getgid()
@@ -258,8 +258,26 @@ def prepare_singularity_simulation(user, scarab_path, scarab_build, singularity_
             info(F"Scarab binary not found at '{scarab_bin}', build with {scarab_build}", dbg_lvl)
 
     if scarab_build != None:
-        err("Scarab not built. Automatic build not implemented yet", dbg_lvl)
-        exit(1)
+        scarab_bin = f"{scarab_path}/src/build/{scarab_build}/scarab"
+        info(f"Scarab binary at '{scarab_bin}', building it first, please wait...", dbg_lvl)
+        # singularity_container_name = f"{docker_prefix}_{user}_scarab_build"
+
+        CONTAINER_HOME=f"\"{singularity_home}:/home/{user}:rw\""
+        SCARAB_HOME=f"\"{scarab_path}:/scarab:rw\""
+
+        subprocess.run(["singularity", "exec", "--bind", f"{CONTAINER_HOME},{SCARAB_HOME}", \
+                "--env", f"username=root", \
+                "--home", f"/home/{user}", \
+                f"singularity_images/{container_prefix}.sif", \
+                "/bin/bash", "-c", "\'/usr/local/bin/root_entrypoint.sh\'"])
+
+        subprocess.run(["singularity", "exec", "--bind", f"{CONTAINER_HOME},{SCARAB_HOME}", \
+                "--env", f"user_id={local_uid}", \
+                "--env", f"group_id={local_gid}", \
+                "--env", f"username={user}", \
+                "--home", f"/home/{user}", \
+                f"singularity_images/{container_prefix}.sif", \
+                "/bin/bash", "-c", f"cd /scarab/src && make clean && make {scarab_build}"])
 
     experiment_dir = f"{singularity_home}/simulations/{experiment_name}"
     os.system(f"mkdir -p {experiment_dir}/logs/")
