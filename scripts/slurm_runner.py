@@ -40,7 +40,7 @@ def check_docker_image(nodes, docker_prefix, githash, dbg_lvl = 1):
         available_nodes = []
         for node in nodes:
             # Check if the image exists
-            image = subprocess.check_output(["srun", f"--nodelist={node}", "docker", "images", "-q", f"{docker_prefix}:{githash}"])
+            image = subprocess.check_output(["srun", "-c", "1", "--mem", "512M", f"--nodelist={node}", "docker", "images", "-q", f"{docker_prefix}:{githash}"])
             info(f"{image}", dbg_lvl)
             if image == [] or image == b'':
                 info(f"Couldn't find image {docker_prefix}:{githash} on {node}", dbg_lvl)
@@ -66,7 +66,7 @@ def check_docker_container_running(nodes, docker_prefix_list, job_name, user, db
             for node in nodes:
                 # Check container is running and no errors
                 try:
-                    dockers = subprocess.run(["srun", f"--nodelist={node}", "docker", "ps", "--format", "{{.Names}}"], capture_output=True, text=True, check=True)
+                    dockers = subprocess.run(["srun", "-c", "1", "--mem", "512M", f"--nodelist={node}", "docker", "ps", "--format", "{{.Names}}"], capture_output=True, text=True, check=True)
                     lines = dockers.stdout.strip().split("\n") if dockers.stdout else []
                     for line in lines:
                         if pattern.match(line):
@@ -125,7 +125,7 @@ def check_docker_container_running_by_mount_path(nodes, container_name, mount_pa
         for node in nodes:
             # Check container is running and no errors
             try:
-                mounts = subprocess.check_output(["srun", f"--nodelist={node}", "docker", "inspect", "-f", "'{{ .Mounts }}'", container_name])
+                mounts = subprocess.check_output(["srun", "-c", "1", "--mem", "512M", f"--nodelist={node}", "docker", "inspect", "-f", "'{{ .Mounts }}'", container_name])
             except:
                 info(f"Couldn't find container {container_name} on {node}", dbg_lvl)
                 continue
@@ -172,17 +172,17 @@ def check_available_nodes(container_manager="docker", dbg_lvl = 1):
                 info(f"{node} is not available. It is '{line[-1]}'", dbg_lvl)
                 continue
 
-            # If docker is not installed, skip
+            # If container manager is not installed, skip
             if container_manager == "singularity":
                 try:
-                    singularity_installed = subprocess.check_output(["srun", f"--nodelist={node}", "which", "singularity"])
+                    singularity_installed = subprocess.check_output(["srun", "-c", "1", "--mem", "512M", f"--nodelist={node}", "singularity", "--version"])
                 except Exception as e:
-                    info(f"docker is not installed on {node}", dbg_lvl)
+                    info(f"slurm is not installed on {node}", dbg_lvl)
                     continue
 
             else:
                 try:
-                    docker_installed = subprocess.check_output(["srun", f"--nodelist={node}", "docker", "--version"])
+                    docker_installed = subprocess.check_output(["srun", "-c", "1", "--mem", "512M", f"--nodelist={node}", "docker", "--version"])
                 except Exception as e:
                     info(f"docker is not installed on {node}", dbg_lvl)
                     continue
@@ -203,9 +203,9 @@ def check_available_nodes(container_manager="docker", dbg_lvl = 1):
 def generate_sbatch_command(excludes, experiment_dir):
     # If all nodes are usable, no need to exclude
     if not excludes == set():
-        return f"sbatch --exclude {','.join(excludes)} -c 1 -o {experiment_dir}/logs/job_%j.out "
+        return f"sbatch --exclude {','.join(excludes)} -c 1 --mem 4G -o {experiment_dir}/logs/job_%j.out "
 
-    return f"sbatch -c 1 -o {experiment_dir}/logs/job_%j.out "
+    return f"sbatch -c 1 --mem 4G -o {experiment_dir}/logs/job_%j.out "
 
 # Launch a docker container on one of the available nodes
 # deprecated
@@ -230,7 +230,7 @@ def launch_docker(infra_dir, docker_home, available_nodes, node=None, dbg_lvl=1)
 
         # Spin up docker container on that node
         print(f"Spinning up node {spin_up_node}")
-        os.system(f"srun --nodelist={spin_up_node} -c 1 {run_script}run.sh -o {docker_home} -b 2")
+        os.system(f"srun -c 1 --mem 4G --nodelist={spin_up_node} -c 1 {run_script}run.sh -o {docker_home} -b 2")
     except Exception as e:
         raise
 
@@ -606,7 +606,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
             else:
                 # Previous check (prepare_singularity_simulation) found sif on nfs. Checking is not required
                 # TODO: Is this okay? Problematic if not run on NFS
-                docker_running = all_nodes
+                docker_running = available_slurm_nodes
 
             excludes = set(all_nodes) - set(docker_running)
             info(f"Excluding following nodes: {', '.join(excludes)}", dbg_lvl)

@@ -65,7 +65,7 @@ def write_json_descriptor(filename, descriptor_data, dbg_lvl = 1):
 
 def run_on_node(cmd, node=None, **kwargs):
     if node != None:
-        cmd = ["srun", f"--nodelist={node}"] + cmd
+        cmd = ["srun", "-c", "1", "--mem", "1G", f"--nodelist={node}"] + cmd
     return subprocess.run(cmd, **kwargs)
 
 def validate_simulation(workloads_data, simulations, dbg_lvl = 2):
@@ -453,7 +453,7 @@ def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_n
     if nodes:
         clean_cmd = clean_cmd + f" --nodes {nodes}"
     if slurm_ids != None:
-        sbatch_cmd = f"sbatch --dependency=afterany:{','.join(slurm_ids)} -o {experiment_dir}/logs/stat_collection_job_%j.out "
+        sbatch_cmd = f"sbatch -c 1 --mem 1G --dependency=afterany:{','.join(slurm_ids)} -o {experiment_dir}/logs/stat_collection_job_%j.out "
         clean_cmd = sbatch_cmd + clean_cmd
 
     if container_manager == "docker":
@@ -474,7 +474,7 @@ def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_n
     # For slurm, add slurm dependencies
     if slurm_ids != None:
         # afterok will not run if jobs fail. afterany used with stat_collector's error checking
-        sbatch_cmd = f"sbatch --dependency=afterany:{','.join(slurm_ids)} -o {experiment_dir}/logs/stat_collection_job_%j.out "
+        sbatch_cmd = f"sbatch -c 1 --mem 4G --dependency=afterany:{','.join(slurm_ids)} -o {experiment_dir}/logs/stat_collection_job_%j.out "
         collect_stats_cmd = sbatch_cmd + collect_stats_cmd
 
     os.system(collect_stats_cmd)

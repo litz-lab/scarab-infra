@@ -122,6 +122,7 @@ build () {
   if [ ! -f $SINGULARITY_IMAGE ]; then
     if command -v singularity &>/dev/null; then
 
+        mkdir -p singularity_images
         LATEST_HASH=$(cat $INFRA_ROOT/last_built_tag.txt)
 
         DIFF_OUTPUT=$(git diff $LATEST_HASH -- $INFRA_ROOT/common $INFRA_ROOT/workloads/$APP_GROUPNAME)
@@ -140,8 +141,6 @@ build () {
         else
           echo "Pulling SIF from ghcr..."
           singularity pull singularity_images/$APP_GROUPNAME\_$GIT_HASH.sif docker://ghcr.io/litz-lab/scarab-infra/$APP_GROUPNAME:$LATEST_HASH
-        fi
-
         fi
     else
         echo "Singularity not installed. Not building singularity image file"
