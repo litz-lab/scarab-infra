@@ -72,41 +72,48 @@ build () {
 
   start=`date +%s`
 
-  # check if the Docker image '$APP_GROUPNAME:$GIT_HASH' exists
-  if ! docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "$APP_GROUPNAME:$GIT_HASH"; then
-    echo "The image with the current Git commit hash does not exist. Find the same image but with the latest tag.."
+  if ! command -v docker &>/dev/null && ! command -v singularity &>/dev/null; then
+    echo "Neither docker nor singularity is installed. Please install at least one of them to build the image."
+    exit 1
+  fi
 
-    LATEST_HASH=$(cat $INFRA_ROOT/last_built_tag.txt)
+  if command -v docker &>/dev/null; then
+    # check if the Docker image '$APP_GROUPNAME:$GIT_HASH' exists
+    if ! docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "$APP_GROUPNAME:$GIT_HASH"; then
+      echo "The image with the current Git commit hash does not exist. Find the same image but with the latest tag.."
 
-    echo "Latest tag of the pre-built image: $LATEST_HASH"
-    # check if the latest Docker image exists locally
-    if ! docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "$APP_GROUPNAME:$LATEST_HASH"; then
-      echo "The image with the latest tag does not exist. Pull first.."
+      LATEST_HASH=$(cat $INFRA_ROOT/last_built_tag.txt)
 
-      # Local image not found. Trying to pull pre-built image from GitHub Packages...
-      if docker pull ghcr.io/litz-lab/scarab-infra/"$APP_GROUPNAME:$LATEST_HASH"; then
-        echo "Successfully pulled pre-built image."
-        docker tag ghcr.io/litz-lab/scarab-infra/"$APP_GROUPNAME:$LATEST_HASH" "$APP_GROUPNAME:$LATEST_HASH"
-        echo "Tagged pulled image as $APP_GROUPNAME:$LATEST_HASH"
-        docker rmi ghcr.io/litz-lab/scarab-infra/"$APP_GROUPNAME:$LATEST_HASH"
-      else
-        echo "No pre-built image found for $APP_GROUPNAME:$LATEST_HASH (or pull failed). This should not happen as the latest tag retrieved from the registry."
-        exit 1
+      echo "Latest tag of the pre-built image: $LATEST_HASH"
+      # check if the latest Docker image exists locally
+      if ! docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "$APP_GROUPNAME:$LATEST_HASH"; then
+        echo "The image with the latest tag does not exist. Pull first.."
+
+        # Local image not found. Trying to pull pre-built image from GitHub Packages...
+        if docker pull ghcr.io/litz-lab/scarab-infra/"$APP_GROUPNAME:$LATEST_HASH"; then
+          echo "Successfully pulled pre-built image."
+          docker tag ghcr.io/litz-lab/scarab-infra/"$APP_GROUPNAME:$LATEST_HASH" "$APP_GROUPNAME:$LATEST_HASH"
+          echo "Tagged pulled image as $APP_GROUPNAME:$LATEST_HASH"
+          docker rmi ghcr.io/litz-lab/scarab-infra/"$APP_GROUPNAME:$LATEST_HASH"
+        else
+          echo "No pre-built image found for $APP_GROUPNAME:$LATEST_HASH (or pull failed). This should not happen as the latest tag retrieved from the registry."
+          exit 1
+        fi
       fi
-    fi
 
-    # Run git diff for specific directories
-    DIFF_OUTPUT=$(git diff $LATEST_HASH -- $INFRA_ROOT/common $INFRA_ROOT/workloads/$APP_GROUPNAME)
+      # Run git diff for specific directories
+      DIFF_OUTPUT=$(git diff $LATEST_HASH -- $INFRA_ROOT/common $INFRA_ROOT/workloads/$APP_GROUPNAME)
 
-    if [ -n "$DIFF_OUTPUT" ]; then
-      echo "Changes detected in ./common or ./workloads/$APP_GROUPNAME since $LATEST_HASH"
-      echo "$DIFF_OUTPUT"
-      echo "Build docker image locally..."
-      # build from the beginning and overwrite whatever image with the same name
-      docker build . -f ./workloads/$APP_GROUPNAME/Dockerfile --no-cache -t $APP_GROUPNAME:$GIT_HASH
-    else
-      echo "No changes in ./common or ./workloads/$APP_GROUPNAME since $LATEST_HASH, tag with $GIT_HASH"
-      docker tag $APP_GROUPNAME:$LATEST_HASH $APP_GROUPNAME:$GIT_HASH
+      if [ -n "$DIFF_OUTPUT" ]; then
+        echo "Changes detected in ./common or ./workloads/$APP_GROUPNAME since $LATEST_HASH"
+        echo "$DIFF_OUTPUT"
+        echo "Build docker image locally..."
+        # build from the beginning and overwrite whatever image with the same name
+        docker build . -f ./workloads/$APP_GROUPNAME/Dockerfile --no-cache -t $APP_GROUPNAME:$GIT_HASH
+      else
+        echo "No changes in ./common or ./workloads/$APP_GROUPNAME since $LATEST_HASH, tag with $GIT_HASH"
+        docker tag $APP_GROUPNAME:$LATEST_HASH $APP_GROUPNAME:$GIT_HASH
+      fi
     fi
   fi
 
@@ -114,8 +121,28 @@ build () {
   SINGULARITY_IMAGE=singularity_images/$APP_GROUPNAME\_$GIT_HASH.sif
   if [ ! -f $SINGULARITY_IMAGE ]; then
     if command -v singularity &>/dev/null; then
-        echo "Singularity installed. Building singularity image file..."
-        singularity build singularity_images/$APP_GROUPNAME\_$GIT_HASH.sif docker-daemon://$APP_GROUPNAME:$GIT_HASH
+
+        LATEST_HASH=$(cat $INFRA_ROOT/last_built_tag.txt)
+
+        DIFF_OUTPUT=$(git diff $LATEST_HASH -- $INFRA_ROOT/common $INFRA_ROOT/workloads/$APP_GROUPNAME)
+
+        if [ -n "$DIFF_OUTPUT" ]; then
+          echo "Changes detected in ./common or ./workloads/$APP_GROUPNAME since $LATEST_HASH"
+          echo "$DIFF_OUTPUT"
+          if command -v docker &>/dev/null; then
+            echo "Docker installed. Building singularity image file from local docker image..."
+            singularity build singularity_images/$APP_GROUPNAME\_$GIT_HASH.sif docker-daemon://$APP_GROUPNAME:$GIT_HASH
+          else
+            echo "Cannot build singularity image file as docker is not installed."
+            echo "Please use a system with docker installed to build images locally"
+            exit 1
+          fi
+        else
+          echo "Pulling SIF from ghcr..."
+          singularity pull singularity_images/$APP_GROUPNAME\_$GIT_HASH.sif docker://ghcr.io/litz-lab/scarab-infra/$APP_GROUPNAME:$LATEST_HASH
+        fi
+
+        fi
     else
         echo "Singularity not installed. Not building singularity image file"
     fi
