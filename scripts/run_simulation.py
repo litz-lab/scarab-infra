@@ -24,8 +24,6 @@ from utilities import (
 import slurm_runner
 import local_runner
 
-client = docker.from_env()
-
 # Verify the given descriptor file
 def verify_descriptor(descriptor_data, workloads_data, open_shell = False, dbg_lvl = 2):
     ## Check if the provided json describes all the valid data
@@ -220,6 +218,7 @@ def open_interactive_shell(user, descriptor_data, workloads_data, infra_dir, dbg
             finally:
                 try:
                     if count_interactive_shells(docker_container_name, dbg_lvl) == 1:
+                        client = docker.from_env()
                         subprocess.run(["docker", "exec", "--privileged", f"--user={user}", f"--workdir=/home/{user}", docker_container_name,
                                         "sed", "-i", "/source \\/usr\\/local\\/bin\\/user_entrypoint.sh/d", f"/home/{user}/.bashrc"], check=True, capture_output=True, text=True)
                         client.containers.get(docker_container_name).remove(force=True)
