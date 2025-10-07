@@ -700,9 +700,16 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
             err("Cannot find any running slurm nodes", dbg_lvl)
             exit(1)
 
+        scarab_hashes = []
+        for sim in simulations:
+            for config_key in configs:
+                scarab_hash = configs[config_key]["scarab_githash"]
+                if scarab_hash not in scarab_hashes:
+                    scarab_hashes.append(scarab_hash)
+
         # Generate commands for executing in users docker and sbatching to nodes with containers
         experiment_dir = f"{descriptor_data['root_dir']}/simulations/{experiment_name}"
-        scarab_githash, image_tag_list = prepare_simulation(user, scarab_path, scarab_build, descriptor_data['root_dir'], experiment_name, architecture, docker_prefix_list, githash, infra_dir, False, available_slurm_nodes, dbg_lvl)
+        scarab_githash, image_tag_list = prepare_simulation(user, scarab_path, scarab_build, descriptor_data['root_dir'], experiment_name, architecture, docker_prefix_list, githash, infra_dir, scarab_hashes, False, available_slurm_nodes, dbg_lvl)
 
         # Iterate over each workload and config combo
         tmp_files = []

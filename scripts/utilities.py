@@ -465,7 +465,7 @@ def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_n
 def generate_single_scarab_run_command(user, workload_home, experiment, config_key, config,
                                        mode, seg_size, arch, scarab_githash, cluster_id,
                                        warmup, trace_warmup, trace_type, trace_file,
-                                       env_vars, bincmd, client_bincmd, hash):
+                                       env_vars, bincmd, client_bincmd):
 
     if mode == "memtrace":
         command = f"run_memtrace_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{seg_size}\\\" \\\"{arch}\\\" \\\"{warmup}\\\" \\\"{trace_warmup}\\\" \\\"{trace_type}\\\" /home/{user}/simulations/{experiment}/scarab {cluster_id} {trace_file} {scarab_githash}"
