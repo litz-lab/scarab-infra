@@ -22,7 +22,8 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
     zip \
     gosu \
     linux-tools-generic \
-    gdb
+    gdb \
+    graphviz
 
 # Copy workflow simpoint/no_simpoint script
 COPY ./scripts/utilities.sh /usr/local/bin/utilities.sh

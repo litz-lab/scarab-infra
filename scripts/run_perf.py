@@ -6,6 +6,7 @@
 import subprocess
 import argparse
 import os
+import sys
 import docker
 
 from .utilities import (
@@ -53,46 +54,57 @@ def open_interactive_shell(user, docker_home, image_name, infra_dir, dbg_lvl = 1
                 os.system(f"docker rm -f {docker_container_name}")
                 print("Recover the ASLR setting with sudo. Provide password..")
                 os.system("echo 2 | sudo tee /proc/sys/kernel/randomize_va_space")
-            exit(0)
+            return
         finally:
             try:
                 if count_interactive_shells(docker_container_name, dbg_lvl) == 1:
                     client.containers.get(docker_container_name).remove(force=True)
                     print(f"Container {docker_container_name} removed.")
-            except docker.error.NotFound:
+            except docker.errors.NotFound:
                 print(f"Container {docker_container_name} not found.")
     except Exception as e:
         raise e
 
+
+def run_perf_command(descriptor_path, action, dbg_lvl=2, infra_dir=None):
+    if infra_dir is None:
+        infra_dir = subprocess.check_output(["pwd"]).decode("utf-8").split("\n")[0]
+
+    descriptor_data = read_descriptor_from_json(descriptor_path, dbg_lvl)
+    if descriptor_data is None:
+        raise RuntimeError(f"Failed to read descriptor {descriptor_path}")
+
+    user = descriptor_data.get("user")
+    root_dir = descriptor_data.get("root_dir")
+    image_name = descriptor_data.get("image_name")
+
+    if action == "launch":
+        open_interactive_shell(user, root_dir, image_name, infra_dir, dbg_lvl)
+        return 0
+
+    raise RuntimeError(f"Unsupported perf action: {action}")
+
+
 def main():
     parser = argparse.ArgumentParser(description='Run perf on local')
 
-    # Add arguments
     parser.add_argument('-d','--descriptor_name', required=True, help='Perf descriptor name. Usage: -d perf.json')
-    parser.add_argument('-l','--launch', required=False, default=False, action=argparse.BooleanOptionalAction, help='Launch a docker container on a node for the purpose of running perf where the environment is for the experiment described in a descriptor.')
+    parser.add_argument('-l','--launch', required=False, default=False, action=argparse.BooleanOptionalAction, help='Launch a docker container for perf descriptor.')
     parser.add_argument('-dbg','--debug', required=False, type=int, default=2, help='1 for errors, 2 for warnings, 3 for info')
     parser.add_argument('-si','--scarab_infra', required=False, default=None, help='Path to scarab infra repo to launch new containers')
 
-   # Parse the command-line arguments
     args = parser.parse_args()
-
-    # Assign clear names to arguments
     descriptor_path = args.descriptor_name
     dbg_lvl = args.debug
     infra_dir = args.scarab_infra
 
-    if infra_dir == None:
-        infra_dir = subprocess.check_output(["pwd"]).decode("utf-8").split("\n")[0]
+    action = "launch" if args.launch else "launch"
+    return run_perf_command(descriptor_path, action, dbg_lvl=dbg_lvl, infra_dir=infra_dir)
 
-   # Read descriptor json and extract important data
-    descriptor_data = read_descriptor_from_json(descriptor_path, dbg_lvl)
-    user = descriptor_data["user"]
-    root_dir = descriptor_data["root_dir"]
-    image_name = descriptor_data["image_name"]
-
-    if args.launch:
-        open_interactive_shell(user, root_dir, image_name, infra_dir, dbg_lvl)
-        exit(0)
 
 if __name__ == "__main__":
-    main()
+    try:
+        sys.exit(main())
+    except RuntimeError as exc:
+        err(str(exc), 1)
+        sys.exit(1)

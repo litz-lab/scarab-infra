@@ -181,10 +181,9 @@ def validate_simulation(workloads_data, simulations, dbg_lvl = 2):
 #           nodes - list of available nodes (local runner when it's none)
 #           diff_output - diff of two git hashes in the directories that change the docker image
 # Output: list of nodes where the docker image is ready
-def prepare_docker_image(docker_prefix, image_tag, latest_hash, diff_output, nodes=[], dbg_lvl=1):
-    latest_image_tag = f"{docker_prefix}:{latest_hash}"
-    ghcr_tag = f"ghcr.io/litz-lab/scarab-infra/{latest_image_tag}"
-    org_available_nodes = nodes
+def prepare_docker_image(docker_prefix, image_tag, nodes=None, dbg_lvl=1):
+    if nodes is None:
+        nodes = []
     # build the image also locally
     nodes = [None] + nodes
     available_nodes = []
@@ -192,25 +191,17 @@ def prepare_docker_image(docker_prefix, image_tag, latest_hash, diff_output, nod
         if not image_exist(image_tag, node):
             print(f"Couldn't find image {image_tag} on {node}")
             try:
-                print(f"Pulling docker image on {node}...")
-                if not image_exist(latest_image_tag, node):
-                    print(f"Pulling docker image on {node}...")
-                    run_on_node(["docker", "pull", ghcr_tag], node, capture_output=True, text=True)
-                    run_on_node(["docker", "tag", ghcr_tag, latest_image_tag], node, capture_output=True, text=True)
-                    run_on_node(["docker", "rmi", ghcr_tag], node, capture_output=True, text=True)
-                    print(f"{docker_prefix}:{latest_hash} has succesfully pulled on {node}!")
-
-                if diff_output:
-                    print(f"Changes detected in ./common or ./workloads/{docker_prefix} since {latest_hash}. Build docker image locally..")
-                    run_on_node(["./run.sh", "-b", docker_prefix], node, capture_output=True, text=True)
-                else:
-                    print(f"No changes in ./common or ./workloads/{docker_prefix} since {latest_hash}.")
-                    run_on_node(["docker", "tag", ghcr_tag, image_tag], node, capture_output=True)
+                sci_path = os.path.join(project_root, "sci")
+                print(f"Invoking {sci_path} --build-image {docker_prefix} on {node if node else 'local host'}")
+                # Ensure stdout is streamed for visibility when running locally.
+                run_on_node([sci_path, "--build-image", docker_prefix], node, check=True)
             except subprocess.CalledProcessError as e:
-                err("Docker pull failed:\n" + e.output.decode(), dbg_lvl)
-                run_on_node(["./run.sh", "-b", docker_prefix], node, capture_output=True)
+                err(f"sci --build-image failed with return code {e.returncode}", dbg_lvl)
+                failure_stdout = getattr(e, "stdout", None)
+                if failure_stdout:
+                    err(failure_stdout.decode(), dbg_lvl)
                 if not image_exist(image_tag, node):
-                    err(f"Still couldn't find image {image_tag} after trying to build one", dbg_lvl)
+                    err(f"Still couldn't find image {image_tag} after attempting to build.", dbg_lvl)
                     exit(1)
         available_nodes.append(node)
     # If docker image still does not exist anywhere, exit
@@ -228,18 +219,14 @@ def prepare_docker_image(docker_prefix, image_tag, latest_hash, diff_output, nod
 #           architecture - Architecture name
 #
 # Outputs:  scarab githash
-def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_name, architecture, docker_prefix_list, githash, infra_dir, interactive_shell=False, available_slurm_nodes=[], dbg_lvl=1):
+def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_name, architecture, docker_prefix_list, githash, infra_dir, interactive_shell=False, available_slurm_nodes=[], dbg_lvl=1, stream_build=False):
     # prepare docker images
     image_tag_list = []
     try:
         for docker_prefix in docker_prefix_list:
-            common_dir = os.path.join(infra_dir, "common")
-            workload_dir = os.path.join(infra_dir, "workloads", f"{docker_prefix}")
-            latest_hash = subprocess.run(f"cat {infra_dir}/last_built_tag.txt", shell=True, capture_output=True, text=True, check=True).stdout.strip()
-            diff_output = subprocess.run(f"git diff {latest_hash} -- {common_dir} {workload_dir}", shell=True, capture_output=True, text=True, check=True)
             image_tag = f"{docker_prefix}:{githash}"
             image_tag_list.append(image_tag)
-            prepare_docker_image(docker_prefix, image_tag, latest_hash, diff_output, available_slurm_nodes, dbg_lvl)
+            prepare_docker_image(docker_prefix, image_tag, available_slurm_nodes, dbg_lvl)
     except subprocess.CalledProcessError as e:
         info(f"Docker image preparation failed: {e.stderr if isinstance(e.stderr, str) else e.stderr.decode() if e.stderr else str(e)}", dbg_lvl)
         raise e
@@ -295,13 +282,27 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
                     ["docker", "exec", "--privileged", f"{docker_container_name}", "/bin/bash", "-c", "\'/usr/local/bin/root_entrypoint.sh\'"],
                     check=True, capture_output=True, text=True)
 
-            build_result = subprocess.run(
-                    ["docker", "exec", f"--user={user}", f"--workdir=/home/{user}", f"{docker_container_name}", "/bin/bash", "-c", f"cd /scarab/src && make {scarab_build}"],
-                    capture_output=True, text=True)
+            build_cmd = [
+                    "docker",
+                    "exec",
+                    f"--user={user}",
+                    f"--workdir=/home/{user}",
+                    f"{docker_container_name}",
+                    "/bin/bash",
+                    "-c",
+                    f"cd /scarab/src && make {scarab_build}"
+            ]
+            if stream_build:
+                build_result = subprocess.run(build_cmd, text=True)
+            else:
+                build_result = subprocess.run(build_cmd, capture_output=True, text=True)
 
             if build_result.returncode != 0:
-                err(f"Build stdout: {build_result.stdout}", dbg_lvl)
-                err(f"Build stderr: {build_result.stderr}", dbg_lvl)
+                if stream_build:
+                    err("Scarab build failed. See output above for details.", dbg_lvl)
+                else:
+                    err(f"Build stdout: {build_result.stdout}", dbg_lvl)
+                    err(f"Build stderr: {build_result.stderr}", dbg_lvl)
                 build_result.check_returncode()  # This will raise CalledProcessError
             subprocess.run(["docker", "rm", "-f", f"{docker_container_name}"], check=True, capture_output=True, text=True)
 
@@ -669,13 +670,8 @@ def prepare_trace(user, scarab_path, scarab_build, docker_home, job_name, infra_
     # prepare docker images
     try:
         for docker_prefix in docker_prefix_list:
-            common_dir = os.path.join(infra_dir, "common")
-            workload_dir = os.path.join(infra_dir, "workloads", f"{docker_prefix}")
-            latest_hash = subprocess.run(f"cat {infra_dir}/last_built_tag.txt", shell=True, capture_output=True, text=True, check=True).stdout.strip()
-            diff_output = subprocess.run(f"git diff {latest_hash} -- {common_dir} {workload_dir}", shell=True, capture_output=True, text=True, check=True)
             image_tag = f"{docker_prefix}:{githash}"
-            latest_image_tag = f"{docker_prefix}:{latest_hash}"
-            prepare_docker_image(docker_prefix, image_tag, latest_hash, diff_output, available_slurm_nodes, dbg_lvl)
+            prepare_docker_image(docker_prefix, image_tag, available_slurm_nodes, dbg_lvl)
     except subprocess.CalledProcessError as e:
         info(f"Docker image preparation failed: {e.stderr if isinstance(e.stderr, str) else e.stderr.decode() if e.stderr else str(e)}", dbg_lvl)
         raise e
@@ -1026,7 +1022,11 @@ def check_can_skip (descriptor_data, config_key, suite, subsuite, workload, clus
             for entry in slurm_queue:
                 # Check for following identifier. Should be of form <docker_prefix>_...as below..._<sim_mode>_<user>
                 # Docker prefix and username checked in slurm_runner
-                if f"{suite}_{subsuite}_{workload}_{descriptor_data["experiment"]}_{config_key.replace("/", "-")}_{cluster_id}_{sim_mode}_{user}" in entry:
+                identifier = (
+                    f"{suite}_{subsuite}_{workload}_{descriptor_data['experiment']}"
+                    f"_{config_key.replace('/', '-')}_{cluster_id}_{sim_mode}_{user}"
+                )
+                if identifier in entry:
                     # Job is in the queue, it will be run shortly.
                     info(f"Job for {config_key} for workload {workload} is in the queue. Other script will run it.", debug_lvl)
                     return True

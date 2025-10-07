@@ -4,7 +4,6 @@
 # 01/27/2025 | Surim Oh | slurm_runner.py
 
 import os
-import random
 import subprocess
 import re
 import traceback
@@ -196,33 +195,6 @@ def generate_sbatch_command(excludes, experiment_dir):
         return f"sbatch --exclude {','.join(excludes)} -c 1 -o {experiment_dir}/logs/job_%j.out "
 
     return f"sbatch -c 1 -o {experiment_dir}/logs/job_%j.out "
-
-# Launch a docker container on one of the available nodes
-# deprecated
-def launch_docker(infra_dir, docker_home, available_nodes, node=None, dbg_lvl=1):
-    try:
-        # Get the path to the run script
-        if infra_dir == ".": run_script = ""
-        elif infra_dir[-1] == '/': run_script = infra_dir
-        else: run_script = infra_dir + '/'
-
-        # Check if run.sh script exists
-        if not os.path.isfile(run_script + "run.sh"):
-            err(f"Couldn't find file scarab infra run.sh at {run_script + 'run.sh'}. Check scarab_infra option", dbg_lvl)
-            exit(1)
-
-        # Get name of slurm node to spin up
-        if node == None:
-            spin_up_index = random.randint(0, len(available_nodes)-1)
-            spin_up_node = available_nodes[spin_up_index]
-        else:
-            spin_up_node = node
-
-        # Spin up docker container on that node
-        print(f"Spinning up node {spin_up_node}")
-        os.system(f"srun --nodelist={spin_up_node} -c 1 {run_script}run.sh -o {docker_home} -b 2")
-    except Exception as e:
-        raise
 
 def get_simulation_jobs(descriptor_data, workloads_data, docker_prefix, user, dbg_lvl = 1):
     architecture = descriptor_data["architecture"]
@@ -456,7 +428,9 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
 
             # Check if currently running, skip if so. Running simulations will not contain
             # the completion message
-            if "stat_collection_job" not in file:
+            is_stat_job = "stat_collection_job" in file
+
+            if not is_stat_job:
                 # Non-stat jobs will have 4 lines in their log file until they complete.
                 # Fifth line completion message indicates completion
                 if len(contents.split("\n")) < 5:
@@ -486,7 +460,7 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
                 continue
 
             # To be sure, check scarab runs with for final success line
-            if descriptor_data["experiment"] not in contents:
+            if config != 'stat' and descriptor_data["experiment"] not in contents:
                 error_runs += [root_directory+file]
                 if config in failed:
                     failed[config] += 1
