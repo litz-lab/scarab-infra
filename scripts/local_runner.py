@@ -166,7 +166,8 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                 simpoints[f"{exp_cluster_id}"] = weight
 
             for config_key in configs:
-                config = configs[config_key]
+                config = configs[config_key]["scarab_params"]
+                scarab_githash = configs[config_key]["scarab_githash"]
                 if config == "":
                     config = None
 
@@ -218,7 +219,14 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
         except subprocess.CalledProcessError:
             err("Error: Not in a Git repository or unable to retrieve Git hash.")
 
-        scarab_githash, image_tag_list = prepare_simulation(user, scarab_path, scarab_build, descriptor_data['root_dir'], experiment_name, architecture, docker_prefix_list, githash, infra_dir, False, [], dbg_lvl)
+        scarab_hashes = []
+        for sim in simulations:
+            for config_key in configs:
+                scarab_hash = configs[config_key]["scarab_githash"]
+                if scarab_hash not in scarab_hashes:
+                    scarab_hashes.append(scarab_hash)
+
+        scarab_githash, image_tag_list = prepare_simulation(user, scarab_path, scarab_build, descriptor_data['root_dir'], experiment_name, architecture, docker_prefix_list, githash, infra_dir, scarab_hashes, interactive_shell=False, available_slurm_nodes=[], dbg_lvl=dbg_lvl)
 
         # Iterate over each workload and config combo
         for simulation in simulations:

@@ -19,6 +19,7 @@ TRACE_TYPE="$8"
 SCARABHOME="$9"
 SEGMENT_ID="${10}"
 TRACEFILE="${11}"
+SCARAB_HASH="${12}"
 
 SIMHOME=$SCENARIO/$WORKLOAD_HOME
 mkdir -p $SIMHOME
@@ -34,7 +35,7 @@ cd $OUTDIR/$segID
 # SEGMENT_ID > 0 represents segmented trace (simpoint) simulation
 if [ "$SEGMENT_ID" == "0" ]; then
   traceMap=$(ls $trace_home/$WORKLOAD_HOME/traces/whole/)
-  scarabCmd="$SCARABHOME/src/scarab \
+  scarabCmd="$SCARABHOME/src/scarab_$SCARAB_HASH \
   --frontend memtrace \
   --cbp_trace_r0=$trace_home/$WORKLOAD_HOME/traces/whole/${traceMap} \
   $SCARABPARAMS &> sim.log"
@@ -66,7 +67,7 @@ else
     numChunk=$(unzip -l "$TRACEFILE" 2>/dev/null | grep "chunk." | wc -l)
     instLimit=$((numChunk * 10000000))
 
-    scarabCmd="$SCARABHOME/src/scarab \
+    scarabCmd="$SCARABHOME/src/scarab_$SCARAB_HASH \
     --frontend memtrace \
     --cbp_trace_r0=$TRACEFILE \
     --inst_limit=$instLimit \
@@ -86,7 +87,7 @@ else
       #echo "ROISTART"
       #echo "$TRACEFILE"
       #echo "$segID"
-      scarabCmd="$SCARABHOME/src/scarab \
+      scarabCmd="$SCARABHOME/src/scarab_$SCARAB_HASH \
       --frontend memtrace \
       --cbp_trace_r0=$TRACEFILE \
       --memtrace_roi_begin=1 \
@@ -98,7 +99,7 @@ else
       &> sim.log"
     else
       #echo "!ROISTART"
-      scarabCmd="$SCARABHOME/src/scarab \
+      scarabCmd="$SCARABHOME/src/scarab_$SCARAB_HASH \
       --frontend memtrace \
       --cbp_trace_r0=$TRACEFILE \
       --memtrace_roi_begin=$(( $SEGSIZE + 1)) \
@@ -111,7 +112,7 @@ else
     fi
   elif [ "$TRACE_TYPE" == "cluster_then_trace" ]; then
     if [ "$WARMUP" -lt "$TRACE_WARMUP" ]; then
-      scarabCmd="$SCARABHOME/src/scarab \
+      scarabCmd="$SCARABHOME/src/scarab_$SCARAB_HASH \
       --frontend memtrace \
       --cbp_trace_r0=$TRACEFILE \
       --fast_forward=1 \
@@ -122,7 +123,7 @@ else
       $SCARABPARAMS \
       &> sim.log"
     else
-      scarabCmd="$SCARABHOME/src/scarab \
+      scarabCmd="$SCARABHOME/src/scarab_$SCARAB_HASH \
       --frontend memtrace \
       --cbp_trace_r0=$TRACEFILE \
       --inst_limit=$instLimit \

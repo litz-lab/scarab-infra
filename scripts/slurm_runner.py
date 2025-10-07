@@ -626,7 +626,8 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
 
             slurm_ids = []
             for config_key in configs:
-                config = configs[config_key]
+                config = configs[config_key]["scarab_params"]
+                scarab_githash = configs[config_key]["scarab_githash"]
                 if config == "":
                     config = None
 
