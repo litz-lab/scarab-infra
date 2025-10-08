@@ -338,13 +338,12 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
 
         # Populate cache if missing entries
         # Check if there are local changes. Don't want to overwrite them
-        uncommitted_changes = subprocess.check_output(["git", "status", "--porcelain", "|",  "grep",  "'^ M'"], cwd=scarab_path)
-        uncommitted_changes = uncommitted_changes.decode("utf-8").strip()
+        uncommitted_changes = subprocess.check_output("git status --porcelain | grep '^ M'", cwd=scarab_path, shell=True, text=True)
 
-        if uncommitted_changes != "":
-            err("There are uncommitted changes in the scarab repository. Please commit or stash them before proceeding.", dbg_lvl)
-            print("Modified:\n", uncommitted_changes)
-            exit(1)
+        has_uncommitted_changes = uncommitted_changes != ""
+
+        info(f"Has committed changes: {has_uncommitted_changes}", dbg_lvl)
+        info(f"Chnages are: {uncommitted_changes}", dbg_lvl)
 
         # Build scarab for each unique scarab githash specified in the configurations
         for hash in scarab_hashes:
@@ -378,6 +377,8 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
 
             # Checkout the specified githash
             if hash != "current":
+                if has_uncommitted_changes:
+                    subprocess.check_output(["git", "stash"], cwd=scarab_path)
                 subprocess.check_output(["git", "checkout", hash], cwd=scarab_path)
 
             # Build and copy to cache
@@ -386,11 +387,17 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
                 build_scarab(user, scarab_path, build_type, docker_home, docker_prefix, githash, infra_dir, hash, dbg_lvl)
                 os.system(f"cp {scarab_bin} {scarab_ver}")
             except Exception as e:
-                if hash != "current": subprocess.check_output(["git", "checkout", "-"], cwd=scarab_path)
+                if hash != "current":
+                    subprocess.check_output(["git", "checkout", "-"], cwd=scarab_path)
+                    if has_uncommitted_changes:
+                        subprocess.check_output(["git", "stash", "pop"], cwd=scarab_path)
                 os.remove(lock_file)
                 raise e
 
-            if hash != "current": subprocess.check_output(["git", "checkout", "-"], cwd=scarab_path)
+            if hash != "current":
+                subprocess.check_output(["git", "checkout", "-"], cwd=scarab_path)
+                if has_uncommitted_changes:
+                    subprocess.check_output(["git", "stash", "pop"], cwd=scarab_path)
             os.remove(lock_file)
 
         # Copy binary and architectural params to scarab/src
