@@ -348,27 +348,50 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
 
         # Build scarab for each unique scarab githash specified in the configurations
         for hash in scarab_hashes:
+
             scarab_ver = f"{infra_dir}/scarab_builds/scarab_{hash}"
-            print("AA", scarab_build, scarab_ver)
             if os.path.isfile(scarab_ver) and scarab_build == None:
-                info(f"Scarab binary for hash {hash} found in cache!", 3)
+                info(f"Scarab binary for hash {hash} found in cache!", dbg_lvl)
                 continue
 
-            info(f"Scarab binary for hash {hash} not found in cache", 3)
+            info(f"Scarab binary for hash {hash} not found in cache", dbg_lvl)
+
+            # Avoid race condition
+            lock_file = f"{scarab_path}/build_lock.txt"
+            if os.path.exists(lock_file):
+                err("This scarab repo is currently being used to build scarab binaries. Please try again later", dbg_lvl)
+                with open(lock_file, 'r') as f:
+                    contents = f.readlines()[0]
+                    err(f"Locked by process with pid: {contents}", dbg_lvl)
+                exit()
+
+            with open(lock_file, 'w') as f:
+                f.write(f"{os.getpid()}")
+
+            with open(lock_file, 'r') as f:
+                contents = f.readlines()[0]
+                if contents != f"{os.getpid()}":
+                    err("This scarab repo is currently being used to build scarab binaries. Please try again later", dbg_lvl)
+                    err(f"After attempting to acquire, locked by process with pid: {contents}", dbg_lvl)
+                    exit()
+
 
             # Checkout the specified githash
             if hash != "current":
                 subprocess.check_output(["git", "checkout", hash], cwd=scarab_path)
-            else:
-                subprocess.check_output(["git", "checkout", scarab_githash], cwd=scarab_path)
 
             # Build and copy to cache
-            build_type = scarab_build if scarab_build != None else 'opt'
-            build_scarab(user, scarab_path, build_type, docker_home, docker_prefix, githash, infra_dir, hash, dbg_lvl)
-            os.system(f"cp {scarab_bin} {scarab_ver}")
+            try:
+                build_type = scarab_build if scarab_build != None else 'opt'
+                build_scarab(user, scarab_path, build_type, docker_home, docker_prefix, githash, infra_dir, hash, dbg_lvl)
+                os.system(f"cp {scarab_bin} {scarab_ver}")
+            except Exception as e:
+                if hash != "current": subprocess.check_output(["git", "checkout", "-"], cwd=scarab_path)
+                os.remove(lock_file)
+                raise e
 
-        # Restore repository to original state
-        subprocess.check_output(["git", "checkout", scarab_githash], cwd=scarab_path)
+            if hash != "current": subprocess.check_output(["git", "checkout", "-"], cwd=scarab_path)
+            os.remove(lock_file)
 
         # Copy binary and architectural params to scarab/src
         arch_params = f"{scarab_path}/src/PARAMS.{architecture}"
