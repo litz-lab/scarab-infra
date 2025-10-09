@@ -6,6 +6,7 @@
 import subprocess
 import argparse
 import os
+import sys
 import docker
 
 from .utilities import (
@@ -49,7 +50,7 @@ def validate_tracing(trace_data, workload_db_path, dbg_lvl = 2):
             err(f"A type of trace must be set for trace_type.", dbg_lvl)
             exit(1)
 
-def verify_descriptor(descriptor_data, workload_db_path, dbg_lvl = 2):
+def verify_descriptor(descriptor_data, workload_db_path, open_shell=False, dbg_lvl = 2):
     # Check the descriptor type
     if not descriptor_data["descriptor_type"]:
         err("Descriptor type must be 'trace' for a clustering/tracing descriptor", dbg_lvl)
@@ -189,7 +190,7 @@ def open_interactive_shell(user, descriptor_data, infra_dir, dbg_lvl = 1):
                 os.system(f"docker rm -f {docker_container_name}")
                 print("Recover the ASLR setting with sudo. Provide password..")
                 os.system("echo 2 | sudo tee /proc/sys/kernel/randomize_va_space")
-            exit(0)
+            return
         finally:
             try:
                 if count_interactive_shells(docker_container_name, dbg_lvl) == 1:
@@ -198,18 +199,77 @@ def open_interactive_shell(user, descriptor_data, infra_dir, dbg_lvl = 1):
                     os.system("echo 2 | sudo tee /proc/sys/kernel/randomize_va_space")
                     client.containers.get(docker_container_name).remove(force=True)
                     print(f"Container {docker_container_name} removed.")
-            except docker.error.NotFound:
+            except docker.errors.NotFound:
                 print(f"Container {docker_container_name} not found.")
-                raise e
+                raise
             except Exception as e:
                 raise e
     except Exception as e:
         raise e
 
+
+def run_trace_command(descriptor_path, action, dbg_lvl=2, infra_dir=None):
+    if infra_dir is None:
+        infra_dir = subprocess.check_output(["pwd"]).decode("utf-8").split("\n")[0]
+
+    workload_db_path = f"{infra_dir}/workloads/workloads_db.json"
+
+    user = subprocess.check_output("whoami").decode('utf-8').strip()
+    info(f"User detected as {user}", dbg_lvl)
+
+    descriptor_data = read_descriptor_from_json(descriptor_path, dbg_lvl)
+    if descriptor_data is None:
+        raise RuntimeError(f"Failed to read descriptor {descriptor_path}")
+
+    workload_manager = descriptor_data.get("workload_manager")
+    trace_name = descriptor_data.get("trace_name")
+    traces = descriptor_data.get("trace_configurations") or []
+    docker_image_list = get_image_list(traces)
+
+    try:
+        if action == "kill":
+            if workload_manager == "manual":
+                local_runner.kill_jobs(user, "trace", trace_name, docker_image_list, infra_dir, dbg_lvl)
+            else:
+                slurm_runner.kill_jobs(user, trace_name, docker_image_list, dbg_lvl)
+            return 0
+
+        if action == "info":
+            if workload_manager == "manual":
+                local_runner.print_status(user, trace_name, docker_image_list, dbg_lvl)
+            else:
+                slurm_runner.print_status(user, trace_name, docker_image_list, dbg_lvl)
+            return 0
+
+        if action == "launch":
+            try:
+                verify_descriptor(descriptor_data, workload_db_path, open_shell=True, dbg_lvl=dbg_lvl)
+            except SystemExit as exc:
+                raise RuntimeError("Descriptor verification failed") from exc
+            open_interactive_shell(user, descriptor_data, infra_dir, dbg_lvl)
+            return 0
+
+        if action == "clean":
+            remove_docker_containers(docker_image_list, trace_name, user, dbg_lvl)
+            return 0
+
+        try:
+            verify_descriptor(descriptor_data, workload_db_path, open_shell=False, dbg_lvl=dbg_lvl)
+        except SystemExit as exc:
+            raise RuntimeError("Descriptor verification failed") from exc
+
+        if workload_manager == "manual":
+            local_runner.run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl)
+        else:
+            slurm_runner.run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl)
+        return 0
+    except Exception as exc:
+        raise exc
+
+
 def main():
     parser = argparse.ArgumentParser(description='Runs clustering/tracing on local or a slurm network')
 
-    # Add arguments
     parser.add_argument('-d','--descriptor_name', required=True, help='Tracing descriptor name. Usage: -d trace.json')
     parser.add_argument('-k','--kill', required=False, default=False, action=argparse.BooleanOptionalAction, help='Don\'t launch jobs from descriptor, kill running jobs as described in descriptor')
     parser.add_argument('-i','--info', required=False, default=False, action=argparse.BooleanOptionalAction, help='Get info about all nodes and if they have containers for slurm workloads')
@@ -218,58 +278,27 @@ def main():
     parser.add_argument('-dbg','--debug', required=False, type=int, default=2, help='1 for errors, 2 for warnings, 3 for info')
     parser.add_argument('-si','--scarab_infra', required=False, default=None, help='Path to scarab infra repo to launch new containers')
 
-    # Parse the command-line arguments
     args = parser.parse_args()
-
-    # Assign clear names to arguments
     descriptor_path = args.descriptor_name
     dbg_lvl = args.debug
     infra_dir = args.scarab_infra
 
-    if infra_dir == None:
-        infra_dir = subprocess.check_output(["pwd"]).decode("utf-8").split("\n")[0]
-
-    workload_db_path = f"{infra_dir}/workloads/workloads_db.json"
-
-    # Get user for commands
-    user = subprocess.check_output("whoami").decode('utf-8')[:-1]
-    info(f"User detected as {user}", dbg_lvl)
-
-    # Read descriptor json and extract important data
-    descriptor_data = read_descriptor_from_json(descriptor_path, dbg_lvl)
-    workload_manager = descriptor_data["workload_manager"]
-    trace_name = descriptor_data["trace_name"]
-    traces = descriptor_data["trace_configurations"]
-    docker_image_list = get_image_list(traces)
-
+    action = "trace"
     if args.kill:
-        if workload_manager == "manual":
-            local_runner.kill_jobs(user, "trace", trace_name, docker_image_list, infra_dir, dbg_lvl)
-        else:
-            slurm_runner.kill_jobs(user, trace_name, docker_image_list, dbg_lvl)
-        exit(0)
+        action = "kill"
+    elif args.info:
+        action = "info"
+    elif args.launch:
+        action = "launch"
+    elif args.clean:
+        action = "clean"
 
-    if args.info:
-        if workload_manager == "manual":
-            local_runner.print_status(user, trace_name, docker_image_list, dbg_lvl)
-        else:
-            slurm_runner.print_status(user, trace_name, docker_image_list, dbg_lvl)
-        exit(0)
+    return run_trace_command(descriptor_path, action, dbg_lvl=dbg_lvl, infra_dir=infra_dir)
 
-    if args.launch:
-        verify_descriptor(descriptor_data, workload_db_path, dbg_lvl)
-        open_interactive_shell(user, descriptor_data, infra_dir, dbg_lvl)
-        exit(0)
-
-    if args.clean:
-        remove_docker_containers(docker_image_list, trace_name, user, dbg_lvl)
-        exit(0)
-
-    verify_descriptor(descriptor_data, workload_db_path, dbg_lvl)
-    if workload_manager == "manual":
-        local_runner.run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl)
-    else:
-        slurm_runner.run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl)
 
 if __name__ == "__main__":
-    main()
+    try:
+        sys.exit(main())
+    except RuntimeError as exc:
+        err(str(exc), 1)
+        sys.exit(1)
