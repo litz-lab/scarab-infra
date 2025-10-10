@@ -10,7 +10,7 @@
   "_root_dir": "Root directory mounted into the docker container home, for instance, the user's home directory",
   "root_dir": "/home/runner/work/scarab_ll/scarab_ll/",
   "_scarab_path": "The path to the scarab repository that contains the scarab binary used to run the experiment.",
-  "scarab_path": "/home/runner/work/scarab_ll/scarab_ll/scarab_ll",
+  "scarab_path": "/home/runner/work/scarab_ll/scarab_ll/",
   "_scarab_build":"scarab build mode. 'opt', 'dbg', or null",
   "scarab_build":null,
   "_traces_dir": "The local directory containing all simpointed traces",
