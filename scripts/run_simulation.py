@@ -6,6 +6,7 @@
 import subprocess
 import argparse
 import os
+import sys
 import docker
 
 from .utilities import (
@@ -193,7 +194,7 @@ def open_interactive_shell(user, descriptor_data, workloads_data, infra_dir, dbg
                 subprocess.run(["docker", "exec", "--privileged", f"--user={user}", f"--workdir=/home/{user}", docker_container_name,
                                 "sed", "-i", "/source \\/usr\\/local\\/bin\\/user_entrypoint.sh/d", f"/home/{user}/.bashrc"], check=True, capture_output=True, text=True)
                 subprocess.run(["docker", "rm", "-f", f"{docker_container_name}"], check=True, capture_output=True, text=True)
-            exit(0)
+            return
         finally:
             try:
                 if count_interactive_shells(docker_container_name, dbg_lvl) == 1:
@@ -209,10 +210,73 @@ def open_interactive_shell(user, descriptor_data, workloads_data, infra_dir, dbg
     except Exception as e:
         raise e
 
+
+def run_simulation_command(descriptor_path, action, dbg_lvl=2, infra_dir=None):
+    if infra_dir is None:
+        infra_dir = subprocess.check_output(["pwd"]).decode("utf-8").split("\n")[0]
+
+    user = subprocess.check_output("whoami").decode('utf-8').strip()
+    info(f"User detected as {user}", dbg_lvl)
+
+    descriptor_data = read_descriptor_from_json(descriptor_path, dbg_lvl)
+    if descriptor_data is None:
+        raise RuntimeError(f"Failed to read descriptor {descriptor_path}")
+
+    workload_db_path = f"{infra_dir}/workloads/workloads_top_simp.json" if descriptor_data.get("top_simpoint") else f"{infra_dir}/workloads/workloads_db.json"
+    workloads_data = read_descriptor_from_json(workload_db_path, dbg_lvl)
+    if workloads_data is None:
+        raise RuntimeError("Failed to read workloads database")
+
+    workload_manager = descriptor_data.get("workload_manager")
+    experiment_name = descriptor_data.get("experiment")
+    simulations = descriptor_data.get("simulations") or []
+    docker_image_list = get_image_list(simulations, workloads_data)
+
+    try:
+        if action == "kill":
+            if workload_manager == "manual":
+                local_runner.kill_jobs(user, "simulation", experiment_name, docker_image_list, infra_dir, dbg_lvl)
+            else:
+                slurm_runner.kill_jobs(user, experiment_name, docker_image_list, dbg_lvl)
+            return 0
+
+        if action == "info":
+            if workload_manager == "manual":
+                local_runner.print_status(user, experiment_name, docker_image_list, dbg_lvl)
+            else:
+                slurm_runner.print_status(user, experiment_name, docker_image_list, descriptor_data, workloads_data, dbg_lvl)
+            return 0
+
+        if action == "launch":
+            try:
+                verify_descriptor(descriptor_data, workloads_data, True, dbg_lvl)
+            except SystemExit as exc:
+                raise RuntimeError("Descriptor verification failed") from exc
+            open_interactive_shell(user, descriptor_data, workloads_data, infra_dir, dbg_lvl)
+            return 0
+
+        if action == "clean":
+            remove_docker_containers(docker_image_list, experiment_name, user, dbg_lvl)
+            return 0
+
+        # default: run simulation
+        try:
+            verify_descriptor(descriptor_data, workloads_data, False, dbg_lvl)
+        except SystemExit as exc:
+            raise RuntimeError("Descriptor verification failed") from exc
+
+        if workload_manager == "manual":
+            local_runner.run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_path, dbg_lvl)
+        else:
+            slurm_runner.run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_path, dbg_lvl)
+        return 0
+    except Exception as exc:
+        raise exc
+
+
 def main():
     parser = argparse.ArgumentParser(description='Runs scarab on local or a slurm network')
 
-    # Add arguments
     parser.add_argument('-d','--descriptor_name', required=True, help='Experiment descriptor name. Usage: -d exp.json')
     parser.add_argument('-k','--kill', required=False, default=False, action=argparse.BooleanOptionalAction, help='Don\'t launch jobs from descriptor, kill running jobs as described in descriptor')
     parser.add_argument('-i','--info', required=False, default=False, action=argparse.BooleanOptionalAction, help='Get info about all nodes and if they have containers for slurm workloads')
@@ -221,62 +285,26 @@ def main():
     parser.add_argument('-dbg','--debug', required=False, type=int, default=2, help='1 for errors, 2 for warnings, 3 for info')
     parser.add_argument('-si','--scarab_infra', required=False, default=None, help='Path to scarab infra repo to launch new containers')
 
-    # Parse the command-line arguments
     args = parser.parse_args()
-
-    # Assign clear names to arguments
     descriptor_path = args.descriptor_name
     dbg_lvl = args.debug
     infra_dir = args.scarab_infra
 
-    if infra_dir == None:
-        infra_dir = subprocess.check_output(["pwd"]).decode("utf-8").split("\n")[0]
-
-    # Get user for commands
-    user = subprocess.check_output("whoami").decode('utf-8')[:-1]
-    info(f"User detected as {user}", dbg_lvl)
-
-    # Read descriptor json and extract important data
-    descriptor_data = read_descriptor_from_json(descriptor_path, dbg_lvl)
-    workload_db_path = ""
-    if descriptor_data["top_simpoint"]:
-        workload_db_path = f"{infra_dir}/workloads/workloads_top_simp.json"
-    else:
-        workload_db_path = f"{infra_dir}/workloads/workloads_db.json"
-    workloads_data = read_descriptor_from_json(workload_db_path, dbg_lvl)
-    workload_manager = descriptor_data["workload_manager"]
-    experiment_name = descriptor_data["experiment"]
-    simulations = descriptor_data["simulations"]
-    docker_image_list = get_image_list(simulations, workloads_data)
-
+    action = "simulate"
     if args.kill:
-        if workload_manager == "manual":
-            local_runner.kill_jobs(user, "simulation", experiment_name, docker_image_list, infra_dir, dbg_lvl)
-        else:
-            slurm_runner.kill_jobs(user, experiment_name, docker_image_list, dbg_lvl)
-        exit(0)
+        action = "kill"
+    elif args.info:
+        action = "info"
+    elif args.launch:
+        action = "launch"
+    elif args.clean:
+        action = "clean"
 
-    if args.info:
-        if workload_manager == "manual":
-            local_runner.print_status(user, experiment_name, docker_image_list, dbg_lvl)
-        else:
-            slurm_runner.print_status(user, experiment_name, docker_image_list, descriptor_data, workloads_data, dbg_lvl)
-        exit(0)
-
-    if args.launch:
-        verify_descriptor(descriptor_data, workloads_data, True, dbg_lvl)
-        open_interactive_shell(user, descriptor_data, workloads_data, infra_dir, dbg_lvl)
-        exit(0)
-
-    if args.clean:
-        remove_docker_containers(docker_image_list, experiment_name, user, dbg_lvl)
-        exit(0)
-
-    verify_descriptor(descriptor_data, workloads_data, False, dbg_lvl)
-    if workload_manager == "manual":
-        local_runner.run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_path, dbg_lvl)
-    else:
-        slurm_runner.run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_path, dbg_lvl)
+    return run_simulation_command(descriptor_path, action, dbg_lvl=dbg_lvl, infra_dir=infra_dir)
 
 if __name__ == "__main__":
-    main()
+    try:
+        sys.exit(main())
+    except RuntimeError as exc:
+        err(str(exc), 1)
+        sys.exit(1)

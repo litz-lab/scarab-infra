@@ -138,8 +138,9 @@ jobs:
             curl -s -X PUT \
               -H "Authorization: Bearer $GH_TOKEN" \
               -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
               https://api.github.com/repos/$GITHUB_REPO/pulls/$PR_NUMBER/auto-merge \
-              -d '{"merge_method":"squash"}'
+              -d '{"merge_method":"squash"}' || echo "Auto-merge API call failed; ensure repository allows auto-merge for this PR."
           else
             echo "Skipping auto-merge because this is a manual run (workflow_dispatch)"
           fi
