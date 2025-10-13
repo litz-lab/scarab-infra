@@ -122,6 +122,7 @@ def open_interactive_shell(user, descriptor_data, infra_dir, dbg_lvl = 1):
             err("Error: Not in a Git repository or unable to retrieve Git hash.")
 
         docker_home = descriptor_data["root_dir"]
+        application = descriptor_data["application_dir"]
         trace_scenario = descriptor_data["trace_configurations"][0]
         docker_prefix = trace_scenario["image_name"]
         workload = trace_scenario["workload"]
@@ -134,7 +135,7 @@ def open_interactive_shell(user, descriptor_data, infra_dir, dbg_lvl = 1):
             if entry not in f.read():
                 f.write(f"\n{entry}\n")
 
-        prepare_trace(user, scarab_path, scarab_build, docker_home, trace_name, infra_dir, docker_prefix, githash, True, [], dbg_lvl=dbg_lvl)
+        prepare_trace(user, scarab_path, scarab_build, docker_home, trace_name, infra_dir, [docker_prefix], githash, True, [], dbg_lvl=dbg_lvl)
         if trace_scenario["env_vars"] != None:
             env_vars = trace_scenario["env_vars"].split()
         else:
@@ -164,6 +165,7 @@ def open_interactive_shell(user, descriptor_data, infra_dir, dbg_lvl = 1):
                         --name {docker_container_name} \
                         --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
                         --mount type=bind,source={scarab_path},target=/scarab,readonly=false \
+                        --mount type=bind,source={application},target=/tmp_home/application,readonly=false \
                         {docker_prefix}:{githash} \
                         /bin/bash"
                 print(command)

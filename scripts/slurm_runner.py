@@ -743,6 +743,7 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
     scarab_build = descriptor_data["scarab_build"]
     traces_dir = descriptor_data["traces_dir"]
     trace_configs = descriptor_data["trace_configurations"]
+    application_dir = descriptor_data["application_dir"]
 
     docker_prefix_list = []
     for config in trace_configs:
@@ -752,7 +753,7 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
 
     tmp_files = []
 
-    def run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd, trace_type, drio_args, clustering_k):
+    def run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd, trace_type, drio_args, clustering_k, applicaiton_dir):
         try:
             docker_running = check_docker_image(available_slurm_nodes, image_name, githash, dbg_lvl)
             excludes = set(all_nodes) - set(docker_running)
@@ -773,7 +774,7 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
             write_trace_docker_command_to_file(user, local_uid, local_gid, docker_container_name, githash,
                                                workload, image_name, trace_name, traces_dir, docker_home,
                                                env_vars, binary_cmd, client_bincmd, simpoint_mode, drio_args,
-                                               clustering_k, filename, infra_dir)
+                                               clustering_k, filename, infra_dir, application_dir)
             tmp_files.append(filename)
 
             os.system(sbatch_cmd + filename)
@@ -825,7 +826,7 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
             clustering_k = config["clustering_k"]
 
             run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd,
-                             trace_type, drio_args, clustering_k)
+                             trace_type, drio_args, clustering_k, application_dir)
 
         # Clean up temp files
         for tmp in tmp_files:
