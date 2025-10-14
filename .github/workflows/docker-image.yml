@@ -83,6 +83,31 @@ jobs:
             echo "Skipping pushing the image to GitHub Packages because this is a manual run (workflow_dispatch)"
           fi
 
+      - name: Install Singularity
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y singularity-container
+
+      - name: Build Singularity image file
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          if command -v singularity &>/dev/null; then
+            singularity build allbench_traces_$GIT_HASH.sif docker-daemon://allbench_traces:$GIT_HASH
+          else
+            echo "Singularity is not installed. Skipping Singularity image build."
+          fi
+
+      - name: Upload Singularity image file
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          if [ -f allbench_traces_$GIT_HASH.sif ]; then
+            singularity push allbench_traces_$GIT_HASH.sif ghcr.io/litz-lab/scarab-infra/singularity_allbench_traces:${{ steps.current_hash.outputs.githash }}
+            rm allbench_traces_$GIT_HASH.sif # Clean up local file after upload, reduce storage use
+          else
+            echo "Singularity image file not found. Build likely failed. Skipping upload."
+          fi
+
       - name: Save short GIT_HASH to last_built_tag.txt
         if: steps.changes.outputs.changed == 'true'
         run: |
