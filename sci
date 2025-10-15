@@ -972,6 +972,26 @@ def run_build_image(workload_group: str) -> int:
         run_command(["docker", "tag", base_ref, current_ref])
 
     info(f"Docker image ready: {current_ref}")
+
+    singularity_image = f"singularity_images/{workload_group}_{githash}.sif"
+
+    if not os.path.exists(singularity_image):
+        info(f"Singularity image not found at {singularity_image}")
+        if not shutil.which("singularity"):
+            info("Singularity not installed. Not building SIF")
+        else:
+            if not rebuild_required:
+                info("Pulling SIF from ghcr...")
+                remote_ref = f"ghcr.io/litz-lab/scarab-infra/{workload_group}:{last_hash}"
+                try:
+                    run_command(["singularity", "pull", singularity_image, remote_ref])
+                except:
+                    info("Pulling failed (see above). Building with docker...")
+                    run_command(["singularity", "build", singularity_image, f"docker-daemon://{current_ref}"])
+            else:
+                info("Building SIF from local docker daemon...")
+                run_command(["singularity", "build", singularity_image, f"docker-daemon://{current_ref}"])
+
     return 0
 
 

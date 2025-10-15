@@ -9,19 +9,19 @@ import os
 import sys
 import docker
 
-from utilities import (
-        info,
-        err,
-        read_descriptor_from_json,
-        remove_docker_containers,
-        get_image_list,
-        prepare_docker_simulation,
-        prepare_singularity_simulation,
-        get_image_name,
-        validate_simulation,
-        is_container_running,
-        count_interactive_shells
-        )
+from .utilities import (
+    info,
+    err,
+    read_descriptor_from_json,
+    remove_docker_containers,
+    get_image_list,
+    prepare_docker_simulation,
+    prepare_singularity_simulation,
+    get_image_name,
+    validate_simulation,
+    is_container_running,
+    count_interactive_shells
+)
 
 from . import slurm_runner, local_runner
 
