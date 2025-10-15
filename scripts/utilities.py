@@ -315,7 +315,7 @@ def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, git
             else:
                 info(f"Current scarab binary differs from cached version. Updating cache...", dbg_lvl)
 
-                # Figure out index for binary. No index for first, then go _1, _2, ...
+                # Figure out index for binary. Order is _0 _1, _2, ...
                 # Find all existing binaries with the githash
                 scarab_binaries = os.listdir(f"{infra_dir}/scarab_builds")
                 pattern = re.compile(f"scarab_{scarab_githash}(_|$)")
@@ -325,23 +325,19 @@ def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, git
 
                 # If none exist, put it without index. Otherwise, add postfix index
                 if current_githash_binaries == []:
-                    info(f"No binaries with hash {scarab_githash} exist. No index", dbg_lvl)
-                    githash_scarab_bin = f"{infra_dir}/scarab_builds/scarab_{scarab_githash}"
+                    info(f"No binaries with hash {scarab_githash} exist. Creating version 0...", dbg_lvl)
+                    githash_scarab_bin = f"{infra_dir}/scarab_builds/scarab_{scarab_githash}_0"
                 else:
                     idx_pattern = re.compile(f"scarab_{scarab_githash}_")
                     current_githash_versions = list(filter(idx_pattern.match, current_githash_binaries))
 
                     print("Versions matching current githash:", current_githash_binaries)
 
-                    # If no entries with index exist, start with 1
-                    if current_githash_versions == []:
-                        githash_scarab_bin = f"{infra_dir}/scarab_builds/scarab_{scarab_githash}_1"
-                    else:
-                        # If they do exist, take max index and increment it
-                        current_indicies = list(map(lambda x: int(x.split("_")[-1]), current_githash_versions))
+                    # If they do exist, take max index and increment it
+                    current_indicies = list(map(lambda x: int(x.split("_")[-1]), current_githash_versions))
 
-                        print("New index:", max(current_indicies)+1)
-                        githash_scarab_bin = f"{infra_dir}/scarab_builds/scarab_{scarab_githash}_{max(current_indicies)+1}"
+                    print("New index:", max(current_indicies)+1)
+                    githash_scarab_bin = f"{infra_dir}/scarab_builds/scarab_{scarab_githash}_{max(current_indicies)+1}"
 
 
                 info(f"Copying scarab binary for {githash_scarab_bin} to cache", dbg_lvl)
@@ -405,17 +401,17 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
         dest_scarab_bin = f"{experiment_dir}/scarab/src/scarab"
 
         # Make sure each git hash is present in the cache
-        for hash in scarab_hashes:
+        for bin_name in scarab_hashes:
             # Current will build if not present
-            if hash == "current":
+            if bin_name == "scarab_current":
                 continue
 
-            scarab_ver = f"{infra_dir}/scarab_builds/scarab_{hash}"
+            scarab_ver = f"{infra_dir}/scarab_builds/{bin_name}"
             if os.path.isfile(scarab_ver):
-                info(f"Scarab binary for hash {hash} found in cache!", dbg_lvl)
+                info(f"Scarab binary named {bin_name} found in cache!", dbg_lvl)
                 continue
 
-            err(f"Scarab binary for hash {hash} not found in cache. Please check out that version and build it", dbg_lvl)
+            err(f"Scarab binary named {bin_name} not found in cache. Please check out that version and build it", dbg_lvl)
             exit()
 
         # (Re)build the scarab binary first
@@ -426,8 +422,8 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
         os.system(f"mkdir -p {experiment_dir}/scarab/src/")
 
         # Copy from cache all required scarab binaries
-        for hash in scarab_hashes:
-            scarab_ver = f"{infra_dir}/scarab_builds/scarab_{hash}"
+        for bin_name in scarab_hashes:
+            scarab_ver = f"{infra_dir}/scarab_builds/{bin_name}"
             os.system(f"cp {scarab_ver} {experiment_dir}/scarab/src/")
 
         os.system(f"cp {arch_params} {experiment_dir}/scarab/src")

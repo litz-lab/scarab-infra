@@ -16,7 +16,7 @@ SEGMENT_ID="$8"
 ENVVAR="$9"
 BINCMD="${10}"
 CLIENT_BINCMD="${11}"
-SCARAB_HASH="${12}"
+SCARAB_BIN="${12}"
 
 for token in $ENVVAR;
 do
@@ -46,7 +46,7 @@ if [ "$SEGMENT_ID" == "0" ]; then
   start_inst=100000000
   scarabCmd="
   python3 $SCARABHOME/bin/scarab_launch.py --program=\"$BINCMD\" \
-    --scarab=src/scarab_$SCARAB_HASH \
+    --scarab=src/$SCARAB_BIN \
     --simdir=\"$SIMHOME/$SCENARIONUM/\" \
     --pintool_args=\"-hyper_fast_forward_count $start_inst\" \
     --scarab_args=\"--inst_limit $SEGSIZE --full_warmup $WARMUP $SCARABPARAMS\" \
@@ -76,7 +76,7 @@ else
 
   scarabCmd="
   python3 $SCARABHOME/bin/scarab_launch.py --program=\"$BINCMD\" \
-  --scarab=src/scarab_$SCARAB_HASH \
+  --scarab=src/$SCARAB_BIN \
   --simdir=\"$SIMHOME/$SCENARIONUM/$clusterID\" \
   --pintool_args=\"-hyper_fast_forward_count $roiStart\" \
   --scarab_args=\"--inst_limit $instLimit --full_warmup $WARMUP $SCARABPARAMS\" \
