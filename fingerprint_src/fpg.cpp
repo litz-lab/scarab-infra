@@ -397,7 +397,7 @@ clean_call(uint instruction_count, uint64 bb_id, uint64 segment_size, uint emula
             // user wants to use executed count for the segment size
             // so even though non-fetched rep, count it as execution
             DR_ASSERT(instruction_count == 1);
-            t_data->cur_counter += instruction_count;
+            return;
         }
     } else {
         // otherwise just increment
