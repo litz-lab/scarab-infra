@@ -4,12 +4,11 @@
 # 01/27/2025 | Surim Oh | slurm_runner.py
 
 import os
-import random
 import subprocess
 import re
 import traceback
 import json
-from utilities import (
+from .utilities import (
         err,
         warn,
         info,
@@ -466,12 +465,15 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
 
             # Check if currently running, skip if so. Running simulations will not contain
             # the completion message
-            if "stat_collection_job" not in file:
+            is_stat_job = "stat_collection_job" in file
+
+            if not is_stat_job:
                 # Non-stat jobs will have 4 lines in their log file until they complete.
                 # Fifth line completion message indicates completion
                 if len(contents.split("\n")) < 5:
                     skipped += 1
-                    running[config] += 1
+                    if config in running:
+                        running[config] += 1
                     continue
             else:
                 # Stat jobs were modified to print DONE as a final message
@@ -484,21 +486,24 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
             for node in all_nodes:
                 if f"{node}: error:" in contents:
                     error_runs += [root_directory+file]
-                    slurm_failed[config] += 1
+                    if config in slurm_failed:
+                        slurm_failed[config] += 1
 
             # Most scarab runs and all stat runs will have a line with "Error" in them if they fail
             if 'Error' in contents:
                 error_runs += [root_directory+file]
-                failed[config] += 1
+                if config in failed:
+                    failed[config] += 1
                 continue
 
             # To be sure, check scarab runs with for final success line
-            if descriptor_data["experiment"] not in contents:
+            if config != 'stat' and descriptor_data["experiment"] not in contents:
                 error_runs += [root_directory+file]
-                failed[config] += 1
+                if config in failed:
+                    failed[config] += 1
                 continue
 
-            if config != 'stat':
+            if config != 'stat' and config in completed:
                 completed[config] += 1
     
 
@@ -669,7 +674,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                     for node_list in slurm_running_sims.values():
                         running_sims += node_list
 
-                    if check_can_skip(descriptor_data, config_key, suite, subsuite, workload, cluster_id, filename, running_sims, dbg_lvl):
+                    if check_can_skip(descriptor_data, config_key, suite, subsuite, workload, cluster_id, filename, running_sims, sim_mode, user, dbg_lvl):
                         info(f"Skipping {workload} with config {config_key} and cluster id {cluster_id}", dbg_lvl)
                         continue
 
@@ -858,7 +863,7 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
             exit(1)
 
         trace_dir = f"{descriptor_data['root_dir']}/simpoint_flow/{trace_name}"
-        prepare_trace(user, scarab_path, scarab_build, docker_home, trace_name, infra_dir, docker_prefix_list, githash, False, available_slurm_nodes, dbg_lvl)
+        prepare_trace(user, scarab_path, scarab_build, docker_home, trace_name, infra_dir, docker_prefix_list, githash, False, available_slurm_nodes, dbg_lvl=dbg_lvl)
 
         # Iterate over each trace configuration
         for config in trace_configs:

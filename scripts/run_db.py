@@ -4,7 +4,7 @@
 
 import argparse
 import subprocess
-from utilities import (
+from .utilities import (
         err,
         info,
         read_descriptor_from_json,
@@ -15,16 +15,26 @@ from utilities import (
 def list_workloads(workloads_data, dbg_lvl = 2):
     print(f"Workload    <\033[92mSimulation mode\033[0m : \033[31mDocker image name to build\033[0m>")
     print("----------------------------------------------------------")
-    workloads = workloads_data.keys()
-    for workload in workloads:
-        if "simulation" in workloads_data[workload].keys():
-            print(f"{workload}")
-            modes = workloads_data[workload]["simulation"].keys()
-            for mode in modes:
-                image_name = workloads_data[workload]["simulation"][mode]["image_name"]
-                print(f"            <\033[92m{mode}\033[0m : \033[31m{image_name}\033[0m>")
 
-if __name__ == "__main__":
+    def walk(prefix, node):
+        if not isinstance(node, dict):
+            return
+        sim_info = node.get("simulation")
+        if isinstance(sim_info, dict):
+            print(prefix)
+            for mode, details in sim_info.items():
+                if mode == "prioritized_mode":
+                    continue
+                image_name = details.get("image_name", "?")
+                print(f"    <\033[92m{mode}\033[0m : \033[31m{image_name}\033[0m>")
+            return
+        for key, value in node.items():
+            next_prefix = f"{prefix}/{key}" if prefix else key
+            walk(next_prefix, value)
+
+    walk("", workloads_data)
+
+def main():
     parser = argparse.ArgumentParser(description='Query workload database')
 
     # Add arguments
@@ -60,3 +70,6 @@ if __name__ == "__main__":
         exp_data = read_descriptor_from_json(args.group, dbg_lvl)
         print(get_image_name(workloads_data, exp_data["simulations"][0]))
         exit(0)
+
+if __name__ == "__main__":
+    main()

@@ -9,7 +9,7 @@ import signal
 import re
 import traceback
 import json
-from utilities import (
+from .utilities import (
         err,
         warn,
         info,
@@ -61,9 +61,9 @@ def print_status(user, job_name, docker_prefix_list, dbg_lvl = 2):
 def kill_jobs(user, job_type, job_name, docker_prefix_list, infra_dir, dbg_lvl, container_manager = "docker"):
     # Define the process name pattern
     if job_type == "simulation":
-        pattern = re.compile(f"python3 {infra_dir}/scripts/run_simulation.py -dbg 3 -d {infra_dir}/json/{job_name}.json")
+        pattern = re.compile(f"python3 -m scripts.run_simulation -dbg 3 -d {infra_dir}/json/{job_name}.json")
     elif job_type == "trace":
-        pattern = re.compile(f"python3 {infra_dir}/scripts/run_trace.py -dbg 3 -d {infra_dir}/json/{job_name}.json")
+        pattern = re.compile(f"python3 -m scripts.run_trace -dbg 3 -d {infra_dir}/json/{job_name}.json")
 
     # Iterate over all processes
     found_process = []
@@ -187,7 +187,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                     # Create temp file with run command and run it
                     filename = f"{container_name}_tmp_run.sh"
 
-                    if check_can_skip(descriptor_data, config_key, suite, subsuite, workload, cluster_id, filename, debug_lvl=dbg_lvl):
+                    if check_can_skip(descriptor_data, config_key, suite, subsuite, workload, cluster_id, filename, sim_mode, user, debug_lvl=dbg_lvl):
                         info(f"Skipping {workload} with config {config_key} and cluster id {cluster_id}", dbg_lvl)
                         continue
 
@@ -362,7 +362,7 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
             err("Error: Not in a Git repository or unable to retrieve Git hash.")
 
 
-        prepare_trace(user, scarab_path, scarab_build, docker_home, trace_name, infra_dir, docker_prefix_list, githash, False, None, dbg_lvl)
+        prepare_trace(user, scarab_path, scarab_build, docker_home, trace_name, infra_dir, docker_prefix_list, githash, False, [], dbg_lvl=dbg_lvl)
 
         # Iterate over each trace configuration
         for config in trace_configs:

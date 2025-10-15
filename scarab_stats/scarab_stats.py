@@ -9,11 +9,8 @@ import matplotlib.patches as mpatches
 import json
 import os
 import math
-import importlib
-import sys
-sys.path.append("../") # go to parent dir
-import scripts.utilities as utilities
-importlib.reload(utilities)
+
+from scripts import utilities
 
 def get_elem(l, i):
     return list(map(lambda x:x[i], l))

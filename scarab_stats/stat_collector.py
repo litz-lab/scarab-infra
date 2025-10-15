@@ -2,15 +2,11 @@
 
 import argparse
 
-# So the script can find scarab_stats
 import os
-os.chdir("scarab_stats")
 import sys
-sys.path.append(os.getcwd())
-sys.path.append(os.getcwd()+"/../scripts")
 
+from scripts.utilities import read_descriptor_from_json
 import scarab_stats
-from utilities import read_descriptor_from_json
 
 print("START stat collector")
 
