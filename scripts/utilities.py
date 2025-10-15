@@ -859,6 +859,8 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
                 memtrace_dict['whole_trace_file'] = trace_clustering_info['trace_file']
             elif config['trace_type'] == "cluster_then_trace":
                 os.system(f"cp -r {trace_dir}/{workload}/traces_simp/trace/* {target_traces_path}/traces/simp/")
+                memtrace_dict['warmup'] = 10000000
+                memtrace_dict['whole_trace_file'] = None
                 print("cluster_then_trace doesn't have a whole trace file.")
             else: # iterative_trace
                 largest_traces = trace_clustering_info['trace_file']
