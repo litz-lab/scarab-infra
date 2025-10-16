@@ -800,6 +800,8 @@ def ensure_traces(_: argparse.Namespace) -> Tuple[bool, str]:
         suite_missing: Dict[str, int] = {}
         suite_size_bytes = 0
 
+        print_heading(f"Trace suite: {suite}")
+
         for subsuite, workloads in subsuites.items():
             if not isinstance(workloads, dict):
                 continue
@@ -907,6 +909,8 @@ def ensure_traces(_: argparse.Namespace) -> Tuple[bool, str]:
             continue
 
         suite_downloaded_bytes = 0
+        suite_downloads = 0
+        suite_existing = 0
         suite_start = time.monotonic()
         for subsuite, workloads in suite_plan.items():
             subsuite_prompt = f"  Download subsuite '{suite}/{subsuite}'?"
@@ -939,6 +943,7 @@ def ensure_traces(_: argparse.Namespace) -> Tuple[bool, str]:
                     )
                 if target_path.exists():
                     existing += 1
+                    suite_existing += 1
                     continue
                 try:
                     target_path.parent.mkdir(parents=True, exist_ok=True)
@@ -953,19 +958,26 @@ def ensure_traces(_: argparse.Namespace) -> Tuple[bool, str]:
                     )
                     continue
                 downloads += 1
+                suite_downloads += 1
                 size_value = simpoint.get("size_bytes")
                 if isinstance(size_value, int) and size_value > 0:
                     suite_downloaded_bytes += size_value
 
         elapsed = time.monotonic() - suite_start
-        if suite_downloaded_bytes > 0:
-            info(
-                f"Finished downloading traces for suite '{suite}' (~{format_size(suite_downloaded_bytes)}, {format_duration(elapsed)})."
-            )
+        summary_details: List[str] = []
+        if suite_downloads:
+            download_detail = f"{suite_downloads} new trace(s)"
+            if suite_downloaded_bytes > 0:
+                download_detail += f" (~{format_size(suite_downloaded_bytes)})"
+            summary_details.append(download_detail)
         else:
-            info(
-                f"Finished processing suite '{suite}' ({format_duration(elapsed)}; no new downloads)."
-            )
+            summary_details.append("no new downloads")
+        if suite_existing:
+            summary_details.append(f"{suite_existing} already present")
+        summary = f"[{suite}] Completed in {format_duration(elapsed)}"
+        if summary_details:
+            summary += "; " + "; ".join(summary_details)
+        info(summary + ".")
 
     if failures:
         return False, failures[0]
