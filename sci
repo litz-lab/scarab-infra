@@ -14,6 +14,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
@@ -31,6 +32,9 @@ OPTIONAL_TITLES = {
     "Optional Slurm installation",
     "Optional ghcr.io login",
 }
+
+COOKIES_CACHE_PATH = Path.home() / ".cache" / "gdown" / "cookies.txt"
+_COOKIES_STATUS = {"prompted": False, "skipped": False}
 
 
 def load_infra_utilities():
@@ -239,6 +243,30 @@ def confirm(prompt: str, *, default: bool) -> bool:
         print("Please respond with 'y' or 'n'.")
 
 
+def format_size(num_bytes: int) -> str:
+    units = ["B", "KB", "MB", "GB", "TB", "PB"]
+    value = float(num_bytes)
+    unit = 0
+    while value >= 1024 and unit < len(units) - 1:
+        value /= 1024
+        unit += 1
+    if unit == 0:
+        return f"{int(value)} {units[unit]}"
+    return f"{value:.1f} {units[unit]}"
+
+
+def format_duration(seconds: float) -> str:
+    if seconds < 1:
+        return "<1s"
+    minutes, sec = divmod(int(seconds + 0.5), 60)
+    if minutes == 0:
+        return f"{sec}s"
+    hours, minutes = divmod(minutes, 60)
+    if hours == 0:
+        return f"{minutes}m {sec}s"
+    return f"{hours}h {minutes}m"
+
+
 def load_workloads_file(filename: str) -> Dict[str, Any]:
     path = REPO_ROOT / "workloads" / filename
     try:
@@ -250,9 +278,70 @@ def load_workloads_file(filename: str) -> Dict[str, Any]:
         raise StepError(f"Failed to parse {path}: {exc}") from exc
 
 
-def download_trace_file(file_id: str, output_path: Path) -> None:
-    commands = [
-        [
+def ensure_gdown_cookies(*, force_prompt: bool = False, initial_prompt: bool = False) -> bool:
+    global _COOKIES_STATUS
+    target = COOKIES_CACHE_PATH
+    if target.exists():
+        info(f"Using browser cookies at {target}")
+        _COOKIES_STATUS["prompted"] = True
+        _COOKIES_STATUS["skipped"] = False
+        return True
+
+    if _COOKIES_STATUS["skipped"]:
+        return False
+
+    if not sys.stdin.isatty():
+        info(
+            f"gdown requires an authenticated cookies file at {target}. Upload cookies.txt to that path and rerun."
+        )
+        _COOKIES_STATUS["skipped"] = True
+        return False
+
+    if _COOKIES_STATUS["prompted"] and not force_prompt:
+        return False
+
+    _COOKIES_STATUS["prompted"] = True
+    header = (
+        "Google Drive downloads require an authenticated cookies.txt file."
+        if initial_prompt
+        else "Google Drive downloads may require authentication on headless servers."
+    )
+    print(
+        header
+        + "\n1. On your local machine, open a browser logged into an account that can access the shared folder."
+        + "\n2. Install an extension such as 'Get cookies.txt LOCALLY' and export the cookies for the folder to cookies.txt."
+        + f"\n3. Upload cookies.txt to this server and enter its path below (will be copied to {target})."
+        + "\n   Type 'skip' to continue without cookies (downloads may fail)."
+    )
+    while True:
+        user_path = input("Path to cookies.txt: ").strip()
+        if not user_path:
+            print("Please enter a path or type 'skip'.")
+            continue
+        if user_path.lower() in {"skip", "s"}:
+            info("Skipping cookie setup; Google Drive may block some downloads.")
+            _COOKIES_STATUS["skipped"] = True
+            return False
+        source = Path(user_path).expanduser()
+        if not source.is_file():
+            print(f"File not found: {source}. Try again or type 'skip'.")
+            continue
+        try:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, target)
+        except OSError as exc:
+            print(f"Failed to install cookies: {exc}. Try again or type 'skip'.")
+            continue
+        info(f"Stored cookies for gdown at {target}")
+        _COOKIES_STATUS["skipped"] = False
+        return True
+
+
+def build_gdown_command(file_id: str, output_path: Path, *, use_conda: bool) -> List[str]:
+    url = f"https://drive.google.com/uc?id={file_id}"
+    cmd: List[str] = []
+    if use_conda:
+        cmd.extend([
             "conda",
             "run",
             "-n",
@@ -260,28 +349,55 @@ def download_trace_file(file_id: str, output_path: Path) -> None:
             "python",
             "-m",
             "gdown",
-            "--id",
-            file_id,
-            "-O",
-            str(output_path),
-        ]
+        ])
+    else:
+        cmd.append("gdown")
+
+    cmd.append("--fuzzy")
+    cmd.extend([url, "-O", str(output_path)])
+    return cmd
+
+
+def download_trace_file(file_id: str, output_path: Path) -> None:
+    commands = [
+        build_gdown_command(file_id, output_path, use_conda=True),
     ]
     if shutil.which("gdown"):
-        commands.append([
-            "gdown",
-            "--id",
-            file_id,
-            "-O",
-            str(output_path),
-        ])
+        commands.append(build_gdown_command(file_id, output_path, use_conda=False))
     last_exc: Optional[StepError] = None
-    for cmd in commands:
-        try:
-            run_command(cmd)
-            return
-        except StepError as exc:
-            last_exc = exc
-    raise last_exc if last_exc else StepError("Unknown gdown failure")
+    attempted_cookie_setup = False
+    while True:
+        retry_requested = False
+        for cmd in commands:
+            try:
+                run_command(cmd)
+                return
+            except StepError as exc:
+                last_exc = exc
+                if not attempted_cookie_setup:
+                    attempted_cookie_setup = True
+                    if ensure_gdown_cookies():
+                        info("Retrying download using browser cookies.")
+                        retry_requested = True
+                        break
+        if retry_requested:
+            continue
+        break
+    if last_exc:
+        message = str(last_exc)
+        if "Cannot retrieve the public link" in message or "Failed to retrieve file url" in message:
+            if COOKIES_CACHE_PATH.exists():
+                message += (
+                    "\nGoogle Drive still refused the download even with cookies. "
+                    "Verify that the trace is shared with the account used to export cookies, "
+                    "or try again later when the quota resets."
+                )
+            else:
+                message += (
+                    "\nInstall cookies.txt exported from a browser session with access and rerun."
+                )
+        raise StepError(message)
+    raise StepError("Unknown gdown failure")
 
 
 def conda_env_exists() -> bool:
@@ -659,20 +775,31 @@ def ensure_traces(_: argparse.Namespace) -> Tuple[bool, str]:
     if not isinstance(source_data, dict) or not source_data:
         return True, "No workloads defined for trace download."
 
+    ensure_gdown_cookies(force_prompt=True, initial_prompt=True)
+
     downloads = 0
     existing = 0
-    missing_ids: List[str] = []
+    missing_count = 0
+    missing_examples: List[str] = []
+    undownloadable_workloads: Dict[str, int] = {}
     failures: List[str] = []
 
+    excluded_suites = {"deprecated", "dc_java", "fleetbench", "mongo-perf"}
     for suite, subsuites in source_data.items():
-        if not isinstance(subsuites, dict):
+        if suite in excluded_suites:
+            info(f"Skipping suite '{suite}' by default.")
             continue
-        if not confirm(f"Download traces for suite '{suite}'?", default=True):
+        if not isinstance(subsuites, dict):
             continue
         db_subsuites = workloads_db.get(suite)
         if not isinstance(db_subsuites, dict):
             failures.append(f"Suite '{suite}' missing from workloads_db.json")
             continue
+
+        suite_plan: Dict[str, List[Tuple[str, List[Dict[str, Any]]]]] = {}
+        suite_missing: Dict[str, int] = {}
+        suite_size_bytes = 0
+
         for subsuite, workloads in subsuites.items():
             if not isinstance(workloads, dict):
                 continue
@@ -682,6 +809,8 @@ def ensure_traces(_: argparse.Namespace) -> Tuple[bool, str]:
                     f"Subsuite '{suite}/{subsuite}' missing from workloads_db.json"
                 )
                 continue
+            subsuite_plan: List[Tuple[str, List[Dict[str, Any]]]] = []
+            subsuite_missing = False
             for workload, workload_payload in workloads.items():
                 if not isinstance(workload_payload, dict):
                     continue
@@ -723,15 +852,81 @@ def ensure_traces(_: argparse.Namespace) -> Tuple[bool, str]:
                         simpoint for simpoint in all_simpoints if isinstance(simpoint, dict)
                     ]
 
+                missing_ids_for_workload = [
+                    simpoint.get("cluster_id")
+                    for simpoint in selected_simpoints
+                    if not simpoint.get("drive_id")
+                ]
+                workload_key = f"{suite}/{subsuite}/{workload}"
+                if missing_ids_for_workload:
+                    missing_count += len(missing_ids_for_workload)
+                    suite_missing[workload_key] = len(missing_ids_for_workload)
+                    subsuite_missing = True
+                    for cid in missing_ids_for_workload:
+                        if len(missing_examples) < 5:
+                            missing_examples.append(f"{workload_key}:{cid}")
+                    continue
+
+                subsuite_plan.append((workload, selected_simpoints))
+                for simpoint in selected_simpoints:
+                    size_value = simpoint.get("size_bytes")
+                    if isinstance(size_value, int) and size_value > 0:
+                        suite_size_bytes += size_value
+
+            if subsuite_plan:
+                suite_plan[subsuite] = subsuite_plan
+            elif subsuite_missing:
+                info(
+                    f"No downloadable traces for subsuite '{suite}/{subsuite}'; add drive_id entries to enable."
+                )
+
+        if suite_missing:
+            for key, count in suite_missing.items():
+                undownloadable_workloads[key] = count
+
+        prompt = f"Download traces for suite '{suite}'"
+        if suite_size_bytes > 0:
+            prompt += f" (~{format_size(suite_size_bytes)})"
+
+        if not suite_plan:
+            print(f"{prompt}? [skipped - no drive_id entries]")
+            info(
+                f"Add drive_id entries for suite '{suite}' to download its traces for future use."
+            )
+            continue
+
+        if suite_missing:
+            info(
+                f"Suite '{suite}' has workload(s) without drive_id entries; they will be skipped until populated."
+            )
+
+        prompt += "?"
+        default_choice = False if suite_missing else True
+        if not confirm(prompt, default=default_choice):
+            info(f"Skipped downloads for suite '{suite}' by user choice.")
+            continue
+
+        suite_downloaded_bytes = 0
+        suite_start = time.monotonic()
+        for subsuite, workloads in suite_plan.items():
+            subsuite_prompt = f"  Download subsuite '{suite}/{subsuite}'?"
+            subsuite_size = 0
+            for _, selected_simpoints in workloads:
+                for simpoint in selected_simpoints:
+                    size_value = simpoint.get("size_bytes")
+                    if isinstance(size_value, int) and size_value > 0:
+                        subsuite_size += size_value
+            if subsuite_size > 0:
+                subsuite_prompt += f" (~{format_size(subsuite_size)})"
+            if not confirm(subsuite_prompt + "", default=True):
+                info(f"Skipped subsuite '{suite}/{subsuite}'.")
+                continue
+
+            for workload, selected_simpoints in workloads:
                 for simpoint in selected_simpoints:
                     cluster_id = simpoint.get("cluster_id")
                     file_id = simpoint.get("drive_id")
-                    if cluster_id is None:
-                        continue
-                    if not file_id:
-                        missing_ids.append(
-                            f"{suite}/{subsuite}/{workload}:{cluster_id}"
-                        )
+                    if cluster_id is None or not file_id:
                         continue
                     target_path = (
                         trace_home
@@ -742,38 +937,64 @@ def ensure_traces(_: argparse.Namespace) -> Tuple[bool, str]:
                         / "simp"
                         / f"{cluster_id}.zip"
                     )
-                    if target_path.exists():
-                        existing += 1
-                        continue
-                    try:
-                        target_path.parent.mkdir(parents=True, exist_ok=True)
-                    except OSError as exc:
-                        failures.append(f"Failed to create {target_path.parent}: {exc}")
-                        continue
-                    try:
-                        download_trace_file(str(file_id), target_path)
-                    except StepError as exc:
-                        failures.append(
-                            f"Download failed for {suite}/{subsuite}/{workload}:{cluster_id}: {exc}"
-                        )
-                        continue
-                    downloads += 1
+                if target_path.exists():
+                    existing += 1
+                    continue
+                try:
+                    target_path.parent.mkdir(parents=True, exist_ok=True)
+                except OSError as exc:
+                    failures.append(f"Failed to create {target_path.parent}: {exc}")
+                    continue
+                try:
+                    download_trace_file(str(file_id), target_path)
+                except StepError as exc:
+                    failures.append(
+                        f"Download failed for {suite}/{subsuite}/{workload}:{cluster_id}: {exc}"
+                    )
+                    continue
+                downloads += 1
+                size_value = simpoint.get("size_bytes")
+                if isinstance(size_value, int) and size_value > 0:
+                    suite_downloaded_bytes += size_value
 
-    if missing_ids:
-        return False, (
-            "Missing drive_id for the following traces: "
-            + ", ".join(missing_ids[:5])
-            + (" (and more)" if len(missing_ids) > 5 else "")
-        )
+        elapsed = time.monotonic() - suite_start
+        if suite_downloaded_bytes > 0:
+            info(
+                f"Finished downloading traces for suite '{suite}' (~{format_size(suite_downloaded_bytes)}, {format_duration(elapsed)})."
+            )
+        else:
+            info(
+                f"Finished processing suite '{suite}' ({format_duration(elapsed)}; no new downloads)."
+            )
+
     if failures:
         return False, failures[0]
 
+    skipped_msg = ""
+    if missing_count:
+        sample = ", ".join(missing_examples)
+        extra = " (and more)" if missing_count > len(missing_examples) else ""
+        skipped_msg = (
+            f" Skipped {missing_count} trace(s) missing drive_id: {sample}{extra}."
+        )
+    if undownloadable_workloads:
+        workload_list = list(undownloadable_workloads.keys())
+        example_str = ", ".join(workload_list[:5])
+        extra = " (and more)" if len(workload_list) > 5 else ""
+        info(
+            "Workload(s) skipped due to missing drive_id entries: "
+            + example_str
+            + extra
+        )
+
     if downloads and existing:
-        return True, f"Downloaded {downloads} trace(s); {existing} already present."
+        return True, f"Downloaded {downloads} trace(s); {existing} already present." + skipped_msg
     if downloads:
-        return True, f"Downloaded {downloads} trace(s)."
+        return True, f"Downloaded {downloads} trace(s)." + skipped_msg
     if existing:
-        return True, f"All requested traces already present ({existing})."
+        return True, f"All requested traces already present ({existing})." + skipped_msg
+    if skipped_msg:
+        return True, skipped_msg.strip()
     return True, "No traces selected for download."
 
 

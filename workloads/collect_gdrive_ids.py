@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Populate ``drive_id`` fields in workloads_db.json using the Google Drive API."""
+"""Populate ``drive_id`` and ``size_bytes`` fields in workloads_db.json using the Google Drive API."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ import urllib.parse
 import urllib.request
 from collections import deque
 from pathlib import Path
-from typing import Deque, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Deque, Dict, Iterable, List, Optional, Tuple
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -170,7 +170,7 @@ def build_drive_service(credentials_path: Path, auth_mode: str) -> any:
     return build("drive", "v3", credentials=creds, cache_discovery=False)
 
 
-def list_children(service, folder_id: str) -> Iterable[Dict[str, str]]:
+def list_children(service, folder_id: str) -> Iterable[Dict[str, Any]]:
     query = f"'{folder_id}' in parents and trashed = false"
     page_token = None
     while True:
@@ -178,7 +178,7 @@ def list_children(service, folder_id: str) -> Iterable[Dict[str, str]]:
             service.files()
             .list(
                 q=query,
-                fields="nextPageToken, files(id, name, mimeType)",
+                fields="nextPageToken, files(id, name, mimeType, size)",
                 pageSize=1000,
                 supportsAllDrives=True,
                 includeItemsFromAllDrives=True,
@@ -192,8 +192,8 @@ def list_children(service, folder_id: str) -> Iterable[Dict[str, str]]:
             break
 
 
-def crawl_drive_tree(service, root_folder_id: str) -> Dict[str, str]:
-    mapping: Dict[str, str] = {}
+def crawl_drive_tree(service, root_folder_id: str) -> Dict[str, Dict[str, Any]]:
+    mapping: Dict[str, Dict[str, Any]] = {}
     queue: Deque[Tuple[str, str]] = deque([(root_folder_id, "")])
 
     while queue:
@@ -204,7 +204,12 @@ def crawl_drive_tree(service, root_folder_id: str) -> Dict[str, str]:
             if item["mimeType"] == "application/vnd.google-apps.folder":
                 queue.append((item["id"], path))
             else:
-                mapping[path] = item["id"]
+                size_value: Optional[int]
+                try:
+                    size_value = int(item.get("size")) if item.get("size") is not None else None
+                except (TypeError, ValueError):
+                    size_value = None
+                mapping[path] = {"id": item["id"], "size": size_value}
     return mapping
 
 
@@ -217,7 +222,7 @@ def load_workloads(path: Path) -> Dict:
         raise CollectError(f"Failed to parse JSON at {path}: {exc}") from exc
 
 
-def update_workloads_with_ids(workloads: Dict, drive_map: Dict[str, str]) -> int:
+def update_workloads_with_ids(workloads: Dict, drive_map: Dict[str, Dict[str, Any]]) -> int:
     updated = 0
     for suite, subsuites in workloads.items():
         if not isinstance(subsuites, dict):
@@ -238,17 +243,21 @@ def update_workloads_with_ids(workloads: Dict, drive_map: Dict[str, str]) -> int
                     if cluster_id is None:
                         continue
                     drive_path = f"{suite}/{subsuite}/{workload}/{TRACE_SUFFIX}/{cluster_id}.zip"
-                    file_id = drive_map.get(drive_path)
-                    if not file_id:
+                    mapping_entry = drive_map.get(drive_path)
+                    if not mapping_entry:
                         continue
-                    if sim.get("drive_id") != file_id:
+                    file_id = mapping_entry.get("id")
+                    size_bytes = mapping_entry.get("size")
+                    if file_id and sim.get("drive_id") != file_id:
                         sim["drive_id"] = file_id
                         updated += 1
+                    if size_bytes is not None and sim.get("size_bytes") != size_bytes:
+                        sim["size_bytes"] = size_bytes
     return updated
 
 
 def parse_args(argv: List[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Populate drive_id fields in workloads_db.json")
+    parser = argparse.ArgumentParser(description="Populate drive_id and size metadata in workloads_db.json")
     parser.add_argument("--folder-id", required=True, help="Google Drive folder ID containing suite subdirectories")
     parser.add_argument("--credentials", default="credentials.json", help="Path to OAuth client credentials JSON")
     parser.add_argument("--workloads", default="workloads/workloads_db.json", help="Input workloads DB JSON file")
@@ -288,7 +297,7 @@ def main(argv: List[str]) -> int:
     debug(f"Updated {updated} simpoint entries with drive_id values.")
 
     output_path = Path(args.output)
-    output_path.write_text(json.dumps(workloads, indent=2, sort_keys=True))
+    output_path.write_text(json.dumps(workloads, indent=2, separators=(",", ":")))
     debug(f"Wrote updated workloads JSON to {output_path}")
     return 0
 
