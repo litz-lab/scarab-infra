@@ -941,27 +941,27 @@ def ensure_traces(_: argparse.Namespace) -> Tuple[bool, str]:
                         / "simp"
                         / f"{cluster_id}.zip"
                     )
-                if target_path.exists():
-                    existing += 1
-                    suite_existing += 1
-                    continue
-                try:
-                    target_path.parent.mkdir(parents=True, exist_ok=True)
-                except OSError as exc:
-                    failures.append(f"Failed to create {target_path.parent}: {exc}")
-                    continue
-                try:
-                    download_trace_file(str(file_id), target_path)
-                except StepError as exc:
-                    failures.append(
-                        f"Download failed for {suite}/{subsuite}/{workload}:{cluster_id}: {exc}"
-                    )
-                    continue
-                downloads += 1
-                suite_downloads += 1
-                size_value = simpoint.get("size_bytes")
-                if isinstance(size_value, int) and size_value > 0:
-                    suite_downloaded_bytes += size_value
+                    if target_path.exists():
+                        existing += 1
+                        suite_existing += 1
+                        continue
+                    try:
+                        target_path.parent.mkdir(parents=True, exist_ok=True)
+                    except OSError as exc:
+                        failures.append(f"Failed to create {target_path.parent}: {exc}")
+                        continue
+                    try:
+                        download_trace_file(str(file_id), target_path)
+                    except StepError as exc:
+                        failures.append(
+                            f"Download failed for {suite}/{subsuite}/{workload}:{cluster_id}: {exc}"
+                        )
+                        continue
+                    downloads += 1
+                    suite_downloads += 1
+                    size_value = simpoint.get("size_bytes")
+                    if isinstance(size_value, int) and size_value > 0:
+                        suite_downloaded_bytes += size_value
 
         elapsed = time.monotonic() - suite_start
         summary_details: List[str] = []
