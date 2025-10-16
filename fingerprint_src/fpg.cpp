@@ -387,18 +387,8 @@ clean_call(uint instruction_count, uint64 bb_id, uint64 segment_size, uint emula
     // }
 
     if (is_rep_emulation && first_addr == t_data->prev_first_addr) {
-        // if the current bb is rep emulation and
-        // it was just executed,
-        // only the first execution counts as fetched execution
-        if (op_use_fetched_count.get_value()) {
-            // user wants to use fetched count as segment size
-            // so don't count this
-        } else {
-            // user wants to use executed count for the segment size
-            // so even though non-fetched rep, count it as execution
-            DR_ASSERT(instruction_count == 1);
-            return;
-        }
+        // We are not counting the REP consequent instructions for basic block vectors
+        return;
     } else {
         // otherwise just increment
         if (is_rep_emulation) {
