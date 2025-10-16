@@ -14,9 +14,8 @@ import re
 import shutil
 import subprocess
 import sys
-import tarfile
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 try:
     from packaging.specifiers import SpecifierSet
@@ -26,9 +25,6 @@ except ImportError:  # pragma: no cover - packaging is usually available
     Version = None
 
 REPO_ROOT = Path(__file__).resolve().parent
-DEFAULT_TRACE_URL = "https://drive.google.com/uc?id=1tfKL7wYK1mUqpCH8yPaPVvxk2UIAJrOX"
-TRACE_ARCHIVE_NAME = "simpoint_traces.tar.gz"
-TRACE_DIR_NAME = "simpoint_traces"
 ENV_NAME = "scarabinfra"
 MINICONDA_URL = "https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh"
 OPTIONAL_TITLES = {
@@ -241,6 +237,51 @@ def confirm(prompt: str, *, default: bool) -> bool:
         if response in {"n", "no"}:
             return False
         print("Please respond with 'y' or 'n'.")
+
+
+def load_workloads_file(filename: str) -> Dict[str, Any]:
+    path = REPO_ROOT / "workloads" / filename
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            return json.load(handle)
+    except FileNotFoundError as exc:
+        raise StepError(f"Missing workloads file: {path}") from exc
+    except json.JSONDecodeError as exc:
+        raise StepError(f"Failed to parse {path}: {exc}") from exc
+
+
+def download_trace_file(file_id: str, output_path: Path) -> None:
+    commands = [
+        [
+            "conda",
+            "run",
+            "-n",
+            ENV_NAME,
+            "python",
+            "-m",
+            "gdown",
+            "--id",
+            file_id,
+            "-O",
+            str(output_path),
+        ]
+    ]
+    if shutil.which("gdown"):
+        commands.append([
+            "gdown",
+            "--id",
+            file_id,
+            "-O",
+            str(output_path),
+        ])
+    last_exc: Optional[StepError] = None
+    for cmd in commands:
+        try:
+            run_command(cmd)
+            return
+        except StepError as exc:
+            last_exc = exc
+    raise last_exc if last_exc else StepError("Unknown gdown failure")
 
 
 def conda_env_exists() -> bool:
@@ -599,53 +640,141 @@ def ensure_traces(_: argparse.Namespace) -> Tuple[bool, str]:
         trace_home.mkdir(parents=True, exist_ok=True)
     except OSError as exc:
         return False, f"Could not create trace directory {trace_home}: {exc}"
-    extracted_dir = trace_home / TRACE_DIR_NAME
-    if extracted_dir.exists():
-        return True, f"Trace directory already exists at {extracted_dir}"
-    archive = trace_home / TRACE_ARCHIVE_NAME
-    if not archive.exists():
-        if not confirm(
-            f"SimPoint traces not found under {trace_home}. Download now?",
-            default=False,
-        ):
-            return True, "Skipped trace download (user opted to handle manually)."
-        download_cmd = [
-            "conda",
-            "run",
-            "-n",
-            ENV_NAME,
-            "python",
-            "-m",
-            "gdown",
-            "--fuzzy",
-            DEFAULT_TRACE_URL,
-            "-O",
-            str(archive),
-        ]
-        try:
-            run_command(download_cmd)
-        except StepError as exc:
-            if shutil.which("gdown"):
-                try:
-                    run_command(
-                        [
-                            "gdown",
-                            "--fuzzy",
-                            DEFAULT_TRACE_URL,
-                            "-O",
-                            str(archive),
-                        ]
-                    )
-                except StepError as fallback_exc:
-                    return False, f"Failed to download traces: {fallback_exc}"
-            else:
-                return False, f"Failed to download traces: {exc}"
+
+    workloads_db = load_workloads_file("workloads_db.json")
     try:
-        with tarfile.open(archive, "r:gz") as tar:
-            tar.extractall(path=trace_home)
-    except (tarfile.TarError, OSError) as exc:
-        return False, f"Failed to extract {archive}: {exc}"
-    return True, f"Installed traces under {extracted_dir}"
+        workloads_top = load_workloads_file("workloads_top_simp.json")
+    except StepError:
+        workloads_top = {}
+
+    use_top_requested = confirm(
+        "Download only the top 3 simpoints from workloads_top_simp.json? (Choose 'No' for all simpoints)",
+        default=True,
+    )
+    use_top_three = bool(workloads_top) and use_top_requested
+    if use_top_requested and not workloads_top:
+        info("Top-3 simpoint metadata not found; defaulting to all simpoints from workloads_db.json.")
+
+    source_data: Dict[str, Any] = workloads_top if use_top_three else workloads_db
+    if not isinstance(source_data, dict) or not source_data:
+        return True, "No workloads defined for trace download."
+
+    downloads = 0
+    existing = 0
+    missing_ids: List[str] = []
+    failures: List[str] = []
+
+    for suite, subsuites in source_data.items():
+        if not isinstance(subsuites, dict):
+            continue
+        if not confirm(f"Download traces for suite '{suite}'?", default=True):
+            continue
+        db_subsuites = workloads_db.get(suite)
+        if not isinstance(db_subsuites, dict):
+            failures.append(f"Suite '{suite}' missing from workloads_db.json")
+            continue
+        for subsuite, workloads in subsuites.items():
+            if not isinstance(workloads, dict):
+                continue
+            db_workloads = db_subsuites.get(subsuite)
+            if not isinstance(db_workloads, dict):
+                failures.append(
+                    f"Subsuite '{suite}/{subsuite}' missing from workloads_db.json"
+                )
+                continue
+            for workload, workload_payload in workloads.items():
+                if not isinstance(workload_payload, dict):
+                    continue
+                db_workload_entry = db_workloads.get(workload)
+                if not isinstance(db_workload_entry, dict):
+                    failures.append(
+                        f"Workload '{suite}/{subsuite}/{workload}' missing from workloads_db.json"
+                    )
+                    continue
+                all_simpoints = db_workload_entry.get("simpoints", [])
+                if not isinstance(all_simpoints, list) or not all_simpoints:
+                    continue
+                if use_top_three:
+                    top_simpoints = workload_payload.get("simpoints", [])
+                    cluster_ids = {
+                        simpoint.get("cluster_id")
+                        for simpoint in top_simpoints
+                        if isinstance(simpoint, dict) and simpoint.get("cluster_id") is not None
+                    }
+                    if not cluster_ids:
+                        continue
+                    selected_simpoints = [
+                        simpoint
+                        for simpoint in all_simpoints
+                        if isinstance(simpoint, dict)
+                        and simpoint.get("cluster_id") in cluster_ids
+                    ]
+                    missing_clusters = cluster_ids - {
+                        simpoint.get("cluster_id")
+                        for simpoint in selected_simpoints
+                    }
+                    if missing_clusters:
+                        failures.append(
+                            f"Missing drive_id mapping for {suite}/{subsuite}/{workload}: {sorted(missing_clusters)}"
+                        )
+                        continue
+                else:
+                    selected_simpoints = [
+                        simpoint for simpoint in all_simpoints if isinstance(simpoint, dict)
+                    ]
+
+                for simpoint in selected_simpoints:
+                    cluster_id = simpoint.get("cluster_id")
+                    file_id = simpoint.get("drive_id")
+                    if cluster_id is None:
+                        continue
+                    if not file_id:
+                        missing_ids.append(
+                            f"{suite}/{subsuite}/{workload}:{cluster_id}"
+                        )
+                        continue
+                    target_path = (
+                        trace_home
+                        / suite
+                        / subsuite
+                        / workload
+                        / "traces"
+                        / "simp"
+                        / f"{cluster_id}.zip"
+                    )
+                    if target_path.exists():
+                        existing += 1
+                        continue
+                    try:
+                        target_path.parent.mkdir(parents=True, exist_ok=True)
+                    except OSError as exc:
+                        failures.append(f"Failed to create {target_path.parent}: {exc}")
+                        continue
+                    try:
+                        download_trace_file(str(file_id), target_path)
+                    except StepError as exc:
+                        failures.append(
+                            f"Download failed for {suite}/{subsuite}/{workload}:{cluster_id}: {exc}"
+                        )
+                        continue
+                    downloads += 1
+
+    if missing_ids:
+        return False, (
+            "Missing drive_id for the following traces: "
+            + ", ".join(missing_ids[:5])
+            + (" (and more)" if len(missing_ids) > 5 else "")
+        )
+    if failures:
+        return False, failures[0]
+
+    if downloads and existing:
+        return True, f"Downloaded {downloads} trace(s); {existing} already present."
+    if downloads:
+        return True, f"Downloaded {downloads} trace(s)."
+    if existing:
+        return True, f"All requested traces already present ({existing})."
+    return True, "No traces selected for download."
 
 
 def ensure_conda_installed(_: argparse.Namespace) -> Tuple[bool, str]:
