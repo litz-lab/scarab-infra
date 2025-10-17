@@ -47,6 +47,12 @@ You only need additional steps if you want to inspect workloads, collect traces,
   ./sci --clean <descriptor>
   ```
 
+### Visualize collected stats
+```
+./sci --visualize <descriptor>
+```
+Generates bar charts (value and speedup) for each counter listed in the descriptor’s `visualize_counters` field and saves them next to `collected_stats.csv` under `<root_dir>/simulations/<descriptor>/`.
+
 ### List workloads and simulation modes
 ```
 ./sci --list

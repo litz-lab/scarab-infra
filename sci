@@ -506,6 +506,49 @@ def ensure_conda_env(args: argparse.Namespace) -> Tuple[bool, str]:
     return True, "Conda environment already up to date."
 
 
+def ensure_conda_shell_hook(_: argparse.Namespace) -> Tuple[bool, str]:
+    conda_bin = shutil.which("conda")
+    if not conda_bin:
+        return False, "conda command not found."
+    try:
+        base_output = run_command(["conda", "info", "--base"], capture=True)
+    except StepError as exc:
+        return False, f"Failed to determine conda base prefix: {exc}"
+    conda_base = (base_output or "").strip()
+    if not conda_base:
+        return False, "conda info --base returned an empty path."
+    hook_path = Path(conda_base) / "etc" / "profile.d" / "conda.sh"
+    if not hook_path.exists():
+        return False, f"Expected conda hook at {hook_path}."
+
+    bashrc_path = Path.home() / ".bashrc"
+    if bashrc_path.exists():
+        try:
+            existing = bashrc_path.read_text(encoding="utf-8")
+        except OSError as exc:
+            return False, f"Unable to read {bashrc_path}: {exc}"
+        if (
+            "conda shell.bash hook" in existing
+            or "conda initialize" in existing
+            or ">>> scarab-infra conda setup >>>" in existing
+        ):
+            return True, f"Conda shell hook already configured in {bashrc_path}."
+
+    snippet = (
+        "\n# >>> scarab-infra conda setup >>>\n"
+        f'if [ -x "{conda_bin}" ]; then\n'
+        f'    eval "$("{conda_bin}" shell.bash hook)"\n'
+        "fi\n"
+        "# <<< scarab-infra conda setup <<<\n"
+    )
+    try:
+        with bashrc_path.open("a", encoding="utf-8") as handle:
+            handle.write(snippet)
+    except OSError as exc:
+        return False, f"Failed to update {bashrc_path}: {exc}"
+    return True, f"Added conda shell hook to {bashrc_path}."
+
+
 def validate_conda_env(_: argparse.Namespace) -> Tuple[bool, str]:
     if not shutil.which("conda"):
         return False, "conda command not found."
@@ -1419,6 +1462,7 @@ def run_init(args: argparse.Namespace) -> int:
         ("Configure Docker permissions", configure_docker_permissions),
         ("Install Miniconda", ensure_conda_installed),
         ("Create scarabinfra conda env", ensure_conda_env),
+        ("Configure conda shell hook", ensure_conda_shell_hook),
         ("Validate conda env activation", validate_conda_env),
         ("Ensure GitHub SSH key", ensure_ssh_key),
         ("Download simpoint traces", ensure_traces),
@@ -1447,6 +1491,124 @@ def run_init(args: argparse.Namespace) -> int:
             print(f"- {title}")
         print("Resolve the issues above and rerun `sci --init`.")
         return 1
+    return 0
+
+
+def run_visualize(descriptor_name: str) -> int:
+    try:
+        _, descriptor = read_descriptor(descriptor_name)
+    except StepError as exc:
+        print(exc)
+        return 1
+
+    if descriptor.get("descriptor_type") != "simulation":
+        print("Visualization only supports simulation descriptors.")
+        return 1
+
+    root_dir = descriptor.get("root_dir")
+    experiment_name = descriptor.get("experiment")
+    if not root_dir or not experiment_name:
+        print("Descriptor must include 'root_dir' and 'experiment'.")
+        return 1
+
+    stats_path = Path(root_dir) / "simulations" / experiment_name / "collected_stats.csv"
+    if not stats_path.is_file():
+        print(f"No collected stats found at {stats_path}. Run the stat collector first.")
+        return 1
+
+    try:
+        import scarab_stats
+    except ImportError as exc:
+        print(f"Failed to import scarab_stats: {exc}")
+        return 1
+
+    try:
+        importlib.reload(scarab_stats)
+        from scarab_stats import stat_aggregator
+    except ImportError as exc:
+        print(f"Failed to access stat_aggregator: {exc}")
+        return 1
+
+    aggregator = stat_aggregator()
+    try:
+        experiment = aggregator.load_experiment_csv(str(stats_path))
+    except Exception as exc:  # pragma: no cover - depends on user data
+        print(f"Failed to load stats from {stats_path}: {exc}")
+        return 1
+
+    try:
+        workloads = sorted(experiment.get_workloads())
+        configs = sorted(experiment.get_configurations())
+    except Exception as exc:  # pragma: no cover - depends on user data
+        print(f"Failed to inspect experiment data: {exc}")
+        return 1
+
+    if not workloads:
+        print("No workloads found in the stats file.")
+        return 1
+    if not configs:
+        print("No configurations found in the stats file.")
+        return 1
+
+    stats_to_plot = descriptor.get("visualize_counters") or ["Periodic_IPC"]
+    if not isinstance(stats_to_plot, list) or not stats_to_plot:
+        print("Descriptor field 'visualize_counters' must be a non-empty list when provided.")
+        return 1
+
+    stat_names = [str(stat) for stat in stats_to_plot]
+    baseline = configs[0]
+
+    def safe_filename(stem: str) -> str:
+        return "".join(c if c.isalnum() or c in {"-", "_"} else "_" for c in stem)
+
+    print(f"Using stats file: {stats_path}")
+    print(f"Workloads: {len(workloads)}; Configurations: {len(configs)}; Speedup baseline: {baseline}")
+
+    available_stats = set()
+    try:
+        available_stats = set(experiment.get_stats())
+    except Exception:
+        pass
+
+    for stat_name in stat_names:
+        if available_stats and stat_name not in available_stats:
+            print(f"Skipping '{stat_name}': not present in collected stats.")
+            continue
+
+        stat_safe = safe_filename(stat_name)
+        baseline_safe = safe_filename(baseline)
+        ipc_output = stats_path.with_name(f"{stat_safe}_ipc.png")
+        speedup_output = stats_path.with_name(f"{stat_safe}_speedup_vs_{baseline_safe}.png")
+
+        print(f"Plotting '{stat_name}' → {ipc_output.name}, {speedup_output.name}")
+
+        try:
+            aggregator.plot_workloads(
+                experiment,
+                [stat_name],
+                workloads,
+                configs,
+                title="",
+                y_label=stat_name,
+                x_label="Workloads",
+                average=True,
+                plot_name=str(ipc_output),
+            )
+            aggregator.plot_workloads_speedup(
+                experiment,
+                [stat_name],
+                workloads,
+                configs,
+                speedup_baseline=baseline,
+                title="",
+                y_label=f"{stat_name} Speedup (%)",
+                x_label="Workloads",
+                average=True,
+                plot_name=str(speedup_output),
+            )
+        except Exception as exc:  # pragma: no cover - matplotlib backend dependent
+            print(f"Failed to generate plots for '{stat_name}': {exc}")
+
     return 0
 
 
@@ -1494,6 +1656,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Run simulations defined in json/<DESCRIPTOR>.json.",
     )
     parser.add_argument(
+        "--visualize",
+        metavar="DESCRIPTOR",
+        help="Plot IPC and speedup for collected stats in json/<DESCRIPTOR>.json.",
+    )
+    parser.add_argument(
         "--kill",
         metavar="DESCRIPTOR",
         help="Kill active simulations for json/<DESCRIPTOR>.json.",
@@ -1522,6 +1689,7 @@ def main() -> int:
         bool(args.interactive),
         bool(args.trace),
         bool(args.sim),
+        bool(args.visualize),
         bool(args.kill),
         bool(args.status),
         bool(args.clean),
@@ -1536,6 +1704,7 @@ def main() -> int:
         args.interactive,
         args.trace,
         args.sim,
+        args.visualize,
         args.kill,
         args.status,
         args.clean,
@@ -1618,6 +1787,8 @@ def main() -> int:
         except (StepError, RuntimeError) as exc:
             print(exc)
             return 1
+    if args.visualize:
+        return run_visualize(args.visualize)
     if args.kill:
         try:
             handle_descriptor_action(args.kill, "kill")
