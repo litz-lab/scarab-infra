@@ -753,7 +753,7 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
 
     tmp_files = []
 
-    def run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd, trace_type, drio_args, clustering_k, applicaiton_dir):
+    def run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd, trace_type, drio_args, clustering_k, application_dir):
         try:
             docker_running = check_docker_image(available_slurm_nodes, image_name, githash, dbg_lvl)
             excludes = set(all_nodes) - set(docker_running)
