@@ -130,6 +130,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
     dont_collect = True
 
     def run_single_workload(suite, subsuite, workload, exp_cluster_id, sim_mode, warmup):
+        nonlocal dont_collect
         try:
             docker_prefix = get_docker_prefix(sim_mode, workloads_data[suite][subsuite][workload]["simulation"])
             info(f"Using docker image with name {docker_prefix}:{githash}", dbg_lvl)
