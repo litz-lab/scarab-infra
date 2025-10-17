@@ -1457,6 +1457,22 @@ def maybe_docker_login(_: argparse.Namespace) -> Tuple[bool, str]:
 
 
 def run_init(args: argparse.Namespace) -> int:
+    if sys.stdin.isatty():
+        print_heading("Prepare Google Drive cookies.txt")
+        info(
+            "Google limits bulk downloads from shared folders; providing browser cookies lets gdown reuse your session when Drive throttles direct access. "
+            "If you can still open the files in your browser, exporting cookies.txt may unblock automated downloads."
+        )
+        info(
+            "For users who need to download traces from the shared Google Drive, prepare cookies.txt before continuing:"
+            "\n1. On your local machine, open the shared folder in a logged-in browser session."
+            "\n2. Install a cookies export extension (e.g. 'Get cookies.txt LOCALLY')."
+            "\n3. Use the extension's 'Export All Cookies' button to save the folder cookies as cookies.txt."
+            "\n4. Upload cookies.txt to this server before continuing (for example: scp cookies.txt user@host:~/.cache/gdown/cookies.txt)."
+        )
+        if not confirm("Ready to continue with the setup now?", default=True):
+            print("Re-run `./sci --init` after cookies.txt is uploaded.")
+            return 0
     steps = [
         ("Install Docker", ensure_docker),
         ("Configure Docker permissions", configure_docker_permissions),
