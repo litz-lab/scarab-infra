@@ -903,7 +903,10 @@ def ensure_traces(_: argparse.Namespace) -> Tuple[bool, str]:
             )
 
         prompt += "?"
-        default_choice = False if suite_missing else True
+        if suite == "spec2017":
+            default_choice = not suite_missing
+        else:
+            default_choice = False
         if not confirm(prompt, default=default_choice):
             info(f"Skipped downloads for suite '{suite}' by user choice.")
             continue
