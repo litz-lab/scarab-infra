@@ -54,9 +54,7 @@
   ],
   "_configurations":"scarab configurations to sweep",
   "configurations":{
-    "baseline":"--bp_mech tage64k --fdip_enable 1 --btb_entries 8192 --perfect_crs 1 --wp_collect_stats 1 --mem_req_buffer_entries 64 --ramulator_readq_entries 64 --fe_ftq_block_num 32",
-    "perfect_fdip_lookahead_10000":"--bp_mech tage64k --fdip_enable 1 --btb_entries 8192 --perfect_crs 1 --wp_collect_stats 1 --mem_req_buffer_entries 64 --ramulator_readq_entries 64 --fe_ftq_block_num 32 --fdip_perfect_prefetch 1 --trace_buf_size 10000",
-    "perfect_fdip_lookahead_50000":"--bp_mech tage64k --fdip_enable 1 --btb_entries 8192 --perfect_crs 1 --wp_collect_stats 1 --mem_req_buffer_entries 64 --ramulator_readq_entries 64 --fe_ftq_block_num 32 --fdip_perfect_prefetch 1 --trace_buf_size 50000",
-    "perfect_fdip_lookahead_100000":"--bp_mech tage64k --fdip_enable 1 --btb_entries 8192 --perfect_crs 1 --wp_collect_stats 1 --mem_req_buffer_entries 64 --ramulator_readq_entries 64 --fe_ftq_block_num 32 --fdip_perfect_prefetch 1 --trace_buf_size 100000"
+    "icache_32k":"--bp_mech tage64k --fdip_enable 1 --btb_entries 8192 --perfect_crs 1 --wp_collect_stats 1 --mem_req_buffer_entries 64 --ramulator_readq_entries 64 --fe_ftq_block_num 32",
+    "icache_64k":"--bp_mech tage64k --fdip_enable 1 --btb_entries 8192 --perfect_crs 1 --wp_collect_stats 1 --mem_req_buffer_entries 64 --ramulator_readq_entries 64 --fe_ftq_block_num 32 --icache_size 65536"
   }
 }
