@@ -308,10 +308,8 @@ def ensure_gdown_cookies(*, force_prompt: bool = False, initial_prompt: bool = F
     )
     print(
         header
-        + "\n1. On your local machine, open a browser logged into an account that can access the shared folder."
-        + "\n2. Install an extension such as 'Get cookies.txt LOCALLY' and export the cookies for the folder to cookies.txt."
-        + f"\n3. Upload cookies.txt to this server and enter its path below (will be copied to {target})."
-        + "\n   Type 'skip' to continue without cookies (downloads may fail)."
+        + f"\nUpload your exported cookies.txt to this machine and enter its path to copy it into {target}."
+        + "\nType 'skip' to continue without cookies (downloads may fail)."
     )
     while True:
         user_path = input("Path to cookies.txt: ").strip()
