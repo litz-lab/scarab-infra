@@ -2,6 +2,19 @@
 # set -x #echo on
 
 # Activate conda environment first
+CONDA_BIN=$(command -v conda)
+if [[ -z "$CONDA_BIN" ]]; then
+    echo "ERR: conda not found on PATH."
+    exit 1
+fi
+
+CONDA_BASE=$("$CONDA_BIN" info --base 2>/dev/null)
+if [[ -z "$CONDA_BASE" || ! -f "$CONDA_BASE/etc/profile.d/conda.sh" ]]; then
+    echo "ERR: Unable to locate conda.sh; ensure Conda is installed correctly."
+    exit 1
+fi
+
+source "$CONDA_BASE/etc/profile.d/conda.sh"
 conda activate scarabinfra
 
 GUIDE_PATH="scarab_stats_quick_start.ipynb"
@@ -20,12 +33,12 @@ BASE_PORT=8889
 INCREMENT=1
 
 port=$BASE_PORT
-isfree=$(netstat -taln | grep $port)
+isfree=$(ss -tln | grep ":$port ")
 hostname=$(hostname)
 
 while [[ -n "$isfree" ]]; do
     port=$[port+INCREMENT]
-    isfree=$(netstat -taln | grep $port)
+    isfree=$(ss -tln | grep ":$port ")
 done
 
 echo "Using port: $port"
