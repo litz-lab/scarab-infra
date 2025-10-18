@@ -727,7 +727,8 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
 
             slurm_ids = []
             for config_key in configs:
-                config = configs[config_key]
+                config = configs[config_key]["params"]
+                binary_name = configs[config_key]["binary"]
                 if config == "":
                     config = None
 
@@ -758,7 +759,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                     workload_home = f"{suite}/{subsuite}/{workload}"
                     write_docker_command_to_file(user, local_uid, local_gid, workload, workload_home, experiment_name,
                                                  docker_prefix, docker_container_name, traces_dir,
-                                                 docker_home, githash, config_key, config, sim_mode, scarab_githash,
+                                                 docker_home, githash, config_key, config, sim_mode, binary_name,
                                                  seg_size, architecture, cluster_id, warmup, trace_warmup, trace_type,
                                                  trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir)
                     tmp_files.append(filename)
@@ -800,9 +801,16 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
             err("Cannot find any running slurm nodes", dbg_lvl)
             exit(1)
 
+        scarab_binaries = []
+        for sim in simulations:
+            for config_key in configs:
+                scarab_binary = configs[config_key]["binary"]
+                if scarab_binary not in scarab_binaries:
+                    scarab_binaries.append(scarab_binary)
+
         # Generate commands for executing in users docker and sbatching to nodes with containers
         experiment_dir = f"{descriptor_data['root_dir']}/simulations/{experiment_name}"
-        scarab_githash, image_tag_list = prepare_simulation(user, scarab_path, scarab_build, descriptor_data['root_dir'], experiment_name, architecture, docker_prefix_list, githash, infra_dir, False, available_slurm_nodes, dbg_lvl)
+        scarab_githash, image_tag_list = prepare_simulation(user, scarab_path, scarab_build, descriptor_data['root_dir'], experiment_name, architecture, docker_prefix_list, githash, infra_dir, scarab_binaries, False, available_slurm_nodes, dbg_lvl)
 
         # Iterate over each workload and config combo
         tmp_files = []

@@ -1253,6 +1253,7 @@ def run_build_scarab(descriptor_name: str) -> int:
             docker_prefix_list,
             githash,
             str(REPO_ROOT),
+            ["current"],
             interactive_shell=True,
             dbg_lvl=2,
             stream_build=True,
