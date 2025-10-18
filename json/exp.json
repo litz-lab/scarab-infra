@@ -61,6 +61,7 @@
     "icache_64k": {
       "params": "--bp_mech tage64k --fdip_enable 1 --btb_entries 8192 --perfect_crs 1 --wp_collect_stats 1 --mem_req_buffer_entries 64 --ramulator_readq_entries 64 --fe_ftq_block_num 32 --icache_size 65536",
       "binary": "current"
+    }
   },
   "_visualize_counters":"List of PMU/stat names to plot when running ./sci --visualize <descriptor>.",
   "visualize_counters":[
