@@ -385,7 +385,7 @@ def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, git
 #           architecture - Architecture name
 #
 # Outputs:  scarab githash
-def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_name, architecture, docker_prefix_list, githash, infra_dir, scarab_hashes, interactive_shell=False, available_slurm_nodes=[], dbg_lvl=1, stream_build=False):
+def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_name, architecture, docker_prefix_list, githash, infra_dir, scarab_binaries, interactive_shell=False, available_slurm_nodes=[], dbg_lvl=1, stream_build=False):
     # prepare docker images
     image_tag_list = []
     try:
@@ -423,7 +423,7 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
         dest_scarab_bin = f"{experiment_dir}/scarab/src/scarab"
 
         # Make sure each git hash is present in the cache
-        for bin_name in scarab_hashes:
+        for bin_name in scarab_binaries:
             # Current will build if not present
             if bin_name == "scarab_current":
                 continue
@@ -444,7 +444,7 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
         os.system(f"mkdir -p {experiment_dir}/scarab/src/")
 
         # Copy from cache all required scarab binaries
-        for bin_name in scarab_hashes:
+        for bin_name in scarab_binaries:
             scarab_ver = f"{infra_dir}/scarab_builds/{bin_name}"
             os.system(f"cp {scarab_ver} {experiment_dir}/scarab/src/")
 
@@ -555,17 +555,17 @@ def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_n
 
 # Generate command to do a single run of scarab
 def generate_single_scarab_run_command(user, workload_home, experiment, config_key, config,
-                                       mode, seg_size, arch, scarab_githash, cluster_id,
+                                       mode, seg_size, arch, scarab_binary, cluster_id,
                                        warmup, trace_warmup, trace_type, trace_file,
                                        env_vars, bincmd, client_bincmd):
 
     if mode == "memtrace":
-        command = f"run_memtrace_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{seg_size}\\\" \\\"{arch}\\\" \\\"{warmup}\\\" \\\"{trace_warmup}\\\" \\\"{trace_type}\\\" /home/{user}/simulations/{experiment}/scarab {cluster_id} {trace_file} {scarab_githash}"
+        command = f"run_memtrace_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{seg_size}\\\" \\\"{arch}\\\" \\\"{warmup}\\\" \\\"{trace_warmup}\\\" \\\"{trace_type}\\\" /home/{user}/simulations/{experiment}/scarab {cluster_id} {trace_file} {scarab_binary}"
     elif mode == "pt":
-        command = f"run_pt_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{arch}\\\" \\\"{warmup}\\\" /home/{user}/simulations/{experiment}/scarab {scarab_githash}"
+        command = f"run_pt_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{arch}\\\" \\\"{warmup}\\\" /home/{user}/simulations/{experiment}/scarab {scarab_binary}"
 
     elif mode == "exec":
-        command = f"run_exec_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{arch}\\\" /home/{user}/simulations/{experiment}/scarab {env_vars} {bincmd} {client_bincmd} {scarab_githash}"
+        command = f"run_exec_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{arch}\\\" /home/{user}/simulations/{experiment}/scarab {env_vars} {bincmd} {client_bincmd} {scarab_binary}"
     else:
         command = ""
 
@@ -599,12 +599,12 @@ def write_docker_command_to_file_run_by_root(user, local_uid, local_gid, workloa
 
 def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_home, experiment_name,
                                  docker_prefix, docker_container_name, traces_dir,
-                                 docker_home, githash, config_key, config, scarab_mode, scarab_githash,
+                                 docker_home, githash, config_key, config, scarab_mode, scarab_binary,
                                  seg_size, architecture, cluster_id, warmup, trace_warmup, trace_type,
                                  trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir):
     try:
         scarab_cmd = generate_single_scarab_run_command(user, workload_home, experiment_name, config_key, config,
-                                                        scarab_mode, seg_size, architecture, scarab_githash, cluster_id,
+                                                        scarab_mode, seg_size, architecture, scarab_binary, cluster_id,
                                                         warmup, trace_warmup, trace_type, trace_file, env_vars, bincmd, client_bincmd)
         with open(filename, "w") as f:
             f.write("#!/bin/bash\n")
