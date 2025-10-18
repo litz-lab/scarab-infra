@@ -9,8 +9,12 @@ import matplotlib.patches as mpatches
 import json
 import os
 import math
+from pathlib import Path
 
 from scripts import utilities
+
+def _infra_root() -> Path:
+    return Path(__file__).resolve().parent.parent
 
 def get_elem(l, i):
     return list(map(lambda x:x[i], l))
@@ -560,14 +564,13 @@ class stat_aggregator:
 
         known_stats = None
 
-        current_path = os.getcwd()
-        infra_dir = os.path.dirname(current_path)
+        infra_dir = _infra_root()
         top_simpoint_only = False
         if json_data["top_simpoint"]:
             top_simpoint_only = True
-            workload_db_path = f"{infra_dir}/workloads/workloads_top_simp.json"
+            workload_db_path = str(infra_dir / "workloads" / "workloads_top_simp.json")
         else:
-            workload_db_path = f"{infra_dir}/workloads/workloads_db.json"
+            workload_db_path = str(infra_dir / "workloads" / "workloads_db.json")
         workloads_data = utilities.read_descriptor_from_json(workload_db_path)
 
         experiment = None
@@ -1497,12 +1500,11 @@ class stat_aggregator:
         Returns:
             tuple: (weight, segment_id) if found, None if not found
         """
-        current_path = os.getcwd()
-        infra_dir = os.path.dirname(current_path)
+        infra_dir = _infra_root()
         if top_simpoint_only:
-            workload_db_path = f"{infra_dir}/workloads/workloads_top_simp.json"
+            workload_db_path = str(infra_dir / "workloads" / "workloads_top_simp.json")
         else:
-            workload_db_path = f"{infra_dir}/workloads/workloads_db.json"
+            workload_db_path = str(infra_dir / "workloads" / "workloads_db.json")
         workloads_data = utilities.read_descriptor_from_json(workload_db_path)
 
         try:
@@ -1534,12 +1536,11 @@ class stat_aggregator:
         Returns:
             list: List of cluster_ids if found, None if workload not found
         """
-        current_path = os.getcwd()
-        infra_dir = os.path.dirname(current_path)
+        infra_dir = _infra_root()
         if top_simpoint_only:
-            workload_db_path = f"{infra_dir}/workloads/workloads_top_simp.json"
+            workload_db_path = str(infra_dir / "workloads" / "workloads_top_simp.json")
         else:
-            workload_db_path = f"{infra_dir}/workloads/workloads_db.json"
+            workload_db_path = str(infra_dir / "workloads" / "workloads_db.json")
         workloads_data = utilities.read_descriptor_from_json(workload_db_path)
 
         try:

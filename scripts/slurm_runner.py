@@ -188,6 +188,33 @@ def check_available_nodes(dbg_lvl = 1):
     except Exception as e:
         raise e
 
+def list_cluster_nodes(dbg_lvl = 1):
+    try:
+        response = subprocess.check_output(["sinfo", "-h", "-N", "-o", "%N %T"]).decode("utf-8")
+    except subprocess.CalledProcessError as exc:
+        warn(f"Unable to query slurm nodes: {exc}", dbg_lvl)
+        return []
+    except Exception as exc:
+        warn(f"Unexpected error querying slurm nodes: {exc}", dbg_lvl)
+        return []
+
+    nodes = []
+    seen = set()
+    for line in response.splitlines():
+        parts = line.split()
+        if not parts:
+            continue
+        node = parts[0]
+        state = parts[1] if len(parts) > 1 else ""
+        if "[" in node:
+            warn(f"Skipping aggregated sinfo entry '{node}'", dbg_lvl)
+            continue
+        if node in seen:
+            continue
+        seen.add(node)
+        nodes.append((node, state))
+    return nodes
+
 # Get command to sbatch scarab runs. 1 core each, exclude nodes where container isn't running
 def generate_sbatch_command(excludes, experiment_dir):
     # If all nodes are usable, no need to exclude
@@ -546,6 +573,106 @@ def kill_jobs(user, job_name, docker_prefix_list, dbg_lvl = 2):
     else:
         print("No job found.")
 
+def clean_containers(user, job_name, docker_prefix_list, dbg_lvl = 2):
+    if not docker_prefix_list:
+        info("No docker images associated with descriptor; nothing to clean.", dbg_lvl)
+        return
+
+    node_entries = list_cluster_nodes(dbg_lvl)
+    if not node_entries:
+        warn("No slurm nodes discovered; skipping remote container cleanup.", dbg_lvl)
+        return
+
+    all_nodes = []
+    for node, state in node_entries:
+        normalized_state = state.lower()
+        if any(token in normalized_state for token in ("down", "drain", "fail", "maint", "unk")):
+            info(f"Skipping node {node} in state '{state}'.", dbg_lvl)
+            continue
+        all_nodes.append(node)
+
+    if not all_nodes:
+        warn("All discovered slurm nodes are unavailable; skipping remote container cleanup.", dbg_lvl)
+        return
+
+    patterns = [re.compile(fr"^{docker_prefix}_.*_{job_name}.*_.*_{user}$") for docker_prefix in docker_prefix_list]
+    removed_any = False
+
+    for node in all_nodes:
+        try:
+            result = run_on_node(
+                ["docker", "ps", "-a", "--format", "{{.Names}}"],
+                node=node,
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+        except subprocess.CalledProcessError as exc:
+            warn(f"Failed to list containers on {node}: {exc}", dbg_lvl)
+            continue
+        except Exception as exc:
+            warn(f"Error while listing containers on {node}: {exc}", dbg_lvl)
+            continue
+
+        container_names = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+        matching = []
+        for name in container_names:
+            if any(pattern.match(name) for pattern in patterns):
+                matching.append(name)
+
+        if not matching:
+            info(f"No containers to remove on {node}.", dbg_lvl)
+            continue
+
+        for container in matching:
+            try:
+                run_on_node(["docker", "rm", "-f", container], node=node, check=True)
+                print(f"Removed container {container} on {node}")
+                removed_any = True
+            except subprocess.CalledProcessError as exc:
+                err(f"Failed to remove container {container} on {node}: {exc}", dbg_lvl)
+            except Exception as exc:
+                err(f"Unexpected error removing container {container} on {node}: {exc}", dbg_lvl)
+
+    if not removed_any:
+        print("No matching containers found on any slurm node.")
+
+    clean_tmp_run_scripts(all_nodes, job_name, user, dbg_lvl)
+
+def clean_tmp_run_scripts(nodes, job_name, user, dbg_lvl = 2):
+    pattern = re.compile(rf".*_{re.escape(job_name)}_.*_{re.escape(user)}_tmp_run\.sh$")
+    for node in nodes:
+        try:
+            result = run_on_node(
+                ["bash", "-lc", "find . -maxdepth 1 -type f -name '*_tmp_run.sh' -print"],
+                node=node,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except Exception as exc:
+            warn(f"Failed to list temporary scripts on {node}: {exc}", dbg_lvl)
+            continue
+        files = []
+        for line in result.stdout.splitlines():
+            candidate = line.strip()
+            if not candidate:
+                continue
+            name = os.path.basename(candidate)
+            if pattern.match(name):
+                files.append(candidate)
+        if not files:
+            info(f"No temporary run scripts on {node}.", dbg_lvl)
+            continue
+        for script in files:
+            try:
+                run_on_node(["rm", "-f", script], node=node, check=True)
+                print(f"Removed {script} on {node}")
+            except subprocess.CalledProcessError as exc:
+                err(f"Failed to remove {script} on {node}: {exc}", dbg_lvl)
+            except Exception as exc:
+                err(f"Unexpected error removing {script} on {node}: {exc}", dbg_lvl)
+
 def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_path, dbg_lvl = 1):
     architecture = descriptor_data["architecture"]
     experiment_name = descriptor_data["experiment"]
@@ -751,6 +878,7 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
     scarab_build = descriptor_data["scarab_build"]
     traces_dir = descriptor_data["traces_dir"]
     trace_configs = descriptor_data["trace_configurations"]
+    application_dir = descriptor_data["application_dir"]
 
     docker_prefix_list = []
     for config in trace_configs:
@@ -760,7 +888,7 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
 
     tmp_files = []
 
-    def run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd, trace_type, drio_args, clustering_k):
+    def run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd, trace_type, drio_args, clustering_k, application_dir):
         try:
             docker_running = check_docker_image(available_slurm_nodes, image_name, githash, dbg_lvl)
             excludes = set(all_nodes) - set(docker_running)
@@ -781,7 +909,7 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
             write_trace_docker_command_to_file(user, local_uid, local_gid, docker_container_name, githash,
                                                workload, image_name, trace_name, traces_dir, docker_home,
                                                env_vars, binary_cmd, client_bincmd, simpoint_mode, drio_args,
-                                               clustering_k, filename, infra_dir)
+                                               clustering_k, filename, infra_dir, application_dir)
             tmp_files.append(filename)
 
             os.system(sbatch_cmd + filename)
@@ -833,7 +961,7 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
             clustering_k = config["clustering_k"]
 
             run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd,
-                             trace_type, drio_args, clustering_k)
+                             trace_type, drio_args, clustering_k, application_dir)
 
         # Clean up temp files
         for tmp in tmp_files:

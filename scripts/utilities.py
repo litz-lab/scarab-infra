@@ -6,9 +6,16 @@ import json
 import os
 import subprocess
 import re
-import docker
+import shlex
+import shutil
+from pathlib import Path
 import importlib
 import sys
+
+try:
+    import docker
+except ImportError:  # pragma: no cover - docker is optional for some commands
+    docker = None
 
 # Add the project root to sys.path for imports
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -17,6 +24,21 @@ if project_root not in sys.path:
 
 import workloads.extract_top_simpoints as extract_top_simpoints
 importlib.reload(extract_top_simpoints)
+
+DEFAULT_CONDA_ENV = "scarabinfra"
+_docker_client = None
+
+
+def get_docker_client():
+    global _docker_client
+    if docker is None:
+        return None
+    if _docker_client is None:
+        try:
+            _docker_client = docker.from_env()
+        except Exception:
+            _docker_client = None
+    return _docker_client
 
 # Print an error message if on right debugging level
 def err(msg: str, level: int):
@@ -466,7 +488,7 @@ def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_n
     clean_cmd = f"scripts/docker_cleaner.py --images {images}"
     if nodes:
         clean_cmd = clean_cmd + f" --nodes {nodes}"
-    if slurm_ids != None:
+    if slurm_ids:
         sbatch_cmd = f"sbatch --dependency=afterany:{','.join(slurm_ids)} -o {experiment_dir}/logs/stat_collection_job_%j.out "
         clean_cmd = sbatch_cmd + clean_cmd
     print(clean_cmd)
@@ -475,19 +497,54 @@ def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_n
     if dont_collect:
         return
 
-    if slurm_ids == []:
-        warn("No slurm dependencies provided. Skipping stat collection.", 2)
-        return
+    descriptor_abs = os.path.abspath(descriptor_path)
+    stats_output = os.path.join(experiment_dir, "collected_stats.csv")
+    stat_script = os.path.join(project_root, "scarab_stats", "stat_collector.py")
 
-    # Run stat autocollector
-    collect_stats_cmd =  f"scarab_stats/stat_collector.py -d {descriptor_path} "
-    collect_stats_cmd += f"-o {experiment_dir}/collected_stats.csv"
+    conda_cmd = shutil.which("conda")
+    python_executable = sys.executable
+    env_python = None
+    if conda_cmd:
+        conda_path = Path(conda_cmd).resolve()
+        base_dir = conda_path.parent
+        if base_dir.name in {"bin", "condabin"}:
+            base_prefix = base_dir.parent
+        else:
+            base_prefix = base_dir
+        candidate = base_prefix / "envs" / DEFAULT_CONDA_ENV / "bin" / "python"
+        if candidate.exists():
+            env_python = str(candidate)
 
-    # For slurm, add slurm dependencies
-    if slurm_ids != None:
+    tmp_dir = os.environ.get("TMPDIR")
+    if not tmp_dir or not os.path.isdir(tmp_dir):
+        tmp_dir = os.path.join(experiment_dir, "tmp")
+        os.makedirs(tmp_dir, exist_ok=True)
+
+    if env_python:
+        stat_runner_parts = [env_python, stat_script]
+    elif conda_cmd:
+        stat_runner_parts = [
+            conda_cmd,
+            "run",
+            "-n",
+            DEFAULT_CONDA_ENV,
+            "python",
+            stat_script,
+        ]
+    else:
+        stat_runner_parts = [python_executable, stat_script]
+
+    collect_parts = ["env", f"TMPDIR={tmp_dir}"] + stat_runner_parts + ["-d", descriptor_abs, "-o", stats_output]
+    collect_stats_cmd = shlex.join(collect_parts)
+
+    if slurm_ids:
         # afterok will not run if jobs fail. afterany used with stat_collector's error checking
-        sbatch_cmd = f"sbatch --dependency=afterany:{','.join(slurm_ids)} -o {experiment_dir}/logs/stat_collection_job_%j.out "
-        collect_stats_cmd = sbatch_cmd + collect_stats_cmd
+        log_path = os.path.join(experiment_dir, "logs", "stat_collection_job_%j.out")
+        sbatch_cmd = (
+            f"sbatch --dependency=afterany:{','.join(slurm_ids)} "
+            f"-o {shlex.quote(log_path)} --wrap={shlex.quote(collect_stats_cmd)}"
+        )
+        collect_stats_cmd = sbatch_cmd
 
     os.system(collect_stats_cmd)
 
@@ -605,7 +662,7 @@ def generate_single_trace_run_command(user, workload, image_name, trace_name, bi
 def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_container_name, githash,
                                        workload, image_name, trace_name, traces_dir, docker_home,
                                        env_vars, binary_cmd, client_bincmd, simpoint_mode, drio_args,
-                                       clustering_k, filename, infra_dir):
+                                       clustering_k, filename, infra_dir, application_dir):
     try:
         trace_cmd = generate_single_trace_run_command(user, workload, image_name, trace_name, binary_cmd, client_bincmd,
                                                       simpoint_mode, drio_args, clustering_k)
@@ -626,6 +683,7 @@ def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_contai
             command = command + f"-dit \
                     --name {docker_container_name} \
                     --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
+                    --mount type=bind,source={application_dir},target=/tmp_home/application,readonly=false \
                     {image_name}:{githash} \
                     /bin/bash\n"
             f.write(f"{command}")
@@ -691,7 +749,7 @@ def remove_docker_containers(docker_prefix_list, job_name, user, dbg_lvl):
     try:
         for docker_prefix in docker_prefix_list:
             pattern = re.compile(fr"^{docker_prefix}_.*_{job_name}.*_.*_{user}$")
-            dockers = subprocess.run(["docker", "ps", "--format", "{{.Names}}"], capture_output=True, text=True, check=True)
+            dockers = subprocess.run(["docker", "ps", "-a", "--format", "{{.Names}}"], capture_output=True, text=True, check=True)
             lines = dockers.stdout.strip().split("\n") if dockers.stdout else []
             matching_containers = [line for line in lines if pattern.match(line)]
 
@@ -704,6 +762,26 @@ def remove_docker_containers(docker_prefix_list, job_name, user, dbg_lvl):
     except subprocess.CalledProcessError as e:
         err(f"Error while removing containers: {e}")
         raise e
+
+def remove_tmp_run_scripts(base_path, job_name, user, dbg_lvl):
+    pattern = re.compile(rf".*_{re.escape(job_name)}_.*_{re.escape(user)}_tmp_run\.sh$")
+    base = Path(base_path)
+    if not base.is_dir():
+        return
+
+    removed_any = False
+    for script_path in base.glob("*_tmp_run.sh"):
+        if not pattern.match(script_path.name):
+            continue
+        try:
+            script_path.unlink()
+            info(f"Removed temporary run script {script_path}", dbg_lvl)
+            removed_any = True
+        except OSError as exc:
+            warn(f"Failed to remove temporary run script {script_path}: {exc}", dbg_lvl)
+
+    if not removed_any and dbg_lvl >= 3:
+        info(f"No temporary run scripts found in {base}", dbg_lvl)
 
 def get_image_list(simulations, workloads_data):
     image_list = []
@@ -903,7 +981,7 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
             os.system(f"mkdir -p {target_traces_path}/traces/whole")
             os.system(f"mkdir -p {target_traces_path}/traces/simp")
             trace_clustering_info = read_descriptor_from_json(os.path.join(trace_dir, workload, "trace_clustering_info.json"), dbg_lvl)
-            if config['trace_type'] != "iterative_trace":
+            if config['trace_type'] == "trace_then_cluster":
                 os.system(f"cp -r {trace_dir}/{workload}/traces_simp/* {target_traces_path}/traces/simp/")
                 os.system(f"mkdir -p {target_traces_path}/traces/whole/")
                 whole_trace_dir = trace_clustering_info['dr_folder']
@@ -911,7 +989,12 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
                 subprocess.run([f"cp {trace_dir}/{workload}/traces/whole/{whole_trace_dir}/trace/{trace_file} {target_traces_path}/traces/whole/"], check=True, shell=True)
                 memtrace_dict['warmup'] = 10000000
                 memtrace_dict['whole_trace_file'] = trace_clustering_info['trace_file']
-            else:
+            elif config['trace_type'] == "cluster_then_trace":
+                os.system(f"cp -r {trace_dir}/{workload}/traces_simp/trace/* {target_traces_path}/traces/simp/")
+                memtrace_dict['warmup'] = 10000000
+                memtrace_dict['whole_trace_file'] = None
+                print("cluster_then_trace doesn't have a whole trace file.")
+            else: # iterative_trace
                 largest_traces = trace_clustering_info['trace_file']
                 for trace_path in largest_traces:
                     print("Processing trace:", trace_path)
@@ -956,20 +1039,31 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
         raise e
 
 def is_container_running(container_name, dbg_lvl):
-    client = docker.from_env()
+    client = get_docker_client()
+    if client is None:
+        warn("Docker client unavailable; cannot inspect containers.", dbg_lvl)
+        return False
     try:
         container = client.containers.get(container_name)
         info(f"container {container_name} is already running.", dbg_lvl)
         return container.status == "running"
-    except docker.errors.NotFound:
+    except Exception as exc:
+        warn(f"Failed to query container {container_name}: {exc}", dbg_lvl)
         return False
 
 def count_interactive_shells(container_name, dbg_lvl):
-    client = docker.APIClient()
+    if docker is None:
+        warn("Docker client unavailable; assuming 0 interactive shells.", dbg_lvl)
+        return 0
     try:
-        container = client.inspect_container(container_name)
+        client_api = docker.APIClient()
+    except Exception as exc:
+        warn(f"Docker API client unavailable: {exc}", dbg_lvl)
+        return 0
+    try:
+        container = client_api.inspect_container(container_name)
         container_id = container['Id']
-        processes = client.top(container_id)
+        processes = client_api.top(container_id)
 
         shell_count = 0
         for process in processes['Processes']:
@@ -979,11 +1073,8 @@ def count_interactive_shells(container_name, dbg_lvl):
                 shell_count += 1
         info(f"{shell_count} shells are running for {container_name}.", dbg_lvl)
         return shell_count
-    except docker.errors.NotFound:
-        print(f"Container '{container_name}' not found.")
-        return 0
-    except Exception as e:
-        print(f"Error: {e}")
+    except Exception as exc:
+        print(f"Error checking shells for '{container_name}': {exc}")
         return 0
 
 def image_exist(image_tag, node=None):

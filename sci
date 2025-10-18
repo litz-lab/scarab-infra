@@ -14,9 +14,9 @@ import re
 import shutil
 import subprocess
 import sys
-import tarfile
+import time
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 try:
     from packaging.specifiers import SpecifierSet
@@ -26,15 +26,15 @@ except ImportError:  # pragma: no cover - packaging is usually available
     Version = None
 
 REPO_ROOT = Path(__file__).resolve().parent
-DEFAULT_TRACE_URL = "https://drive.google.com/uc?id=1tfKL7wYK1mUqpCH8yPaPVvxk2UIAJrOX"
-TRACE_ARCHIVE_NAME = "simpoint_traces.tar.gz"
-TRACE_DIR_NAME = "simpoint_traces"
 ENV_NAME = "scarabinfra"
 MINICONDA_URL = "https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh"
 OPTIONAL_TITLES = {
     "Optional Slurm installation",
     "Optional ghcr.io login",
 }
+
+COOKIES_CACHE_PATH = Path.home() / ".cache" / "gdown" / "cookies.txt"
+_COOKIES_STATUS = {"prompted": False, "skipped": False}
 
 
 def load_infra_utilities():
@@ -243,6 +243,161 @@ def confirm(prompt: str, *, default: bool) -> bool:
         print("Please respond with 'y' or 'n'.")
 
 
+def format_size(num_bytes: int) -> str:
+    units = ["B", "KB", "MB", "GB", "TB", "PB"]
+    value = float(num_bytes)
+    unit = 0
+    while value >= 1024 and unit < len(units) - 1:
+        value /= 1024
+        unit += 1
+    if unit == 0:
+        return f"{int(value)} {units[unit]}"
+    return f"{value:.1f} {units[unit]}"
+
+
+def format_duration(seconds: float) -> str:
+    if seconds < 1:
+        return "<1s"
+    minutes, sec = divmod(int(seconds + 0.5), 60)
+    if minutes == 0:
+        return f"{sec}s"
+    hours, minutes = divmod(minutes, 60)
+    if hours == 0:
+        return f"{minutes}m {sec}s"
+    return f"{hours}h {minutes}m"
+
+
+def load_workloads_file(filename: str) -> Dict[str, Any]:
+    path = REPO_ROOT / "workloads" / filename
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            return json.load(handle)
+    except FileNotFoundError as exc:
+        raise StepError(f"Missing workloads file: {path}") from exc
+    except json.JSONDecodeError as exc:
+        raise StepError(f"Failed to parse {path}: {exc}") from exc
+
+
+def ensure_gdown_cookies(*, force_prompt: bool = False, initial_prompt: bool = False) -> bool:
+    global _COOKIES_STATUS
+    target = COOKIES_CACHE_PATH
+    if target.exists():
+        info(f"Using browser cookies at {target}")
+        _COOKIES_STATUS["prompted"] = True
+        _COOKIES_STATUS["skipped"] = False
+        return True
+
+    if _COOKIES_STATUS["skipped"]:
+        return False
+
+    if not sys.stdin.isatty():
+        info(
+            f"gdown requires an authenticated cookies file at {target}. Upload cookies.txt to that path and rerun."
+        )
+        _COOKIES_STATUS["skipped"] = True
+        return False
+
+    if _COOKIES_STATUS["prompted"] and not force_prompt:
+        return False
+
+    _COOKIES_STATUS["prompted"] = True
+    header = (
+        "Google Drive downloads require an authenticated cookies.txt file."
+        if initial_prompt
+        else "Google Drive downloads may require authentication on headless servers."
+    )
+    print(
+        header
+        + f"\nUpload your exported cookies.txt to this machine and enter its path to copy it into {target}."
+        + "\nType 'skip' to continue without cookies (downloads may fail)."
+    )
+    while True:
+        user_path = input("Path to cookies.txt: ").strip()
+        if not user_path:
+            print("Please enter a path or type 'skip'.")
+            continue
+        if user_path.lower() in {"skip", "s"}:
+            info("Skipping cookie setup; Google Drive may block some downloads.")
+            _COOKIES_STATUS["skipped"] = True
+            return False
+        source = Path(user_path).expanduser()
+        if not source.is_file():
+            print(f"File not found: {source}. Try again or type 'skip'.")
+            continue
+        try:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, target)
+        except OSError as exc:
+            print(f"Failed to install cookies: {exc}. Try again or type 'skip'.")
+            continue
+        info(f"Stored cookies for gdown at {target}")
+        _COOKIES_STATUS["skipped"] = False
+        return True
+
+
+def build_gdown_command(file_id: str, output_path: Path, *, use_conda: bool) -> List[str]:
+    url = f"https://drive.google.com/uc?id={file_id}"
+    cmd: List[str] = []
+    if use_conda:
+        cmd.extend([
+            "conda",
+            "run",
+            "-n",
+            ENV_NAME,
+            "python",
+            "-m",
+            "gdown",
+        ])
+    else:
+        cmd.append("gdown")
+
+    cmd.append("--fuzzy")
+    cmd.extend([url, "-O", str(output_path)])
+    return cmd
+
+
+def download_trace_file(file_id: str, output_path: Path) -> None:
+    commands = [
+        build_gdown_command(file_id, output_path, use_conda=True),
+    ]
+    if shutil.which("gdown"):
+        commands.append(build_gdown_command(file_id, output_path, use_conda=False))
+    last_exc: Optional[StepError] = None
+    attempted_cookie_setup = False
+    while True:
+        retry_requested = False
+        for cmd in commands:
+            try:
+                run_command(cmd)
+                return
+            except StepError as exc:
+                last_exc = exc
+                if not attempted_cookie_setup:
+                    attempted_cookie_setup = True
+                    if ensure_gdown_cookies():
+                        info("Retrying download using browser cookies.")
+                        retry_requested = True
+                        break
+        if retry_requested:
+            continue
+        break
+    if last_exc:
+        message = str(last_exc)
+        if "Cannot retrieve the public link" in message or "Failed to retrieve file url" in message:
+            if COOKIES_CACHE_PATH.exists():
+                message += (
+                    "\nGoogle Drive still refused the download even with cookies. "
+                    "Verify that the trace is shared with the account used to export cookies, "
+                    "or try again later when the quota resets."
+                )
+            else:
+                message += (
+                    "\nInstall cookies.txt exported from a browser session with access and rerun."
+                )
+        raise StepError(message)
+    raise StepError("Unknown gdown failure")
+
+
 def conda_env_exists() -> bool:
     try:
         output = run_command(["conda", "env", "list", "--json"], capture=True)
@@ -347,6 +502,49 @@ def ensure_conda_env(args: argparse.Namespace) -> Tuple[bool, str]:
         return True, "Created conda environment 'scarabinfra'."
 
     return True, "Conda environment already up to date."
+
+
+def ensure_conda_shell_hook(_: argparse.Namespace) -> Tuple[bool, str]:
+    conda_bin = shutil.which("conda")
+    if not conda_bin:
+        return False, "conda command not found."
+    try:
+        base_output = run_command(["conda", "info", "--base"], capture=True)
+    except StepError as exc:
+        return False, f"Failed to determine conda base prefix: {exc}"
+    conda_base = (base_output or "").strip()
+    if not conda_base:
+        return False, "conda info --base returned an empty path."
+    hook_path = Path(conda_base) / "etc" / "profile.d" / "conda.sh"
+    if not hook_path.exists():
+        return False, f"Expected conda hook at {hook_path}."
+
+    bashrc_path = Path.home() / ".bashrc"
+    if bashrc_path.exists():
+        try:
+            existing = bashrc_path.read_text(encoding="utf-8")
+        except OSError as exc:
+            return False, f"Unable to read {bashrc_path}: {exc}"
+        if (
+            "conda shell.bash hook" in existing
+            or "conda initialize" in existing
+            or ">>> scarab-infra conda setup >>>" in existing
+        ):
+            return True, f"Conda shell hook already configured in {bashrc_path}."
+
+    snippet = (
+        "\n# >>> scarab-infra conda setup >>>\n"
+        f'if [ -x "{conda_bin}" ]; then\n'
+        f'    eval "$("{conda_bin}" shell.bash hook)"\n'
+        "fi\n"
+        "# <<< scarab-infra conda setup <<<\n"
+    )
+    try:
+        with bashrc_path.open("a", encoding="utf-8") as handle:
+            handle.write(snippet)
+    except OSError as exc:
+        return False, f"Failed to update {bashrc_path}: {exc}"
+    return True, f"Added conda shell hook to {bashrc_path}."
 
 
 def validate_conda_env(_: argparse.Namespace) -> Tuple[bool, str]:
@@ -599,53 +797,261 @@ def ensure_traces(_: argparse.Namespace) -> Tuple[bool, str]:
         trace_home.mkdir(parents=True, exist_ok=True)
     except OSError as exc:
         return False, f"Could not create trace directory {trace_home}: {exc}"
-    extracted_dir = trace_home / TRACE_DIR_NAME
-    if extracted_dir.exists():
-        return True, f"Trace directory already exists at {extracted_dir}"
-    archive = trace_home / TRACE_ARCHIVE_NAME
-    if not archive.exists():
-        if not confirm(
-            f"SimPoint traces not found under {trace_home}. Download now?",
-            default=False,
-        ):
-            return True, "Skipped trace download (user opted to handle manually)."
-        download_cmd = [
-            "conda",
-            "run",
-            "-n",
-            ENV_NAME,
-            "python",
-            "-m",
-            "gdown",
-            "--fuzzy",
-            DEFAULT_TRACE_URL,
-            "-O",
-            str(archive),
-        ]
-        try:
-            run_command(download_cmd)
-        except StepError as exc:
-            if shutil.which("gdown"):
-                try:
-                    run_command(
-                        [
-                            "gdown",
-                            "--fuzzy",
-                            DEFAULT_TRACE_URL,
-                            "-O",
-                            str(archive),
-                        ]
-                    )
-                except StepError as fallback_exc:
-                    return False, f"Failed to download traces: {fallback_exc}"
-            else:
-                return False, f"Failed to download traces: {exc}"
+
+    workloads_db = load_workloads_file("workloads_db.json")
     try:
-        with tarfile.open(archive, "r:gz") as tar:
-            tar.extractall(path=trace_home)
-    except (tarfile.TarError, OSError) as exc:
-        return False, f"Failed to extract {archive}: {exc}"
-    return True, f"Installed traces under {extracted_dir}"
+        workloads_top = load_workloads_file("workloads_top_simp.json")
+    except StepError:
+        workloads_top = {}
+
+    use_top_requested = confirm(
+        "Download only the top 3 simpoints from workloads_top_simp.json? (Choose 'No' for all simpoints)",
+        default=True,
+    )
+    use_top_three = bool(workloads_top) and use_top_requested
+    if use_top_requested and not workloads_top:
+        info("Top-3 simpoint metadata not found; defaulting to all simpoints from workloads_db.json.")
+
+    source_data: Dict[str, Any] = workloads_top if use_top_three else workloads_db
+    if not isinstance(source_data, dict) or not source_data:
+        return True, "No workloads defined for trace download."
+
+    ensure_gdown_cookies(force_prompt=True, initial_prompt=True)
+
+    downloads = 0
+    existing = 0
+    missing_count = 0
+    missing_examples: List[str] = []
+    undownloadable_workloads: Dict[str, int] = {}
+    failures: List[str] = []
+
+    excluded_suites = {"deprecated", "dc_java", "fleetbench", "mongo-perf"}
+    for suite, subsuites in source_data.items():
+        if suite in excluded_suites:
+            info(f"Skipping suite '{suite}' by default.")
+            continue
+        if not isinstance(subsuites, dict):
+            continue
+        db_subsuites = workloads_db.get(suite)
+        if not isinstance(db_subsuites, dict):
+            failures.append(f"Suite '{suite}' missing from workloads_db.json")
+            continue
+
+        suite_plan: Dict[str, List[Tuple[str, List[Dict[str, Any]]]]] = {}
+        suite_missing: Dict[str, int] = {}
+        suite_size_bytes = 0
+
+        print_heading(f"Trace suite: {suite}")
+
+        for subsuite, workloads in subsuites.items():
+            if not isinstance(workloads, dict):
+                continue
+            db_workloads = db_subsuites.get(subsuite)
+            if not isinstance(db_workloads, dict):
+                failures.append(
+                    f"Subsuite '{suite}/{subsuite}' missing from workloads_db.json"
+                )
+                continue
+            subsuite_plan: List[Tuple[str, List[Dict[str, Any]]]] = []
+            subsuite_missing = False
+            for workload, workload_payload in workloads.items():
+                if not isinstance(workload_payload, dict):
+                    continue
+                db_workload_entry = db_workloads.get(workload)
+                if not isinstance(db_workload_entry, dict):
+                    failures.append(
+                        f"Workload '{suite}/{subsuite}/{workload}' missing from workloads_db.json"
+                    )
+                    continue
+                all_simpoints = db_workload_entry.get("simpoints", [])
+                if not isinstance(all_simpoints, list) or not all_simpoints:
+                    continue
+                if use_top_three:
+                    top_simpoints = workload_payload.get("simpoints", [])
+                    cluster_ids = {
+                        simpoint.get("cluster_id")
+                        for simpoint in top_simpoints
+                        if isinstance(simpoint, dict) and simpoint.get("cluster_id") is not None
+                    }
+                    if not cluster_ids:
+                        continue
+                    selected_simpoints = [
+                        simpoint
+                        for simpoint in all_simpoints
+                        if isinstance(simpoint, dict)
+                        and simpoint.get("cluster_id") in cluster_ids
+                    ]
+                    missing_clusters = cluster_ids - {
+                        simpoint.get("cluster_id")
+                        for simpoint in selected_simpoints
+                    }
+                    if missing_clusters:
+                        failures.append(
+                            f"Missing drive_id mapping for {suite}/{subsuite}/{workload}: {sorted(missing_clusters)}"
+                        )
+                        continue
+                else:
+                    selected_simpoints = [
+                        simpoint for simpoint in all_simpoints if isinstance(simpoint, dict)
+                    ]
+
+                missing_ids_for_workload = [
+                    simpoint.get("cluster_id")
+                    for simpoint in selected_simpoints
+                    if not simpoint.get("drive_id")
+                ]
+                workload_key = f"{suite}/{subsuite}/{workload}"
+                if missing_ids_for_workload:
+                    missing_count += len(missing_ids_for_workload)
+                    suite_missing[workload_key] = len(missing_ids_for_workload)
+                    subsuite_missing = True
+                    for cid in missing_ids_for_workload:
+                        if len(missing_examples) < 5:
+                            missing_examples.append(f"{workload_key}:{cid}")
+                    continue
+
+                subsuite_plan.append((workload, selected_simpoints))
+                for simpoint in selected_simpoints:
+                    size_value = simpoint.get("size_bytes")
+                    if isinstance(size_value, int) and size_value > 0:
+                        suite_size_bytes += size_value
+
+            if subsuite_plan:
+                suite_plan[subsuite] = subsuite_plan
+            elif subsuite_missing:
+                info(
+                    f"No downloadable traces for subsuite '{suite}/{subsuite}'; add drive_id entries to enable."
+                )
+
+        if suite_missing:
+            for key, count in suite_missing.items():
+                undownloadable_workloads[key] = count
+
+        prompt = f"Download traces for suite '{suite}'"
+        if suite_size_bytes > 0:
+            prompt += f" (~{format_size(suite_size_bytes)})"
+
+        if not suite_plan:
+            print(f"{prompt}? [skipped - no drive_id entries]")
+            info(
+                f"Add drive_id entries for suite '{suite}' to download its traces for future use."
+            )
+            continue
+
+        if suite_missing:
+            info(
+                f"Suite '{suite}' has workload(s) without drive_id entries; they will be skipped until populated."
+            )
+
+        prompt += "?"
+        if suite == "spec2017":
+            default_choice = not suite_missing
+        else:
+            default_choice = False
+        if not confirm(prompt, default=default_choice):
+            info(f"Skipped downloads for suite '{suite}' by user choice.")
+            continue
+
+        suite_downloaded_bytes = 0
+        suite_downloads = 0
+        suite_existing = 0
+        suite_start = time.monotonic()
+        for subsuite, workloads in suite_plan.items():
+            subsuite_prompt = f"  Download subsuite '{suite}/{subsuite}'?"
+            subsuite_size = 0
+            for _, selected_simpoints in workloads:
+                for simpoint in selected_simpoints:
+                    size_value = simpoint.get("size_bytes")
+                    if isinstance(size_value, int) and size_value > 0:
+                        subsuite_size += size_value
+            if subsuite_size > 0:
+                subsuite_prompt += f" (~{format_size(subsuite_size)})"
+            if not confirm(subsuite_prompt + "", default=True):
+                info(f"Skipped subsuite '{suite}/{subsuite}'.")
+                continue
+
+            for workload, selected_simpoints in workloads:
+                for simpoint in selected_simpoints:
+                    cluster_id = simpoint.get("cluster_id")
+                    file_id = simpoint.get("drive_id")
+                    if cluster_id is None or not file_id:
+                        continue
+                    target_path = (
+                        trace_home
+                        / suite
+                        / subsuite
+                        / workload
+                        / "traces"
+                        / "simp"
+                        / f"{cluster_id}.zip"
+                    )
+                    if target_path.exists():
+                        existing += 1
+                        suite_existing += 1
+                        continue
+                    try:
+                        target_path.parent.mkdir(parents=True, exist_ok=True)
+                    except OSError as exc:
+                        failures.append(f"Failed to create {target_path.parent}: {exc}")
+                        continue
+                    try:
+                        download_trace_file(str(file_id), target_path)
+                    except StepError as exc:
+                        failures.append(
+                            f"Download failed for {suite}/{subsuite}/{workload}:{cluster_id}: {exc}"
+                        )
+                        continue
+                    downloads += 1
+                    suite_downloads += 1
+                    size_value = simpoint.get("size_bytes")
+                    if isinstance(size_value, int) and size_value > 0:
+                        suite_downloaded_bytes += size_value
+
+        elapsed = time.monotonic() - suite_start
+        summary_details: List[str] = []
+        if suite_downloads:
+            download_detail = f"{suite_downloads} new trace(s)"
+            if suite_downloaded_bytes > 0:
+                download_detail += f" (~{format_size(suite_downloaded_bytes)})"
+            summary_details.append(download_detail)
+        else:
+            summary_details.append("no new downloads")
+        if suite_existing:
+            summary_details.append(f"{suite_existing} already present")
+        summary = f"[{suite}] Completed in {format_duration(elapsed)}"
+        if summary_details:
+            summary += "; " + "; ".join(summary_details)
+        info(summary + ".")
+
+    if failures:
+        return False, failures[0]
+
+    skipped_msg = ""
+    if missing_count:
+        sample = ", ".join(missing_examples)
+        extra = " (and more)" if missing_count > len(missing_examples) else ""
+        skipped_msg = (
+            f" Skipped {missing_count} trace(s) missing drive_id: {sample}{extra}."
+        )
+    if undownloadable_workloads:
+        workload_list = list(undownloadable_workloads.keys())
+        example_str = ", ".join(workload_list[:5])
+        extra = " (and more)" if len(workload_list) > 5 else ""
+        info(
+            "Workload(s) skipped due to missing drive_id entries: "
+            + example_str
+            + extra
+        )
+
+    if downloads and existing:
+        return True, f"Downloaded {downloads} trace(s); {existing} already present." + skipped_msg
+    if downloads:
+        return True, f"Downloaded {downloads} trace(s)." + skipped_msg
+    if existing:
+        return True, f"All requested traces already present ({existing})." + skipped_msg
+    if skipped_msg:
+        return True, skipped_msg.strip()
+    return True, "No traces selected for download."
 
 
 def ensure_conda_installed(_: argparse.Namespace) -> Tuple[bool, str]:
@@ -1050,11 +1456,28 @@ def maybe_docker_login(_: argparse.Namespace) -> Tuple[bool, str]:
 
 
 def run_init(args: argparse.Namespace) -> int:
+    if sys.stdin.isatty():
+        print_heading("Prepare Google Drive cookies.txt")
+        info(
+            "Google limits bulk downloads from shared folders; providing browser cookies lets gdown reuse your session when Drive throttles direct access. "
+            "If you can still open the files in your browser, exporting cookies.txt may unblock automated downloads."
+        )
+        info(
+            "For users who need to download traces from the shared Google Drive, prepare cookies.txt before continuing:"
+            "\n1. On your local machine, open the shared folder in a logged-in browser session."
+            "\n2. Install a cookies export extension (e.g. 'Get cookies.txt LOCALLY')."
+            "\n3. Use the extension's 'Export All Cookies' button to save the folder cookies as cookies.txt."
+            "\n4. Upload cookies.txt to this server before continuing (for example: scp cookies.txt user@host:~/.cache/gdown/cookies.txt)."
+        )
+        if not confirm("Ready to continue with the setup now?", default=True):
+            print("Re-run `./sci --init` after cookies.txt is uploaded.")
+            return 0
     steps = [
         ("Install Docker", ensure_docker),
         ("Configure Docker permissions", configure_docker_permissions),
         ("Install Miniconda", ensure_conda_installed),
         ("Create scarabinfra conda env", ensure_conda_env),
+        ("Configure conda shell hook", ensure_conda_shell_hook),
         ("Validate conda env activation", validate_conda_env),
         ("Ensure GitHub SSH key", ensure_ssh_key),
         ("Download simpoint traces", ensure_traces),
@@ -1083,6 +1506,124 @@ def run_init(args: argparse.Namespace) -> int:
             print(f"- {title}")
         print("Resolve the issues above and rerun `sci --init`.")
         return 1
+    return 0
+
+
+def run_visualize(descriptor_name: str) -> int:
+    try:
+        _, descriptor = read_descriptor(descriptor_name)
+    except StepError as exc:
+        print(exc)
+        return 1
+
+    if descriptor.get("descriptor_type") != "simulation":
+        print("Visualization only supports simulation descriptors.")
+        return 1
+
+    root_dir = descriptor.get("root_dir")
+    experiment_name = descriptor.get("experiment")
+    if not root_dir or not experiment_name:
+        print("Descriptor must include 'root_dir' and 'experiment'.")
+        return 1
+
+    stats_path = Path(root_dir) / "simulations" / experiment_name / "collected_stats.csv"
+    if not stats_path.is_file():
+        print(f"No collected stats found at {stats_path}. Run the stat collector first.")
+        return 1
+
+    try:
+        import scarab_stats
+    except ImportError as exc:
+        print(f"Failed to import scarab_stats: {exc}")
+        return 1
+
+    try:
+        importlib.reload(scarab_stats)
+        from scarab_stats import stat_aggregator
+    except ImportError as exc:
+        print(f"Failed to access stat_aggregator: {exc}")
+        return 1
+
+    aggregator = stat_aggregator()
+    try:
+        experiment = aggregator.load_experiment_csv(str(stats_path))
+    except Exception as exc:  # pragma: no cover - depends on user data
+        print(f"Failed to load stats from {stats_path}: {exc}")
+        return 1
+
+    try:
+        workloads = sorted(experiment.get_workloads())
+        configs = sorted(experiment.get_configurations())
+    except Exception as exc:  # pragma: no cover - depends on user data
+        print(f"Failed to inspect experiment data: {exc}")
+        return 1
+
+    if not workloads:
+        print("No workloads found in the stats file.")
+        return 1
+    if not configs:
+        print("No configurations found in the stats file.")
+        return 1
+
+    stats_to_plot = descriptor.get("visualize_counters") or ["Periodic_IPC"]
+    if not isinstance(stats_to_plot, list) or not stats_to_plot:
+        print("Descriptor field 'visualize_counters' must be a non-empty list when provided.")
+        return 1
+
+    stat_names = [str(stat) for stat in stats_to_plot]
+    baseline = configs[0]
+
+    def safe_filename(stem: str) -> str:
+        return "".join(c if c.isalnum() or c in {"-", "_"} else "_" for c in stem)
+
+    print(f"Using stats file: {stats_path}")
+    print(f"Workloads: {len(workloads)}; Configurations: {len(configs)}; Speedup baseline: {baseline}")
+
+    available_stats = set()
+    try:
+        available_stats = set(experiment.get_stats())
+    except Exception:
+        pass
+
+    for stat_name in stat_names:
+        if available_stats and stat_name not in available_stats:
+            print(f"Skipping '{stat_name}': not present in collected stats.")
+            continue
+
+        stat_safe = safe_filename(stat_name)
+        baseline_safe = safe_filename(baseline)
+        ipc_output = stats_path.with_name(f"{stat_safe}_ipc.png")
+        speedup_output = stats_path.with_name(f"{stat_safe}_speedup_vs_{baseline_safe}.png")
+
+        print(f"Plotting '{stat_name}' → {ipc_output.name}, {speedup_output.name}")
+
+        try:
+            aggregator.plot_workloads(
+                experiment,
+                [stat_name],
+                workloads,
+                configs,
+                title="",
+                y_label=stat_name,
+                x_label="Workloads",
+                average=True,
+                plot_name=str(ipc_output),
+            )
+            aggregator.plot_workloads_speedup(
+                experiment,
+                [stat_name],
+                workloads,
+                configs,
+                speedup_baseline=baseline,
+                title="",
+                y_label=f"{stat_name} Speedup (%)",
+                x_label="Workloads",
+                average=True,
+                plot_name=str(speedup_output),
+            )
+        except Exception as exc:  # pragma: no cover - matplotlib backend dependent
+            print(f"Failed to generate plots for '{stat_name}': {exc}")
+
     return 0
 
 
@@ -1130,6 +1671,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Run simulations defined in json/<DESCRIPTOR>.json.",
     )
     parser.add_argument(
+        "--visualize",
+        metavar="DESCRIPTOR",
+        help="Plot IPC and speedup for collected stats in json/<DESCRIPTOR>.json.",
+    )
+    parser.add_argument(
         "--kill",
         metavar="DESCRIPTOR",
         help="Kill active simulations for json/<DESCRIPTOR>.json.",
@@ -1158,6 +1704,7 @@ def main() -> int:
         bool(args.interactive),
         bool(args.trace),
         bool(args.sim),
+        bool(args.visualize),
         bool(args.kill),
         bool(args.status),
         bool(args.clean),
@@ -1172,6 +1719,7 @@ def main() -> int:
         args.interactive,
         args.trace,
         args.sim,
+        args.visualize,
         args.kill,
         args.status,
         args.clean,
@@ -1254,6 +1802,8 @@ def main() -> int:
         except (StepError, RuntimeError) as exc:
             print(exc)
             return 1
+    if args.visualize:
+        return run_visualize(args.visualize)
     if args.kill:
         try:
             handle_descriptor_action(args.kill, "kill")
