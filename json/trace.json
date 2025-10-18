@@ -5,6 +5,8 @@
   "workload_manager":"manual",
   "_root_dir":"Root directory mounted into the docker container home, for instance, $tmp_dir as a root home directory",
   "root_dir":"/home/$USER",
+  "_application_dir":"The path to the benchmark application directory used for tracing or simulation. This directory replaces ISO-based setups by mounting a local application folder (e.g., SPEC CPU2017) into the container during image build or runtime.",
+  "application_dir":"/home/$USER/applications",
   "_scarab_path":"The path to the scarab repository that contains the scarab binary used to run the experiment.",
   "scarab_path":"/home/$USER/allbench_home/scarab",
   "_scarab_build":"scarab build mode. 'opt', 'dbg', or null",

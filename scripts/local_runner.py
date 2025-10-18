@@ -289,6 +289,7 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
     scarab_build = descriptor_data["scarab_build"]
     traces_dir = descriptor_data["traces_dir"]
     trace_configs = descriptor_data["trace_configurations"]
+    application_dir = descriptor_data["application_dir"]
 
     docker_prefix_list = []
     for config in trace_configs:
@@ -302,7 +303,7 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
     tmp_files = []
     log_files = []
 
-    def run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd, trace_type, drio_args, clustering_k, infra_dir):
+    def run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd, trace_type, drio_args, clustering_k, infra_dir, application_dir):
         try:
             if trace_type == "cluster_then_trace":
                 simpoint_mode = "cluster_then_trace"
@@ -318,7 +319,7 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
             write_trace_docker_command_to_file(user, local_uid, local_gid, docker_container_name, githash,
                                                workload, image_name, trace_name, traces_dir, docker_home,
                                                env_vars, binary_cmd, client_bincmd, simpoint_mode, drio_args,
-                                               clustering_k, filename, infra_dir)
+                                               clustering_k, filename, infra_dir, application_dir)
             tmp_files.append(filename)
             command = '/bin/bash ' + filename
             subprocess.run(["mkdir", "-p", f"{docker_home}/simpoint_flow/{trace_name}/{workload}"], check=True, capture_output=True, text=True)
@@ -365,7 +366,7 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
             clustering_k = config["clustering_k"]
 
             run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd,
-                             trace_type, drio_args, clustering_k, infra_dir)
+                             trace_type, drio_args, clustering_k, infra_dir, application_dir)
 
         print("Wait processes...")
         for p in processes:

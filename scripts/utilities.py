@@ -566,7 +566,7 @@ def generate_single_trace_run_command(user, workload, image_name, trace_name, bi
 def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_container_name, githash,
                                        workload, image_name, trace_name, traces_dir, docker_home,
                                        env_vars, binary_cmd, client_bincmd, simpoint_mode, drio_args,
-                                       clustering_k, filename, infra_dir):
+                                       clustering_k, filename, infra_dir, application_dir):
     try:
         trace_cmd = generate_single_trace_run_command(user, workload, image_name, trace_name, binary_cmd, client_bincmd,
                                                       simpoint_mode, drio_args, clustering_k)
@@ -587,6 +587,7 @@ def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_contai
             command = command + f"-dit \
                     --name {docker_container_name} \
                     --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
+                    --mount type=bind,source={application_dir},target=/tmp_home/application,readonly=false \
                     {image_name}:{githash} \
                     /bin/bash\n"
             f.write(f"{command}")
