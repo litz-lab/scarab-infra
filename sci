@@ -862,7 +862,7 @@ def run_build_scarab(descriptor_name: str) -> int:
     return 0
 
 
-def run_build_image(workload_group: str) -> int:
+def run_build_docker_image(workload_group: str) -> int:
     if not workload_group:
         raise StepError("Provide a workload group name (see ./sci --list).")
     workloads_dir = REPO_ROOT / "workloads"
@@ -871,8 +871,11 @@ def run_build_image(workload_group: str) -> int:
         raise StepError(
             f"Workload group '{workload_group}' not found under {workloads_dir}."
         )
+
+    print_heading("Build Docker Image")
     if not shutil.which("docker"):
-        raise StepError("Docker CLI not available; install Docker before building images.")
+        info("Docker not installed.")
+        return -1
 
     # Ensure no local edits to shared docker context dirs.
     status_output = run_command(
@@ -909,7 +912,6 @@ def run_build_image(workload_group: str) -> int:
         return {line.strip() for line in (output or "").splitlines() if line.strip()}
 
     images = current_images()
-    print_heading("Build Docker Image")
     info(f"Workload group: {workload_group}")
     info(f"Target tag: {current_ref}")
 
@@ -973,25 +975,77 @@ def run_build_image(workload_group: str) -> int:
 
     info(f"Docker image ready: {current_ref}")
 
+    return 0
+
+def run_build_singularity_image(workload_group: str) -> int:
+    print_heading("Build Singularity Image")
+
+    if not shutil.which("singularity"):
+        info("Singularity not installed.")
+        return -1
+
+    githash = run_command(["git", "rev-parse", "--short", "HEAD"], capture=True, cwd=REPO_ROOT)
+    if not githash:
+        raise StepError("Unable to determine git hash for tagging the image.")
+    githash = githash.strip()
+
+    if not os.path.exists("singularity_images"):
+        os.mkdir("singularity_images")
+
+    workloads_dir = REPO_ROOT / "workloads"
+    target_dir = workloads_dir / workload_group
+    if not target_dir.is_dir():
+        raise StepError(
+            f"Workload group '{workload_group}' not found under {workloads_dir}."
+        )
+
+    tag_path = REPO_ROOT / "last_built_tag.txt"
+    last_hash = tag_path.read_text(encoding="utf-8").strip() if tag_path.is_file() else ""
+
+    singularity_images = os.listdir(REPO_ROOT / "singularity_images")
+
+    rebuild_required = True
+    if f"{workload_group}_{last_hash}.sif" in singularity_images:
+        diff_output = run_command(
+            [
+                "git",
+                "diff",
+                last_hash,
+                "--",
+                str(REPO_ROOT / "common"),
+                str(target_dir),
+            ],
+            capture=True,
+            cwd=REPO_ROOT,
+        )
+        rebuild_required = bool(diff_output and diff_output.strip())
+
     singularity_image = f"singularity_images/{workload_group}_{githash}.sif"
 
-    if not os.path.exists(singularity_image):
-        info(f"Singularity image not found at {singularity_image}")
-        if not shutil.which("singularity"):
-            info("Singularity not installed. Not building SIF")
-        else:
-            if not rebuild_required:
-                info("Pulling SIF from ghcr...")
-                remote_ref = f"ghcr.io/litz-lab/scarab-infra/{workload_group}:{last_hash}"
-                try:
-                    run_command(["singularity", "pull", singularity_image, remote_ref])
-                except:
-                    info("Pulling failed (see above). Building with docker...")
-                    run_command(["singularity", "build", singularity_image, f"docker-daemon://{current_ref}"])
-            else:
-                info("Building SIF from local docker daemon...")
-                run_command(["singularity", "build", singularity_image, f"docker-daemon://{current_ref}"])
+    build_required = not os.path.exists(singularity_image)
+    if build_required:
+        info(f"Singularity image file not found at {singularity_image}")
 
+    # Need image, but not necessarily a locally build one
+    if not rebuild_required and build_required:
+        info("Pulling SIF from ghcr...")
+        remote_ref = f"ghcr.io/litz-lab/scarab-infra/singularity_{workload_group}:{last_hash}"
+        try:
+            run_command(["singularity", "pull", singularity_image, remote_ref])
+        except:
+            info("Pulling failed (see above). Will attempt to build with docker")
+            rebuild_required = True # Force docker build
+
+    # We must build locally with docker
+    if rebuild_required:
+        info(f"Image build scripts modified since {last_hash}. Docker required to rebuild")
+        if not shutil.which("docker"):
+            raise StepError(f"Docker required to rebuild SIF locally. Could not pull last pre-made image.")
+
+        current_ref = f"{workload_group}:{githash}"
+        run_command(["singularity", "build", singularity_image, f"docker-daemon://{current_ref}"])
+
+    info(f"Singularity image ready: {singularity_image}")
     return 0
 
 
@@ -1206,7 +1260,13 @@ def main() -> int:
             return 1
     if args.build_image:
         try:
-            return run_build_image(args.build_image)
+            docker = run_build_docker_image(args.build_image)
+            singularity = run_build_singularity_image(args.build_image)
+            # Will return -1 if container manager not installed
+            # Fail if no container manager installed
+            if docker == -1 and singularity == -1:
+                return -1
+            return 0
         except StepError as exc:
             print(exc)
             return 1

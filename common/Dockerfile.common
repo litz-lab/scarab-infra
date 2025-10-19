@@ -85,3 +85,5 @@ RUN cd $tmpdir && git clone https://github.com/andikleen/pmu-tools.git
 
 ENV DOCKER_BUILDKIT 1
 ENV COMPOSE_DOCKER_CLI_BUILD 1
+
+RUN echo "This change was made for testing purposes"
