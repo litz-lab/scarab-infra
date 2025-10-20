@@ -176,7 +176,7 @@ def check_available_nodes(container_manager="docker", dbg_lvl = 1):
                 try:
                     singularity_installed = subprocess.check_output(["srun", "-c", "1", "--mem", "512M", f"--nodelist={node}", "singularity", "--version"])
                 except Exception as e:
-                    info(f"slurm is not installed on {node}", dbg_lvl)
+                    info(f"singularity is not installed on {node}", dbg_lvl)
                     continue
 
             else:
