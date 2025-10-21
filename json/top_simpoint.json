@@ -31,8 +31,8 @@
   "_configurations": "scarab configurations to sweep",
   "configurations": {
       "this_pr": {
-        "scarab_params": "--bp_mech tage64k",
-        "scarab_githash": "current"
+        "params": "--bp_mech tage64k",
+        "binary": "scarab_current"
       }
   }
 }
