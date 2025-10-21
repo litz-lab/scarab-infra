@@ -7,6 +7,7 @@ import subprocess
 import argparse
 import os
 import sys
+from pathlib import Path
 import docker
 
 from .utilities import (
@@ -14,6 +15,7 @@ from .utilities import (
     err,
     read_descriptor_from_json,
     remove_docker_containers,
+    remove_tmp_run_scripts,
     get_image_list,
     prepare_docker_simulation,
     prepare_singularity_simulation,
@@ -144,9 +146,10 @@ def open_interactive_shell(user, descriptor_data, workloads_data, infra_dir, dbg
                                             docker_prefix_list,
                                             githash,
                                             infra_dir,
-                                            True,
-                                            [],
-                                            dbg_lvl)
+                                            ["current"],
+                                            interactive_shell=True,
+                                            available_slurm_nodes=[],
+                                            dbg_lvl=dbg_lvl)
         workload = descriptor_data['simulations'][0]['workload']
         mode = descriptor_data['simulations'][0]['simulation_type']
 
@@ -278,6 +281,12 @@ def run_simulation_command(descriptor_path, action, dbg_lvl=2, infra_dir=None):
             return 0
 
         if action == "clean":
+            if workload_manager == "slurm":
+                slurm_runner.clean_containers(user, experiment_name, docker_image_list, dbg_lvl)
+                descriptor_root = Path(descriptor_data["root_dir"])
+                experiment_dir = descriptor_root / "simulations" / experiment_name
+                remove_tmp_run_scripts(Path(infra_dir), experiment_name, user, dbg_lvl)
+                remove_tmp_run_scripts(experiment_dir, experiment_name, user, dbg_lvl)
             remove_docker_containers(docker_image_list, experiment_name, user, dbg_lvl)
             return 0
 

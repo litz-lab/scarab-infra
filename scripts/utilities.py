@@ -6,9 +6,16 @@ import json
 import os
 import subprocess
 import re
-import docker
+import shlex
+import shutil
+from pathlib import Path
 import importlib
 import sys
+
+try:
+    import docker
+except ImportError:  # pragma: no cover - docker is optional for some commands
+    docker = None
 
 # Add the project root to sys.path for imports
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -17,6 +24,21 @@ if project_root not in sys.path:
 
 import workloads.extract_top_simpoints as extract_top_simpoints
 importlib.reload(extract_top_simpoints)
+
+DEFAULT_CONDA_ENV = "scarabinfra"
+_docker_client = None
+
+
+def get_docker_client():
+    global _docker_client
+    if docker is None:
+        return None
+    if _docker_client is None:
+        try:
+            _docker_client = docker.from_env()
+        except Exception:
+            _docker_client = None
+    return _docker_client
 
 # Print an error message if on right debugging level
 def err(msg: str, level: int):
@@ -209,6 +231,195 @@ def prepare_docker_image(docker_prefix, image_tag, nodes=None, dbg_lvl=1):
         err(f"Error with preparing docker image for {image_tag}", dbg_lvl)
         exit(1)
 
+# Locally builds scarab using docker. No caching or skipping logic
+def docker_build_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_prefix, githash, infra_dir, dbg_lvl=1, stream_build=False):
+    local_uid = os.getuid()
+    local_gid = os.getgid()
+
+    exception = None
+
+    scarab_bin = f"{scarab_path}/src/build/{scarab_build}/scarab"
+    info(f"Scarab binary at '{scarab_bin}', building it first, please wait...", dbg_lvl)
+    docker_container_name = f"{docker_prefix}_{user}_scarab_build"
+    try:
+        subprocess.run(
+                ["docker", "run", "-e", f"user_id={local_uid}",
+                 "-e", f"group_id={local_gid}",
+                 "-e", f"username={user}",
+                 "-dit", "--name", f"{docker_container_name}",
+                 "--mount", f"type=bind,source={docker_home},target=/home/{user},readonly=false",
+                 "--mount", f"type=bind,source={scarab_path},target=/scarab,readonly=false",
+                 f"{docker_prefix}:{githash}", "/bin/bash"], check=True, capture_output=True, text=True)
+        subprocess.run(
+                ["docker", "cp", f"{infra_dir}/common/scripts/root_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
+                check=True, capture_output=True, text=True)
+        subprocess.run(
+                ["docker", "cp", f"{infra_dir}/common/scripts/user_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
+                check=True, capture_output=True, text=True)
+        if os.path.isfile(f"{infra_dir}/workloads/{docker_prefix}/workload_root_entrypoint.sh"):
+            subprocess.run(
+                    ["docker", "cp", f"{infra_dir}/workloads/{docker_prefix}/workload_root_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
+                    check=True, capture_output=True, text=True)
+        if os.path.isfile(f"{infra_dir}/workloads/{docker_prefix}/workload_user_entrypoint.sh"):
+            subprocess.run(
+                    ["docker", "cp", f"{infra_dir}/workloads/{docker_prefix}/workload_user_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
+                    check=True, capture_output=True, text=True)
+
+        subprocess.run(
+                ["docker", "exec", "--privileged", f"{docker_container_name}", "/bin/bash", "-c", "\'/usr/local/bin/root_entrypoint.sh\'"],
+                check=True, capture_output=True, text=True)
+
+        info(f"Building scarab with image {githash}...", dbg_lvl)
+        build_cmd = [
+                "docker",
+                    "exec",
+                    f"--user={user}",
+                    f"--workdir=/home/{user}",
+                    f"{docker_container_name}",
+                    "/bin/bash",
+                    "-c",
+                    f"cd /scarab/src && make {scarab_build}"
+            ]
+
+        if stream_build:
+            build_result = subprocess.run(build_cmd, text=True)
+        else:
+            build_result = subprocess.run(build_cmd, capture_output=True, text=True)
+
+        if build_result.returncode != 0:
+            if stream_build:
+                err("Scarab build failed. See output above for details.", dbg_lvl)
+            else:
+                err(f"Build stdout: {build_result.stdout}", dbg_lvl)
+                err(f"Build stderr: {build_result.stderr}", dbg_lvl)
+
+    except Exception as e:
+        exception = e
+    finally:
+        # Always clean up build container
+        subprocess.run(["docker", "rm", "-f", f"{docker_container_name}"], check=True, capture_output=True, text=True)
+
+    if exception != None:
+        raise exception
+    
+# Locally builds scarab using singularity. No caching or skipping logic
+# Singularity equivalent of docker_build_scarab_binary
+def singularity_build_scarab_binary(user, scarab_path, scarab_build, singularity_home, container_prefix, githash, infra_dir, dbg_lvl=1, stream_build=False):
+    local_uid = os.getuid()
+    local_gid = os.getgid()
+
+    exception = None
+
+    scarab_bin = f"{scarab_path}/src/build/{scarab_build}/scarab"
+    info(f"Scarab binary at '{scarab_bin}', building it first, please wait...", dbg_lvl)
+    try:
+        info(f"Building scarab with image {githash}...", dbg_lvl)
+
+        CONTAINER_HOME=f"\"{singularity_home}:/home/{user}:rw\""
+        SCARAB_HOME=f"\"{scarab_path}:/scarab:rw\""
+        build_cmd = [
+                "singularity",
+                    "exec",
+                    f"--bind={CONTAINER_HOME},{SCARAB_HOME}",
+                    "--env", f"user_id={local_uid}",
+                    "--env", f"group_id={local_gid}",
+                    "--env", f"username={user}",
+                    "--home", f"/home/{user}",
+                    f"singularity_images/{container_prefix}.sif",
+                    "/bin/bash",
+                    "-c",
+                    f"cd /scarab/src && make {scarab_build}"
+            ]
+
+        if stream_build:
+            build_result = subprocess.run(build_cmd, text=True)
+        else:
+            build_result = subprocess.run(build_cmd, capture_output=True, text=True)
+
+        if build_result.returncode != 0:
+            if stream_build:
+                err("Scarab build failed. See output above for details.", dbg_lvl)
+            else:
+                err(f"Build stdout: {build_result.stdout}", dbg_lvl)
+                err(f"Build stderr: {build_result.stderr}", dbg_lvl)
+
+    except Exception as e:
+        raise e
+
+# Wrapper function that handles rebuilding scarab if needed, and caching
+def rebuild_scarab(infra_dir, scarab_path, user, container_home, container_prefix, githash, scarab_githash, scarab_build, container_manager = "docker", stream_build=False, dbg_lvl=1):
+    current_scarab_bin = f"{infra_dir}/scarab_builds/scarab_current"
+
+    # Check for suitable current binary in cache
+    if not os.path.isfile(current_scarab_bin):
+        warn(f"Scarab binary for current hash not found in cache. Will build it", dbg_lvl)
+        scarab_build = 'opt'
+
+    if scarab_build != None:
+        scarab_bin = f"{scarab_path}/src/build/{scarab_build}/scarab"
+
+        # Build and copy to cache
+        try:
+            build_scarab_binary = docker_build_scarab_binary if container_manager == "docker" else singularity_build_scarab_binary
+            build_scarab_binary(user, scarab_path, scarab_build, container_home, container_prefix, githash, infra_dir, dbg_lvl=dbg_lvl, stream_build=stream_build)
+
+            if not os.path.isfile(scarab_bin):
+                err("Scarab not found after building", dbg_lvl)
+                raise RuntimeError(f"Scarab binary not found at {scarab_bin} after build!")
+
+            # Name with git hash, with index for different iterations
+            build_differs = False
+            try:
+                info(f"diff {current_scarab_bin} {scarab_bin}", dbg_lvl)
+                diff_result = subprocess.check_output(f"diff {current_scarab_bin} {scarab_bin}", shell=True, text=True)
+            except:
+                info("Caught exception caused by difference between cached current binary and build result", dbg_lvl)
+                build_differs = True
+
+
+            if not build_differs:
+                info(f"Current scarab binary is the same as the cached version. Not updating cache.", dbg_lvl)
+            else:
+                info(f"Current scarab binary differs from cached version. Updating cache...", dbg_lvl)
+
+                # Figure out index for binary. Order is _0 _1, _2, ...
+                # Find all existing binaries with the githash
+                scarab_binaries = os.listdir(f"{infra_dir}/scarab_builds")
+                pattern = re.compile(f"scarab_{scarab_githash}(_|$)")
+                current_githash_binaries = list(filter(pattern.match, scarab_binaries))
+
+                print("Binaries matching current githash:", current_githash_binaries, "out of:", scarab_binaries, pattern)
+
+                # If none exist, put it without index. Otherwise, add postfix index
+                if current_githash_binaries == []:
+                    info(f"No binaries with hash {scarab_githash} exist. Creating version 0...", dbg_lvl)
+                    githash_scarab_bin = f"{infra_dir}/scarab_builds/scarab_{scarab_githash}_0"
+                else:
+                    idx_pattern = re.compile(f"scarab_{scarab_githash}_")
+                    current_githash_versions = list(filter(idx_pattern.match, current_githash_binaries))
+
+                    print("Versions matching current githash:", current_githash_binaries)
+
+                    # If they do exist, take max index and increment it
+                    current_indicies = list(map(lambda x: int(x.split("_")[-1]), current_githash_versions))
+
+                    print("New index:", max(current_indicies)+1)
+                    githash_scarab_bin = f"{infra_dir}/scarab_builds/scarab_{scarab_githash}_{max(current_indicies)+1}"
+
+
+                info(f"Copying scarab binary for {githash_scarab_bin} to cache", dbg_lvl)
+                os.system(f"cp {scarab_bin} {githash_scarab_bin}")
+                os.system(f"cp {scarab_bin} {current_scarab_bin}")
+
+        except Exception as e:
+            err(f"Scarab build failed! {str(e)}", dbg_lvl)
+            raise e
+
+    # Check for suitable current binary in cache after build
+    if not os.path.isfile(current_scarab_bin):
+        err(f"Scarab binary for current hash not found in cache after building", dbg_lvl)
+        exit(1)
+
 # copy_scarab deprecated
 # new API prepare_singularity_simulation
 # Copies specified scarab binary, parameters, and launch scripts
@@ -219,7 +430,7 @@ def prepare_docker_image(docker_prefix, image_tag, nodes=None, dbg_lvl=1):
 #           architecture - Architecture name
 #
 # Outputs:  scarab githash
-def prepare_singularity_simulation(user, scarab_path, scarab_build, singularity_home, experiment_name, architecture, container_prefix_list, githash, infra_dir, interactive_shell=False, available_slurm_nodes=[], dbg_lvl=1):
+def prepare_singularity_simulation(user, scarab_path, scarab_build, singularity_home, experiment_name, architecture, container_prefix_list, githash, infra_dir, scarab_binaries, interactive_shell=False, available_slurm_nodes=[], dbg_lvl=1):
     # Check sif exists. Each named according as corresponding docker prefix
     image_tag_list = []
     for container_prefix in container_prefix_list:
@@ -324,7 +535,7 @@ def prepare_singularity_simulation(user, scarab_path, scarab_build, singularity_
 #           architecture - Architecture name
 #
 # Outputs:  scarab githash
-def prepare_docker_simulation(user, scarab_path, scarab_build, docker_home, experiment_name, architecture, docker_prefix_list, githash, infra_dir, interactive_shell=False, available_slurm_nodes=[], dbg_lvl=1):
+def prepare_docker_simulation(user, scarab_path, scarab_build, docker_home, experiment_name, architecture, docker_prefix_list, githash, infra_dir, scarab_binaries, interactive_shell=False, available_slurm_nodes=[], dbg_lvl=1, stream_build=False):
     # prepare docker images
     image_tag_list = []
     try:
@@ -339,6 +550,17 @@ def prepare_docker_simulation(user, scarab_path, scarab_build, docker_home, expe
         info(f"Unexpected error during docker image preparation: {str(e)}", dbg_lvl)
         raise e
 
+    try:
+        scarab_githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=scarab_path).decode("utf-8").strip()
+    except Exception as e:
+        err(f"Could not get scarab githash: {str(e)}", dbg_lvl)
+        raise e
+
+    info(f"Current scarab git hash: {scarab_githash}", dbg_lvl)
+
+    if not os.path.exists(f"{infra_dir}/scarab_builds"):
+        os.system(f"mkdir -p {infra_dir}/scarab_builds")
+
     ## Copy required scarab files into the experiment folder
     docker_prefix = docker_prefix_list[0]
     docker_container_name = None
@@ -346,98 +568,36 @@ def prepare_docker_simulation(user, scarab_path, scarab_build, docker_home, expe
         local_uid = os.getuid()
         local_gid = os.getgid()
 
-        scarab_githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=scarab_path).decode("utf-8").strip()
-        info(f"Scarab git hash: {scarab_githash}", dbg_lvl)
-
-        # (Re)build the scarab binary first.
-        if not interactive_shell and scarab_build == None:
-            scarab_bin = f"{scarab_path}/src/build/opt/scarab"
-            if not os.path.isfile(scarab_bin):
-                scarab_build = 'opt'
-                info(F"Scarab binary not found at '{scarab_bin}', build with {scarab_build}", dbg_lvl)
-
-        if scarab_build != None:
-            scarab_bin = f"{scarab_path}/src/build/{scarab_build}/scarab"
-            info(f"Scarab binary at '{scarab_bin}', building it first, please wait...", dbg_lvl)
-            docker_container_name = f"{docker_prefix}_{user}_scarab_build"
-            subprocess.run(
-                    ["docker", "run", "-e", f"user_id={local_uid}",
-                     "-e", f"group_id={local_gid}",
-                     "-e", f"username={user}",
-                     "-dit", "--name", f"{docker_container_name}",
-                     "--mount", f"type=bind,source={docker_home},target=/home/{user},readonly=false",
-                     "--mount", f"type=bind,source={scarab_path},target=/scarab,readonly=false",
-                     f"{docker_prefix}:{githash}", "/bin/bash"], check=True, capture_output=True, text=True)
-            subprocess.run(
-                    ["docker", "cp", f"{infra_dir}/common/scripts/root_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
-                    check=True, capture_output=True, text=True)
-            subprocess.run(
-                    ["docker", "cp", f"{infra_dir}/common/scripts/user_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
-                    check=True, capture_output=True, text=True)
-            if os.path.isfile(f"{infra_dir}/workloads/{docker_prefix}/workload_root_entrypoint.sh"):
-                subprocess.run(
-                        ["docker", "cp", f"{infra_dir}/workloads/{docker_prefix}/workload_root_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
-                        check=True, capture_output=True, text=True)
-            if os.path.isfile(f"{infra_dir}/workloads/{docker_prefix}/workload_user_entrypoint.sh"):
-                subprocess.run(
-                        ["docker", "cp", f"{infra_dir}/workloads/{docker_prefix}/workload_user_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
-                        check=True, capture_output=True, text=True)
-
-            subprocess.run(
-                    ["docker", "exec", "--privileged", f"{docker_container_name}", "/bin/bash", "-c", "\'/usr/local/bin/root_entrypoint.sh\'"],
-                    check=True, capture_output=True, text=True)
-
-            build_cmd = [
-                    "docker",
-                    "exec",
-                    f"--user={user}",
-                    f"--workdir=/home/{user}",
-                    f"{docker_container_name}",
-                    "/bin/bash",
-                    "-c",
-                    f"cd /scarab/src && make {scarab_build}"
-            ]
-            if stream_build:
-                build_result = subprocess.run(build_cmd, text=True)
-            else:
-                build_result = subprocess.run(build_cmd, capture_output=True, text=True)
-
-            if build_result.returncode != 0:
-                if stream_build:
-                    err("Scarab build failed. See output above for details.", dbg_lvl)
-                else:
-                    err(f"Build stdout: {build_result.stdout}", dbg_lvl)
-                    err(f"Build stderr: {build_result.stderr}", dbg_lvl)
-                build_result.check_returncode()  # This will raise CalledProcessError
-            subprocess.run(["docker", "rm", "-f", f"{docker_container_name}"], check=True, capture_output=True, text=True)
-
         experiment_dir = f"{docker_home}/simulations/{experiment_name}"
         os.system(f"mkdir -p {experiment_dir}/logs/")
+        dest_scarab_bin = f"{experiment_dir}/scarab/src/scarab"
 
-        # Copy binary and architectural params to scarab/src
+        # Make sure each git hash is present in the cache
+        for bin_name in scarab_binaries:
+            # Current will build if not present
+            if bin_name == "scarab_current":
+                continue
+
+            scarab_ver = f"{infra_dir}/scarab_builds/{bin_name}"
+            if os.path.isfile(scarab_ver):
+                info(f"Scarab binary named {bin_name} found in cache!", dbg_lvl)
+                continue
+
+            err(f"Scarab binary named {bin_name} not found in cache. Please check out that version and build it", dbg_lvl)
+            exit()
+
+        # (Re)build the scarab binary first
+        rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, githash, scarab_githash, scarab_build, stream_build=stream_build, dbg_lvl=dbg_lvl)
+
+        # Copy architectural params to scarab/src
         arch_params = f"{scarab_path}/src/PARAMS.{architecture}"
         os.system(f"mkdir -p {experiment_dir}/scarab/src/")
-        if not interactive_shell:
-            if scarab_build:
-                scarab_bin = f"{scarab_path}/src/build/{scarab_build}/scarab"
-            else:
-                scarab_bin = f"{scarab_path}/src/build/opt/scarab"
-            dest_scarab_bin = f"{experiment_dir}/scarab/src/scarab"
-            try:
-                result = subprocess.run(['diff', '-q', scarab_bin, dest_scarab_bin], capture_output=True, text=True, check=True)
-            except subprocess.CalledProcessError as e:
-                if e.returncode == 1 or e.returncode == 2:
-                    info("scarab binaries differ or the destination binary does not exist. Will copy.", dbg_lvl)
-                    result = subprocess.run(["cp", scarab_bin, dest_scarab_bin], capture_output=True, text=True)
-                    if result.returncode != 0:
-                        err(f"Failed to copy scarab binary: {result.stderr}", dbg_lvl)
-                        raise RuntimeError(f"Failed to copy scarab binary. Existing binary is in use and differs from the new binary: {result.stderr}")
-                else:
-                    raise e
-        try:
-            os.symlink(f"{experiment_dir}/scarab/src/scarab", f"{experiment_dir}/scarab/src/scarab_{scarab_githash}")
-        except FileExistsError:
-            pass
+
+        # Copy from cache all required scarab binaries
+        for bin_name in scarab_binaries:
+            scarab_ver = f"{infra_dir}/scarab_builds/{bin_name}"
+            os.system(f"cp {scarab_ver} {experiment_dir}/scarab/src/")
+
         os.system(f"cp {arch_params} {experiment_dir}/scarab/src")
 
         # Required for non mode 4. Copy launch scripts from the docker container's scarab repo.
@@ -455,6 +615,7 @@ def prepare_docker_simulation(user, scarab_path, scarab_build, docker_home, expe
                 info(f"Removed container: {docker_container_name}", dbg_lvl)
             except subprocess.CalledProcessError:
                 info(f"Could not remove container: {docker_container_name}", dbg_lvl)
+
         info(f"Scarab build failed: {e.stderr if isinstance(e.stderr, str) else e.stderr.decode() if e.stderr else str(e)}", dbg_lvl)
         raise e
     except Exception as e:
@@ -465,6 +626,7 @@ def prepare_docker_simulation(user, scarab_path, scarab_build, docker_home, expe
             except subprocess.CalledProcessError:
                 info(f"Could not remove container: {docker_container_name}", dbg_lvl)
         info(f"Unexpected error during scarab build: {str(e)}", dbg_lvl)
+
         raise e
 
 def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_name, image_tag_list, available_nodes, slurm_ids = None, dont_collect = False, container_manager = "docker"):
@@ -477,7 +639,7 @@ def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_n
     clean_cmd = f"scripts/docker_cleaner.py --images {images}"
     if nodes:
         clean_cmd = clean_cmd + f" --nodes {nodes}"
-    if slurm_ids != None:
+    if slurm_ids:
         sbatch_cmd = f"sbatch -c 1 --mem 1G --dependency=afterany:{','.join(slurm_ids)} -o {experiment_dir}/logs/stat_collection_job_%j.out "
         clean_cmd = sbatch_cmd + clean_cmd
 
@@ -488,19 +650,54 @@ def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_n
     if dont_collect:
         return
 
-    if slurm_ids == []:
-        warn("No slurm dependencies provided. Skipping stat collection.", 2)
-        return
+    descriptor_abs = os.path.abspath(descriptor_path)
+    stats_output = os.path.join(experiment_dir, "collected_stats.csv")
+    stat_script = os.path.join(project_root, "scarab_stats", "stat_collector.py")
 
-    # Run stat autocollector
-    collect_stats_cmd =  f"scarab_stats/stat_collector.py -d {descriptor_path} "
-    collect_stats_cmd += f"-o {experiment_dir}/collected_stats.csv"
+    conda_cmd = shutil.which("conda")
+    python_executable = sys.executable
+    env_python = None
+    if conda_cmd:
+        conda_path = Path(conda_cmd).resolve()
+        base_dir = conda_path.parent
+        if base_dir.name in {"bin", "condabin"}:
+            base_prefix = base_dir.parent
+        else:
+            base_prefix = base_dir
+        candidate = base_prefix / "envs" / DEFAULT_CONDA_ENV / "bin" / "python"
+        if candidate.exists():
+            env_python = str(candidate)
 
-    # For slurm, add slurm dependencies
-    if slurm_ids != None:
+    tmp_dir = os.environ.get("TMPDIR")
+    if not tmp_dir or not os.path.isdir(tmp_dir):
+        tmp_dir = os.path.join(experiment_dir, "tmp")
+        os.makedirs(tmp_dir, exist_ok=True)
+
+    if env_python:
+        stat_runner_parts = [env_python, stat_script]
+    elif conda_cmd:
+        stat_runner_parts = [
+            conda_cmd,
+            "run",
+            "-n",
+            DEFAULT_CONDA_ENV,
+            "python",
+            stat_script,
+        ]
+    else:
+        stat_runner_parts = [python_executable, stat_script]
+
+    collect_parts = ["env", f"TMPDIR={tmp_dir}"] + stat_runner_parts + ["-d", descriptor_abs, "-o", stats_output]
+    collect_stats_cmd = shlex.join(collect_parts)
+
+    if slurm_ids:
         # afterok will not run if jobs fail. afterany used with stat_collector's error checking
-        sbatch_cmd = f"sbatch -c 1 --mem 4G --dependency=afterany:{','.join(slurm_ids)} -o {experiment_dir}/logs/stat_collection_job_%j.out "
-        collect_stats_cmd = sbatch_cmd + collect_stats_cmd
+        log_path = os.path.join(experiment_dir, "logs", "stat_collection_job_%j.out")
+        sbatch_cmd = (
+            f"sbatch -c 1 --mem 4G --dependency=afterany:{','.join(slurm_ids)} "
+            f"-o {shlex.quote(log_path)} --wrap={shlex.quote(collect_stats_cmd)}"
+        )
+        collect_stats_cmd = sbatch_cmd
 
     os.system(collect_stats_cmd)
 
@@ -511,16 +708,17 @@ def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_n
 
 # Generate command to do a single run of scarab
 def generate_single_scarab_run_command(user, workload_home, experiment, config_key, config,
-                                       mode, seg_size, arch, scarab_githash, cluster_id,
+                                       mode, seg_size, arch, scarab_binary, cluster_id,
                                        warmup, trace_warmup, trace_type, trace_file,
                                        env_vars, bincmd, client_bincmd):
+
     if mode == "memtrace":
-        command = f"run_memtrace_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{seg_size}\\\" \\\"{arch}\\\" \\\"{warmup}\\\" \\\"{trace_warmup}\\\" \\\"{trace_type}\\\" /home/{user}/simulations/{experiment}/scarab {cluster_id} {trace_file}"
+        command = f"run_memtrace_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{seg_size}\\\" \\\"{arch}\\\" \\\"{warmup}\\\" \\\"{trace_warmup}\\\" \\\"{trace_type}\\\" /home/{user}/simulations/{experiment}/scarab {cluster_id} {trace_file} {scarab_binary}"
     elif mode == "pt":
-        command = f"run_pt_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{arch}\\\" \\\"{warmup}\\\" /home/{user}/simulations/{experiment}/scarab"
+        command = f"run_pt_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{arch}\\\" \\\"{warmup}\\\" /home/{user}/simulations/{experiment}/scarab {scarab_binary}"
 
     elif mode == "exec":
-        command = f"run_exec_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{arch}\\\" /home/{user}/simulations/{experiment}/scarab {env_vars} {bincmd} {client_bincmd}"
+        command = f"run_exec_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{arch}\\\" /home/{user}/simulations/{experiment}/scarab {env_vars} {bincmd} {client_bincmd} {scarab_binary}"
     else:
         command = ""
 
@@ -599,12 +797,12 @@ def write_singularity_command_to_file(user, local_uid, local_gid, workload, work
 
 def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_home, experiment_name,
                                  docker_prefix, docker_container_name, traces_dir,
-                                 docker_home, githash, config_key, config, scarab_mode, scarab_githash,
+                                 docker_home, githash, config_key, config, scarab_mode, scarab_binary,
                                  seg_size, architecture, cluster_id, warmup, trace_warmup, trace_type,
                                  trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir):
     try:
         scarab_cmd = generate_single_scarab_run_command(user, workload_home, experiment_name, config_key, config,
-                                                        scarab_mode, seg_size, architecture, scarab_githash, cluster_id,
+                                                        scarab_mode, seg_size, architecture, scarab_binary, cluster_id,
                                                         warmup, trace_warmup, trace_type, trace_file, env_vars, bincmd, client_bincmd)
         with open(filename, "w") as f:
             f.write("#!/bin/bash\n")
@@ -662,7 +860,7 @@ def generate_single_trace_run_command(user, workload, image_name, trace_name, bi
 def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_container_name, githash,
                                        workload, image_name, trace_name, traces_dir, docker_home,
                                        env_vars, binary_cmd, client_bincmd, simpoint_mode, drio_args,
-                                       clustering_k, filename, infra_dir):
+                                       clustering_k, filename, infra_dir, application_dir):
     try:
         trace_cmd = generate_single_trace_run_command(user, workload, image_name, trace_name, binary_cmd, client_bincmd,
                                                       simpoint_mode, drio_args, clustering_k)
@@ -683,6 +881,7 @@ def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_contai
             command = command + f"-dit \
                     --name {docker_container_name} \
                     --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
+                    --mount type=bind,source={application_dir},target=/tmp_home/application,readonly=false \
                     {image_name}:{githash} \
                     /bin/bash\n"
             f.write(f"{command}")
@@ -748,7 +947,7 @@ def remove_docker_containers(docker_prefix_list, job_name, user, dbg_lvl):
     try:
         for docker_prefix in docker_prefix_list:
             pattern = re.compile(fr"^{docker_prefix}_.*_{job_name}.*_.*_{user}$")
-            dockers = subprocess.run(["docker", "ps", "--format", "{{.Names}}"], capture_output=True, text=True, check=True)
+            dockers = subprocess.run(["docker", "ps", "-a", "--format", "{{.Names}}"], capture_output=True, text=True, check=True)
             lines = dockers.stdout.strip().split("\n") if dockers.stdout else []
             matching_containers = [line for line in lines if pattern.match(line)]
 
@@ -761,6 +960,26 @@ def remove_docker_containers(docker_prefix_list, job_name, user, dbg_lvl):
     except subprocess.CalledProcessError as e:
         err(f"Error while removing containers: {e}")
         raise e
+
+def remove_tmp_run_scripts(base_path, job_name, user, dbg_lvl):
+    pattern = re.compile(rf".*_{re.escape(job_name)}_.*_{re.escape(user)}_tmp_run\.sh$")
+    base = Path(base_path)
+    if not base.is_dir():
+        return
+
+    removed_any = False
+    for script_path in base.glob("*_tmp_run.sh"):
+        if not pattern.match(script_path.name):
+            continue
+        try:
+            script_path.unlink()
+            info(f"Removed temporary run script {script_path}", dbg_lvl)
+            removed_any = True
+        except OSError as exc:
+            warn(f"Failed to remove temporary run script {script_path}: {exc}", dbg_lvl)
+
+    if not removed_any and dbg_lvl >= 3:
+        info(f"No temporary run scripts found in {base}", dbg_lvl)
 
 def get_image_list(simulations, workloads_data):
     image_list = []
@@ -832,74 +1051,32 @@ def prepare_trace(user, scarab_path, scarab_build, docker_home, job_name, infra_
         info(f"Unexpected error during docker image preparation: {str(e)}", dbg_lvl)
         raise e
 
+    try:
+        scarab_githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=scarab_path).decode("utf-8").strip()
+    except Exception as e:
+        err(f"Could not get scarab githash: {str(e)}", dbg_lvl)
+        raise e
+
+    info(f"Current scarab git hash: {scarab_githash}", dbg_lvl)
+
+    if not os.path.exists(f"{infra_dir}/scarab_builds"):
+        os.system(f"mkdir -p {infra_dir}/scarab_builds")
+
     docker_prefix = docker_prefix_list[0]
     docker_container_name = None
     try:
         local_uid = os.getuid()
         local_gid = os.getgid()
 
-        scarab_githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=scarab_path).decode("utf-8").strip()
-        info(f"Scarab git hash: {scarab_githash}", dbg_lvl)
-
-        # (Re)build the scarab binary first.
-        if not interactive_shell and scarab_build == None:
-            scarab_bin = f"{scarab_path}/src/build/opt/scarab"
-            if not os.path.isfile(scarab_bin):
-                scarab_build = 'opt'
-                info(F"Scarab binary not found at '{scarab_bin}', build with {scarab_build}", dbg_lvl)
-
-        if scarab_build != None:
-            scarab_bin = f"{scarab_path}/src/build/{scarab_build}/scarab"
-            info(f"Scarab binary at '{scarab_bin}', building it first, please wait...", dbg_lvl)
-            docker_container_name = f"{docker_prefix}_{user}_scarab_build"
-            subprocess.run(
-                    ["docker", "run", "-e", f"user_id={local_uid}",
-                     "-e", f"group_id={local_gid}",
-                     "-e", f"username={user}",
-                     "-dit", "--name", f"{docker_container_name}",
-                     "--mount", f"type=bind,source={docker_home},target=/home/{user},readonly=false",
-                     "--mount", f"type=bind,source={scarab_path},target=/scarab,readonly=false",
-                     f"{docker_prefix}:{githash}", "/bin/bash"], check=True, capture_output=True, text=True)
-            subprocess.run(
-                    ["docker", "cp", f"{infra_dir}/common/scripts/root_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
-                    check=True, capture_output=True, text=True)
-            subprocess.run(
-                    ["docker", "cp", f"{infra_dir}/common/scripts/user_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
-                    check=True, capture_output=True, text=True)
-            if os.path.exists(f"{infra_dir}/workloads/{docker_prefix}/workload_root_entrypoint.sh"):
-                subprocess.run(
-                        ["docker", "cp", f"{infra_dir}/workloads/{docker_prefix}/workload_root_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
-                        check=True, capture_output=True, text=True)
-            if os.path.exists(f"{infra_dir}/workloads/{docker_prefix}/workload_user_entrypoint.sh"):
-                subprocess.run(
-                        ["docker", "cp", f"{infra_dir}/workloads/{docker_prefix}/workload_user_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
-                        check=True, capture_output=True, text=True)
-            subprocess.run(
-                    ["docker", "exec", "--privileged", f"{docker_container_name}", "/bin/bash", "-c", "\'/usr/local/bin/root_entrypoint.sh\'"],
-                    check=True, capture_output=True, text=True)
-            subprocess.run(
-                    ["docker", "exec", f"--user={user}", f"--workdir=/home/{user}", f"{docker_container_name}", "/bin/bash", "-c", f"cd /scarab/src && make clean && make {scarab_build}"],
-                    check=True, capture_output=True, text=True)
-            subprocess.run(["docker", "rm", "-f", f"{docker_container_name}"], check=True, capture_output=True, text=True)
-
         trace_dir = f"{docker_home}/simpoint_flow/{job_name}"
         os.system(f"mkdir -p {trace_dir}/scarab/src/")
-        if not interactive_shell:
-            if scarab_build:
-                scarab_bin = f"{scarab_path}/src/build/{scarab_build}/scarab"
-            else:
-                scarab_bin = f"{scarab_path}/src/build/opt/scarab"
-            result = subprocess.run(["cp", scarab_bin, f"{trace_dir}/scarab/src/scarab"],
-                                   capture_output=True,
-                                   text=True)
-            if result.returncode != 0:
-                err(f"Failed to copy scarab binary: {result.stderr}", dbg_lvl)
-                raise RuntimeError(f"Failed to copy scarab binary: {result.stderr}")
 
-        try:
-            os.symlink(f"{trace_dir}/scarab/src/scarab", f"{trace_dir}/scarab/src/scarab_{scarab_githash}")
-        except FileExistsError:
-            pass
+        # (Re)build the scarab binary first.
+        rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, githash, scarab_githash, scarab_build, stream_build=False, dbg_lvl=dbg_lvl)
+
+        # Copy current scarab binary to trace dir
+        scarab_ver = f"{infra_dir}/scarab_builds/scarab_current"
+        os.system(f"cp {scarab_ver} {trace_dir}/scarab/src/scarab")
 
         os.system(f"mkdir -p {trace_dir}/scarab/bin/scarab_globals")
         os.system(f"cp {scarab_path}/bin/scarab_launch.py  {trace_dir}/scarab/bin/scarab_launch.py ")
@@ -1002,7 +1179,7 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
             os.system(f"mkdir -p {target_traces_path}/traces/whole")
             os.system(f"mkdir -p {target_traces_path}/traces/simp")
             trace_clustering_info = read_descriptor_from_json(os.path.join(trace_dir, workload, "trace_clustering_info.json"), dbg_lvl)
-            if config['trace_type'] != "iterative_trace":
+            if config['trace_type'] == "trace_then_cluster":
                 os.system(f"cp -r {trace_dir}/{workload}/traces_simp/* {target_traces_path}/traces/simp/")
                 os.system(f"mkdir -p {target_traces_path}/traces/whole/")
                 whole_trace_dir = trace_clustering_info['dr_folder']
@@ -1010,7 +1187,12 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
                 subprocess.run([f"cp {trace_dir}/{workload}/traces/whole/{whole_trace_dir}/trace/{trace_file} {target_traces_path}/traces/whole/"], check=True, shell=True)
                 memtrace_dict['warmup'] = 10000000
                 memtrace_dict['whole_trace_file'] = trace_clustering_info['trace_file']
-            else:
+            elif config['trace_type'] == "cluster_then_trace":
+                os.system(f"cp -r {trace_dir}/{workload}/traces_simp/trace/* {target_traces_path}/traces/simp/")
+                memtrace_dict['warmup'] = 10000000
+                memtrace_dict['whole_trace_file'] = None
+                print("cluster_then_trace doesn't have a whole trace file.")
+            else: # iterative_trace
                 largest_traces = trace_clustering_info['trace_file']
                 for trace_path in largest_traces:
                     print("Processing trace:", trace_path)
@@ -1055,20 +1237,31 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
         raise e
 
 def is_container_running(container_name, dbg_lvl):
-    client = docker.from_env()
+    client = get_docker_client()
+    if client is None:
+        warn("Docker client unavailable; cannot inspect containers.", dbg_lvl)
+        return False
     try:
         container = client.containers.get(container_name)
         info(f"container {container_name} is already running.", dbg_lvl)
         return container.status == "running"
-    except docker.errors.NotFound:
+    except Exception as exc:
+        warn(f"Failed to query container {container_name}: {exc}", dbg_lvl)
         return False
 
 def count_interactive_shells(container_name, dbg_lvl):
-    client = docker.APIClient()
+    if docker is None:
+        warn("Docker client unavailable; assuming 0 interactive shells.", dbg_lvl)
+        return 0
     try:
-        container = client.inspect_container(container_name)
+        client_api = docker.APIClient()
+    except Exception as exc:
+        warn(f"Docker API client unavailable: {exc}", dbg_lvl)
+        return 0
+    try:
+        container = client_api.inspect_container(container_name)
         container_id = container['Id']
-        processes = client.top(container_id)
+        processes = client_api.top(container_id)
 
         shell_count = 0
         for process in processes['Processes']:
@@ -1078,11 +1271,8 @@ def count_interactive_shells(container_name, dbg_lvl):
                 shell_count += 1
         info(f"{shell_count} shells are running for {container_name}.", dbg_lvl)
         return shell_count
-    except docker.errors.NotFound:
-        print(f"Container '{container_name}' not found.")
-        return 0
-    except Exception as e:
-        print(f"Error: {e}")
+    except Exception as exc:
+        print(f"Error checking shells for '{container_name}': {exc}")
         return 0
 
 def image_exist(image_tag, node=None):

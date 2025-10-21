@@ -138,6 +138,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
     dont_collect = True
 
     def run_single_workload(suite, subsuite, workload, exp_cluster_id, sim_mode, warmup):
+        nonlocal dont_collect
         try:
             container_prefix = get_container_prefix(sim_mode, workloads_data[suite][subsuite][workload]["simulation"])
             info(f"Using container image with name {container_prefix}:{githash}", dbg_lvl)
@@ -174,7 +175,8 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                 simpoints[f"{exp_cluster_id}"] = weight
 
             for config_key in configs:
-                config = configs[config_key]
+                config = configs[config_key]["params"]
+                scarab_binary = configs[config_key]["binary"]
                 if config == "":
                     config = None
 
@@ -233,7 +235,17 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
         # Call correct preparation function for container manager
         prepare_simulation = prepare_singularity_simulation if container_manager == "singularity" else prepare_docker_simulation
 
+        scarab_binaries = []
+        for sim in simulations:
+            for config_key in configs:
+                scarab_binary = configs[config_key]["binary"]
+                if scarab_binary not in scarab_binaries:
+                    scarab_binaries.append(scarab_binary)
+
+        # TODO: Resolve. Scarab_binaries is new, add to singularity
         scarab_githash, image_tag_list = prepare_simulation(user, scarab_path, scarab_build, descriptor_data['root_dir'], experiment_name, architecture, image_prefix_list, githash, infra_dir, False, [], dbg_lvl)
+
+        scarab_githash, image_tag_list = prepare_simulation(user, scarab_path, scarab_build, descriptor_data['root_dir'], experiment_name, architecture, docker_prefix_list, githash, infra_dir, scarab_binaries, interactive_shell=False, available_slurm_nodes=[], dbg_lvl=dbg_lvl)
 
         # Iterate over each workload and config combo
         for simulation in simulations:
@@ -303,6 +315,7 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
     scarab_build = descriptor_data["scarab_build"]
     traces_dir = descriptor_data["traces_dir"]
     trace_configs = descriptor_data["trace_configurations"]
+    application_dir = descriptor_data["application_dir"]
 
     docker_prefix_list = []
     for config in trace_configs:
@@ -316,7 +329,7 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
     tmp_files = []
     log_files = []
 
-    def run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd, trace_type, drio_args, clustering_k, infra_dir):
+    def run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd, trace_type, drio_args, clustering_k, infra_dir, application_dir):
         try:
             if trace_type == "cluster_then_trace":
                 simpoint_mode = "cluster_then_trace"
@@ -332,7 +345,7 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
             write_trace_docker_command_to_file(user, local_uid, local_gid, docker_container_name, githash,
                                                workload, image_name, trace_name, traces_dir, docker_home,
                                                env_vars, binary_cmd, client_bincmd, simpoint_mode, drio_args,
-                                               clustering_k, filename, infra_dir)
+                                               clustering_k, filename, infra_dir, application_dir)
             tmp_files.append(filename)
             command = '/bin/bash ' + filename
             subprocess.run(["mkdir", "-p", f"{docker_home}/simpoint_flow/{trace_name}/{workload}"], check=True, capture_output=True, text=True)
@@ -379,7 +392,7 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
             clustering_k = config["clustering_k"]
 
             run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd,
-                             trace_type, drio_args, clustering_k, infra_dir)
+                             trace_type, drio_args, clustering_k, infra_dir, application_dir)
 
         print("Wait processes...")
         for p in processes:
