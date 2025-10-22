@@ -140,7 +140,7 @@ def open_interactive_shell(user, descriptor_data, workloads_data, infra_dir, dbg
                                             docker_prefix_list,
                                             githash,
                                             infra_dir,
-                                            ["current"],
+                                            ["scarab_current"],
                                             interactive_shell=True,
                                             available_slurm_nodes=[],
                                             dbg_lvl=dbg_lvl)
