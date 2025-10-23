@@ -121,6 +121,15 @@ def open_interactive_shell(user, descriptor_data, workloads_data, infra_dir, dbg
         docker_prefix = get_image_name(workloads_data, descriptor_data['simulations'][0])
         docker_prefix_list = [docker_prefix]
         docker_home = descriptor_data['root_dir']
+        experiment_workdir = None
+        experiment_workdir_host = Path(docker_home) / "simulations" / experiment_name
+        try:
+            experiment_workdir_host.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            pass
+        if experiment_workdir_host.is_dir():
+            experiment_workdir = f"/home/{user}/simulations/{experiment_name}"
+        default_workdir = f"/home/{user}"
 
         # Set the env for simulation again (already set in Dockerfile.common) in case user's bashrc overwrite the existing ones when the home directory is mounted
         bashrc_path = f"{docker_home}/.bashrc"
@@ -153,8 +162,10 @@ def open_interactive_shell(user, descriptor_data, workloads_data, infra_dir, dbg
         try:
             # If the container is already running, log into it by openning another interactive shell
             if is_container_running(docker_container_name, dbg_lvl):
-                subprocess.run(["docker", "exec", "--privileged", "-it", f"--user={user}", f"--workdir=/home/{user}", docker_container_name, "/bin/bash"])
+                workdir = experiment_workdir if experiment_workdir else default_workdir
+                subprocess.run(["docker", "exec", "--privileged", "-it", f"--user={user}", f"--workdir={workdir}", docker_container_name, "/bin/bash"])
             else:
+                info(f"Create a new container for the interactive mode", dbg_lvl)
                 subprocess.run(["docker", "run",
                                 "-e", f"user_id={local_uid}",
                                 "-e", f"group_id={local_gid}",
@@ -190,7 +201,8 @@ def open_interactive_shell(user, descriptor_data, workloads_data, infra_dir, dbg
                                    check=True, capture_output=True, text=True)
                 subprocess.run(["docker", "exec", "--privileged", f"{docker_container_name}", "/bin/bash", "-c", "/usr/local/bin/root_entrypoint.sh"],
                                check=True, capture_output=True, text=True)
-                subprocess.run(["docker", "exec", "--privileged", "-it", f"--user={user}", f"--workdir=/home/{user}", docker_container_name, "/bin/bash"])
+                workdir = experiment_workdir if experiment_workdir else default_workdir
+                subprocess.run(["docker", "exec", "--privileged", "-it", f"--user={user}", f"--workdir={workdir}", docker_container_name, "/bin/bash"])
         except KeyboardInterrupt:
             if count_interactive_shells(docker_container_name, dbg_lvl) == 1:
                 subprocess.run(["docker", "exec", "--privileged", f"--user={user}", f"--workdir=/home/{user}", docker_container_name,
