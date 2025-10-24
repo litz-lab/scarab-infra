@@ -95,6 +95,7 @@ jobs:
         run: |
           if command -v singularity &>/dev/null; then
             docker image list
+            # Build from local docker daemon entry with this label
             singularity build allbench_traces_$GIT_HASH.sif docker-daemon://ghcr.io/litz-lab/scarab-infra/allbench_traces:${{ steps.current_hash.outputs.githash }}
           else
             echo "Singularity is not installed. Skipping Singularity image build."
@@ -104,7 +105,7 @@ jobs:
         if: steps.changes.outputs.changed == 'true'
         run: |
           if [ -f allbench_traces_$GIT_HASH.sif ]; then
-            singularity push allbench_traces_$GIT_HASH.sif ghcr.io/litz-lab/scarab-infra/singularity_allbench_traces:${{ steps.current_hash.outputs.githash }}
+            singularity push allbench_traces_$GIT_HASH.sif oras://ghcr.io/litz-lab/scarab-infra/singularity_allbench_traces:${{ steps.current_hash.outputs.githash }}
             rm allbench_traces_$GIT_HASH.sif # Clean up local file after upload, reduce storage use
           else
             echo "Singularity image file not found. Build likely failed. Skipping upload."
