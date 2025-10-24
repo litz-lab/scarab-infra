@@ -94,7 +94,8 @@ jobs:
         if: steps.changes.outputs.changed == 'true'
         run: |
           if command -v singularity &>/dev/null; then
-            singularity build allbench_traces_$GIT_HASH.sif docker-daemon://allbench_traces:$GIT_HASH
+            docker image list
+            singularity build allbench_traces_$GIT_HASH.sif ghcr.io/litz-lab/scarab-infra/allbench_traces:${{ steps.current_hash.outputs.githash }}
           else
             echo "Singularity is not installed. Skipping Singularity image build."
           fi
