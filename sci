@@ -1436,7 +1436,7 @@ def run_build_singularity_image(workload_group: str) -> int:
     # Need image, but not necessarily a locally build one
     if not rebuild_required and build_required:
         info("Pulling SIF from ghcr...")
-        remote_ref = f"ghcr.io/litz-lab/scarab-infra/singularity_{workload_group}:{last_hash}"
+        remote_ref = f"oras://ghcr.io/litz-lab/scarab-infra/singularity_{workload_group}:{last_hash}"
         try:
             run_command(["singularity", "pull", singularity_image, remote_ref])
         except:

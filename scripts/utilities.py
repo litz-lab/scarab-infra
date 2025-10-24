@@ -430,7 +430,102 @@ def rebuild_scarab(infra_dir, scarab_path, user, container_home, container_prefi
 #           architecture - Architecture name
 #
 # Outputs:  scarab githash
-def prepare_singularity_simulation(user, scarab_path, scarab_build, singularity_home, experiment_name, architecture, container_prefix_list, githash, infra_dir, scarab_binaries, interactive_shell=False, available_slurm_nodes=[], dbg_lvl=1):
+# def prepare_singularity_simulation(user, scarab_path, scarab_build, singularity_home, experiment_name, architecture, container_prefix_list, githash, infra_dir, scarab_binaries, interactive_shell=False, available_slurm_nodes=[], dbg_lvl=1):
+#     # Check sif exists. Each named according as corresponding docker prefix
+#     image_tag_list = []
+#     for container_prefix in container_prefix_list:
+#         image_tag = f"{container_prefix}_{githash}"
+
+#         if not os.path.exists(f"{infra_dir}/singularity_images/{image_tag}.sif"):
+#             # This is because .sif is generated from docker image from running docker daemon
+#             err(f"Singularity Image File for {image_tag} not found. Cannot automatically build without docker", dbg_lvl)
+#             info(f"Checked at: {infra_dir}/singularity_images/{image_tag}.sif", dbg_lvl)
+#             exit(1)
+
+#         image_tag_list.append(image_tag)
+
+#     ## Copy required scarab files into the experiment folder
+#     container_prefix = image_tag_list[0]
+
+#     local_uid = os.getuid()
+#     local_gid = os.getgid()
+
+#     scarab_githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=scarab_path).decode("utf-8").strip()
+#     info(f"Scarab git hash: {scarab_githash}", dbg_lvl)
+
+#     # (Re)build the scarab binary first.
+#     if not interactive_shell and scarab_build == None:
+#         scarab_bin = f"{scarab_path}/src/build/opt/scarab"
+#         if not os.path.isfile(scarab_bin):
+#             scarab_build = 'opt'
+#             info(F"Scarab binary not found at '{scarab_bin}', build with {scarab_build}", dbg_lvl)
+
+#     if scarab_build != None:
+#         scarab_bin = f"{scarab_path}/src/build/{scarab_build}/scarab"
+#         info(f"Scarab binary at '{scarab_bin}', building it first, please wait...", dbg_lvl)
+#         # singularity_container_name = f"{docker_prefix}_{user}_scarab_build"
+
+#         CONTAINER_HOME=f"\"{singularity_home}:/home/{user}:rw\""
+#         SCARAB_HOME=f"\"{scarab_path}:/scarab:rw\""
+
+#         subprocess.run(["singularity", "exec", "--bind", f"{CONTAINER_HOME},{SCARAB_HOME}", \
+#                 "--env", f"username=root", \
+#                 "--home", f"/home/{user}", \
+#                 f"singularity_images/{container_prefix}.sif", \
+#                 "/bin/bash", "-c", "\'/usr/local/bin/root_entrypoint.sh\'"])
+
+#         subprocess.run(["singularity", "exec", "--bind", f"{CONTAINER_HOME},{SCARAB_HOME}", \
+#                 "--env", f"user_id={local_uid}", \
+#                 "--env", f"group_id={local_gid}", \
+#                 "--env", f"username={user}", \
+#                 "--home", f"/home/{user}", \
+#                 f"singularity_images/{container_prefix}.sif", \
+#                 "/bin/bash", "-c", f"cd /scarab/src && make clean && make {scarab_build}"])
+
+#     experiment_dir = f"{singularity_home}/simulations/{experiment_name}"
+#     os.system(f"mkdir -p {experiment_dir}/logs/")
+
+#     # Copy binary and architectural params to scarab/src
+#     arch_params = f"{scarab_path}/src/PARAMS.{architecture}"
+#     os.system(f"mkdir -p {experiment_dir}/scarab/src/")
+#     if not interactive_shell:
+#         if scarab_build:
+#             scarab_bin = f"{scarab_path}/src/build/{scarab_build}/scarab"
+#         else:
+#             scarab_bin = f"{scarab_path}/src/build/opt/scarab"
+#         dest_scarab_bin = f"{experiment_dir}/scarab/src/scarab"
+#         try:
+#             result = subprocess.run(['diff', '-q', scarab_bin, dest_scarab_bin], capture_output=True, text=True, check=True)
+#         except subprocess.CalledProcessError as e:
+#             if e.returncode == 1 or e.returncode == 2:
+#                 info("scarab binaries differ or the destination binary does not exist. Will copy.", dbg_lvl)
+#                 result = subprocess.run(["cp", scarab_bin, dest_scarab_bin], capture_output=True, text=True)
+#                 if result.returncode != 0:
+#                     err(f"Failed to copy scarab binary: {result.stderr}", dbg_lvl)
+#                     raise RuntimeError(f"Failed to copy scarab binary. Existing binary is in use and differs from the new binary: {result.stderr}")
+#             else:
+#                 raise e
+
+#     try:
+#         os.symlink(f"{experiment_dir}/scarab/src/scarab", f"{experiment_dir}/scarab/src/scarab_{scarab_githash}")
+#     except FileExistsError:
+#         pass
+
+#     os.system(f"cp {arch_params} {experiment_dir}/scarab/src")
+
+#     # Required for non mode 4. Copy launch scripts from the scarab repo.
+#     # NOTE: Could cause issues if a copied version of scarab is incompatible with the version of
+#     # the launch scripts in the scarab repo
+#     os.system(f"mkdir -p {experiment_dir}/scarab/bin/scarab_globals")
+#     os.system(f"cp {scarab_path}/bin/scarab_launch.py  {experiment_dir}/scarab/bin/scarab_launch.py ")
+#     os.system(f"cp {scarab_path}/bin/scarab_globals/*  {experiment_dir}/scarab/bin/scarab_globals/ ")
+
+#     # For singularity overlays - UNUSED
+#     # os.system(f"mkdir -p {experiment_dir}/singularity")
+
+#     return scarab_githash, image_tag_list
+
+def singularity_get_image_tag_list(infra_dir, githash, container_prefix_list, available_slurm_nodes=None, dbg_lvl=1):
     # Check sif exists. Each named according as corresponding docker prefix
     image_tag_list = []
     for container_prefix in container_prefix_list:
@@ -444,86 +539,23 @@ def prepare_singularity_simulation(user, scarab_path, scarab_build, singularity_
 
         image_tag_list.append(image_tag)
 
-    ## Copy required scarab files into the experiment folder
-    container_prefix = image_tag_list[0]
+    return image_tag_list
 
-    local_uid = os.getuid()
-    local_gid = os.getgid()
-
-    scarab_githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=scarab_path).decode("utf-8").strip()
-    info(f"Scarab git hash: {scarab_githash}", dbg_lvl)
-
-    # (Re)build the scarab binary first.
-    if not interactive_shell and scarab_build == None:
-        scarab_bin = f"{scarab_path}/src/build/opt/scarab"
-        if not os.path.isfile(scarab_bin):
-            scarab_build = 'opt'
-            info(F"Scarab binary not found at '{scarab_bin}', build with {scarab_build}", dbg_lvl)
-
-    if scarab_build != None:
-        scarab_bin = f"{scarab_path}/src/build/{scarab_build}/scarab"
-        info(f"Scarab binary at '{scarab_bin}', building it first, please wait...", dbg_lvl)
-        # singularity_container_name = f"{docker_prefix}_{user}_scarab_build"
-
-        CONTAINER_HOME=f"\"{singularity_home}:/home/{user}:rw\""
-        SCARAB_HOME=f"\"{scarab_path}:/scarab:rw\""
-
-        subprocess.run(["singularity", "exec", "--bind", f"{CONTAINER_HOME},{SCARAB_HOME}", \
-                "--env", f"username=root", \
-                "--home", f"/home/{user}", \
-                f"singularity_images/{container_prefix}.sif", \
-                "/bin/bash", "-c", "\'/usr/local/bin/root_entrypoint.sh\'"])
-
-        subprocess.run(["singularity", "exec", "--bind", f"{CONTAINER_HOME},{SCARAB_HOME}", \
-                "--env", f"user_id={local_uid}", \
-                "--env", f"group_id={local_gid}", \
-                "--env", f"username={user}", \
-                "--home", f"/home/{user}", \
-                f"singularity_images/{container_prefix}.sif", \
-                "/bin/bash", "-c", f"cd /scarab/src && make clean && make {scarab_build}"])
-
-    experiment_dir = f"{singularity_home}/simulations/{experiment_name}"
-    os.system(f"mkdir -p {experiment_dir}/logs/")
-
-    # Copy binary and architectural params to scarab/src
-    arch_params = f"{scarab_path}/src/PARAMS.{architecture}"
-    os.system(f"mkdir -p {experiment_dir}/scarab/src/")
-    if not interactive_shell:
-        if scarab_build:
-            scarab_bin = f"{scarab_path}/src/build/{scarab_build}/scarab"
-        else:
-            scarab_bin = f"{scarab_path}/src/build/opt/scarab"
-        dest_scarab_bin = f"{experiment_dir}/scarab/src/scarab"
-        try:
-            result = subprocess.run(['diff', '-q', scarab_bin, dest_scarab_bin], capture_output=True, text=True, check=True)
-        except subprocess.CalledProcessError as e:
-            if e.returncode == 1 or e.returncode == 2:
-                info("scarab binaries differ or the destination binary does not exist. Will copy.", dbg_lvl)
-                result = subprocess.run(["cp", scarab_bin, dest_scarab_bin], capture_output=True, text=True)
-                if result.returncode != 0:
-                    err(f"Failed to copy scarab binary: {result.stderr}", dbg_lvl)
-                    raise RuntimeError(f"Failed to copy scarab binary. Existing binary is in use and differs from the new binary: {result.stderr}")
-            else:
-                raise e
-
+def docker_get_image_tag_list(infra_dir, githash, container_prefix_list, available_slurm_nodes = None, dbg_lvl=1):
+    image_tag_list = []
     try:
-        os.symlink(f"{experiment_dir}/scarab/src/scarab", f"{experiment_dir}/scarab/src/scarab_{scarab_githash}")
-    except FileExistsError:
-        pass
+        for docker_prefix in container_prefix_list:
+            image_tag = f"{docker_prefix}:{githash}"
+            image_tag_list.append(image_tag)
+            prepare_docker_image(docker_prefix, image_tag, available_slurm_nodes, dbg_lvl)
+    except subprocess.CalledProcessError as e:
+        info(f"Docker image preparation failed: {e.stderr if isinstance(e.stderr, str) else e.stderr.decode() if e.stderr else str(e)}", dbg_lvl)
+        raise e
+    except Exception as e:
+        info(f"Unexpected error during docker image preparation: {str(e)}", dbg_lvl)
+        raise e
 
-    os.system(f"cp {arch_params} {experiment_dir}/scarab/src")
-
-    # Required for non mode 4. Copy launch scripts from the scarab repo.
-    # NOTE: Could cause issues if a copied version of scarab is incompatible with the version of
-    # the launch scripts in the scarab repo
-    os.system(f"mkdir -p {experiment_dir}/scarab/bin/scarab_globals")
-    os.system(f"cp {scarab_path}/bin/scarab_launch.py  {experiment_dir}/scarab/bin/scarab_launch.py ")
-    os.system(f"cp {scarab_path}/bin/scarab_globals/*  {experiment_dir}/scarab/bin/scarab_globals/ ")
-
-    # For singularity overlays - UNUSED
-    # os.system(f"mkdir -p {experiment_dir}/singularity")
-
-    return scarab_githash, image_tag_list
+    return image_tag_list
 
 # copy_scarab deprecated
 # new API prepare_docker_simulation
@@ -535,20 +567,11 @@ def prepare_singularity_simulation(user, scarab_path, scarab_build, singularity_
 #           architecture - Architecture name
 #
 # Outputs:  scarab githash
-def prepare_docker_simulation(user, scarab_path, scarab_build, docker_home, experiment_name, architecture, docker_prefix_list, githash, infra_dir, scarab_binaries, interactive_shell=False, available_slurm_nodes=[], dbg_lvl=1, stream_build=False):
+def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_name, architecture, docker_prefix_list, githash, infra_dir, scarab_binaries, interactive_shell=False, available_slurm_nodes=[], dbg_lvl=1, stream_build=False, container_manager="docker"):
     # prepare docker images
-    image_tag_list = []
-    try:
-        for docker_prefix in docker_prefix_list:
-            image_tag = f"{docker_prefix}:{githash}"
-            image_tag_list.append(image_tag)
-            prepare_docker_image(docker_prefix, image_tag, available_slurm_nodes, dbg_lvl)
-    except subprocess.CalledProcessError as e:
-        info(f"Docker image preparation failed: {e.stderr if isinstance(e.stderr, str) else e.stderr.decode() if e.stderr else str(e)}", dbg_lvl)
-        raise e
-    except Exception as e:
-        info(f"Unexpected error during docker image preparation: {str(e)}", dbg_lvl)
-        raise e
+    get_image_list = singularity_get_image_tag_list if container_manager == "singularity" else docker_get_image_tag_list
+
+    image_tag_list = get_image_list(infra_dir, githash, docker_prefix_list, available_slurm_nodes=available_slurm_nodes, dbg_lvl=dbg_lvl)
 
     try:
         scarab_githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=scarab_path).decode("utf-8").strip()
@@ -564,70 +587,50 @@ def prepare_docker_simulation(user, scarab_path, scarab_build, docker_home, expe
     ## Copy required scarab files into the experiment folder
     docker_prefix = docker_prefix_list[0]
     docker_container_name = None
-    try:
-        local_uid = os.getuid()
-        local_gid = os.getgid()
 
-        experiment_dir = f"{docker_home}/simulations/{experiment_name}"
-        os.system(f"mkdir -p {experiment_dir}/logs/")
-        dest_scarab_bin = f"{experiment_dir}/scarab/src/scarab"
+    local_uid = os.getuid()
+    local_gid = os.getgid()
 
-        # Make sure each git hash is present in the cache
-        for bin_name in scarab_binaries:
-            # Current will build if not present
-            if bin_name == "scarab_current":
-                continue
+    experiment_dir = f"{docker_home}/simulations/{experiment_name}"
+    os.system(f"mkdir -p {experiment_dir}/logs/")
+    dest_scarab_bin = f"{experiment_dir}/scarab/src/scarab"
 
-            scarab_ver = f"{infra_dir}/scarab_builds/{bin_name}"
-            if os.path.isfile(scarab_ver):
-                info(f"Scarab binary named {bin_name} found in cache!", dbg_lvl)
-                continue
+    # Make sure each git hash is present in the cache
+    for bin_name in scarab_binaries:
+        # Current will build if not present
+        if bin_name == "scarab_current":
+            continue
 
-            err(f"Scarab binary named {bin_name} not found in cache. Please check out that version and build it", dbg_lvl)
-            exit()
+        scarab_ver = f"{infra_dir}/scarab_builds/{bin_name}"
+        if os.path.isfile(scarab_ver):
+            info(f"Scarab binary named {bin_name} found in cache!", dbg_lvl)
+            continue
 
-        # (Re)build the scarab binary first
-        rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, githash, scarab_githash, scarab_build, stream_build=stream_build, dbg_lvl=dbg_lvl)
+        err(f"Scarab binary named {bin_name} not found in cache. Please check out that version and build it", dbg_lvl)
+        exit()
 
-        # Copy architectural params to scarab/src
-        arch_params = f"{scarab_path}/src/PARAMS.{architecture}"
-        os.system(f"mkdir -p {experiment_dir}/scarab/src/")
+    # (Re)build the scarab binary first
+    rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, githash, scarab_githash, scarab_build, container_manager=container_manager, stream_build=stream_build, dbg_lvl=dbg_lvl)
 
-        # Copy from cache all required scarab binaries
-        for bin_name in scarab_binaries:
-            scarab_ver = f"{infra_dir}/scarab_builds/{bin_name}"
-            os.system(f"cp {scarab_ver} {experiment_dir}/scarab/src/")
+    # Copy architectural params to scarab/src
+    arch_params = f"{scarab_path}/src/PARAMS.{architecture}"
+    os.system(f"mkdir -p {experiment_dir}/scarab/src/")
 
-        os.system(f"cp {arch_params} {experiment_dir}/scarab/src")
+    # Copy from cache all required scarab binaries
+    for bin_name in scarab_binaries:
+        scarab_ver = f"{infra_dir}/scarab_builds/{bin_name}"
+        os.system(f"cp {scarab_ver} {experiment_dir}/scarab/src/")
 
-        # Required for non mode 4. Copy launch scripts from the docker container's scarab repo.
-        # NOTE: Could cause issues if a copied version of scarab is incompatible with the version of
-        # the launch scripts in the docker container's repo
-        os.system(f"mkdir -p {experiment_dir}/scarab/bin/scarab_globals")
-        os.system(f"cp {scarab_path}/bin/scarab_launch.py  {experiment_dir}/scarab/bin/scarab_launch.py ")
-        os.system(f"cp {scarab_path}/bin/scarab_globals/*  {experiment_dir}/scarab/bin/scarab_globals/ ")
+    os.system(f"cp {arch_params} {experiment_dir}/scarab/src")
 
-        return scarab_githash, image_tag_list
-    except subprocess.CalledProcessError as e:
-        if docker_container_name:
-            try:
-                subprocess.run(["docker", "rm", "-f", docker_container_name], check=True)
-                info(f"Removed container: {docker_container_name}", dbg_lvl)
-            except subprocess.CalledProcessError:
-                info(f"Could not remove container: {docker_container_name}", dbg_lvl)
+    # Required for non mode 4. Copy launch scripts from the docker container's scarab repo.
+    # NOTE: Could cause issues if a copied version of scarab is incompatible with the version of
+    # the launch scripts in the docker container's repo
+    os.system(f"mkdir -p {experiment_dir}/scarab/bin/scarab_globals")
+    os.system(f"cp {scarab_path}/bin/scarab_launch.py  {experiment_dir}/scarab/bin/scarab_launch.py ")
+    os.system(f"cp {scarab_path}/bin/scarab_globals/*  {experiment_dir}/scarab/bin/scarab_globals/ ")
 
-        info(f"Scarab build failed: {e.stderr if isinstance(e.stderr, str) else e.stderr.decode() if e.stderr else str(e)}", dbg_lvl)
-        raise e
-    except Exception as e:
-        if docker_container_name:
-            try:
-                subprocess.run(["docker", "rm", "-f", docker_container_name], check=True)
-                info(f"Removed container: {docker_container_name}", dbg_lvl)
-            except subprocess.CalledProcessError:
-                info(f"Could not remove container: {docker_container_name}", dbg_lvl)
-        info(f"Unexpected error during scarab build: {str(e)}", dbg_lvl)
-
-        raise e
+    return scarab_githash, image_tag_list
 
 def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_name, image_tag_list, available_nodes, slurm_ids = None, dont_collect = False, container_manager = "docker"):
     experiment_dir = f"{root_dir}/simulations/{experiment_name}"
