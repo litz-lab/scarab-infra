@@ -944,10 +944,7 @@ def ensure_traces(_: argparse.Namespace) -> Tuple[bool, str]:
             )
 
         prompt += "?"
-        if suite == "spec2017":
-            default_choice = not suite_missing
-        else:
-            default_choice = False
+        default_choice = False
         if not confirm(prompt, default=default_choice):
             info(f"Skipped downloads for suite '{suite}' by user choice.")
             continue
@@ -966,7 +963,7 @@ def ensure_traces(_: argparse.Namespace) -> Tuple[bool, str]:
                         subsuite_size += size_value
             if subsuite_size > 0:
                 subsuite_prompt += f" (~{format_size(subsuite_size)})"
-            if not confirm(subsuite_prompt + "", default=True):
+            if not confirm(subsuite_prompt + "", default=False):
                 info(f"Skipped subsuite '{suite}/{subsuite}'.")
                 continue
 
@@ -1253,7 +1250,7 @@ def run_build_scarab(descriptor_name: str) -> int:
             docker_prefix_list,
             githash,
             str(REPO_ROOT),
-            ["current"],
+            ["scarab_current"],
             interactive_shell=True,
             dbg_lvl=2,
             stream_build=True,

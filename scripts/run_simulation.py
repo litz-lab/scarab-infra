@@ -17,8 +17,7 @@ from .utilities import (
     remove_docker_containers,
     remove_tmp_run_scripts,
     get_image_list,
-    prepare_docker_simulation,
-    prepare_singularity_simulation,
+    prepare_simulation,
     get_image_name,
     validate_simulation,
     is_container_running,
@@ -126,6 +125,15 @@ def open_interactive_shell(user, descriptor_data, workloads_data, infra_dir, dbg
         docker_prefix = get_image_name(workloads_data, descriptor_data['simulations'][0])
         docker_prefix_list = [docker_prefix]
         docker_home = descriptor_data['root_dir']
+        experiment_workdir = None
+        experiment_workdir_host = Path(docker_home) / "simulations" / experiment_name
+        try:
+            experiment_workdir_host.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            pass
+        if experiment_workdir_host.is_dir():
+            experiment_workdir = f"/home/{user}/simulations/{experiment_name}"
+        default_workdir = f"/home/{user}"
 
         # Set the env for simulation again (already set in Dockerfile.common) in case user's bashrc overwrite the existing ones when the home directory is mounted
         bashrc_path = f"{docker_home}/.bashrc"
@@ -136,7 +144,6 @@ def open_interactive_shell(user, descriptor_data, workloads_data, infra_dir, dbg
                 f.write(f"\n{entry}\n")
 
         # Generate commands for executing in users docker and sbatching to nodes with containers
-        prepare_simulation = prepare_singularity_simulation if container_manager == "singularity" else prepare_docker_simulation
         scarab_githash, image_tag_list = prepare_simulation(user,
                                             scarab_path,
                                             descriptor_data['scarab_build'],
@@ -146,7 +153,7 @@ def open_interactive_shell(user, descriptor_data, workloads_data, infra_dir, dbg
                                             docker_prefix_list,
                                             githash,
                                             infra_dir,
-                                            ["current"],
+                                            ["scarab_current"],
                                             interactive_shell=True,
                                             available_slurm_nodes=[],
                                             dbg_lvl=dbg_lvl)

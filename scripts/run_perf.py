@@ -35,6 +35,7 @@ def open_interactive_shell(user, docker_home, image_name, infra_dir, dbg_lvl = 1
             if is_container_running(docker_container_name, dbg_lvl):
                 subprocess.run(["docker", "exec", "-it", f"--user={user}", f"--workdir=/tmp_home", docker_container_name, "/bin/bash"])
             else:
+                info(f"Create a new container for the interactive mode", dbg_lvl)
                 command = f"docker run --privileged \
                         -dit \
                         --name {docker_container_name} \

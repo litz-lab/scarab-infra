@@ -1249,7 +1249,7 @@ def is_container_running(container_name, dbg_lvl):
         info(f"container {container_name} is already running.", dbg_lvl)
         return container.status == "running"
     except Exception as exc:
-        warn(f"Failed to query container {container_name}: {exc}", dbg_lvl)
+        info(f"Failed to query container {container_name}: {exc}", dbg_lvl)
         return False
 
 def count_interactive_shells(container_name, dbg_lvl):

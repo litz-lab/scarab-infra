@@ -17,8 +17,7 @@ from .utilities import (
         write_docker_command_to_file,
         write_singularity_command_to_file,
         remove_docker_containers,
-        prepare_docker_simulation,
-        prepare_singularity_simulation,
+        prepare_simulation,
         finish_simulation,
         get_image_list,
         get_container_prefix,
@@ -196,10 +195,9 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                     workload_home = f"{suite}/{subsuite}/{workload}"
 
                     write_command_to_file = write_singularity_command_to_file if container_manager == "singularity" else write_docker_command_to_file
-
                     write_command_to_file(user, local_uid, local_gid, workload, workload_home, experiment_name,
                                                  container_prefix, container_name, traces_dir,
-                                                 docker_home, githash, config_key, config, sim_mode, scarab_githash,
+                                                 docker_home, githash, config_key, config, sim_mode, scarab_binary,
                                                  seg_size, architecture, cluster_id, warmup, trace_warmup, trace_type,
                                                  trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir)
 
@@ -233,7 +231,6 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
             err("Error: Not in a Git repository or unable to retrieve Git hash.")
 
         # Call correct preparation function for container manager
-        prepare_simulation = prepare_singularity_simulation if container_manager == "singularity" else prepare_docker_simulation
 
         scarab_binaries = []
         for sim in simulations:
@@ -243,9 +240,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                     scarab_binaries.append(scarab_binary)
 
         # TODO: Resolve. Scarab_binaries is new, add to singularity
-        scarab_githash, image_tag_list = prepare_simulation(user, scarab_path, scarab_build, descriptor_data['root_dir'], experiment_name, architecture, image_prefix_list, githash, infra_dir, False, [], dbg_lvl)
-
-        scarab_githash, image_tag_list = prepare_simulation(user, scarab_path, scarab_build, descriptor_data['root_dir'], experiment_name, architecture, docker_prefix_list, githash, infra_dir, scarab_binaries, interactive_shell=False, available_slurm_nodes=[], dbg_lvl=dbg_lvl)
+        scarab_githash, image_tag_list = prepare_simulation(user, scarab_path, scarab_build, descriptor_data['root_dir'], experiment_name, architecture, image_prefix_list, githash, infra_dir, scarab_binaries, interactive_shell=False, available_slurm_nodes=[], dbg_lvl=dbg_lvl)
 
         # Iterate over each workload and config combo
         for simulation in simulations:
