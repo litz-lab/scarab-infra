@@ -161,7 +161,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                 simpoints["0"] = weight
             elif exp_cluster_id == None:
                 simpoints = get_simpoints(workloads_data[suite][subsuite][workload], sim_mode, dbg_lvl)
-            elif exp_cluster_id > 0:
+            elif exp_cluster_id >= 0:
                 weight = get_weight_by_cluster_id(exp_cluster_id, workloads_data[suite][subsuite][workload]["simpoints"])
                 simpoints = {}
                 simpoints[f"{exp_cluster_id}"] = weight
