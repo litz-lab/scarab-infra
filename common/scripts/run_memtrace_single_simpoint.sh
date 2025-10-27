@@ -33,7 +33,7 @@ cd $OUTDIR/$segID
 
 # SEGMENT_ID = 0 represents whole trace simulation
 # SEGMENT_ID > 0 represents segmented trace (simpoint) simulation
-if [ "$SEGMENT_ID" == "0" ]; then
+if [ "$SEGMENT_ID" == "-1" ]; then
   traceMap=$(ls $trace_home/$WORKLOAD_HOME/traces/whole/)
   scarabCmd="$SCARABHOME/src/$SCARAB_BIN \
   --frontend memtrace \
