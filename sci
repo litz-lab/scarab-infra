@@ -1261,7 +1261,7 @@ def run_build_scarab(descriptor_name: str) -> int:
         raise StepError("Build mode must be 'opt' or 'dbg'.")
 
     container_manager: str = descriptor.get("container_manager") or 'docker'
-    if container_manager not in {}:
+    if container_manager not in {'singularity', 'docker'}:
         raise StepError("Container manager must be 'docker' or 'singularity'.")
 
     try:

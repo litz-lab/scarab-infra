@@ -232,7 +232,7 @@ def prepare_docker_image(docker_prefix, image_tag, nodes=None, dbg_lvl=1):
         exit(1)
 
 # Locally builds scarab using docker. No caching or skipping logic
-def docker_build_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_prefix, githash, infra_dir, dbg_lvl=1, stream_build=False):
+def docker_build_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_prefix, githash, infra_dir, dbg_lvl=1, stream_build=False, nodelist=[]):
     local_uid = os.getuid()
     local_gid = os.getgid()
 
@@ -304,7 +304,7 @@ def docker_build_scarab_binary(user, scarab_path, scarab_build, docker_home, doc
     
 # Locally builds scarab using singularity. No caching or skipping logic
 # Singularity equivalent of docker_build_scarab_binary
-def singularity_build_scarab_binary(user, scarab_path, scarab_build, singularity_home, container_prefix, githash, infra_dir, dbg_lvl=1, stream_build=False):
+def singularity_build_scarab_binary(user, scarab_path, scarab_build, singularity_home, container_prefix, githash, infra_dir, dbg_lvl=1, stream_build=False, nodelist=[]):
     local_uid = os.getuid()
     local_gid = os.getgid()
 
@@ -325,16 +325,22 @@ def singularity_build_scarab_binary(user, scarab_path, scarab_build, singularity
                     "--env", f"group_id={local_gid}",
                     "--env", f"username={user}",
                     "--home", f"/home/{user}",
-                    f"singularity_images/{container_prefix}.sif",
+                    f"singularity_images/{container_prefix}_{githash}.sif",
                     "/bin/bash",
                     "-c",
                     f"cd /scarab/src && make {scarab_build}"
             ]
 
-        if stream_build:
-            build_result = subprocess.run(build_cmd, text=True)
+        if nodelist == []:
+            nodelist = None
         else:
-            build_result = subprocess.run(build_cmd, capture_output=True, text=True)
+            nodelist = ",".join(nodelist)
+
+        if stream_build:
+            build_result = run_on_node(build_cmd, nodelist, text=True)
+        else:
+            build_result = run_on_node(build_cmd, nodelist, capture_output=True, text=True)
+            # build_result = subprocess.run(build_cmd, capture_output=True, text=True)
 
         if build_result.returncode != 0:
             if stream_build:
@@ -347,9 +353,10 @@ def singularity_build_scarab_binary(user, scarab_path, scarab_build, singularity
         raise e
 
 # Wrapper function that handles rebuilding scarab if needed, and caching
-def rebuild_scarab(infra_dir, scarab_path, user, container_home, container_prefix, githash, scarab_githash, scarab_build, container_manager = "docker", stream_build=False, dbg_lvl=1):
+def rebuild_scarab(infra_dir, scarab_path, user, container_home, container_prefix, githash, scarab_githash, scarab_build, container_manager = "docker", stream_build=False, dbg_lvl=1, nodelist=nodelist):
     current_scarab_bin = f"{infra_dir}/scarab_builds/scarab_current"
 
+    info(f"Container manager: {container_manager}", dbg_lvl)
     # Check for suitable current binary in cache
     if not os.path.isfile(current_scarab_bin):
         warn(f"Scarab binary for current hash not found in cache. Will build it", dbg_lvl)
@@ -361,7 +368,7 @@ def rebuild_scarab(infra_dir, scarab_path, user, container_home, container_prefi
         # Build and copy to cache
         try:
             build_scarab_binary = docker_build_scarab_binary if container_manager == "docker" else singularity_build_scarab_binary
-            build_scarab_binary(user, scarab_path, scarab_build, container_home, container_prefix, githash, infra_dir, dbg_lvl=dbg_lvl, stream_build=stream_build)
+            build_scarab_binary(user, scarab_path, scarab_build, container_home, container_prefix, githash, infra_dir, dbg_lvl=dbg_lvl, stream_build=stream_build, nodelist=nodelist)
 
             if not os.path.isfile(scarab_bin):
                 err("Scarab not found after building", dbg_lvl)
@@ -610,7 +617,7 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
         exit()
 
     # (Re)build the scarab binary first
-    rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, githash, scarab_githash, scarab_build, container_manager=container_manager, stream_build=stream_build, dbg_lvl=dbg_lvl)
+    rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, githash, scarab_githash, scarab_build, container_manager=container_manager, stream_build=stream_build, dbg_lvl=dbg_lvl, nodelist=available_slurm_nodes)
 
     # Copy architectural params to scarab/src
     arch_params = f"{scarab_path}/src/PARAMS.{architecture}"
@@ -1075,7 +1082,7 @@ def prepare_trace(user, scarab_path, scarab_build, docker_home, job_name, infra_
         os.system(f"mkdir -p {trace_dir}/scarab/src/")
 
         # (Re)build the scarab binary first.
-        rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, githash, scarab_githash, scarab_build, stream_build=False, dbg_lvl=dbg_lvl)
+        rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, githash, scarab_githash, scarab_build, stream_build=False, dbg_lvl=dbg_lvl, nodelist=available_slurm_nodes)
 
         # Copy current scarab binary to trace dir
         scarab_ver = f"{infra_dir}/scarab_builds/scarab_current"
