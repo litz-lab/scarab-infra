@@ -1264,6 +1264,10 @@ def run_build_scarab(descriptor_name: str) -> int:
     if container_manager not in {'singularity', 'docker'}:
         raise StepError("Container manager must be 'docker' or 'singularity'.")
 
+    workload_manager: str = descriptor.get("workload_manager")
+    if workload_manager not in {'manual', 'slurm'}:
+        raise StepError("Workload manager must be 'manual' or 'slurm'.")
+
     try:
         githash = run_command(["git", "rev-parse", "--short", "HEAD"], capture=True, check=True, input_data=None)
     except StepError as exc:
@@ -1279,6 +1283,10 @@ def run_build_scarab(descriptor_name: str) -> int:
     info(f"Mode: make {build_mode}")
     info(f"Scarab path: {scarab_path}")
 
+    nodelist = []
+    if workload_manager == "slurm":
+        nodelist = infra_utils.check_available_nodes(container_manager=container_manager, dbg_lvl=1)
+
     try:
         infra_utils.prepare_simulation(
             user,
@@ -1292,6 +1300,7 @@ def run_build_scarab(descriptor_name: str) -> int:
             str(REPO_ROOT),
             ["scarab_current"],
             interactive_shell=True,
+            available_slurm_nodes=nodelist,
             dbg_lvl=2,
             stream_build=True,
             container_manager=container_manager

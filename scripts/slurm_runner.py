@@ -27,7 +27,8 @@ from .utilities import (
         check_can_skip,
         get_image_name,
         generate_table,
-        run_on_node
+        run_on_node,
+        check_available_nodes
         )
 
 # Check if the docker image exists on available slurm nodes
@@ -140,60 +141,6 @@ def check_docker_container_running_by_mount_path(nodes, container_name, mount_pa
         # NOTE: Could figure out mount here if all of them agree. Then it wouldn't need to be provided
 
         return running_nodes
-    except Exception as e:
-        raise e
-
-# Check what containers are running in the slurm cluster
-# Inputs: None
-# Outputs: a list containing all node names that are currently available or None
-def check_available_nodes(container_manager="docker", dbg_lvl = 1):
-    try:
-        # Query sinfo to get all lines with status information for all nodes
-        # Ex: [['LocalQ*', 'up', 'infinite', '2', 'idle', 'bohr[3,5]']]
-        try:
-            response = subprocess.check_output(["sinfo", "-N"], timeout=10).decode("utf-8")
-        except subprocess.TimeoutExpired as e:
-            err("sinfo command timed out. Please check slurm control node.", dbg_lvl)
-            raise e
-        
-        lines = [r.split() for r in response.split('\n') if r != ''][1:]
-
-        # Check each node is up and available
-        available = []
-        all_nodes = []
-        for line in lines:
-            node = line[0]
-            all_nodes.append(node)
-
-            # Index -1 is STATE. Skip if not partially available
-            if line[-1] != 'idle' and line[-1] != 'mix':
-                info(f"{node} is not available. It is '{line[-1]}'", dbg_lvl)
-                continue
-
-            # If container manager is not installed, skip
-            if container_manager == "singularity":
-                try:
-                    singularity_installed = subprocess.check_output(["srun", "-c", "1", "--mem", "512M", f"--nodelist={node}", "singularity", "--version"])
-                except Exception as e:
-                    info(f"singularity is not installed on {node}", dbg_lvl)
-                    continue
-
-            else:
-                try:
-                    docker_installed = subprocess.check_output(["srun", "-c", "1", "--mem", "512M", f"--nodelist={node}", "docker", "--version"])
-                except Exception as e:
-                    info(f"docker is not installed on {node}", dbg_lvl)
-                    continue
-
-            # Now append node(s) to available list. May be single (bohr3) or multiple (bohr[3,5])
-            if '[' in node:
-                err(f"'sinfo -N' should not produce lists (such as bohr[2-5]).", dbg_lvl)
-                print(f"     problematic entry was '{node}'")
-                return None
-
-            available.append(node)
-
-        return available, all_nodes
     except Exception as e:
         raise e
 
