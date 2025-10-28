@@ -863,7 +863,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
         # Generate commands for executing in users docker and sbatching to nodes with containers
         experiment_dir = f"{descriptor_data['root_dir']}/simulations/{experiment_name}"
 
-        scarab_githash, image_tag_list = prepare_simulation(user, scarab_path, scarab_build, descriptor_data['root_dir'], experiment_name, architecture, image_prefix_list, githash, infra_dir, scarab_binaries, False, available_slurm_nodes, dbg_lvl)
+        scarab_githash, image_tag_list = prepare_simulation(user, scarab_path, scarab_build, descriptor_data['root_dir'], experiment_name, architecture, image_prefix_list, githash, infra_dir, scarab_binaries, False, available_slurm_nodes, dbg_lvl, container_manager=container_manager)
 
         # Iterate over each workload and config combo
         tmp_files = []

@@ -413,11 +413,47 @@ def conda_env_exists() -> bool:
             return True
     return False
 
+def ensure_singularity(_: argparse.Namespace) -> Tuple[bool, str]:
+    singularity = shutil.which("singularity")
+    if singularity:
+        return True, f"Docker already available at {singularity}"
+
+    if not confirm(
+        "Install Singularity (optional, but must use Docker instead)?",
+        default=False,
+    ):
+        return True, "Skipped Singularity installation."
+
+    apt = shutil.which("apt-get")
+    sudo = shutil.which("sudo")
+    if not apt or not sudo:
+        return False, "Docker not found and automatic installation only supports apt-based systems with sudo."
+    try:
+        run_command(["sudo", "apt-get", "update"])
+        run_command(["sudo", "apt-get", "install", "-y", "singularity-container"])
+    except StepError as exc:
+        return False, str(exc)
+    singularity = shutil.which("singularity")
+    if not singularity:
+        return False, "Singularity installation attempted but singularity binary not found."
+    try:
+        run_command(["singularity", "--version"], check=False)
+    except StepError as exc:
+        return False, str(exc)
+    return True, "Singularity installed."
+
 
 def ensure_docker(_: argparse.Namespace) -> Tuple[bool, str]:
     docker = shutil.which("docker")
     if docker:
         return True, f"Docker already available at {docker}"
+
+    if not confirm(
+        "Install Docker (optional, but must use Singularity instead)?",
+        default=False,
+    ):
+        return True, "Skipped Docker installation."
+
     apt = shutil.which("apt-get")
     sudo = shutil.which("sudo")
     if not apt or not sudo:
@@ -1224,6 +1260,10 @@ def run_build_scarab(descriptor_name: str) -> int:
     if build_mode not in {"opt", "dbg"}:
         raise StepError("Build mode must be 'opt' or 'dbg'.")
 
+    container_manager: str = descriptor.get("container_manager") or 'docker'
+    if container_manager not in {}:
+        raise StepError("Container manager must be 'docker' or 'singularity'.")
+
     try:
         githash = run_command(["git", "rev-parse", "--short", "HEAD"], capture=True, check=True, input_data=None)
     except StepError as exc:
@@ -1254,6 +1294,7 @@ def run_build_scarab(descriptor_name: str) -> int:
             interactive_shell=True,
             dbg_lvl=2,
             stream_build=True,
+            container_manager=container_manager
         )
     except subprocess.CalledProcessError as exc:
         raise StepError(
@@ -1479,6 +1520,53 @@ def maybe_install_slurm(_: argparse.Namespace) -> Tuple[bool, str]:
     return False, "Automated Slurm setup supported only on apt-based systems. See docs/slurm_install_guide.md."
 
 
+def maybe_singularity_login(_: argparse.Namespace) -> Tuple[bool, str]:
+    if not shutil.which("singularity"):
+        return False, "Singularity not available; cannot login to ghcr.io."
+    creds_present, creds_msg = ghcr_credentials_present()
+    image_present, image_msg = prebuilt_image_present()
+    if creds_present:
+        message = creds_msg
+        if image_present:
+            message += f" {image_msg}"
+        return True, message
+    if image_present:
+        return True, image_msg
+    print(
+        "Logging in to ghcr.io lets the helper pull prebuilt singularity images instead of rebuilding"
+        " them locally. Provide a GitHub Personal Access Token with read:packages scope."
+    )
+    if not confirm(
+        "Login to ghcr.io to pull prebuilt singularity images (optional)?",
+        default=False,
+    ):
+        return True, "Skipped ghcr.io login - Singularity."
+    username = (
+        os.environ.get("GH_USERNAME")
+        or os.environ.get("GITHUB_USERNAME")
+        or ""
+    ).strip()
+    token = (
+        os.environ.get("GHCR_TOKEN")
+        or os.environ.get("GITHUB_TOKEN")
+        or ""
+    ).strip()
+    if not username and sys.stdin.isatty():
+        username = input("GitHub username: ").strip()
+    if not token:
+        token = getpass.getpass("GitHub token (with read:packages): ").strip()
+    if not username or not token:
+        return False, "Provide --gh-username/--gh-token or set GH_USERNAME/GHCR_TOKEN for login."
+    try:
+        run_command(
+            ["singularity", "registry", "login", "ghcr.io", "-u", username, "--password-stdin"],
+            input_data=f"{token}\n",
+        )
+    except StepError as exc:
+        return False, str(exc)
+    return True, "Authenticated with ghcr.io."
+
+
 def maybe_docker_login(_: argparse.Namespace) -> Tuple[bool, str]:
     if not shutil.which("docker"):
         return False, "Docker not available; cannot login to ghcr.io."
@@ -1546,6 +1634,7 @@ def run_init(args: argparse.Namespace) -> int:
     steps = [
         ("Install Docker", ensure_docker),
         ("Configure Docker permissions", configure_docker_permissions),
+        ("Install Singularity", ensure_singularity),
         ("Install Miniconda", ensure_conda_installed),
         ("Create scarabinfra conda env", ensure_conda_env),
         ("Configure conda shell hook", ensure_conda_shell_hook),
@@ -1553,7 +1642,8 @@ def run_init(args: argparse.Namespace) -> int:
         ("Ensure GitHub SSH key", ensure_ssh_key),
         ("Download simpoint traces", ensure_traces),
         ("(Optional) Slurm installation", maybe_install_slurm),
-        ("(Optional) ghcr.io login to pull pre-built images from GitHub Container Registry (recommended)", maybe_docker_login),
+        ("(Optional) ghcr.io login to pull pre-built docker images from GitHub Container Registry (recommended)", maybe_docker_login),
+        ("(Optional) ghcr.io login to pull pre-built singularity images from GitHub Container Registry (recommended)", maybe_singularity_login),
     ]
     summary: List[Tuple[str, bool, str]] = []
     for title, func in steps:
