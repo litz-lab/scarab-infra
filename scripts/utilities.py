@@ -86,9 +86,9 @@ def write_json_descriptor(filename, descriptor_data, dbg_lvl = 1):
     except json.JSONDecodeError as e:
             print(f"JSONDecodeError: {e}")
 
-def run_on_node(cmd, node=None, **kwargs):
+def run_on_node(cmd, node=None, cores=1, mem_GB=4, **kwargs):
     if node != None:
-        cmd = ["srun", "-c", "1", "--mem", "1G", f"--nodelist={node}"] + cmd
+        cmd = ["srun", "-c", f"{cores}", "--mem", f"{mem_GB}G", f"--nodelist={node}"] + cmd
     return subprocess.run(cmd, **kwargs)
 
 def validate_simulation(workloads_data, simulations, dbg_lvl = 2):
@@ -328,7 +328,7 @@ def singularity_build_scarab_binary(user, scarab_path, scarab_build, singularity
                     f"singularity_images/{container_prefix}_{githash}.sif",
                     "/bin/bash",
                     "-c",
-                    f"cd /scarab/src && make {scarab_build}"
+                    f"cd /scarab/src && make -j 4 {scarab_build}"
             ]
 
         if nodelist == []:
@@ -337,9 +337,9 @@ def singularity_build_scarab_binary(user, scarab_path, scarab_build, singularity
             nodelist = ",".join(nodelist)
 
         if stream_build:
-            build_result = run_on_node(build_cmd, nodelist, text=True)
+            build_result = run_on_node(build_cmd, nodelist, cores=5, text=True)
         else:
-            build_result = run_on_node(build_cmd, nodelist, capture_output=True, text=True)
+            build_result = run_on_node(build_cmd, nodelist, cores=5, capture_output=True, text=True)
             # build_result = subprocess.run(build_cmd, capture_output=True, text=True)
 
         if build_result.returncode != 0:
