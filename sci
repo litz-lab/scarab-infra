@@ -1285,7 +1285,8 @@ def run_build_scarab(descriptor_name: str) -> int:
 
     nodelist = []
     if workload_manager == "slurm":
-        nodelist = infra_utils.check_available_nodes(container_manager=container_manager, dbg_lvl=1)
+        available, all_nodes = infra_utils.check_available_nodes(container_manager=container_manager, dbg_lvl=1)
+        nodelist = available
 
     try:
         infra_utils.prepare_simulation(
