@@ -123,24 +123,45 @@ jobs:
           echo "PR creation response:"
           echo "$PR_RESPONSE"
 
+          # After you create the PR, capture both number and node_id
           PR_NUMBER=$(echo "$PR_RESPONSE" | jq -r .number)
+          PR_NODE_ID=$(echo "$PR_RESPONSE" | jq -r .node_id)
 
-          if [[ "$PR_NUMBER" == "null" || -z "$PR_NUMBER" ]]; then
-            echo "Failed to create PR. Exiting."
+          if [[ "$PR_NUMBER" == "null" || -z "$PR_NUMBER" || "$PR_NODE_ID" == "null" || -z "$PR_NODE_ID" ]]; then
+            echo "Failed to create PR or get node_id. Exiting."
             exit 1
           fi
 
           echo "Created PR #$PR_NUMBER"
-          sleep 10  # Delay to ensure PR is available for auto-merge
+
+          # Optional small delay to let GitHub index the PR
+          sleep 5
 
           if [[ "${{ github.event_name }}" == "push" ]]; then
             echo "Enabling auto-merge for PR #$PR_NUMBER"
-            curl -s -X PUT \
+
+            read -r -d '' GQL_QUERY <<'EOF'
+            mutation($prId: ID!) {
+              enablePullRequestAutoMerge(input: { pullRequestId: $prId, mergeMethod: SQUASH }) {
+                pullRequest { number, autoMergeRequest { enabledAt } }
+              }
+            }
+          EOF
+
+            curl -s -X POST https://api.github.com/graphql \
               -H "Authorization: Bearer $GH_TOKEN" \
               -H "Accept: application/vnd.github+json" \
-              -H "X-GitHub-Api-Version: 2022-11-28" \
-              https://api.github.com/repos/$GITHUB_REPO/pulls/$PR_NUMBER/auto-merge \
-              -d '{"merge_method":"squash"}' || echo "Auto-merge API call failed; ensure repository allows auto-merge for this PR."
+              -d "$(jq -n --arg prId "$PR_NODE_ID" --arg q "$GQL_QUERY" '{query:$q,variables:{prId:$prId}}')" \
+            | tee enable_automerge_response.json
+
+            # Basic success check
+            if jq -e '.data.enablePullRequestAutoMerge.pullRequest.autoMergeRequest.enabledAt' enable_automerge_response.json >/dev/null; then
+              echo "Auto-merge enabled."
+            else
+              echo "Failed to enable auto-merge:"
+              cat enable_automerge_response.json
+              exit 1
+            fi
           else
             echo "Skipping auto-merge because this is a manual run (workflow_dispatch)"
           fi
