@@ -315,8 +315,8 @@ def singularity_build_scarab_binary(user, scarab_path, scarab_build, singularity
     try:
         info(f"Building scarab with image {githash}...", dbg_lvl)
 
-        CONTAINER_HOME=f"\"{singularity_home}:/home/{user}:rw\""
-        SCARAB_HOME=f"\"{scarab_path}:/scarab:rw\""
+        CONTAINER_HOME=f"{singularity_home}:/home/{user}:rw"
+        SCARAB_HOME=f"{scarab_path}:/scarab:rw"
         build_cmd = [
                 "singularity",
                     "exec",

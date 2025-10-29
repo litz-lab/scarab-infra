@@ -1,6 +1,12 @@
 # BEGIN SINGULARITY TEMPLATE
 # This is a fragment of a shell script. Config options will be injected 2 lines above
 
+if command -v module &>/dev/null; then
+    module load miniconda3
+    conda activate scarabinfra
+    module load singularity-ce
+fi
+
 echo "Running ${CONFIG} ${SUITE}/${SUBSUITE}/${WORKLOAD} ${SIMPOINT}"
 echo "Running on $(uname -n)"
 
