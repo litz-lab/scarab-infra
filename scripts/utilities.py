@@ -800,7 +800,7 @@ def write_singularity_command_to_file(user, local_uid, local_gid, workload, work
                 f.writelines(fragment_lines)
 
             # Write scarab run command (and ending quote)
-            f.write(f"{scarab_cmd}\"")
+            f.write(f"{scarab_cmd}\"\n")
 
     except Exception as e:
         raise e

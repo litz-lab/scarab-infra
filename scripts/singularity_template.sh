@@ -1,6 +1,8 @@
 # BEGIN SINGULARITY TEMPLATE
 # This is a fragment of a shell script. Config options will be injected 2 lines above
 
+set -eou pipefail
+
 if command -v module &>/dev/null; then
     module load miniconda3
     conda activate scarabinfra
@@ -19,28 +21,38 @@ SCARAB_HOME="${SIM_HOME}/simulations/${EXPERIMENT_NAME}/scarab:/home/${USERNAME}
 
 # NOTE: If a workload isn't working, try uncommenting these and adding --overlay "$OVERLAY" to singularity commands
 # Create a writable overlay for the container (optional, for /usr/local/bin writes)
-# echo "Creating overlay for $CONTAINER_NAME"
-# OVERLAY="${SIM_HOME}/simulations/${EXPERIMENT_NAME}/singularity/${CONTAINER_NAME}_overlay.img"
-# rm -f $OVERLAY
-# if [ ! -f "$OVERLAY" ]; then
-#     singularity overlay create --size 1024 "$OVERLAY"
-#     chmod 777 $OVERLAY
-# fi
+echo "Creating overlay for $CONTAINER_NAME"
+mkdir -p ${SIM_HOME}/simulations/${EXPERIMENT_NAME}/singularity/
+OVERLAY="${SIM_HOME}/simulations/${EXPERIMENT_NAME}/singularity/${CONTAINER_NAME}_overlay.img"
+rm -f $OVERLAY
+if [ ! -f "$OVERLAY" ]; then
+    singularity overlay create --size 1024 "$OVERLAY"
+    chmod 777 $OVERLAY
+fi
 
 # Scripts already in container. If not, uncomment and add ,"$TMP_SCRIPTS:/usr/local/bin:rw" to binds
 # Copy scripts into a temp dir to bind into the container
 # TMP_SCRIPTS="tmp/${CONTAINER_NAME}_scripts"
 # mkdir -p "$TMP_SCRIPTS"
 # echo "Copying scripts to $TMP_SCRIPTS"
-# cp ${INFRA_DIR}/scripts/utilities.sh "$TMP_SCRIPTS/"
-# cp ${INFRA_DIR}/common/scripts/root_entrypoint.sh "$TMP_SCRIPTS/"
-# cp ${INFRA_DIR}/common/scripts/user_entrypoint.sh "$TMP_SCRIPTS/"
-# cp ${INFRA_DIR}/common/scripts/run_memtrace_single_simpoint.sh "$TMP_SCRIPTS/"
+BIND_UTILS="${INFRA_DIR}/scripts/utilities.sh:/usr/local/bin:rw"
+BIND_ROOT_ETRYPT="${INFRA_DIR}/common/scripts/root_entrypoint.sh:/usr/local/bin:rw"
+BIND_USER_ETRYPT="${INFRA_DIR}/common/scripts/user_entrypoint.sh:/usr/local/bin:rw"
+BIND_MEM="${INFRA_DIR}/common/scripts/run_memtrace_single_simpoint.sh:/usr/local/bin:rw"
+BIND_PT="${INFRA_DIR}/common/scripts/run_pt_single_simpoint.sh:/usr/local/bin:rw"
+BIND_EXEC="${INFRA_DIR}/common/scripts/run_exec_single_simpoint.sh:/usr/local/bin:rw"
 
 # Run root entrypoint as root inside the container
 echo "Running root entrypoint in $CONTAINER_NAME"
 singularity exec \
+    --overlay $OVERLAY \
     --bind "$BIND_TRACES","$BIND_HOME","$SCARAB_HOME" \
+    --bind $BIND_UTILS \
+    --bind $BIND_ROOT_ETRYPT \
+    --bind $BIND_USER_ETRYPT \
+    --bind $BIND_MEM \
+    --bind $BIND_PT \
+    --bind $BIND_EXEC \
     --env username=root \
     --home $WORKDIR \
     --env APP_GROUPNAME=${APP_GROUPNAME} \
@@ -52,7 +64,14 @@ singularity exec \
 # Last line (scarab run) removed. Will be injected by run script
 echo "Running user entrypoint in $CONTAINER_NAME"
 singularity exec \
+    --overlay $OVERLAY \
     --bind "$BIND_TRACES","$BIND_HOME","$SCARAB_HOME" \
+    --bind $BIND_UTILS \
+    --bind $BIND_ROOT_ETRYPT \
+    --bind $BIND_USER_ETRYPT \
+    --bind $BIND_MEM \
+    --bind $BIND_PT \
+    --bind $BIND_EXEC \
     --env user_id=${USER_ID} \
     --env group_id=${GID} \
     --env username=${USERNAME} \
