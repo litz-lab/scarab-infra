@@ -23,7 +23,9 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
     gosu \
     linux-tools-generic \
     gdb \
-    graphviz
+    graphviz \
+    protobuf-compiler \
+    libprotobuf-dev
 
 # Copy workflow simpoint/no_simpoint script
 COPY ./scripts/utilities.sh /usr/local/bin/utilities.sh
