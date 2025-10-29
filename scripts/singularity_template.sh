@@ -35,12 +35,12 @@ fi
 # TMP_SCRIPTS="tmp/${CONTAINER_NAME}_scripts"
 # mkdir -p "$TMP_SCRIPTS"
 # echo "Copying scripts to $TMP_SCRIPTS"
-BIND_UTILS="${INFRA_DIR}/scripts/utilities.sh:/usr/local/bin:rw"
-BIND_ROOT_ETRYPT="${INFRA_DIR}/common/scripts/root_entrypoint.sh:/usr/local/bin:rw"
-BIND_USER_ETRYPT="${INFRA_DIR}/common/scripts/user_entrypoint.sh:/usr/local/bin:rw"
-BIND_MEM="${INFRA_DIR}/common/scripts/run_memtrace_single_simpoint.sh:/usr/local/bin:rw"
-BIND_PT="${INFRA_DIR}/common/scripts/run_pt_single_simpoint.sh:/usr/local/bin:rw"
-BIND_EXEC="${INFRA_DIR}/common/scripts/run_exec_single_simpoint.sh:/usr/local/bin:rw"
+BIND_UTILS="${INFRA_DIR}/scripts/utilities.sh:/usr/local/bin/utilities.sh:rw"
+BIND_ROOT_ETRYPT="${INFRA_DIR}/common/scripts/root_entrypoint.sh:/usr/local/bin/root_entrypoint.sh:rw"
+BIND_USER_ETRYPT="${INFRA_DIR}/common/scripts/user_entrypoint.sh:/usr/local/bin/user_entrypoint.sh:rw"
+BIND_MEM="${INFRA_DIR}/common/scripts/run_memtrace_single_simpoint.sh:/usr/local/bin/run_memtrace_single_simpoint.sh:rw"
+BIND_PT="${INFRA_DIR}/common/scripts/run_pt_single_simpoint.sh:/usr/local/bin/run_pt_single_simpoint.sh:rw"
+BIND_EXEC="${INFRA_DIR}/common/scripts/run_exec_single_simpoint.sh:/usr/local/bin/run_exec_single_simpoint.sh:rw"
 
 # Run root entrypoint as root inside the container
 echo "Running root entrypoint in $CONTAINER_NAME"
