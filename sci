@@ -16,7 +16,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
 try:
     from packaging.specifiers import SpecifierSet
@@ -94,6 +94,81 @@ def run_command(
     if capture:
         return completed.stdout or ""
     return None
+
+
+def extract_descriptor_expectations(descriptor: Dict[str, Any]) -> Tuple[Set[str], Set[str]]:
+    workloads: Set[str] = set()
+    simulations = descriptor.get("simulations")
+    if isinstance(simulations, list):
+        for entry in simulations:
+            if isinstance(entry, dict):
+                workload = entry.get("workload")
+                if workload:
+                    workloads.add(str(workload))
+
+    configurations = descriptor.get("configurations")
+    config_names: Set[str] = set()
+    if isinstance(configurations, dict):
+        config_names = {str(name) for name in configurations.keys()}
+
+    return workloads, config_names
+
+
+def collect_stats_for_visualization(descriptor_path: Path, stats_path: Path) -> bool:
+    stat_script = REPO_ROOT / "scarab_stats" / "stat_collector.py"
+    if not stat_script.is_file():
+        print(f"Stat collector script not found at {stat_script}.")
+        return False
+
+    python_cmd: List[str] = []
+    sys_python = Path(sys.executable) if sys.executable else None
+    if sys_python and sys_python.exists():
+        python_cmd = [sys.executable]
+    else:
+        try:
+            env_path, conda_bin = resolve_conda_env_path()
+            env_python = env_path / "bin" / "python"
+            if env_python.exists():
+                python_cmd = [str(env_python)]
+            elif conda_bin:
+                python_cmd = [str(conda_bin), "run", "-n", ENV_NAME, "python"]
+        except StepError:
+            python_cmd = []
+
+    if not python_cmd:
+        print("Unable to locate python executable for stat collection.")
+        return False
+
+    env = os.environ.copy()
+    tmp_dir = env.get("TMPDIR")
+    if not tmp_dir or not Path(tmp_dir).is_dir():
+        tmp_path = stats_path.parent / "tmp"
+        try:
+            tmp_path.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            print(f"Failed to prepare temporary directory {tmp_path}: {exc}")
+            return False
+        tmp_dir = str(tmp_path)
+    env["TMPDIR"] = tmp_dir
+
+    cmd = python_cmd + [
+        str(stat_script),
+        "-d",
+        str(descriptor_path),
+        "-o",
+        str(stats_path),
+    ]
+    print("Refreshing collected stats via stat_collector.py...")
+    try:
+        subprocess.run(cmd, check=True, env=env)
+    except subprocess.CalledProcessError as exc:
+        print(f"Stat collection failed with exit code {exc.returncode}.")
+        return False
+    except FileNotFoundError as exc:
+        print(f"Failed to launch stat_collector.py: {exc}")
+        return False
+
+    return True
 
 
 def ensure_repo_on_path() -> None:
@@ -1508,7 +1583,7 @@ def run_init(args: argparse.Namespace) -> int:
 
 def run_visualize(descriptor_name: str) -> int:
     try:
-        _, descriptor = read_descriptor(descriptor_name)
+        descriptor_path, descriptor = read_descriptor(descriptor_name)
     except StepError as exc:
         print(exc)
         return 1
@@ -1541,11 +1616,17 @@ def run_visualize(descriptor_name: str) -> int:
         print(f"Failed to access stat_aggregator: {exc}")
         return 1
 
-    aggregator = stat_aggregator()
-    try:
-        experiment = aggregator.load_experiment_csv(str(stats_path))
-    except Exception as exc:  # pragma: no cover - depends on user data
-        print(f"Failed to load stats from {stats_path}: {exc}")
+    def load_experiment():
+        agg = stat_aggregator()
+        try:
+            exp = agg.load_experiment_csv(str(stats_path))
+        except Exception as exc:  # pragma: no cover - depends on user data
+            print(f"Failed to load stats from {stats_path}: {exc}")
+            return None, None
+        return agg, exp
+
+    aggregator, experiment = load_experiment()
+    if not aggregator or not experiment:
         return 1
 
     try:
@@ -1554,6 +1635,37 @@ def run_visualize(descriptor_name: str) -> int:
     except Exception as exc:  # pragma: no cover - depends on user data
         print(f"Failed to inspect experiment data: {exc}")
         return 1
+
+    expected_workloads, expected_configs = extract_descriptor_expectations(descriptor)
+    missing_workloads = expected_workloads - set(workloads)
+    missing_configs = expected_configs - set(configs)
+
+    if (missing_workloads or missing_configs) and (expected_workloads or expected_configs):
+        if missing_workloads:
+            print(
+                f"Stats file missing workloads defined in descriptor: {', '.join(sorted(missing_workloads))}"
+            )
+        if missing_configs:
+            print(
+                f"Stats file missing configurations defined in descriptor: {', '.join(sorted(missing_configs))}"
+            )
+        if collect_stats_for_visualization(descriptor_path, stats_path):
+            aggregator, experiment = load_experiment()
+            if not aggregator or not experiment:
+                return 1
+            try:
+                workloads = sorted(experiment.get_workloads())
+                configs = sorted(experiment.get_configurations())
+            except Exception as exc:  # pragma: no cover - depends on user data
+                print(f"Failed to inspect experiment data: {exc}")
+                return 1
+
+            remaining_workloads = expected_workloads - set(workloads)
+            remaining_configs = expected_configs - set(configs)
+            if remaining_workloads or remaining_configs:
+                print("Refreshed stats still missing descriptor entries; continuing with available data.")
+        else:
+            print("Unable to refresh stats automatically; continuing with existing data.")
 
     if not workloads:
         print("No workloads found in the stats file.")
