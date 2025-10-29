@@ -305,70 +305,80 @@ def build_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_pre
 # Wrapper function that handles rebuilding scarab if needed, and caching
 def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, githash, scarab_githash, scarab_build, stream_build=False, dbg_lvl=1):
     current_scarab_bin = f"{infra_dir}/scarab_builds/scarab_current"
+    build_mode = scarab_build if scarab_build else "opt"
 
     # Check for suitable current binary in cache
     if not os.path.isfile(current_scarab_bin):
         warn(f"Scarab binary for current hash not found in cache. Will build it", dbg_lvl)
-        scarab_build = 'opt'
+        build_mode = "opt"
 
-    if scarab_build != None:
-        scarab_bin = f"{scarab_path}/src/build/{scarab_build}/scarab"
+    scarab_bin = f"{scarab_path}/src/build/{build_mode}/scarab"
 
-        # Build and copy to cache
+    # Build and copy to cache
+    try:
+        build_scarab_binary(
+            user,
+            scarab_path,
+            build_mode,
+            docker_home,
+            docker_prefix,
+            githash,
+            infra_dir,
+            dbg_lvl=dbg_lvl,
+            stream_build=stream_build,
+        )
+
+        if not os.path.isfile(scarab_bin):
+            err("Scarab not found after building", dbg_lvl)
+            raise RuntimeError(f"Scarab binary not found at {scarab_bin} after build!")
+
+        # Name with git hash, with index for different iterations
+        build_differs = False
         try:
-            build_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_prefix, githash, infra_dir, dbg_lvl=dbg_lvl, stream_build=stream_build)
+            info(f"diff {current_scarab_bin} {scarab_bin}", dbg_lvl)
+            subprocess.check_output(f"diff {current_scarab_bin} {scarab_bin}", shell=True, text=True)
+        except subprocess.CalledProcessError:
+            info("Caught exception caused by difference between cached current binary and build result", dbg_lvl)
+            build_differs = True
+        except FileNotFoundError:
+            build_differs = True
 
-            if not os.path.isfile(scarab_bin):
-                err("Scarab not found after building", dbg_lvl)
-                raise RuntimeError(f"Scarab binary not found at {scarab_bin} after build!")
+        if not build_differs:
+            info(f"Current scarab binary is the same as the cached version. Not updating cache.", dbg_lvl)
+        else:
+            info(f"Current scarab binary differs from cached version. Updating cache...", dbg_lvl)
 
-            # Name with git hash, with index for different iterations
-            build_differs = False
-            try:
-                info(f"diff {current_scarab_bin} {scarab_bin}", dbg_lvl)
-                diff_result = subprocess.check_output(f"diff {current_scarab_bin} {scarab_bin}", shell=True, text=True)
-            except:
-                info("Caught exception caused by difference between cached current binary and build result", dbg_lvl)
-                build_differs = True
+            # Figure out index for binary. Order is _0 _1, _2, ...
+            # Find all existing binaries with the githash
+            scarab_binaries = os.listdir(f"{infra_dir}/scarab_builds")
+            pattern = re.compile(f"scarab_{scarab_githash}(_|$)")
+            current_githash_binaries = list(filter(pattern.match, scarab_binaries))
 
+            print("Binaries matching current githash:", current_githash_binaries, "out of:", scarab_binaries, pattern)
 
-            if not build_differs:
-                info(f"Current scarab binary is the same as the cached version. Not updating cache.", dbg_lvl)
+            # If none exist, put it without index. Otherwise, add postfix index
+            if current_githash_binaries == []:
+                info(f"No binaries with hash {scarab_githash} exist. Creating version 0...", dbg_lvl)
+                githash_scarab_bin = f"{infra_dir}/scarab_builds/scarab_{scarab_githash}_0"
             else:
-                info(f"Current scarab binary differs from cached version. Updating cache...", dbg_lvl)
+                idx_pattern = re.compile(f"scarab_{scarab_githash}_")
+                current_githash_versions = list(filter(idx_pattern.match, current_githash_binaries))
 
-                # Figure out index for binary. Order is _0 _1, _2, ...
-                # Find all existing binaries with the githash
-                scarab_binaries = os.listdir(f"{infra_dir}/scarab_builds")
-                pattern = re.compile(f"scarab_{scarab_githash}(_|$)")
-                current_githash_binaries = list(filter(pattern.match, scarab_binaries))
+                print("Versions matching current githash:", current_githash_binaries)
 
-                print("Binaries matching current githash:", current_githash_binaries, "out of:", scarab_binaries, pattern)
+                # If they do exist, take max index and increment it
+                current_indicies = list(map(lambda x: int(x.split("_")[-1]), current_githash_versions))
 
-                # If none exist, put it without index. Otherwise, add postfix index
-                if current_githash_binaries == []:
-                    info(f"No binaries with hash {scarab_githash} exist. Creating version 0...", dbg_lvl)
-                    githash_scarab_bin = f"{infra_dir}/scarab_builds/scarab_{scarab_githash}_0"
-                else:
-                    idx_pattern = re.compile(f"scarab_{scarab_githash}_")
-                    current_githash_versions = list(filter(idx_pattern.match, current_githash_binaries))
+                print("New index:", max(current_indicies)+1)
+                githash_scarab_bin = f"{infra_dir}/scarab_builds/scarab_{scarab_githash}_{max(current_indicies)+1}"
 
-                    print("Versions matching current githash:", current_githash_binaries)
+            info(f"Copying scarab binary for {githash_scarab_bin} to cache", dbg_lvl)
+            os.system(f"cp {scarab_bin} {githash_scarab_bin}")
+            os.system(f"cp {scarab_bin} {current_scarab_bin}")
 
-                    # If they do exist, take max index and increment it
-                    current_indicies = list(map(lambda x: int(x.split("_")[-1]), current_githash_versions))
-
-                    print("New index:", max(current_indicies)+1)
-                    githash_scarab_bin = f"{infra_dir}/scarab_builds/scarab_{scarab_githash}_{max(current_indicies)+1}"
-
-
-                info(f"Copying scarab binary for {githash_scarab_bin} to cache", dbg_lvl)
-                os.system(f"cp {scarab_bin} {githash_scarab_bin}")
-                os.system(f"cp {scarab_bin} {current_scarab_bin}")
-
-        except Exception as e:
-            err(f"Scarab build failed! {str(e)}", dbg_lvl)
-            raise e
+    except Exception as e:
+        err(f"Scarab build failed! {str(e)}", dbg_lvl)
+        raise e
 
     # Check for suitable current binary in cache after build
     if not os.path.isfile(current_scarab_bin):
@@ -1092,11 +1102,11 @@ def check_sp_exist (descriptor_data, config_key, suite, subsuite, workload, exp_
 
     print(experiment_dir)
 
-    # Non-existance case
-    if os.path.exists(experiment_dir):
+    inst_stat_path = Path(experiment_dir) / "inst.stat.0.csv"
+    if inst_stat_path.is_file():
         return True
-    
-    # Existance case
+
+    # Previous runs without a completed inst.stat.0.csv should be retried
     return False
 
 # Returns true if experiment failed
