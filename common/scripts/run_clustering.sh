@@ -19,7 +19,7 @@ else
     maxK=$USERK
 fi
 
-echo "fingerprint size: $lines, maxK: $maxK"
+echo "fingerprint size: $lines, maxk: $maxK"
 # binary search with maxK
 spCmd="$tmpdir/simpoint -maxK $maxK -dim 100 -fixedLength off -numInitSeeds 10 -loadFVFile $FPFILE -saveSimpoints $OUTDIR/simpoints/opt.p -saveSimpointWeights $OUTDIR/simpoints/opt.w -saveVectorWeights $OUTDIR/simpoints/vector.w -saveLabels $OUTDIR/simpoints/opt.l -coveragePct .99 &> $OUTDIR/simpoints/simp.opt.log"
 # search every one with maxK
