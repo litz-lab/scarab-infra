@@ -2305,7 +2305,7 @@
           "memtrace":{
             "image_name":"allbench_traces",
             "segment_size":10000000,
-            "warmup":10000000,
+            "warmup":50000000,
             "whole_trace_file":"drmemtrace.tao_bench_server.184919.7249.trace.zip",
             "trace_type":"trace_then_cluster"
           }
@@ -2347,7 +2347,7 @@
           "memtrace":{
             "image_name":"allbench_traces",
             "segment_size":10000000,
-            "warmup":10000000,
+            "warmup":50000000,
             "whole_trace_file":"drmemtrace.uwsgi.214106.1772.trace.zip",
             "trace_type":"trace_then_cluster"
           }
