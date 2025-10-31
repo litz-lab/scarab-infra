@@ -8,6 +8,7 @@ import subprocess
 import re
 import traceback
 import json
+from pathlib import Path
 from .utilities import (
         err,
         warn,
@@ -420,7 +421,7 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
         print("More log files than total runs. Maybe same experiment name was run multiple times?")
         print("Any errors from a previous run with the same experiment name will be re-reported now")
 
-    error_runs = []
+    error_runs = set()
     skipped = 0
     stats_generating = False
 
@@ -475,20 +476,50 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
             # Slurm error messages have 'node: error:' in them
             for node in all_nodes:
                 if f"{node}: error:" in contents:
-                    error_runs += [root_directory+file]
+                    error_runs.add(root_directory+file)
                     if config in slurm_failed:
                         slurm_failed[config] += 1
 
+            # Some failures will have a line with "Segmentation falut" in them if they fail
+            if 'Segmentation fault' in contents:
+                error_runs.add(root_directory+file)
+                if config in failed:
+                    failed[config] += 1
+                continue
+
             # Most scarab runs and all stat runs will have a line with "Error" in them if they fail
             if 'Error' in contents:
-                error_runs += [root_directory+file]
+                error_runs.add(root_directory+file)
                 if config in failed:
                     failed[config] += 1
                 continue
 
             # To be sure, check scarab runs with for final success line
             if config != 'stat' and descriptor_data["experiment"] not in contents:
-                error_runs += [root_directory+file]
+                error_runs.add(root_directory+file)
+                if config in failed:
+                    failed[config] += 1
+                continue
+
+            inst_stat_missing = False
+            if config != "stat":
+                lines = contents.splitlines()
+                if lines:
+                    first_line = lines[0].strip()
+                    tokens = first_line.split()
+                    if len(tokens) >= 4 and tokens[0] == "Running":
+                        workload_token = tokens[2]
+                        cluster_token = tokens[3]
+                        if cluster_token.lower() != "none":
+                            workload_parts = workload_token.split("/")
+                            if workload_parts:
+                                sim_dir = Path(descriptor_data["root_dir"]) / "simulations" / descriptor_data["experiment"] / config
+                                sim_dir = sim_dir.joinpath(*workload_parts, cluster_token)
+                                inst_stat_path = sim_dir / "inst.stat.0.csv"
+                                if not inst_stat_path.is_file():
+                                    inst_stat_missing = True
+            if inst_stat_missing:
+                error_runs.add(root_directory+file)
                 if config in failed:
                     failed[config] += 1
                 continue
@@ -535,10 +566,11 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
         print("\033[0m")
     
     # Print up to five of the full paths
-    if len(error_runs) > 0:
-        print(f"\033[31mErroneous Jobs: {len(error_runs)}\033[0m")
-        print(f"\033[31mErrors found in {len(error_runs)}/{len(log_files)} log files.")
-        print("First 5 error runs:\n", "\n".join(error_runs[:5]), "\033[0m", sep='')
+    if error_runs:
+        error_list = sorted(error_runs)
+        print(f"\033[31mErroneous Jobs: {len(error_list)}\033[0m")
+        print(f"\033[31mErrors found in {len(error_list)}/{len(log_files)} log files.")
+        print("First 5 error runs:\n", "\n".join(error_list[:5]), "\033[0m", sep='')
     else:
         print(f"\033[92mNo errors found in log files\033[0m")
 
