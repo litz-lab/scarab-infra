@@ -1124,14 +1124,21 @@ def check_sp_failed (descriptor_data, config_key, suite, subsuite, workload, exp
 
 # Clean up failed run
 def clean_failed_run (descriptor_data, config_key, suite, subsuite, workload, exp_cluster_id):
-    # Wipe run directory
+    # Remove failed run artifacts while preserving directory structure
     experiment_dir =  f"{descriptor_data['root_dir']}/simulations/{descriptor_data['experiment']}/"
     experiment_dir += f"{config_key}/{suite}/{subsuite}/{workload}/{exp_cluster_id}"
 
+    experiment_path = Path(experiment_dir)
+    patterns_to_clean = ["*.csv", "*.out", "*.in", "*.out.warmup", "sim.log"]
+
     try:
-        os.system(f"rm -rf {experiment_dir}")
+        if experiment_path.exists():
+            for pattern in patterns_to_clean:
+                for target in experiment_path.glob(pattern):
+                    if target.is_file() or target.is_symlink():
+                        target.unlink()
     except Exception as e:
-        err(f"Error removing directory {experiment_dir}: {e}", 1)
+        err(f"Error cleaning files in {experiment_dir}: {e}", 1)
 
     # Wipe log file
     log_dir =  f"{descriptor_data['root_dir']}/simulations/{descriptor_data['experiment']}/logs/"
