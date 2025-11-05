@@ -538,6 +538,73 @@ def configure_docker_permissions(_: argparse.Namespace) -> Tuple[bool, str]:
     return False, "sudo not available to adjust /var/run/docker.sock permissions."
 
 
+def ensure_docker_running(_: argparse.Namespace) -> Tuple[bool, str]:
+    def docker_is_responding() -> bool:
+        try:
+            run_command(["docker", "info"], capture=True)
+            return True
+        except StepError:
+            return False
+
+    def docker_service_active() -> bool:
+        systemctl = shutil.which("systemctl")
+        if systemctl:
+            try:
+                result = subprocess.run(
+                    [systemctl, "is-active", "--quiet", "docker"],
+                    check=False,
+                )
+                if result.returncode == 0:
+                    return True
+            except OSError:
+                pass
+
+        service = shutil.which("service")
+        if service:
+            try:
+                result = subprocess.run(
+                    [service, "docker", "status"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    check=False,
+                )
+                if result.returncode == 0:
+                    return True
+            except OSError:
+                pass
+
+        return False
+
+    if docker_is_responding() or docker_service_active():
+        return True, "Docker daemon already running."
+
+    start_commands: List[List[str]] = []
+    systemctl = shutil.which("systemctl")
+    service = shutil.which("service")
+    sudo = shutil.which("sudo")
+
+    if sudo and systemctl:
+        start_commands.append(["sudo", "systemctl", "start", "docker"])
+    elif systemctl:
+        start_commands.append(["systemctl", "start", "docker"])
+    elif sudo and service:
+        start_commands.append(["sudo", "service", "docker", "start"])
+    elif service:
+        start_commands.append(["service", "docker", "start"])
+
+    for command in start_commands:
+        if shutil.which(command[0]) is None:
+            continue
+        try:
+            run_command(command, check=False)
+        except StepError:
+            continue
+        if docker_is_responding() or docker_service_active():
+            return True, "Docker daemon started."
+
+    return False, "Unable to automatically start the docker daemon; start it manually and rerun."
+
+
 def ensure_conda_env(args: argparse.Namespace) -> Tuple[bool, str]:
     if not shutil.which("conda"):
         return False, "conda command not found. Install Miniconda or Anaconda."
@@ -1546,6 +1613,7 @@ def run_init(args: argparse.Namespace) -> int:
             return 0
     steps = [
         ("Install Docker", ensure_docker),
+        ("Start Docker daemon", ensure_docker_running),
         ("Configure Docker permissions", configure_docker_permissions),
         ("Install Miniconda", ensure_conda_installed),
         ("Create scarabinfra conda env", ensure_conda_env),
