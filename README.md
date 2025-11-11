@@ -69,6 +69,8 @@ For additional control you may instead supply objects such as:
 ```
 The `name` (optional) governs the output filename stem, while `title` and `y_label` adjust plot annotations.
 
+Set `visualize_baseline` in the descriptor to force the speedup plots to use a specific configuration as their reference (defaults to the first configuration present in the stats file).
+
 ### List workloads and simulation modes
 ```
 ./sci --list

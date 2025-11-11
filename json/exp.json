@@ -77,5 +77,7 @@
         "L1I_MISS_count"
       ]
     }
-  ]
+  ],
+  "_visualize_baseline":"Optional configuration name to use as the speedup baseline when running ./sci --visualize.",
+  "visualize_baseline":"icache_32k"
 }

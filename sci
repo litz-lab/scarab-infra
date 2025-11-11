@@ -1890,7 +1890,27 @@ def run_visualize(descriptor_name: str) -> int:
         print("No valid entries found in 'visualize_counters'.")
         return 1
 
-    baseline = configs[0]
+    baseline: Optional[str] = None
+    raw_baseline = descriptor.get("visualize_baseline")
+    if isinstance(raw_baseline, str):
+        candidate = raw_baseline.strip()
+        if candidate:
+            if candidate in configs:
+                baseline = candidate
+            else:
+                print(
+                    f"Configured visualize_baseline '{candidate}' is not present in the stats file; "
+                    "defaulting to the first available configuration."
+                )
+        else:
+            print("Descriptor field 'visualize_baseline' is empty; defaulting to the first configuration.")
+    elif raw_baseline is not None:
+        print(
+            "Descriptor field 'visualize_baseline' must be a string when provided; "
+            "defaulting to the first configuration."
+        )
+    if baseline is None:
+        baseline = configs[0]
 
     def safe_filename(stem: str) -> str:
         return "".join(c if c.isalnum() or c in {"-", "_"} else "_" for c in stem)
