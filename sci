@@ -312,14 +312,17 @@ def reexec_in_conda_env() -> None:
     sys.exit(result.returncode)
 
 
-def handle_descriptor_action(descriptor_name: str, action: str) -> None:
+def handle_descriptor_action(descriptor_name: str, action: str, dbg_override: Optional[int] = None) -> None:
     path, descriptor = read_descriptor(descriptor_name)
     dtype = descriptor.get("descriptor_type")
     infra_dir = str(REPO_ROOT)
 
+    def resolve_dbg(default: int) -> int:
+        return dbg_override if dbg_override is not None else default
+
     if dtype == "simulation":
         sim_module = import_repo_module("scripts.run_simulation")
-        dbg_lvl = 3 if action == "launch" else 2
+        dbg_lvl = resolve_dbg(3 if action == "launch" else 2)
         sim_action = {
             "launch": "launch",
             "simulate": "simulate",
@@ -334,7 +337,7 @@ def handle_descriptor_action(descriptor_name: str, action: str) -> None:
 
     if dtype == "trace":
         trace_module = import_repo_module("scripts.run_trace")
-        dbg_lvl = 3 if action in {"launch", "trace"} else 2
+        dbg_lvl = resolve_dbg(3 if action in {"launch", "trace"} else 2)
         trace_action = {
             "launch": "launch",
             "trace": "trace",
@@ -351,7 +354,7 @@ def handle_descriptor_action(descriptor_name: str, action: str) -> None:
         if action != "launch":
             raise StepError("Perf descriptors only support interactive launch")
         perf_module = import_repo_module("scripts.run_perf")
-        perf_module.run_perf_command(str(path), "launch", dbg_lvl=3, infra_dir=infra_dir)
+        perf_module.run_perf_command(str(path), "launch", dbg_lvl=resolve_dbg(3), infra_dir=infra_dir)
         return
 
     raise StepError(f"Unsupported descriptor type '{dtype}' for action '{action}'")
@@ -2062,6 +2065,13 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="DESCRIPTOR",
         help="Remove containers and state for json/<DESCRIPTOR>.json.",
     )
+    parser.add_argument(
+        "--debug-level",
+        dest="debug_level",
+        type=int,
+        choices=[1, 2, 3],
+        help="Override descriptor command verbosity (1=errors, 2=warnings, 3=info).",
+    )
     return parser
 
 
@@ -2155,21 +2165,21 @@ def main() -> int:
         return 0
     if args.interactive:
         try:
-            handle_descriptor_action(args.interactive, "launch")
+            handle_descriptor_action(args.interactive, "launch", dbg_override=args.debug_level)
             return 0
         except (StepError, RuntimeError) as exc:
             print(exc)
             return 1
     if args.trace:
         try:
-            handle_descriptor_action(args.trace, "trace")
+            handle_descriptor_action(args.trace, "trace", dbg_override=args.debug_level)
             return 0
         except (StepError, RuntimeError) as exc:
             print(exc)
             return 1
     if args.sim:
         try:
-            handle_descriptor_action(args.sim, "simulate")
+            handle_descriptor_action(args.sim, "simulate", dbg_override=args.debug_level)
             return 0
         except (StepError, RuntimeError) as exc:
             print(exc)
@@ -2178,21 +2188,21 @@ def main() -> int:
         return run_visualize(args.visualize)
     if args.kill:
         try:
-            handle_descriptor_action(args.kill, "kill")
+            handle_descriptor_action(args.kill, "kill", dbg_override=args.debug_level)
             return 0
         except (StepError, RuntimeError) as exc:
             print(exc)
             return 1
     if args.status:
         try:
-            handle_descriptor_action(args.status, "info")
+            handle_descriptor_action(args.status, "info", dbg_override=args.debug_level)
             return 0
         except (StepError, RuntimeError) as exc:
             print(exc)
             return 1
     if args.clean:
         try:
-            handle_descriptor_action(args.clean, "clean")
+            handle_descriptor_action(args.clean, "clean", dbg_override=args.debug_level)
             return 0
         except (StepError, RuntimeError) as exc:
             print(exc)
