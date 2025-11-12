@@ -194,42 +194,64 @@ def validate_simulation(workloads_data, simulations, dbg_lvl = 2):
                     err(f"Cluster ID should be greater than 0. {cluster_id} is not valid.", dbg_lvl)
                     exit(1)
 
-        print(f"[{suite}, {subsuite}, {workload}, {cluster_id}, {sim_mode}] is a valid simulation option.")
+        print(f"[{suite}, {subsuite}, {workload}, {cluster_id}, {sim_mode}] is a valid simulation option. Submitting jobs..")
+
+
+import os
+import fcntl
+from contextlib import contextmanager
+
+@contextmanager
+def file_lock(lock_path):
+    """
+    Simple blocking file lock using fcntl.flock.
+    Ensures only one process at a time holds the lock.
+    """
+    os.makedirs(os.path.dirname(lock_path), exist_ok=True)
+    fd = os.open(lock_path, os.O_CREAT | os.O_RDWR)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX)  # blocks until lock acquired
+        yield
+    finally:
+        fcntl.flock(fd, fcntl.LOCK_UN)
+        os.close(fd)
 
 # Prepare the docker image on each node
 # Inputs:   docker_prefix - docker image name
 #           image_tag - image name with the tag to build
 #           latest_image_tag - the latest pre-built image name with the tag
-#           nodes - list of available nodes (local runner when it's none)
 #           diff_output - diff of two git hashes in the directories that change the docker image
 # Output: list of nodes where the docker image is ready
-def prepare_docker_image(docker_prefix, image_tag, nodes=None, dbg_lvl=1):
-    if nodes is None:
-        nodes = []
-    # build the image also locally
-    nodes = [None] + nodes
-    available_nodes = []
-    for node in nodes:
-        if not image_exist(image_tag, node):
-            print(f"Couldn't find image {image_tag} on {node}")
-            try:
-                sci_path = os.path.join(project_root, "sci")
-                print(f"Invoking {sci_path} --build-image {docker_prefix} on {node if node else 'local host'}")
-                # Ensure stdout is streamed for visibility when running locally.
-                run_on_node([sci_path, "--build-image", docker_prefix], node, check=True)
-            except subprocess.CalledProcessError as e:
-                err(f"sci --build-image failed with return code {e.returncode}", dbg_lvl)
-                failure_stdout = getattr(e, "stdout", None)
-                if failure_stdout:
-                    err(failure_stdout.decode(), dbg_lvl)
-                if not image_exist(image_tag, node):
-                    err(f"Still couldn't find image {image_tag} after attempting to build.", dbg_lvl)
-                    exit(1)
-        available_nodes.append(node)
-    # If docker image still does not exist anywhere, exit
-    if available_nodes == []:
-        err(f"Error with preparing docker image for {image_tag}", dbg_lvl)
-        exit(1)
+def prepare_docker_image(docker_prefix, image_tag, dbg_lvl=1):
+    # Fast path: image already exists → nothing to do
+    if image_exist(image_tag):
+        return
+
+    # Derive a lock path that is unique per image tag
+    safe_tag = image_tag.replace("/", "_").replace(":", "_")
+    lock_path = f"/tmp/docker_build_{safe_tag}.lock"
+
+    with file_lock(lock_path):
+        # Once we hold the lock, re-check: another job may have built the image already.
+        if image_exist(image_tag):
+            return
+
+        try:
+            sci_path = os.path.join(project_root, "sci")
+            print(f"Invoking {sci_path} --build-image {docker_prefix}")
+            # Ensure stdout is streamed for visibility when running locally.
+            subprocess.run([sci_path, "--build-image", docker_prefix], check=True)
+        except subprocess.CalledProcessError as e:
+            err(f"sci --build-image failed with return code {e.returncode}", dbg_lvl)
+            failure_stdout = getattr(e, "stdout", None)
+            if failure_stdout:
+                err(failure_stdout.decode(), dbg_lvl)
+
+            # After failure, check one more time: maybe another process succeeded
+            # in the meantime (if you ever relax the lock to non-blocking).
+            if not image_exist(image_tag):
+                err(f"Still couldn't find image {image_tag} after attempting to build.", dbg_lvl)
+                exit(1)
 
 # Locally builds scarab using docker. No caching or skipping logic
 def build_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_prefix, githash, infra_dir, dbg_lvl=1, stream_build=False):
@@ -395,14 +417,14 @@ def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, git
 #           architecture - Architecture name
 #
 # Outputs:  scarab githash
-def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_name, architecture, docker_prefix_list, githash, infra_dir, scarab_binaries, interactive_shell=False, available_slurm_nodes=[], dbg_lvl=1, stream_build=False):
+def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_name, architecture, docker_prefix_list, githash, infra_dir, scarab_binaries, interactive_shell=False, dbg_lvl=1, stream_build=False):
     # prepare docker images
     image_tag_list = []
     try:
         for docker_prefix in docker_prefix_list:
             image_tag = f"{docker_prefix}:{githash}"
             image_tag_list.append(image_tag)
-            prepare_docker_image(docker_prefix, image_tag, available_slurm_nodes, dbg_lvl)
+            prepare_docker_image(docker_prefix, image_tag, dbg_lvl)
     except subprocess.CalledProcessError as e:
         info(f"Docker image preparation failed: {e.stderr if isinstance(e.stderr, str) else e.stderr.decode() if e.stderr else str(e)}", dbg_lvl)
         raise e
@@ -489,15 +511,12 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
 
         raise e
 
-def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_name, image_tag_list, available_nodes, slurm_ids = None, dont_collect = False):
+def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_name, image_tag_list, slurm_ids = None, dont_collect = False):
     experiment_dir = f"{root_dir}/simulations/{experiment_name}"
     # clean up docker images only when no container is running on top of the image (the other user may be using it)
     # ignore the exception to ignore the rmi failure due to existing containers
-    nodes = ' '.join(available_nodes)
     images = ' '.join(image_tag_list)
     clean_cmd = f"scripts/docker_cleaner.py --images {images}"
-    if nodes:
-        clean_cmd = clean_cmd + f" --nodes {nodes}"
     if slurm_ids:
         sbatch_cmd = f"sbatch --dependency=afterany:{','.join(slurm_ids)} -o {experiment_dir}/logs/stat_collection_job_%j.out "
         clean_cmd = sbatch_cmd + clean_cmd
@@ -558,11 +577,6 @@ def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_n
 
     os.system(collect_stats_cmd)
 
-    try:
-        print("Finish simulation..")
-    except Exception as e:
-        raise e
-
 # Generate command to do a single run of scarab
 def generate_single_scarab_run_command(user, workload_home, experiment, config_key, config,
                                        mode, seg_size, arch, scarab_binary, cluster_id,
@@ -618,6 +632,9 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
                                                         warmup, trace_warmup, trace_type, trace_file, env_vars, bincmd, client_bincmd)
         with open(filename, "w") as f:
             f.write("#!/bin/bash\n")
+            f.write(f"cd {infra_dir}\n")
+            f.write(f"python -m scripts.prepare_docker_image --docker-prefix {docker_prefix} --githash {githash} \n")
+            f.write(f"cd -\n")
             f.write(f"echo \"Running {config_key} {workload_home} {cluster_id}\"\n")
             f.write("echo \"Running on $(uname -n)\"\n")
             f.write(f"docker run \
@@ -851,18 +868,6 @@ def get_weight_by_cluster_id(exp_cluster_id, simpoints):
             return simpoint["weight"]
 
 def prepare_trace(user, scarab_path, scarab_build, docker_home, job_name, infra_dir, docker_prefix_list, githash, interactive_shell=False, available_slurm_nodes=[], dbg_lvl=1):
-    # prepare docker images
-    try:
-        for docker_prefix in docker_prefix_list:
-            image_tag = f"{docker_prefix}:{githash}"
-            prepare_docker_image(docker_prefix, image_tag, available_slurm_nodes, dbg_lvl)
-    except subprocess.CalledProcessError as e:
-        info(f"Docker image preparation failed: {e.stderr if isinstance(e.stderr, str) else e.stderr.decode() if e.stderr else str(e)}", dbg_lvl)
-        raise e
-    except Exception as e:
-        info(f"Unexpected error during docker image preparation: {str(e)}", dbg_lvl)
-        raise e
-
     try:
         scarab_githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=scarab_path).decode("utf-8").strip()
     except Exception as e:
@@ -1089,7 +1094,7 @@ def count_interactive_shells(container_name, dbg_lvl):
 
 def image_exist(image_tag, node=None):
     try:
-        output = run_on_node(["docker", "images", "-q", image_tag], node, capture_output=True, text=True)
+        output = subprocess.run(["docker", "images", "-q", image_tag], capture_output=True, text=True)
         return bool(output.stdout.strip())
     except subprocess.CalledProcessError:
         return False
@@ -1100,7 +1105,7 @@ def check_sp_exist (descriptor_data, config_key, suite, subsuite, workload, exp_
     experiment_dir =  f"{descriptor_data['root_dir']}/simulations/{descriptor_data['experiment']}/"
     experiment_dir += f"{config_key}/{suite}/{subsuite}/{workload}/{exp_cluster_id}"
 
-    print(experiment_dir)
+    #print(experiment_dir)
 
     inst_stat_path = Path(experiment_dir) / "inst.stat.0.csv"
     if inst_stat_path.is_file():

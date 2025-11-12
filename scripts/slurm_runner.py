@@ -166,15 +166,8 @@ def check_available_nodes(dbg_lvl = 1):
             all_nodes.append(node)
 
             # Index -1 is STATE. Skip if not partially available
-            if line[-1] != 'idle' and line[-1] != 'mix':
+            if line[-1] == 'drain':
                 info(f"{node} is not available. It is '{line[-1]}'", dbg_lvl)
-                continue
-
-            # If docker is not installed, skip
-            try:
-                docker_installed = subprocess.check_output(["srun", f"--nodelist={node}", "docker", "--version"])
-            except Exception as e:
-                info(f"docker is not installed on {node}", dbg_lvl)
                 continue
 
             # Now append node(s) to available list. May be single (bohr3) or multiple (bohr[3,5])
@@ -217,12 +210,8 @@ def list_cluster_nodes(dbg_lvl = 1):
     return nodes
 
 # Get command to sbatch scarab runs. 1 core each, exclude nodes where container isn't running
-def generate_sbatch_command(excludes, experiment_dir):
-    # If all nodes are usable, no need to exclude
-    if not excludes == set():
-        return f"sbatch --exclude {','.join(excludes)} -c 1 -o {experiment_dir}/logs/job_%j.out "
-
-    return f"sbatch -c 1 -o {experiment_dir}/logs/job_%j.out "
+def generate_sbatch_command(experiment_dir):
+    return f"sbatch -c 1 --ntasks-per-core=2 --oversubscribe -o {experiment_dir}/logs/job_%j.out "
 
 def get_simulation_jobs(descriptor_data, workloads_data, docker_prefix, user, dbg_lvl = 1):
     architecture = descriptor_data["architecture"]
@@ -436,7 +425,7 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
     # NOTE: Potential Subset issue again. conf2 and conf sims will be added to conf2
     # Tried to create such a scenario but was unable
     for sim in queued_sims:
-        print(sim)
+        #print(sim)
         for conf in confs:
             if conf in sim:
                 pending[conf] += 1
@@ -461,7 +450,7 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
             if not is_stat_job:
                 # Non-stat jobs will have 4 lines in their log file until they complete.
                 # Fifth line completion message indicates completion
-                if len(contents.split("\n")) < 5:
+                if len(contents.split("\n")) < 6:
                     skipped += 1
                     if config in running:
                         running[config] += 1
@@ -714,17 +703,15 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
     traces_dir = descriptor_data["traces_dir"]
     configs = descriptor_data["configurations"]
     simulations = descriptor_data["simulations"]
-
+    total_sims = 0
     docker_prefix_list = get_image_list(simulations, workloads_data)
 
-    def run_single_workload(suite, subsuite, workload, exp_cluster_id, sim_mode, warmup, all_nodes):
+    def run_single_workload(suite, subsuite, workload, exp_cluster_id, sim_mode, warmup):
         try:
             docker_prefix = get_docker_prefix(sim_mode, workloads_data[suite][subsuite][workload]["simulation"])
+
             info(f"Using docker image with name {docker_prefix}:{githash}", dbg_lvl)
-            docker_running = check_docker_image(available_slurm_nodes, docker_prefix, githash, dbg_lvl)
-            excludes = set(all_nodes) - set(docker_running)
-            info(f"Excluding following nodes: {', '.join(excludes)}", dbg_lvl)
-            sbatch_cmd = generate_sbatch_command(excludes, experiment_dir)
+            sbatch_cmd = generate_sbatch_command(experiment_dir)
             trace_warmup = None
             trace_type = ""
             trace_file = None
@@ -778,7 +765,6 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
 
                     # Create temp file with run command and run it
                     filename = f"{docker_container_name}_tmp_run.sh"
-
                     slurm_running_sims = check_slurm_task_queued_or_running(docker_prefix_list, experiment_name, user, dbg_lvl)
                     running_sims = []
                     for node_list in slurm_running_sims.values():
@@ -798,9 +784,11 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
 
                     info(f"Running sbatch command '{sbatch_cmd + filename}'", dbg_lvl)
                     result = subprocess.run((sbatch_cmd + filename).split(" "), capture_output=True, text=True)
-                    print(result.stdout.split(" ")[-1].strip())
+                    #print(result.stdout.split(" ")[-1].strip())
                     slurm_ids.append(result.stdout.split(" ")[-1].strip())
-
+                nonlocal total_sims
+                total_sims = total_sims + len(slurm_ids)
+                print("\rSubmitting jobs: "+str(total_sims), end="", flush=True)
             return slurm_ids
         except Exception as e:
             raise e
@@ -824,15 +812,6 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
         except subprocess.CalledProcessError:
             err("Error: Not in a Git repository or unable to retrieve Git hash.", dbg_lvl)
 
-
-        # Get avlailable nodes. Error if none available
-        available_slurm_nodes, all_nodes = check_available_nodes(dbg_lvl)
-        info(f"Available nodes: {', '.join(available_slurm_nodes)}", dbg_lvl)
-
-        if available_slurm_nodes == []:
-            err("Cannot find any running slurm nodes", dbg_lvl)
-            exit(1)
-
         scarab_binaries = []
         for sim in simulations:
             for config_key in configs:
@@ -842,7 +821,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
 
         # Generate commands for executing in users docker and sbatching to nodes with containers
         experiment_dir = f"{descriptor_data['root_dir']}/simulations/{experiment_name}"
-        scarab_githash, image_tag_list = prepare_simulation(user, scarab_path, scarab_build, descriptor_data['root_dir'], experiment_name, architecture, docker_prefix_list, githash, infra_dir, scarab_binaries, False, available_slurm_nodes, dbg_lvl)
+        scarab_githash, image_tag_list = prepare_simulation(user, scarab_path, scarab_build, descriptor_data['root_dir'], experiment_name, architecture, docker_prefix_list, githash, infra_dir, scarab_binaries, False, dbg_lvl)
 
         # Iterate over each workload and config combo
         tmp_files = []
@@ -865,7 +844,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                             sim_mode_ = workloads_data[suite][subsuite_][workload_]["simulation"]["prioritized_mode"]
                         if sim_warmup == None:  # Use the whole warmup available in the trace if not specified
                             sim_warmup = workloads_data[suite][subsuite_][workload_]["simulation"][sim_mode_]["warmup"]
-                        slurm_ids += run_single_workload(suite, subsuite_, workload_, exp_cluster_id, sim_mode_, sim_warmup, all_nodes)
+                        slurm_ids += run_single_workload(suite, subsuite_, workload_, exp_cluster_id, sim_mode_, sim_warmup)
             elif workload == None and subsuite != None:
                 for workload_ in workloads_data[suite][subsuite].keys():
                     sim_mode_ = sim_mode
@@ -873,21 +852,21 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                         sim_mode_ = workloads_data[suite][subsuite][workload_]["simulation"]["prioritized_mode"]
                     if sim_warmup == None:  # Use the whole warmup available in the trace if not specified
                         sim_warmup = workloads_data[suite][subsuite][workload_]["simulation"][sim_mode_]["warmup"]
-                    slurm_ids += run_single_workload(suite, subsuite, workload_, exp_cluster_id, sim_mode_, sim_warmup, all_nodes)
+                    slurm_ids += run_single_workload(suite, subsuite, workload_, exp_cluster_id, sim_mode_, sim_warmup)
             else:
                 sim_mode_ = sim_mode
                 if sim_mode_ == None:
                     sim_mode_ = workloads_data[suite][subsuite][workload]["simulation"]["prioritized_mode"]
                 if sim_warmup == None:  # Use the whole warmup available in the trace if not specified
                     sim_warmup = workloads_data[suite][subsuite][workload]["simulation"][sim_mode_]["warmup"]
-                slurm_ids += run_single_workload(suite, subsuite, workload, exp_cluster_id, sim_mode_, sim_warmup, all_nodes)
-
+                slurm_ids += run_single_workload(suite, subsuite, workload, exp_cluster_id, sim_mode_, sim_warmup)
+        print("\nSubmitted all jobs")
         # Clean up temp files
         for tmp in tmp_files:
             info(f"Removing temporary run script {tmp}", dbg_lvl)
             os.remove(tmp)
 
-        finish_simulation(user, docker_home, descriptor_path, descriptor_data['root_dir'], experiment_name, image_tag_list, available_slurm_nodes, slurm_ids)
+        #finish_simulation(user, docker_home, descriptor_path, descriptor_data['root_dir'], experiment_name, image_tag_list, slurm_ids)
 
         # TODO: check resource capping policies, add kill/info options
 
@@ -922,10 +901,7 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
 
     def run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd, trace_type, drio_args, clustering_k, application_dir):
         try:
-            docker_running = check_docker_image(available_slurm_nodes, image_name, githash, dbg_lvl)
-            excludes = set(all_nodes) - set(docker_running)
-            info(f"Excluding following nodes: {', '.join(excludes)}", dbg_lvl)
-            sbatch_cmd = generate_sbatch_command(excludes, trace_dir)
+            sbatch_cmd = generate_sbatch_command(trace_dir)
 
             if trace_type == "cluster_then_trace":
                 simpoint_mode = "cluster_then_trace"
