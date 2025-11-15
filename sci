@@ -35,6 +35,7 @@ OPTIONAL_TITLES = {
 
 COOKIES_CACHE_PATH = Path.home() / ".cache" / "gdown" / "cookies.txt"
 _COOKIES_STATUS = {"prompted": False, "skipped": False}
+WORKLOADS_DB_PATH = REPO_ROOT / "workloads" / "workloads_db.json"
 
 
 def load_infra_utilities():
@@ -98,6 +99,38 @@ def run_command(
 
 def extract_descriptor_expectations(descriptor: Dict[str, Any]) -> Tuple[Set[str], Set[str]]:
     workloads: Set[str] = set()
+    workloads_db: Optional[Dict[str, Any]] = None
+
+    def ensure_workloads_db() -> Dict[str, Any]:
+        nonlocal workloads_db
+        if workloads_db is not None:
+            return workloads_db
+        try:
+            with WORKLOADS_DB_PATH.open(encoding="utf-8") as handle:
+                loaded = json.load(handle)
+        except (OSError, json.JSONDecodeError):
+            loaded = {}
+        workloads_db = loaded if isinstance(loaded, dict) else {}
+        return workloads_db
+
+    def add_workloads_from_subsuite(
+        subsuite_node: Optional[Dict[str, Any]],
+        *,
+        required_type: Optional[str] = None,
+    ) -> None:
+        if not isinstance(subsuite_node, dict):
+            return
+        for name, payload in subsuite_node.items():
+            if isinstance(payload, dict):
+                if required_type:
+                    sim_info = payload.get("simulation")
+                    if (
+                        not isinstance(sim_info, dict)
+                        or required_type not in sim_info
+                    ):
+                        continue
+                workloads.add(str(name))
+
     simulations = descriptor.get("simulations")
     if isinstance(simulations, list):
         for entry in simulations:
@@ -105,6 +138,27 @@ def extract_descriptor_expectations(descriptor: Dict[str, Any]) -> Tuple[Set[str
                 workload = entry.get("workload")
                 if workload:
                     workloads.add(str(workload))
+                    continue
+                suite = entry.get("suite")
+                subsuite = entry.get("subsuite")
+                sim_type = entry.get("simulation_type")
+                if suite and workload is None:
+                    db = ensure_workloads_db()
+                    suite_node = db.get(str(suite))
+                    if not isinstance(suite_node, dict):
+                        continue
+                    if subsuite:
+                        add_workloads_from_subsuite(
+                            suite_node.get(str(subsuite)),
+                            required_type=str(sim_type) if sim_type else None,
+                        )
+                    else:
+                        for subsuite_node in suite_node.values():
+                            if isinstance(subsuite_node, dict):
+                                add_workloads_from_subsuite(
+                                    subsuite_node,
+                                    required_type=str(sim_type) if sim_type else None,
+                                )
 
     configurations = descriptor.get("configurations")
     config_names: Set[str] = set()
@@ -258,14 +312,17 @@ def reexec_in_conda_env() -> None:
     sys.exit(result.returncode)
 
 
-def handle_descriptor_action(descriptor_name: str, action: str) -> None:
+def handle_descriptor_action(descriptor_name: str, action: str, dbg_override: Optional[int] = None) -> None:
     path, descriptor = read_descriptor(descriptor_name)
     dtype = descriptor.get("descriptor_type")
     infra_dir = str(REPO_ROOT)
 
+    def resolve_dbg(default: int) -> int:
+        return dbg_override if dbg_override is not None else default
+
     if dtype == "simulation":
         sim_module = import_repo_module("scripts.run_simulation")
-        dbg_lvl = 3 if action == "launch" else 2
+        dbg_lvl = resolve_dbg(3 if action == "launch" else 2)
         sim_action = {
             "launch": "launch",
             "simulate": "simulate",
@@ -280,7 +337,7 @@ def handle_descriptor_action(descriptor_name: str, action: str) -> None:
 
     if dtype == "trace":
         trace_module = import_repo_module("scripts.run_trace")
-        dbg_lvl = 3 if action in {"launch", "trace"} else 2
+        dbg_lvl = resolve_dbg(3 if action in {"launch", "trace"} else 2)
         trace_action = {
             "launch": "launch",
             "trace": "trace",
@@ -297,7 +354,7 @@ def handle_descriptor_action(descriptor_name: str, action: str) -> None:
         if action != "launch":
             raise StepError("Perf descriptors only support interactive launch")
         perf_module = import_repo_module("scripts.run_perf")
-        perf_module.run_perf_command(str(path), "launch", dbg_lvl=3, infra_dir=infra_dir)
+        perf_module.run_perf_command(str(path), "launch", dbg_lvl=resolve_dbg(3), infra_dir=infra_dir)
         return
 
     raise StepError(f"Unsupported descriptor type '{dtype}' for action '{action}'")
@@ -1668,8 +1725,14 @@ def run_visualize(descriptor_name: str) -> int:
 
     stats_path = Path(root_dir) / "simulations" / experiment_name / "collected_stats.csv"
     if not stats_path.is_file():
-        print(f"No collected stats found at {stats_path}. Run the stat collector first.")
-        return 1
+        print(f"No collected stats found at {stats_path}. Attempting to collect now...")
+        if not collect_stats_for_visualization(descriptor_path, stats_path):
+            print("Automatic stat collection failed; run the stat collector manually.")
+            return 1
+        if not stats_path.is_file():
+            print("Stat collection completed, but stats file is still missing.")
+            return 1
+        print("Stat collection completed successfully.")
 
     try:
         import scarab_stats
@@ -1735,6 +1798,34 @@ def run_visualize(descriptor_name: str) -> int:
         else:
             print("Unable to refresh stats automatically; continuing with existing data.")
 
+    if expected_workloads:
+        workloads_set = set(workloads)
+        filtered_workloads = sorted(workloads_set & expected_workloads)
+        if not filtered_workloads:
+            print("None of the workloads specified in the descriptor are present in the stats file.")
+            return 1
+        extra_workloads = workloads_set - expected_workloads
+        if extra_workloads:
+            print(
+                "Ignoring workloads not listed in the descriptor: "
+                + ", ".join(sorted(extra_workloads))
+            )
+        workloads = filtered_workloads
+
+    if expected_configs:
+        configs_set = set(configs)
+        filtered_configs = sorted(configs_set & expected_configs)
+        if not filtered_configs:
+            print("None of the configurations specified in the descriptor are present in the stats file.")
+            return 1
+        extra_configs = configs_set - expected_configs
+        if extra_configs:
+            print(
+                "Ignoring configurations not listed in the descriptor: "
+                + ", ".join(sorted(extra_configs))
+            )
+        configs = filtered_configs
+
     if not workloads:
         print("No workloads found in the stats file.")
         return 1
@@ -1747,8 +1838,82 @@ def run_visualize(descriptor_name: str) -> int:
         print("Descriptor field 'visualize_counters' must be a non-empty list when provided.")
         return 1
 
-    stat_names = [str(stat) for stat in stats_to_plot]
-    baseline = configs[0]
+    def normalize_counter_entry(entry: object) -> Optional[Dict[str, object]]:
+        """
+        Convert visualize_counters entries into a normalized plot request.
+
+        Supported formats:
+        - \"stat_name\"
+        - [\"stat_a\", \"stat_b\", ...] (stacked when length > 1)
+        - {\"stats\": [...], \"type\": \"stacked\"} (optional \"title\", \"y_label\", \"name\")
+        """
+        if isinstance(entry, str):
+            return {"type": "single", "stats": [entry]}
+        if isinstance(entry, (list, tuple, set)):
+            stats = [str(stat) for stat in entry if stat is not None]
+            if not stats:
+                return None
+            plot_type = "stacked" if len(stats) > 1 else "single"
+            return {"type": plot_type, "stats": stats}
+        if isinstance(entry, dict):
+            raw_stats = entry.get("stats")
+            if raw_stats is None:
+                raw_stats = entry.get("stacked")
+            if raw_stats is None:
+                print("Skipping visualize entry without 'stats' field:", entry)
+                return None
+            if isinstance(raw_stats, str):
+                stats = [raw_stats]
+            else:
+                stats = [str(stat) for stat in raw_stats if stat is not None]
+            if not stats:
+                return None
+            plot_type = entry.get("type") or entry.get("mode")
+            if plot_type not in {"single", "stacked"}:
+                plot_type = "stacked" if len(stats) > 1 else "single"
+            request: Dict[str, object] = {"type": plot_type, "stats": stats}
+            if "title" in entry:
+                request["title"] = str(entry["title"])
+            if "y_label" in entry:
+                request["y_label"] = str(entry["y_label"])
+            if "name" in entry:
+                request["name"] = str(entry["name"])
+            return request
+        print(f"Skipping unsupported visualize entry type: {entry!r}")
+        return None
+
+    plot_requests: List[Dict[str, object]] = []
+    for raw_entry in stats_to_plot:
+        normalized = normalize_counter_entry(raw_entry)
+        if not normalized:
+            continue
+        plot_requests.append(normalized)
+
+    if not plot_requests:
+        print("No valid entries found in 'visualize_counters'.")
+        return 1
+
+    baseline: Optional[str] = None
+    raw_baseline = descriptor.get("visualize_baseline")
+    if isinstance(raw_baseline, str):
+        candidate = raw_baseline.strip()
+        if candidate:
+            if candidate in configs:
+                baseline = candidate
+            else:
+                print(
+                    f"Configured visualize_baseline '{candidate}' is not present in the stats file; "
+                    "defaulting to the first available configuration."
+                )
+        else:
+            print("Descriptor field 'visualize_baseline' is empty; defaulting to the first configuration.")
+    elif raw_baseline is not None:
+        print(
+            "Descriptor field 'visualize_baseline' must be a string when provided; "
+            "defaulting to the first configuration."
+        )
+    if baseline is None:
+        baseline = configs[0]
 
     def safe_filename(stem: str) -> str:
         return "".join(c if c.isalnum() or c in {"-", "_"} else "_" for c in stem)
@@ -1762,11 +1927,44 @@ def run_visualize(descriptor_name: str) -> int:
     except Exception:
         pass
 
-    for stat_name in stat_names:
-        if available_stats and stat_name not in available_stats:
-            print(f"Skipping '{stat_name}': not present in collected stats.")
+    for request in plot_requests:
+        stats_list = [str(stat) for stat in request["stats"]]  # type: ignore[index]
+        missing_stats: Set[str] = set()
+        if available_stats:
+            missing_stats = {stat for stat in stats_list if stat not in available_stats}
+        if missing_stats:
+            print(
+                f"Skipping {stats_list}: not present in collected stats "
+                f"({', '.join(sorted(missing_stats))})."
+            )
             continue
 
+        plot_type = request["type"]  # type: ignore[index]
+        custom_stem = request.get("name") if isinstance(request, dict) else None
+        if not custom_stem:
+            custom_stem = "_".join(stats_list)
+
+        if plot_type == "stacked" and len(stats_list) > 1:
+            stem_safe = safe_filename(str(custom_stem))
+            stacked_output = stats_path.with_name(f"{stem_safe}_stacked.png")
+            title = str(request.get("title", ""))  # type: ignore[call-arg]
+            y_label = str(request.get("y_label", "Value"))  # type: ignore[call-arg]
+            print(f"Plotting stacked {stats_list} → {stacked_output.name}")
+            try:
+                aggregator.plot_stacked(
+                    experiment,
+                    stats_list,
+                    workloads,
+                    configs,
+                    title=title,
+                    y_label=y_label,
+                    plot_name=str(stacked_output),
+                )
+            except Exception as exc:  # pragma: no cover - matplotlib backend dependent
+                print(f"Failed to generate stacked plot for {stats_list}: {exc}")
+            continue
+
+        stat_name = stats_list[0]
         stat_safe = safe_filename(stat_name)
         baseline_safe = safe_filename(baseline)
         ipc_output = stats_path.with_name(f"{stat_safe}_ipc.png")
@@ -1780,8 +1978,8 @@ def run_visualize(descriptor_name: str) -> int:
                 [stat_name],
                 workloads,
                 configs,
-                title="",
-                y_label=stat_name,
+                title=str(request.get("title", "")),  # type: ignore[call-arg]
+                y_label=str(request.get("y_label", stat_name)),  # type: ignore[call-arg]
                 x_label="Workloads",
                 average=True,
                 plot_name=str(ipc_output),
@@ -1866,6 +2064,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--clean",
         metavar="DESCRIPTOR",
         help="Remove containers and state for json/<DESCRIPTOR>.json.",
+    )
+    parser.add_argument(
+        "--debug-level",
+        dest="debug_level",
+        type=int,
+        choices=[1, 2, 3],
+        help="Override descriptor command verbosity (1=errors, 2=warnings, 3=info).",
     )
     return parser
 
@@ -1960,21 +2165,21 @@ def main() -> int:
         return 0
     if args.interactive:
         try:
-            handle_descriptor_action(args.interactive, "launch")
+            handle_descriptor_action(args.interactive, "launch", dbg_override=args.debug_level)
             return 0
         except (StepError, RuntimeError) as exc:
             print(exc)
             return 1
     if args.trace:
         try:
-            handle_descriptor_action(args.trace, "trace")
+            handle_descriptor_action(args.trace, "trace", dbg_override=args.debug_level)
             return 0
         except (StepError, RuntimeError) as exc:
             print(exc)
             return 1
     if args.sim:
         try:
-            handle_descriptor_action(args.sim, "simulate")
+            handle_descriptor_action(args.sim, "simulate", dbg_override=args.debug_level)
             return 0
         except (StepError, RuntimeError) as exc:
             print(exc)
@@ -1983,21 +2188,21 @@ def main() -> int:
         return run_visualize(args.visualize)
     if args.kill:
         try:
-            handle_descriptor_action(args.kill, "kill")
+            handle_descriptor_action(args.kill, "kill", dbg_override=args.debug_level)
             return 0
         except (StepError, RuntimeError) as exc:
             print(exc)
             return 1
     if args.status:
         try:
-            handle_descriptor_action(args.status, "info")
+            handle_descriptor_action(args.status, "info", dbg_override=args.debug_level)
             return 0
         except (StepError, RuntimeError) as exc:
             print(exc)
             return 1
     if args.clean:
         try:
-            handle_descriptor_action(args.clean, "clean")
+            handle_descriptor_action(args.clean, "clean", dbg_override=args.debug_level)
             return 0
         except (StepError, RuntimeError) as exc:
             print(exc)

@@ -65,6 +65,19 @@
   },
   "_visualize_counters":"List of PMU/stat names to plot when running ./sci --visualize <descriptor>.",
   "visualize_counters":[
-    "Periodic_IPC"
-  ]
+    "Periodic_IPC",
+    ["BTB_OFF_PATH_MISS_count", "BTB_OFF_PATH_HIT_count"],
+    {
+      "type":"stacked",
+      "name":"l1i_hit_miss",
+      "title":"L1I Hit/Miss Breakdown",
+      "y_label":"Events",
+      "stats":[
+        "L1I_HIT_count",
+        "L1I_MISS_count"
+      ]
+    }
+  ],
+  "_visualize_baseline":"Optional configuration name to use as the speedup baseline when running ./sci --visualize.",
+  "visualize_baseline":"icache_32k"
 }

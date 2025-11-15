@@ -53,6 +53,24 @@ You only need additional steps if you want to inspect workloads, collect traces,
 ```
 Generates bar charts (value and speedup) for each counter listed in the descriptor’s `visualize_counters` field and saves them next to `collected_stats.csv` under `<root_dir>/simulations/<descriptor>/`.
 
+Each entry in `visualize_counters` can be either:
+- a single counter name (e.g. `"Periodic_IPC"`) to produce the existing bar and speedup plots, or
+- a list of multiple counters (e.g. `["BTB_OFF_PATH_MISS_count", "BTB_OFF_PATH_HIT_count"]`) which will emit a stacked plot (`*_stacked.png`) combining those counters across workloads/configs.
+
+For additional control you may instead supply objects such as:
+```json
+{
+  "type": "stacked",
+  "name": "btb_miss_hit",
+  "title": "BTB Miss/Hit Breakdown",
+  "y_label": "Events",
+  "stats": ["BTB_OFF_PATH_MISS_count", "BTB_OFF_PATH_HIT_count"]
+}
+```
+The `name` (optional) governs the output filename stem, while `title` and `y_label` adjust plot annotations.
+
+Set `visualize_baseline` in the descriptor to force the speedup plots to use a specific configuration as their reference (defaults to the first configuration present in the stats file).
+
 ### List workloads and simulation modes
 ```
 ./sci --list

@@ -698,16 +698,21 @@ class stat_aggregator:
         ax.set_xticks(ind)
         ax.set_xticklabels(benchmarks_to_plot, rotation = 27, ha='right')
         ax.grid('x');
-        ax.grid('y');
+        ax.grid('y')
         if ylim != None:
             ax.set_ylim(ylim)
-        ax.legend(loc="center left", bbox_to_anchor=(1,0.5))
+        legend = ax.legend(loc="center left", bbox_to_anchor=(1, 0.5))
         plt.title(title)
         plt.tight_layout()
 
         if plot_name == None:
             plt.show()
-        else: plt.savefig(plot_name)
+        else:
+            plt.savefig(
+                plot_name,
+                bbox_inches="tight",
+                bbox_extra_artists=(legend,),
+            )
 
 
     # Plot graph comparing different configs
@@ -795,16 +800,21 @@ class stat_aggregator:
         ax.set_xticks(ind)
         ax.set_xticklabels(benchmarks_to_plot, rotation = 27, ha='right')
         ax.grid('x');
-        ax.grid('y');
+        ax.grid('y')
         if ylim != None:
             ax.set_ylim(ylim)
-        ax.legend(loc="center left", bbox_to_anchor=(1,0.5))
+        legend = ax.legend(loc="center left", bbox_to_anchor=(1, 0.5))
         plt.title(title)
         plt.tight_layout()
 
         if plot_name == None:
             plt.show()
-        else: plt.savefig(plot_name)
+        else:
+            plt.savefig(
+                plot_name,
+                bbox_inches="tight",
+                bbox_extra_artists=(legend,),
+            )
 
 
     def plot_speedups (self, experiment: Experiment, stats: List[str], workloads: List[str], 
@@ -910,7 +920,7 @@ class stat_aggregator:
 
         if plot_name == None:
             plt.show()
-        else: plt.savefig(plot_name)
+        else: plt.savefig(plot_name, bbox_inches="tight")
 
     # Plot multiple stats across simpoints
     def plot_simpoints (self, experiment: Experiment, stats: List[str], workload: str, 
@@ -1004,7 +1014,7 @@ class stat_aggregator:
 
         if plot_name == None:
             plt.show()
-        else: plt.savefig(plot_name)
+        else: plt.savefig(plot_name, bbox_inches="tight")
 
     # Plot multiple stats across simpoints
     def plot_configs (self, experiment: Experiment, stats: List[str], workloads: List[str], 
@@ -1067,7 +1077,7 @@ class stat_aggregator:
 
         if plot_name == None:
             plt.show()
-        else: plt.savefig(plot_name)
+        else: plt.savefig(plot_name, bbox_inches="tight")
 
 
     # Plot simpoints within workload
@@ -1087,7 +1097,8 @@ class stat_aggregator:
         num_workloads = len(workloads)
         workload_locations = np.arange(num_workloads) * ((bar_width * len(configs) + bar_spacing * (len(configs) - 1)) + workload_spacing)
 
-        fig, ax = plt.subplots(figsize=(6+num_workloads, 8))
+        fig, ax = plt.subplots(figsize=(6 + num_workloads, 8))
+        fig.subplots_adjust(right=0.78)  # leave room for legends anchored outside the axes
 
         hatches = ['/', '\\', '.', '-', '+', 'x', 'o', 'O', '*']
         patch_hatches = []
@@ -1127,7 +1138,12 @@ class stat_aggregator:
 
         if plot_name == None:
             plt.show()
-        else: plt.savefig(plot_name)
+        else:
+            plt.savefig(
+                plot_name,
+                bbox_inches="tight",
+                bbox_extra_artists=(legend_1, legend_2),
+            )
 
 
     # Plot stacked bars. List of
@@ -1143,7 +1159,8 @@ class stat_aggregator:
         num_workloads = len(workloads)
         workload_locations = np.arange(num_workloads) * ((bar_width * len(configs) + bar_spacing * (len(configs) - 1)) + workload_spacing)
 
-        fig, ax = plt.subplots(figsize=(6+num_workloads, 8))
+        fig, ax = plt.subplots(figsize=(6 + num_workloads, 8))
+        fig.subplots_adjust(right=0.78)  # leave room for legends anchored outside the axes
 
         hatches = ['/', '\\', '.', '-', '+', 'x', 'o', 'O', '*']
         patch_hatches = []
@@ -1184,7 +1201,12 @@ class stat_aggregator:
 
         if plot_name == None:
             plt.show()
-        else: plt.savefig(plot_name)
+        else:
+            plt.savefig(
+                plot_name,
+                bbox_inches="tight",
+                bbox_extra_artists=(legend_1, legend_2),
+            )
 
 
     # Add basline for each experiment
