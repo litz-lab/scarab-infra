@@ -11,10 +11,14 @@ def main():
     githash = args.githash
     image_tag = f"{docker_prefix}:{githash}"
     # Run the image preparation on the local node only
-    prepare_docker_image(
-        docker_prefix,
-        image_tag
-    )
+    try:
+        prepare_docker_image(
+            docker_prefix,
+            image_tag
+        )
+    except:
+        print("FAILED prepare_docker_image")
+        exit(1)
 
     print("END prepare_docker_image")
 

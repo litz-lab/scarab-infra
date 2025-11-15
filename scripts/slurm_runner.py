@@ -450,9 +450,15 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
             if not is_stat_job:
                 # New changes add docker preparation, don't include in line count check
                 if "BEGIN prepare_docker_image" in contents:
+                    if "FAILED prepare_docker_image" in contents:
+                        error_runs.add(root_directory+file)
+                        if config in slurm_failed:
+                            slurm_failed[config] += 1
+                        continue
+
                     # Built container. Trim container part
                     if "END prepare_docker_image" in contents:
-                        contents_after_docker = contents.split("END prepare_docker_image")[1]
+                        contents_after_docker = contents.split("END prepare_docker_image\n")[1]
                     else:
                         # Container still being built. Mark running
                         skipped += 1
