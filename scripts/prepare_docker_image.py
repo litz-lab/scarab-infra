@@ -2,6 +2,7 @@ import argparse
 from .utilities import prepare_docker_image
 
 def main():
+    print("BEGIN prepare_docker_image")
     parser = argparse.ArgumentParser()
     parser.add_argument("--docker-prefix", required=True)
     parser.add_argument("--githash", required=True)
@@ -14,6 +15,8 @@ def main():
         docker_prefix,
         image_tag
     )
+
+    print("END prepare_docker_image")
 
 if __name__ == "__main__":
     main()

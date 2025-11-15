@@ -448,9 +448,24 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
             is_stat_job = "stat_collection_job" in file
 
             if not is_stat_job:
-                # Non-stat jobs will have 4 lines in their log file until they complete.
-                # Fifth line completion message indicates completion
-                if len(contents.split("\n")) < 6:
+                # New changes add docker preparation, don't include in line count check
+                if "BEGIN prepare_docker_image" in contents:
+                    # Built container. Trim container part
+                    if "END prepare_docker_image" in contents:
+                        contents_after_docker = contents.split("END prepare_docker_image")[1]
+                    else:
+                        # Container still being built. Mark running
+                        skipped += 1
+                        if config in running:
+                            running[config] += 1
+                        continue
+                else:
+                    # Didn't build container, use full contents
+                    contents_after_docker = contents
+
+                # Non-stat jobs will have 5 lines in their log file until they complete.
+                # Sixth line completion message indicates completion
+                if len(contents_after_docker.split("\n")) < 6:
                     skipped += 1
                     if config in running:
                         running[config] += 1
