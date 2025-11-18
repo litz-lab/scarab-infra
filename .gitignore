@@ -1,2 +1,13 @@
 workloads/spec2017/cpu2017-1_0_5.iso
 scarab_builds/*
+
+# Terraform files
+*.tfstate
+*.tfstate.backup
+.terraform/
+.terraform.lock.hcl
+
+# GCP-specific ignores
+gcp/.terraform/
+gcp/.ssh/
+gcp/terraform.tfvars
