@@ -1,0 +1,57 @@
+{
+    "_descriptor_type":"A type of descriptor. One of 'simulation', 'trace', and 'perf'.",
+    "descriptor_type":"simulation",
+    "_architecture":"A name of the available architectures (PARAMS.<architecture>) found in scarab repository, which defines the machine parameters of the default configuration.",
+    "architecture":"sunny_cove",
+    "_experiment":"The name of the experiment. scarab-infra will create a new folder named containing all files needed to execute the simulation in the <ROOT_DIR>/simulations/<experiment> directory. The folder will also contain all generated simulation statistics/outputs.",
+    "experiment":"exp",
+    "_workload_manager":"manual: run each exp scenario with all the simpoints at a time, slurm: Slurm schedules simulations based on its policy",
+    "workload_manager":"manual",
+    "_root_dir":"Root directory mounted into the docker container home, for instance, the user's home directory",
+    "root_dir":"/home/ubuntu",
+    "_scarab_path":"The path to the scarab repository that contains the scarab binary used to run the experiment.",
+    "scarab_path":"/home/ubuntu/scarab",
+    "_scarab_build":"scarab build mode. 'opt', 'dbg', or null",
+    "scarab_build":"opt",
+    "_traces_dir":"The local directory containing all simpointed traces",
+    "traces_dir":"/home/ubuntu/traces",
+    "_top_simpoint":"Run only top 3 simpoints stored in 'workloads_top_simp.json' instead of the entire simpoints in 'workloads_db.json'",
+    "top_simpoint":true,
+    "_simulations":"A list of [suite, subsuite, workload, simpoint's cluster #, simulation type, warmup]. Available suite, subsuite, workloads, and each workload's available cluster_id and simulation_type are found in workloads/workloads_db.json. It runs all the simpoints if cluster_id is null and simulation type is one of 'exec', 'memtrace', 'pt'. When only 'suite' or 'suite'+'subsuite' is given and the rest are null, it launches simulations for all the workloads, all the simpoints if available, and in prioritized_mode (simulation type) in workloads/workloads_db.json. warmup can be null or smaller than the warmup of the trace available in workloads/workloads_db.json",
+    "simulations":[
+      {
+        "suite":"cse220",
+        "subsuite":"cse220",
+        "workload":null,
+        "cluster_id":null,
+        "simulation_type":null,
+        "warmup":null
+      }
+    ],
+    "_configurations":"scarab configurations to sweep",
+    "configurations":{
+      "baseline": {
+        "params": "--map_cycles 5 --issue_width 4",
+        "binary": "scarab_current"
+      },
+      "map_10": {
+        "params": "--map_cycles 10",
+        "binary": "scarab_current"
+      },
+      "issue_width_10": {
+        "params": "--issue_width 10 --node_ret_width 10",
+        "binary": "scarab_current"
+      }
+      
+    },
+    "_visualize_counters":"List of PMU/stat names to plot when running ./sci --visualize <descriptor>.",
+    "visualize_counters":[
+      "Periodic_IPC",
+      "DCACHE_MISS_count",
+      "ICACHE_MISS_count",
+      "POWER_BRANCH_MISPREDICT_count"
+    ],
+    "_visualize_baseline":"Optional configuration name to use as the speedup baseline when running ./sci --visualize.",
+    "visualize_baseline":"baseline"
+  }
+  
