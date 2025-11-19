@@ -282,7 +282,6 @@ def get_simulation_jobs(descriptor_data, workloads_data, docker_prefix, user, db
 
                 # Use docker_container_name to get the job names of all jobs
                 all_jobs += [docker_container_name(workload_, config, cluster_id, sim_mode_, image_name) for config in configs.keys() for cluster_id in simpoint_ids]
-
         else:
             sim_mode_ = sim_mode
             if sim_mode_ == None:
@@ -441,7 +440,7 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
             if len(split) < 2:
                 continue
 
-            config = split[1] 
+            config = split[3]
 
             # Check if currently running, skip if so. Running simulations will not contain
             # the completion message
@@ -469,12 +468,13 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
                     # Didn't build container, use full contents
                     contents_after_docker = contents
 
-                # Non-stat jobs will have 5 lines in their log file until they complete.
+                # Non-stat jobs will have 7 lines in their log file until they complete.
                 # Sixth line completion message indicates completion
-                if len(contents_after_docker.split("\n")) < 6:
+                if len(contents_after_docker.split("\n")) < 7:
                     skipped += 1
                     if config in running:
                         running[config] += 1
+
                     continue
             else:
                 # Stat jobs were modified to print DONE as a final message
@@ -555,7 +555,6 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
 
         # Calculated, number of simpoints that should exist in every config
         total_per_conf = int(len(all_jobs)/len(confs))
-
         # Number of simpoints accounted for
         total_found = completed[conf] + failed[conf] + running[conf] + pending[conf] + slurm_failed[conf]
 
@@ -730,6 +729,8 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
     def run_single_workload(suite, subsuite, workload, exp_cluster_id, sim_mode, warmup):
         try:
             docker_prefix = get_docker_prefix(sim_mode, workloads_data[suite][subsuite][workload]["simulation"])
+            if not hasattr(run_single_workload, "submitted"):
+                run_single_workload.submitted = 0   # initialize once
 
             info(f"Using docker image with name {docker_prefix}:{githash}", dbg_lvl)
             sbatch_cmd = generate_sbatch_command(experiment_dir)
@@ -803,13 +804,12 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                                                  trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir)
                     tmp_files.append(filename)
 
+                    result = subprocess.run(["touch", f"{experiment_dir}/logs/job_%j.out"], capture_output=True, text=True, check=True)
                     info(f"Running sbatch command '{sbatch_cmd + filename}'", dbg_lvl)
                     result = subprocess.run((sbatch_cmd + filename).split(" "), capture_output=True, text=True)
-                    #print(result.stdout.split(" ")[-1].strip())
                     slurm_ids.append(result.stdout.split(" ")[-1].strip())
-                nonlocal total_sims
-                total_sims = total_sims + len(slurm_ids)
-                print("\rSubmitting jobs: "+str(total_sims), end="", flush=True)
+                    run_single_workload.submitted += 1
+                print("\rSubmitting jobs: "+str(run_single_workload.submitted), end="", flush=True)
             return slurm_ids
         except Exception as e:
             raise e
