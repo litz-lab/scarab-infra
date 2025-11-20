@@ -3279,9 +3279,7 @@
           {
             "cluster_id":12569,
             "segment_id":0,
-            "weight":1.0,
-            "drive_id":"null",
-            "size_bytes":0
+            "weight":1.0
           }
         ]
       },
@@ -3307,9 +3305,7 @@
           {
             "cluster_id":63365,
             "segment_id":0,
-            "weight":1.0,
-            "drive_id":"null",
-            "size_bytes":0
+            "weight":1.0
           }
         ]
       },
@@ -3335,9 +3331,7 @@
           {
             "cluster_id":35835,
             "segment_id":0,
-            "weight":1.0,
-            "drive_id":"null",
-            "size_bytes":0
+            "weight":1.0
           }
         ]
       },
@@ -3363,9 +3357,7 @@
           {
             "cluster_id":14021,
             "segment_id":0,
-            "weight":1.0,
-            "drive_id":"null",
-            "size_bytes":0
+            "weight":1.0
           }
         ]
       },
@@ -3391,9 +3383,7 @@
           {
             "cluster_id":26322,
             "segment_id":0,
-            "weight":1.0,
-            "drive_id":"null",
-            "size_bytes":0
+            "weight":1.0
           }
         ]
       },
@@ -3419,9 +3409,7 @@
           {
             "cluster_id":430,
             "segment_id":0,
-            "weight":1.0,
-            "drive_id":"null",
-            "size_bytes":0
+            "weight":1.0
           }
         ]
       },
@@ -3447,9 +3435,7 @@
           {
             "cluster_id":152234,
             "segment_id":0,
-            "weight":1.0,
-            "drive_id":"null",
-            "size_bytes":0
+            "weight":1.0
           }
         ]
       },
@@ -3475,9 +3461,7 @@
           {
             "cluster_id":157069,
             "segment_id":0,
-            "weight":1.0,
-            "drive_id":"null",
-            "size_bytes":0
+            "weight":1.0
           }
         ]
       },
@@ -3503,9 +3487,7 @@
           {
             "cluster_id":77803,
             "segment_id":0,
-            "weight":1.0,
-            "drive_id":"null",
-            "size_bytes":0
+            "weight":1.0
           }
         ]
       },
@@ -3531,9 +3513,7 @@
           {
             "cluster_id":34969,
             "segment_id":0,
-            "weight":1.0,
-            "drive_id":"null",
-            "size_bytes":0
+            "weight":1.0
           }
         ]
       },
@@ -3559,9 +3539,7 @@
           {
             "cluster_id":93640,
             "segment_id":0,
-            "weight":1.0,
-            "drive_id":"null",
-            "size_bytes":0
+            "weight":1.0
           }
         ]
       },
@@ -3587,9 +3565,7 @@
           {
             "cluster_id":5637,
             "segment_id":0,
-            "weight":1.0,
-            "drive_id":"null",
-            "size_bytes":0
+            "weight":1.0
           }
         ]
       },
@@ -3615,9 +3591,7 @@
           {
             "cluster_id":7528,
             "segment_id":0,
-            "weight":1.0,
-            "drive_id":"null",
-            "size_bytes":0
+            "weight":1.0
           }
         ]
       },
@@ -3643,9 +3617,7 @@
           {
             "cluster_id":165858,
             "segment_id":0,
-            "weight":1.0,
-            "drive_id":"null",
-            "size_bytes":0
+            "weight":1.0
           }
         ]
       },
@@ -3671,9 +3643,7 @@
           {
             "cluster_id":125439,
             "segment_id":0,
-            "weight":1.0,
-            "drive_id":"null",
-            "size_bytes":0
+            "weight":1.0
           }
         ]
       },
@@ -3699,9 +3669,7 @@
           {
             "cluster_id":76011,
             "segment_id":0,
-            "weight":1.0,
-            "drive_id":"null",
-            "size_bytes":0
+            "weight":1.0
           }
         ]
       },
@@ -3727,9 +3695,7 @@
           {
             "cluster_id":204585,
             "segment_id":0,
-            "weight":1.0,
-            "drive_id":"null",
-            "size_bytes":0
+            "weight":1.0
           }
         ]
       },
@@ -3755,9 +3721,7 @@
           {
             "cluster_id":124510,
             "segment_id":0,
-            "weight":1.0,
-            "drive_id":"null",
-            "size_bytes":0
+            "weight":1.0
           }
         ]
       },
@@ -3783,9 +3747,7 @@
           {
             "cluster_id":89675,
             "segment_id":0,
-            "weight":1.0,
-            "drive_id":"null",
-            "size_bytes":0
+            "weight":1.0
           }
         ]
       },
@@ -3811,9 +3773,7 @@
           {
             "cluster_id":121021,
             "segment_id":0,
-            "weight":1.0,
-            "drive_id":"null",
-            "size_bytes":0
+            "weight":1.0
           }
         ]
       },
@@ -3839,9 +3799,7 @@
           {
             "cluster_id":65898,
             "segment_id":0,
-            "weight":1.0,
-            "drive_id":"null",
-            "size_bytes":0
+            "weight":1.0
           }
         ]
       },
@@ -3867,9 +3825,7 @@
           {
             "cluster_id":112106,
             "segment_id":0,
-            "weight":1.0,
-            "drive_id":"null",
-            "size_bytes":0
+            "weight":1.0
           }
         ]
       },
@@ -3895,9 +3851,7 @@
           {
             "cluster_id":34585,
             "segment_id":0,
-            "weight":1.0,
-            "drive_id":"null",
-            "size_bytes":0
+            "weight":1.0
           }
         ]
       }
