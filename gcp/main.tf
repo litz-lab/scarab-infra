@@ -87,7 +87,69 @@ resource "google_compute_instance" "vm_instance" {
     serial-port-enable = "TRUE"
   }
 
-  metadata_startup_script = templatefile("${path.module}/startup.sh", {
-    ssh_user = var.ssh_user
-  })
+  # Copy cookies.txt to instance if it exists
+  provisioner "file" {
+    source      = "${path.module}/cookies.txt"
+    destination = "/home/${var.ssh_user}/cookies.txt"
+
+    connection {
+      type        = "ssh"
+      user        = var.ssh_user
+      private_key = tls_private_key.ssh_key.private_key_openssh
+      host        = self.network_interface[0].access_config[0].nat_ip
+    }
+  }
+
+  # Execute startup commands directly with sudo
+  provisioner "remote-exec" {
+    inline = [
+      "# Setup gdown cookies if available",
+      "mkdir -p /home/${var.ssh_user}/.cache/gdown",
+      "if [ -f /home/${var.ssh_user}/cookies.txt ]; then sudo mv /home/${var.ssh_user}/cookies.txt /home/${var.ssh_user}/.cache/gdown/; fi",
+      "sudo chown -R ${var.ssh_user}:${var.ssh_user} /home/${var.ssh_user}/.cache",
+
+      "# Update and install packages",
+      "sudo apt-get update -y",
+      "sudo DEBIAN_FRONTEND=noninteractive apt-get upgrade -y",
+      "sudo apt-get install -y git",
+
+      "# Install Docker",
+      "sudo apt-get install -y ca-certificates curl",
+      "sudo install -m 0755 -d /etc/apt/keyrings",
+      "sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc",
+      "sudo chmod a+r /etc/apt/keyrings/docker.asc",
+
+      "# Add Docker repository",
+      "echo \"deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo \"$VERSION_CODENAME\") stable\" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null",
+
+      "sudo apt-get update -y",
+      "sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin",
+
+      "# Configure Docker for non-root user",
+      "sudo groupadd -f docker",
+      "sudo usermod -aG docker ${var.ssh_user}",
+      "sudo systemctl enable docker",
+      "sudo systemctl start docker",
+
+      "# Clone repositories",
+      "sudo -u ${var.ssh_user} bash -c 'cd /home/${var.ssh_user} && git clone https://github.com/abhijitramesh/scarab-infra.git'",
+      "sudo -u ${var.ssh_user} bash -c 'cd /home/${var.ssh_user}/scarab-infra && git fetch origin cse220_fall_2025:cse220_fall_2025 && git checkout cse220_fall_2025'",
+      "sudo -u ${var.ssh_user} bash -c 'cd /home/${var.ssh_user} && git clone https://github.com/litz-lab/scarab.git scarab'",
+      "sudo -u ${var.ssh_user} bash -c 'cd /home/${var.ssh_user}/scarab && git checkout 4a03b768fcbe57b9f59e06fc6a29d83d8b7d25c0'",
+
+      "# Set ownership",
+      "sudo chown -R ${var.ssh_user}:${var.ssh_user} /home/${var.ssh_user}/scarab-infra /home/${var.ssh_user}/scarab",
+
+      "# Mark completion",
+      "echo \"Instance initialized successfully\" | sudo tee /tmp/startup-complete > /dev/null",
+      "echo \"Initialization complete at $(date)\" | sudo tee -a /tmp/startup-complete > /dev/null"
+    ]
+
+    connection {
+      type        = "ssh"
+      user        = var.ssh_user
+      private_key = tls_private_key.ssh_key.private_key_openssh
+      host        = self.network_interface[0].access_config[0].nat_ip
+    }
+  }
 }

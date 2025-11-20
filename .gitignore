@@ -11,3 +11,4 @@ scarab_builds/*
 gcp/.terraform/
 gcp/.ssh/
 gcp/terraform.tfvars
+gcp/cookies.txt
