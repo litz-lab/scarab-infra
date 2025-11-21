@@ -12,3 +12,10 @@ gcp/.terraform/
 gcp/.ssh/
 gcp/terraform.tfvars
 gcp/cookies.txt
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.py[cod]
+.ipynb_checkpoints/
