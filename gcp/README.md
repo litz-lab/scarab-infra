@@ -2,6 +2,27 @@
 
 This guide explains how to set up and authenticate Terraform with Google Cloud Platform (GCP) for deploying Scarab infrastructure.
 
+## ⚠️ IMPORTANT: Cost Warning
+
+**This infrastructure will incur charges on your Google Cloud Platform account.**
+
+- **Cloud VMs cost money** - The compute instance will continue to accrue charges while it's running, even if you're not actively using it.
+- **Pause the VM when not in active use** - To minimize costs, stop the VM instance when you're not actively working:
+  ```bash
+  gcloud compute instances stop scarab-instance --zone=us-central1-a
+  ```
+  To start it again:
+  ```bash
+  gcloud compute instances start scarab-instance --zone=us-central1-a
+  ```
+- **Clean up after your project is complete** - Always run `terraform destroy` when you're done to avoid ongoing charges:
+  ```bash
+  terraform destroy
+  ```
+  This will delete all resources and stop all charges.
+
+**Disclaimer:** I am not responsible for any additional costs incurred if you forget to pause or destroy the infrastructure. Please monitor your GCP billing dashboard regularly and ensure you clean up resources when not in use.
+
 ## Prerequisites
 
 - [Terraform](https://www.terraform.io/downloads) >= 1.0
