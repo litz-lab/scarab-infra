@@ -79,5 +79,7 @@
     }
   ],
   "_visualize_baseline":"Optional configuration name to use as the speedup baseline when running ./sci --visualize.",
-  "visualize_baseline":"icache_32k"
+  "visualize_baseline":"icache_32k",
+  "_app_descriptor":"Staging local info for building images, still available without descriptor",
+  "app_descriptor":null
 }

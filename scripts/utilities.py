@@ -203,20 +203,41 @@ def validate_simulation(workloads_data, simulations, dbg_lvl = 2):
 #           nodes - list of available nodes (local runner when it's none)
 #           diff_output - diff of two git hashes in the directories that change the docker image
 # Output: list of nodes where the docker image is ready
-def prepare_docker_image(docker_prefix, image_tag, nodes=None, dbg_lvl=1):
+def prepare_docker_image(docker_prefix, image_tag, nodes=None, dbg_lvl=1, app_descriptor=None):
     if nodes is None:
         nodes = []
     # build the image also locally
     nodes = [None] + nodes
     available_nodes = []
     for node in nodes:
+        if node is None and isinstance(app_descriptor, dict):
+            payload = app_descriptor.get(docker_prefix)
+            if isinstance(payload, dict):
+                tar_path = payload.get("tar_path")
+                if tar_path:
+                    src_tar = Path(tar_path)
+                    dst_tar = Path(project_root) / "workloads" / docker_prefix / src_tar.name
+                    if dst_tar.exists():
+                        info(f"Found staged archive for {docker_prefix}: {dst_tar} (skip copy)", dbg_lvl)
+                    else:
+                        info(f"Staging archive for {docker_prefix}: {src_tar} -> {dst_tar}", dbg_lvl)
+                        if not src_tar.is_file():
+                            err(f"Archive missing: {src_tar}", dbg_lvl)
+                        else:
+                            try:
+                                dst_tar.parent.mkdir(parents=True, exist_ok=True)
+                                shutil.copy2(src_tar, dst_tar)
+                            except OSError as exc:
+                                err(f"Failed to stage archive {src_tar}: {exc}", dbg_lvl)
+
         if not image_exist(image_tag, node):
             print(f"Couldn't find image {image_tag} on {node}")
             try:
                 sci_path = os.path.join(project_root, "sci")
                 print(f"Invoking {sci_path} --build-image {docker_prefix} on {node if node else 'local host'}")
+                cmd = [sci_path, "--build-image", docker_prefix]
                 # Ensure stdout is streamed for visibility when running locally.
-                run_on_node([sci_path, "--build-image", docker_prefix], node, check=True)
+                run_on_node(cmd, node, check=True)
             except subprocess.CalledProcessError as e:
                 err(f"sci --build-image failed with return code {e.returncode}", dbg_lvl)
                 failure_stdout = getattr(e, "stdout", None)
@@ -395,14 +416,14 @@ def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, git
 #           architecture - Architecture name
 #
 # Outputs:  scarab githash
-def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_name, architecture, docker_prefix_list, githash, infra_dir, scarab_binaries, interactive_shell=False, available_slurm_nodes=[], dbg_lvl=1, stream_build=False):
+def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_name, architecture, docker_prefix_list, githash, infra_dir, scarab_binaries, interactive_shell=False, available_slurm_nodes=[], dbg_lvl=1, stream_build=False, app_descriptor=None):
     # prepare docker images
     image_tag_list = []
     try:
         for docker_prefix in docker_prefix_list:
             image_tag = f"{docker_prefix}:{githash}"
             image_tag_list.append(image_tag)
-            prepare_docker_image(docker_prefix, image_tag, available_slurm_nodes, dbg_lvl)
+            prepare_docker_image(docker_prefix, image_tag, available_slurm_nodes, dbg_lvl, app_descriptor=app_descriptor)
     except subprocess.CalledProcessError as e:
         info(f"Docker image preparation failed: {e.stderr if isinstance(e.stderr, str) else e.stderr.decode() if e.stderr else str(e)}", dbg_lvl)
         raise e
@@ -855,7 +876,7 @@ def prepare_trace(user, scarab_path, scarab_build, docker_home, job_name, infra_
     try:
         for docker_prefix in docker_prefix_list:
             image_tag = f"{docker_prefix}:{githash}"
-            prepare_docker_image(docker_prefix, image_tag, available_slurm_nodes, dbg_lvl)
+            prepare_docker_image(docker_prefix, image_tag, available_slurm_nodes, dbg_lvl, app_descriptor=None)
     except subprocess.CalledProcessError as e:
         info(f"Docker image preparation failed: {e.stderr if isinstance(e.stderr, str) else e.stderr.decode() if e.stderr else str(e)}", dbg_lvl)
         raise e
