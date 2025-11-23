@@ -132,8 +132,8 @@ resource "google_compute_instance" "vm_instance" {
       "sudo systemctl start docker",
 
       "# Clone repositories",
-      "sudo -u ${var.ssh_user} bash -c 'cd /home/${var.ssh_user} && git clone https://github.com/abhijitramesh/scarab-infra.git'",
-      "sudo -u ${var.ssh_user} bash -c 'cd /home/${var.ssh_user}/scarab-infra && git fetch origin cse220_fall_2025:cse220_fall_2025 && git checkout cse220_fall_2025'",
+      "sudo -u ${var.ssh_user} bash -c 'cd /home/${var.ssh_user} && git clone https://github.com/litz-lab/scarab-infra.git'",
+      "sudo -u ${var.ssh_user} bash -c 'cd /home/${var.ssh_user}/scarab-infra && git checkout main'",
       "sudo -u ${var.ssh_user} bash -c 'cd /home/${var.ssh_user} && git clone https://github.com/litz-lab/scarab.git scarab'",
       "sudo -u ${var.ssh_user} bash -c 'cd /home/${var.ssh_user}/scarab && git checkout 4a03b768fcbe57b9f59e06fc6a29d83d8b7d25c0'",
 
