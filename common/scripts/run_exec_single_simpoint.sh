@@ -23,71 +23,88 @@ do
   export $token
 done
 
-# 10M warmup for segmented simulation (simpoints) and 50M warmup for whole simulation
-if [ "$SEGMENT_ID" == "0" ]; then
-  WARMUP=50000000
-else
-  WARMUP=10000000
-fi
-
 SIMHOME=$SCENARIO/$WORKLOAD_HOME
 mkdir -p $SIMHOME
 OUTDIR=$SIMHOME
 
 segID=$SEGMENT_ID
+SIMDIR=$(pwd)
 #echo "SEGMENT ID: $segID"
 mkdir -p $OUTDIR/$segID
 cp $SCARABHOME/src/PARAMS.$SCARABARCH $OUTDIR/$segID/PARAMS.in
+cp $SCARABHOME/src/pin/pin_exec/obj-intel64/pin_exec.so $OUTDIR/$segID/pin_exec.so
 cd $OUTDIR/$segID
 
-# SEGMENT_ID = 0 represents non-simpoint trace simulation
-# SEGMENT_ID > 0 represents segmented (simpoint) simulation
-if [ "$SEGMENT_ID" == "0" ]; then
-  start_inst=100000000
-  scarabCmd="
-  python3 $SCARABHOME/bin/scarab_launch.py --program=\"$BINCMD\" \
-    --scarab=src/$SCARAB_BIN \
-    --simdir=\"$SIMHOME/$SCENARIONUM/\" \
-    --pintool_args=\"-hyper_fast_forward_count $start_inst\" \
-    --scarab_args=\"--inst_limit $SEGSIZE --full_warmup $WARMUP $SCARABPARAMS\" \
-    --scarab_stdout=\"$SIMHOME/$SCENARIONUM/scarab.out\" \
-    --scarab_stderr=\"$SIMHOME/$SCENARIONUM/scarab.err\" \
-    --pin_stdout=\"$SIMHOME/$SCENARIONUM/pin.out\" \
-    --pin_stderr=\"$SIMHOME/$SCENARIONUM/pin.err\" \
-    "
-else
-  # roi is initialized by original segment boundary without warmup
-  roiStart=$(( $segID * $SEGSIZE + 1 ))
-  roiEnd=$(( $segID * $SEGSIZE + $SEGSIZE ))
+# Split SCARABPARAMS into scarab vs pintool vs launch flag
+enable_aslr=0
+pintool_args=()
+scarab_args=()
 
-  # now reset roi start based on warmup:
-  # roiStart + WARMUP = original segment start
-  if [ "$roiStart" -gt "$WARMUP" ]; then
-      # enough room for warmup, extend roi start to the left
-      roiStart=$(( $roiStart - $WARMUP ))
-  else
-      # no enough preceding instructions, can only warmup till segment start
-      WARMUP=$(( $roiStart - 1 ))
-      # new roi start is the very first instruction of the trace
-      roiStart=1
-  fi
+if [ -n "$SCARABPARAMS" ]; then
+  read -r -a tokens <<< "$SCARABPARAMS"
+  idx=0
+  while [ $idx -lt ${#tokens[@]} ]; do
+    token="${tokens[$idx]}"
+    if [[ "$token" == --enable_aslr || "$token" == --enable_aslr=* ]]; then
+      enable_aslr=1
+      idx=$((idx + 1))
+      continue
+    fi
 
-  instLimit=$(( $roiEnd - $roiStart + 1 ))
+    if [[ "$token" == --* ]]; then
+      scarab_args+=("$token")
+      idx=$((idx + 1))
+      continue
+    fi
 
-  scarabCmd="
-  python3 $SCARABHOME/bin/scarab_launch.py --program=\"$BINCMD\" \
-  --scarab=src/$SCARAB_BIN \
-  --simdir=\"$SIMHOME/$SCENARIONUM/$clusterID\" \
-  --pintool_args=\"-hyper_fast_forward_count $roiStart\" \
-  --scarab_args=\"--inst_limit $instLimit --full_warmup $WARMUP $SCARABPARAMS\" \
-  --scarab_stdout=\"$SIMHOME/$SCENARIONUM/$clusterID/scarab.out\" \
-  --scarab_stderr=\"$SIMHOME/$SCENARIONUM/$clusterID/scarab.err\" \
-  --pin_stdout=\"$SIMHOME/$SCENARIONUM/$clusterID/pin.out\" \
-  --pin_stderr=\"$SIMHOME/$SCENARIONUM/$clusterID/pin.err\" \
-  "
+    if [[ "$token" == -* ]]; then
+      if [[ "$token" == *=* ]]; then
+        key="${token%%=*}"
+        val="${token#*=}"
+        pintool_args+=("$key" "$val")
+        idx=$((idx + 1))
+      else
+        if [ $((idx + 1)) -lt ${#tokens[@]} ]; then
+          next="${tokens[$((idx + 1))]}"
+          if [[ "$next" != --* && "$next" != -* ]]; then
+            pintool_args+=("$token" "$next")
+            idx=$((idx + 2))
+            continue
+          fi
+        fi
+        pintool_args+=("$token")
+        idx=$((idx + 1))
+      fi
+      continue
+    fi
+
+    scarab_args+=("$token")
+    idx=$((idx + 1))
+  done
 fi
 
-#echo "simulating clusterID ${clusterID}, segment $segID..."
-#echo "command: ${scarabCmd}"
+scarab_args_str=""
+if [ ${#scarab_args[@]} -gt 0 ]; then
+  scarab_args_str="$scarab_args_str ${scarab_args[*]}"
+fi
+
+pintool_args_str="${pintool_args[*]}"
+
+scarabCmd="python3 $SCARABHOME/bin/scarab_launch.py --program=\"$BINCMD\" \
+  --scarab=\"$SCARABHOME/src/$SCARAB_BIN\" \
+  --simdir=\"$SIMDIR\" \
+  --pintool_args=\"$pintool_args_str\" \
+  --scarab_args=\"$scarab_args_str\" \
+  --scarab_stdout=\"$SIMHOME/scarab.out\" \
+  --scarab_stderr=\"$SIMHOME/scarab.err\" \
+  --pin_stdout=\"$SIMHOME/pin.out\" \
+  --pin_stderr=\"$SIMHOME/pin.err\" \
+  "
+
+if [ "$enable_aslr" -eq 1 ]; then
+  scarabCmd="$scarabCmd --enable_aslr"
+fi
+
+printf '%q ' "${scarabCmd[@]}" > $SIMHOME/launch_cmd.txt
 eval $scarabCmd &
 wait $!

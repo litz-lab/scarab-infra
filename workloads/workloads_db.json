@@ -1914,7 +1914,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"../run_base_refrate_memtrace-m64.0001/perlbench_r_base.memtrace-m64 -I./lib splitmail.pl 6400 12 26 16 100 0 > splitmail.6400.12.26.16.100.0.out 2>> splitmail.6400.12.26.16.100.0.err",
             "client_bincmd":null
           },
           "memtrace":{
@@ -2026,7 +2026,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"../run_base_refrate_memtrace-m64.0001/cpugcc_r_base.memtrace-m64 ref32.c -O3 -fselective-scheduling -fselective-scheduling2 -o ref32.opts-O3_-fselective-scheduling_-fselective-scheduling2.s > ref32.opts-O3_-fselective-scheduling_-fselective-scheduling2.out 2>> ref32.opts-O3_-fselective-scheduling_-fselective-scheduling2.err",
             "client_bincmd":null
           },
           "memtrace":{
@@ -2460,7 +2460,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"../run_base_refrate_memtrace-m64.0001/mcf_r_base.memtrace-m64 inp.in > inp.out 2>> inp.err",
             "client_bincmd":null
           },
           "memtrace":{
@@ -2558,7 +2558,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"../run_base_refrate_memtrace-m64.0001/omnetpp_r_base.memtrace-m64 -c General -r 0 > omnetpp.General-0.out 2>> omnetpp.General-0.err",
             "client_bincmd":null
           },
           "memtrace":{
@@ -2656,7 +2656,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"../run_base_refrate_memtrace-m64.0001/cpuxalan_r_base.memtrace-m64 -v t5.xml xalanc.xsl > ref-t5.out 2>> ref-t5.err",
             "client_bincmd":null
           },
           "memtrace":{
@@ -2768,7 +2768,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"../run_base_refspeed_memtrace-m64.0000/x264_s_base.memtrace-m64 --seek 500 --dumpyuv 200 --frames 1250 -o BuckBunny_New.264 BuckBunny.yuv 1280x720 > run_0500-1250_x264_r_base.memtrace-m64_x264.out 2>> run_0500-1250_x264_r_base.memtrace-m64_x264.err",
             "client_bincmd":null
           },
           "memtrace":{
@@ -2880,7 +2880,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"../run_base_refspeed_memtrace-m64.0000/deepsjeng_s_base.memtrace-m64 ref.txt > ref.out 2>> ref.err",
             "client_bincmd":null
           },
           "memtrace":{
@@ -2985,7 +2985,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"../run_base_refrate_memtrace-m64.0001/leela_r_base.memtrace-m64 ref.sgf > ref.out 2>> ref.err",
             "client_bincmd":null
           },
           "memtrace":{
@@ -3097,7 +3097,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"../run_base_refrate_memtrace-m64.0001/exchange2_r_base.memtrace-m64 6 > exchange2.txt 2>> exchange2.err",
             "client_bincmd":null
           },
           "memtrace":{
@@ -3202,7 +3202,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"../run_base_refrate_memtrace-m64.0001/xz_r_base.memtrace-m64 input.combined.xz 250 a841f68f38572a49d86226b7ff5baeb31bd19dc637a922a972b2e6d1257a890f6a544ecab967c313e370478c74f760eb229d4eef8a8d2836d233d3e9dd1430bf 40401484 41217675 7 > input.combined-250-7.out 2>> input.combined-250-7.err",
             "client_bincmd":null
           },
           "memtrace":{
@@ -3302,7 +3302,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"../run_base_refrate_memtrace-m64.0000/bwaves_r_base.memtrace-m64 bwaves_4 < bwaves_4.in > bwaves_4.out 2>> bwaves_4.err",
             "client_bincmd":null
           },
           "memtrace":{
@@ -3421,7 +3421,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"../run_base_refrate_memtrace-m64.0000/cactusBSSN_r_base.memtrace-m64 spec_ref.par > spec_ref.out 2>> spec_ref.err",
             "client_bincmd":null
           },
           "memtrace":{
@@ -3519,7 +3519,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"../run_base_refrate_memtrace-m64.0000/namd_r_base.memtrace-m64 --input apoa1.input --output apoa1.ref.output --iterations 65 > namd.out 2>> namd.err",
             "client_bincmd":null
           },
           "memtrace":{
@@ -3792,7 +3792,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"../run_base_refrate_memtrace-m64.0000/parest_r_base.memtrace-m64 ref.prm > ref.out 2>> ref.err",
             "client_bincmd":null
           },
           "memtrace":{
@@ -4352,7 +4352,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"../run_base_refrate_memtrace-m64.0000/povray_r_base.memtrace-m64 SPEC-benchmark-ref.ini > SPEC-benchmark-ref.stdout 2>> SPEC-benchmark-ref.stderr",
             "client_bincmd":null
           },
           "memtrace":{
@@ -4457,7 +4457,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"../run_base_refrate_memtrace-m64.0000/lbm_r_base.memtrace-m64 3000 reference.dat 0 0 100_100_130_ldc.of > lbm.out 2>> lbm.err",
             "client_bincmd":null
           },
           "memtrace":{
@@ -4527,7 +4527,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"../run_base_refrate_memtrace-m64.0000/wrf_r_base.memtrace-m64 > rsl.out.0000 2>> wrf.err",
             "client_bincmd":null
           },
           "memtrace":{
@@ -5549,7 +5549,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"../run_base_refrate_memtrace-m64.0000/blender_r_base.memtrace-m64 sh3_no_char.blend --render-output sh3_no_char_ --threads 1 -b -F RAWTGA -s 849 -e 849 -a > sh3_no_char.849.spec.out 2>> sh3_no_char.849.spec.err",
             "client_bincmd":null
           },
           "memtrace":{
@@ -5682,7 +5682,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"../run_base_refrate_memtrace-m64.0000/cam4_r_base.memtrace-m64 > cam4_r_base.memtrace-m64.txt 2>> cam4_r_base.memtrace-m64.err",
             "client_bincmd":null
           },
           "memtrace":{
@@ -6130,7 +6130,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"../run_base_refrate_memtrace-m64.0000/imagick_r_base.memtrace-m64 -limit disk 0 refrate_input.tga -edge 41 -resample 181% -emboss 31 -colorspace YUV -mean-shift 19x19+15% -resize 30% refrate_output.tga > refrate_convert.out 2>> refrate_convert.err",
             "client_bincmd":null
           },
           "memtrace":{
@@ -6186,7 +6186,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"../run_base_refrate_memtrace-m64.0000/nab_r_base.memtrace-m64 1am0 1122214447 122 > 1am0.out 2>> 1am0.err",
             "client_bincmd":null
           },
           "memtrace":{
@@ -6263,7 +6263,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"../run_base_refrate_memtrace-m64.0000/fotonik3d_r_base.memtrace-m64 > fotonik3d_r.log 2>> fotonik3d_r.err",
             "client_bincmd":null
           },
           "memtrace":{
@@ -6431,7 +6431,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"../run_base_refrate_memtrace-m64.0000/roms_r_base.memtrace-m64 < ocean_benchmark2.in.x > ocean_benchmark2.log 2>> ocean_benchmark2.err",
             "client_bincmd":null
           },
           "memtrace":{
