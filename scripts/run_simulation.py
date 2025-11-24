@@ -152,7 +152,8 @@ def open_interactive_shell(user, descriptor_data, workloads_data, infra_dir, dbg
                                             ["scarab_current"],
                                             interactive_shell=True,
                                             available_slurm_nodes=[],
-                                            dbg_lvl=dbg_lvl)
+                                            dbg_lvl=dbg_lvl,
+                                            app_descriptor=descriptor_data.get("app_descriptor"))
         workload = descriptor_data['simulations'][0]['workload']
         mode = descriptor_data['simulations'][0]['simulation_type']
 
