@@ -211,7 +211,8 @@ def list_cluster_nodes(dbg_lvl = 1):
 
 # Get command to sbatch scarab runs. 1 core each, exclude nodes where container isn't running
 def generate_sbatch_command(experiment_dir):
-    return f"sbatch -c 1 --ntasks-per-core=2 --oversubscribe -o {experiment_dir}/logs/job_%j.out "
+    return f"sbatch -c 1 -o {experiment_dir}/logs/job_%j.out "
+#return f"sbatch -c 1 --ntasks-per-core=2 --oversubscribe -o {experiment_dir}/logs/job_%j.out "
 
 def get_simulation_jobs(descriptor_data, workloads_data, docker_prefix, user, dbg_lvl = 1):
     architecture = descriptor_data["architecture"]
@@ -434,116 +435,116 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
     for file in log_files:
         with open(root_directory+file, 'r') as f:
             contents = f.read()
-            split = contents.split(" ")
-
+            contents_after_docker = str()
+            config = str("FAILED")
             # Cannot get config if file isn't complete
-            if len(split) < 2:
+            if len(contents.split(" ")) < 2:
                 continue
-
-            config = split[3]
 
             # Check if currently running, skip if so. Running simulations will not contain
             # the completion message
-            is_stat_job = "stat_collection_job" in file
+            # New changes add docker preparation, don't include in line count check
+            if "BEGIN prepare_docker_image" in contents:
+                if "FAILED prepare_docker_image" in contents:
+                    error_runs.add(root_directory+file)
+                    print("Docker image preparation failed, Simulation is not running (1)")
+                    continue
 
-            if not is_stat_job:
-                # New changes add docker preparation, don't include in line count check
-                if "BEGIN prepare_docker_image" in contents:
-                    if "FAILED prepare_docker_image" in contents:
-                        error_runs.add(root_directory+file)
-                        if config in slurm_failed:
-                            slurm_failed[config] += 1
-                        continue
-
-                    # Built container. Trim container part
-                    if "END prepare_docker_image" in contents:
-                        contents_after_docker = contents.split("END prepare_docker_image\n")[1]
-                    else:
-                        # Container still being built. Mark running
-                        skipped += 1
-                        if config in running:
-                            running[config] += 1
-                        continue
+                # Built container. Trim container part
+                if "END prepare_docker_image" in contents:
+                    contents_after_docker = contents.split("END prepare_docker_image\n")[1]
+                    split = contents_after_docker.split(" ")
+                    config = split[1]
                 else:
-                    # Didn't build container, use full contents
-                    contents_after_docker = contents
-
-                # Non-stat jobs will have 7 lines in their log file until they complete.
-                # Sixth line completion message indicates completion
-                if len(contents_after_docker.split("\n")) < 7:
-                    skipped += 1
-                    if config in running:
-                        running[config] += 1
-
+                    print("Docker image preparation failed, Simulation is not running (2)")
                     continue
             else:
-                # Stat jobs were modified to print DONE as a final message
-                if "DONE" not in contents:
-                    # skipped += 1
-                    stats_generating = True
+                print("Docker image preparation failed, Simulation is not running (3)")
+                # Didn't build container, use full contents
+                contents_after_docker = contents
+
+            # Seventh line indicates completion but lets double check
+            if len(contents_after_docker.split("\n")) > 6:
+                inst_stat_missing = False
+                lines = contents_after_docker.splitlines()
+                if "Completed Simulation" not in contents_after_docker:
+                    print(contents_after_docker)
+                    if config in failed:
+                        failed[config] += 1
                     continue
 
+                pattern = r"Running\s+\S+\s+(spec2017/[^\s]+)\s+(\d+)"
+                match = re.search(pattern, contents_after_docker)
+                if match:
+                    workload_token = match.group(1)
+                    cluster_token = match.group(2)
+                    if cluster_token.lower() != "none":
+                        workload_parts = workload_token.split("/")
+                        if workload_parts:
+                            sim_dir = Path(descriptor_data["root_dir"]) / "simulations" / descriptor_data["experiment"] / config
+                            sim_dir = sim_dir.joinpath(*workload_parts, cluster_token)
+                            inst_stat_path = sim_dir / "inst.stat.0.csv"
+                            if not inst_stat_path.is_file():
+                                #sim may be completed but log file not written/synced yet
+                                skipped += 1
+                                if config in running:
+                                    running[config] += 1
+                                continue
+                                #inst_stat_missing = True
+                else:
+                    if config in failed:
+                        failed[config] += 1
+                    continue
+                if inst_stat_missing:
+                    error_runs.add(root_directory+file)
+                    if config in failed:
+                        failed[config] += 1
+                    continue
+
+                if config != 'stat' and config in completed:
+                    completed[config] += 1
+                    continue
+
+            error = 0
             # Slurm error messages have 'node: error:' in them
             for node in all_nodes:
-                if f"{node}: error:" in contents:
+                if f"{node}: error:" in contents_after_docker:
                     error_runs.add(root_directory+file)
                     if config in slurm_failed:
                         slurm_failed[config] += 1
+                    print("FAILED " +str(config))
+                    error = 1
 
             # Some failures will have a line with "Segmentation falut" in them if they fail
-            if 'Segmentation fault' in contents:
+            if 'Segmentation fault' in contents_after_docker:
+                print("sefault")
                 error_runs.add(root_directory+file)
                 if config in failed:
                     failed[config] += 1
-                continue
+                error = 1
 
             # Most scarab runs and all stat runs will have a line with "Error" in them if they fail
-            if 'Error' in contents:
+            if 'Error' in contents_after_docker:
+                print("error")
                 error_runs.add(root_directory+file)
                 if config in failed:
                     failed[config] += 1
+                error = 1
+
+            if (error):
                 continue
 
-            # To be sure, check scarab runs with for final success line
-            if config != 'stat' and descriptor_data["experiment"] not in contents:
-                error_runs.add(root_directory+file)
-                if config in failed:
-                    failed[config] += 1
-                continue
-
-            inst_stat_missing = False
-            if config != "stat":
-                lines = contents.splitlines()
-                if lines:
-                    first_line = lines[0].strip()
-                    tokens = first_line.split()
-                    if len(tokens) >= 4 and tokens[0] == "Running":
-                        workload_token = tokens[2]
-                        cluster_token = tokens[3]
-                        if cluster_token.lower() != "none":
-                            workload_parts = workload_token.split("/")
-                            if workload_parts:
-                                sim_dir = Path(descriptor_data["root_dir"]) / "simulations" / descriptor_data["experiment"] / config
-                                sim_dir = sim_dir.joinpath(*workload_parts, cluster_token)
-                                inst_stat_path = sim_dir / "inst.stat.0.csv"
-                                if not inst_stat_path.is_file():
-                                    inst_stat_missing = True
-            if inst_stat_missing:
-                error_runs.add(root_directory+file)
-                if config in failed:
-                    failed[config] += 1
-                continue
-
-            if config != 'stat' and config in completed:
-                completed[config] += 1
-    
+            #Simulation is still running
+            skipped += 1
+            if config in running:
+                running[config] += 1
+            else:
+                print("Should not happen")
 
     print(f"Currently running {len(running_sims)} simulations (from logs: {skipped})")
     if stats_generating:
         print("Stat collector is running")
 
-    # print(f"\033[92mSuccessfully Completed Jobs: {len(all_jobs) - len(not_complete) - len(error_runs)}\033[0m")
-    
     data = {"Configuration":[],"Completed":[],"Failed":[],"Failed - Slurm":[],"Running":[],"Pending":[],"Non-existant":[],"Total":[]}
     for conf in confs:  
         data["Configuration"].append(conf)
