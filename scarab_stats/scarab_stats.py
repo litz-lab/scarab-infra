@@ -741,7 +741,6 @@ class stat_aggregator:
 
         configs_to_load = configs
         all_data = experiment.retrieve_stats(configs_to_load, stats, workloads)
-        print(all_data)
         if all_data is None:
             print("ERROR: retrieve_stats returned None. This means either:")
             print("1. The requested workloads don't exist in the dataframe")
