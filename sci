@@ -9,6 +9,7 @@ import argparse
 import getpass
 import importlib
 import json
+import math
 import os
 import re
 import shutil
@@ -1915,6 +1916,103 @@ def run_visualize(descriptor_name: str) -> int:
     if baseline is None:
         baseline = configs[0]
 
+    def format_numeric(value: Optional[float], *, as_percent: bool = False) -> str:
+        if value is None:
+            return "N/A"
+        if not isinstance(value, (int, float)):
+            return str(value)
+        if math.isnan(value):
+            return "nan"
+        if math.isinf(value):
+            return "inf" if value > 0 else "-inf"
+        formatted = f"{value:.4f}" if not as_percent else f"{value:.2f}"
+        formatted = formatted.rstrip("0").rstrip(".")
+        return f"{formatted}%" if as_percent else formatted
+
+    def print_markdown_table(stat_name: str) -> None:
+        """
+        Render a markdown table for the given stat across workloads/configs, including speedup vs baseline.
+        """
+        all_data = experiment.retrieve_stats(configs, [stat_name], workloads)
+        if all_data is None:
+            return
+
+        def average(values: List[float], *, use_geomean: bool) -> Optional[float]:
+            if not values:
+                return None
+            if use_geomean:
+                product = 1.0
+                for val in values:
+                    product *= val
+                return product ** (1 / len(values))
+            return sum(values) / len(values)
+
+        mean_type_geomean = stat_name.split("_")[-1] == "pct"
+        configs_ordered = [baseline] + [cfg for cfg in configs if cfg != baseline]
+        non_baseline_configs = [cfg for cfg in configs_ordered if cfg != baseline]
+
+        headers: List[str] = ["Workload", f"{baseline} ({stat_name})"]
+        headers.extend(f"{cfg} ({stat_name})" for cfg in non_baseline_configs)
+        headers.extend(f"{cfg} speedup vs {baseline} (%)" for cfg in non_baseline_configs)
+
+        def speedup(cur: Optional[float], base: Optional[float]) -> Optional[float]:
+            if cur is None or base is None:
+                return None
+            if base == 0:
+                return math.inf if cur > 0 else None
+            return (cur / base - 1.0) * 100.0
+
+        rows: List[List[str]] = []
+        workloads_for_table = workloads + ["Avg"]
+
+        baseline_values = {
+            wl: all_data.get(f"{baseline} {wl} {stat_name}") for wl in workloads
+        }
+        baseline_avg = average(
+            [val for val in baseline_values.values() if val is not None],
+            use_geomean=mean_type_geomean,
+        )
+
+        for wl in workloads_for_table:
+            row: List[str] = [wl]
+            base_val = baseline_avg if wl == "Avg" else baseline_values.get(wl)
+
+            row.append(format_numeric(base_val))
+
+            values_by_cfg: Dict[str, Optional[float]] = {}
+            for cfg in non_baseline_configs:
+                if wl == "Avg":
+                    cfg_values = [
+                        all_data.get(f"{cfg} {workload} {stat_name}")
+                        for workload in workloads
+                    ]
+                    value = average(
+                        [val for val in cfg_values if val is not None],
+                        use_geomean=mean_type_geomean,
+                    )
+                else:
+                    value = all_data.get(f"{cfg} {wl} {stat_name}")
+
+                values_by_cfg[cfg] = value
+                row.append(format_numeric(value))
+
+            for cfg in non_baseline_configs:
+                row.append(format_numeric(speedup(values_by_cfg.get(cfg), base_val), as_percent=True))
+
+            rows.append(row)
+
+        dividers = ["---"] * len(headers)
+        table_lines = [
+            "| " + " | ".join(headers) + " |",
+            "| " + " | ".join(dividers) + " |",
+        ]
+        for row in rows:
+            table_lines.append("| " + " | ".join(row) + " |")
+
+        print(f"\nMarkdown table for {stat_name}:")
+        for line in table_lines:
+            print(line)
+
     def safe_filename(stem: str) -> str:
         return "".join(c if c.isalnum() or c in {"-", "_"} else "_" for c in stem)
 
@@ -1943,6 +2041,9 @@ def run_visualize(descriptor_name: str) -> int:
         custom_stem = request.get("name") if isinstance(request, dict) else None
         if not custom_stem:
             custom_stem = "_".join(stats_list)
+
+        if plot_type != "stacked" or len(stats_list) == 1:
+            print_markdown_table(stats_list[0])
 
         if plot_type == "stacked" and len(stats_list) > 1:
             stem_safe = safe_filename(str(custom_stem))
