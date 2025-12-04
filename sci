@@ -1834,7 +1834,7 @@ def run_visualize(descriptor_name: str) -> int:
         print("No configurations found in the stats file.")
         return 1
 
-    stats_to_plot = descriptor.get("visualize_counters") or ["Periodic_IPC"]
+    stats_to_plot = descriptor.get("visualize_counters") or ["IPC"]
     if not isinstance(stats_to_plot, list) or not stats_to_plot:
         print("Descriptor field 'visualize_counters' must be a non-empty list when provided.")
         return 1
@@ -1929,10 +1929,11 @@ def run_visualize(descriptor_name: str) -> int:
         formatted = formatted.rstrip("0").rstrip(".")
         return f"{formatted}%" if as_percent else formatted
 
-    def print_markdown_table(stat_name: str) -> None:
+    def print_markdown_table(stat_name: str, *, display_name: Optional[str] = None) -> None:
         """
         Render a markdown table for the given stat across workloads/configs, including speedup vs baseline.
         """
+        label = display_name or stat_name
         all_data = experiment.retrieve_stats(configs, [stat_name], workloads)
         if all_data is None:
             return
@@ -1951,8 +1952,8 @@ def run_visualize(descriptor_name: str) -> int:
         configs_ordered = [baseline] + [cfg for cfg in configs if cfg != baseline]
         non_baseline_configs = [cfg for cfg in configs_ordered if cfg != baseline]
 
-        headers: List[str] = ["Workload", f"{baseline} ({stat_name})"]
-        headers.extend(f"{cfg} ({stat_name})" for cfg in non_baseline_configs)
+        headers: List[str] = ["Workload", f"{baseline} ({label})"]
+        headers.extend(f"{cfg} ({label})" for cfg in non_baseline_configs)
         headers.extend(f"{cfg} speedup vs {baseline} (%)" for cfg in non_baseline_configs)
 
         def speedup(cur: Optional[float], base: Optional[float]) -> Optional[float]:
@@ -2009,7 +2010,7 @@ def run_visualize(descriptor_name: str) -> int:
         for row in rows:
             table_lines.append("| " + " | ".join(row) + " |")
 
-        print(f"\nMarkdown table for {stat_name}:")
+        print(f"\nMarkdown table for {label}:")
         for line in table_lines:
             print(line)
 
@@ -2025,11 +2026,38 @@ def run_visualize(descriptor_name: str) -> int:
     except Exception:
         pass
 
+    def resolve_stat_name(stat_name: str) -> Tuple[str, bool]:
+        """
+        Resolve a requested stat to the name present in the aggregated stats.
+        Returns a tuple of (resolved_name, used_count_fallback).
+        """
+        normalized = str(stat_name)
+        if not available_stats:
+            return normalized, False
+        if normalized in available_stats or normalized.endswith("_count") or normalized.endswith("_total_count"):
+            return normalized, False
+        candidate = f"{normalized}_count"
+        if candidate in available_stats:
+            return candidate, True
+        return normalized, False
+
     for request in plot_requests:
         stats_list = [str(stat) for stat in request["stats"]]  # type: ignore[index]
+        resolved_stats: List[str] = []
+        fallback_stats: Dict[str, str] = {}
+        for stat in stats_list:
+            resolved, used_fallback = resolve_stat_name(stat)
+            resolved_stats.append(resolved)
+            if used_fallback:
+                fallback_stats[stat] = resolved
+
+        if fallback_stats:
+            for requested, resolved in fallback_stats.items():
+                print(f"Using '{resolved}' for requested stat '{requested}'.")
+
         missing_stats: Set[str] = set()
         if available_stats:
-            missing_stats = {stat for stat in stats_list if stat not in available_stats}
+            missing_stats = {stat for stat in resolved_stats if stat not in available_stats}
         if missing_stats:
             print(
                 f"Skipping {stats_list}: not present in collected stats "
@@ -2043,7 +2071,7 @@ def run_visualize(descriptor_name: str) -> int:
             custom_stem = "_".join(stats_list)
 
         if plot_type != "stacked" or len(stats_list) == 1:
-            print_markdown_table(stats_list[0])
+            print_markdown_table(resolved_stats[0], display_name=stats_list[0])
 
         if plot_type == "stacked" and len(stats_list) > 1:
             stem_safe = safe_filename(str(custom_stem))
@@ -2054,7 +2082,7 @@ def run_visualize(descriptor_name: str) -> int:
             try:
                 aggregator.plot_stacked(
                     experiment,
-                    stats_list,
+                    resolved_stats,
                     workloads,
                     configs,
                     title=title,
@@ -2065,13 +2093,14 @@ def run_visualize(descriptor_name: str) -> int:
                 print(f"Failed to generate stacked plot for {stats_list}: {exc}")
             continue
 
-        stat_name = stats_list[0]
-        stat_safe = safe_filename(stat_name)
+        stat_name = resolved_stats[0]
+        stat_label = stats_list[0]
+        stat_safe = safe_filename(stat_label)
         baseline_safe = safe_filename(baseline)
-        ipc_output = stats_path.with_name(f"{stat_safe}_ipc.png")
+        ipc_output = stats_path.with_name(f"{stat_safe}_absolute.png")
         speedup_output = stats_path.with_name(f"{stat_safe}_speedup_vs_{baseline_safe}.png")
 
-        print(f"Plotting '{stat_name}' → {ipc_output.name}, {speedup_output.name}")
+        print(f"Plotting '{stat_label}' → {ipc_output.name}, {speedup_output.name}")
 
         try:
             aggregator.plot_workloads(
@@ -2080,7 +2109,7 @@ def run_visualize(descriptor_name: str) -> int:
                 workloads,
                 configs,
                 title=str(request.get("title", "")),  # type: ignore[call-arg]
-                y_label=str(request.get("y_label", stat_name)),  # type: ignore[call-arg]
+                y_label=str(request.get("y_label", stat_label)),  # type: ignore[call-arg]
                 x_label="Workloads",
                 average=True,
                 plot_name=str(ipc_output),
@@ -2092,7 +2121,7 @@ def run_visualize(descriptor_name: str) -> int:
                 configs,
                 speedup_baseline=baseline,
                 title="",
-                y_label=f"{stat_name} Speedup (%)",
+                y_label=f"{stat_label} Speedup (%)",
                 x_label="Workloads",
                 average=True,
                 plot_name=str(speedup_output),

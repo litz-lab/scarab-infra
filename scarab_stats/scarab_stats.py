@@ -622,10 +622,10 @@ class stat_aggregator:
         print("INFO: calculating derived stats...")
 
         # Derive IPC
-        experiment.derive_stat("Cumulative_IPC = Cumulative_Instructions / Cumulative_Cycles", write_prot = True)
-        print("INFO: Cumulative_IPC calculated.")
-        experiment.derive_stat("Periodic_IPC = Periodic_Instructions / Periodic_Cycles", write_prot = True)
-        print("INFO: Periodic_IPC calculated.")
+        experiment.derive_stat("IPC_total = Cumulative_Instructions / Cumulative_Cycles", write_prot = True)
+        print("INFO: IPC_total calculated.")
+        experiment.derive_stat("IPC = Periodic_Instructions / Periodic_Cycles", write_prot = True)
+        print("INFO: IPC calculated.")
 
         # Derive distribution stats for each group
         # 'Group' 0 is no group
@@ -1677,7 +1677,7 @@ if __name__ == "__main__":
     # E.to_csv("fast.csv")
     da.plot_workloads(E, stats_to_plot, wls, cfs, title="", average=True, x_label="Benchmarks", y_label="UNUSEFUL_pct", bar_width=0.10, plot_name="a.png")
 
-    stats_to_plot = ['Periodic_IPC']
+    stats_to_plot = ['IPC']
     da.print_markdown_table(E, stats_to_plot, wls, cfs)
 
     #E = Experiment("panda3.csv")

@@ -65,16 +65,16 @@
   },
   "_visualize_counters":"List of PMU/stat names to plot when running ./sci --visualize <descriptor>.",
   "visualize_counters":[
-    "Periodic_IPC",
-    ["BTB_OFF_PATH_MISS_count", "BTB_OFF_PATH_HIT_count"],
+    "IPC",
+    ["BTB_CORRECT", "BTB_INCORRECT_BUT_TARGET_CORRECT", "BTB_INCORRECT"],
     {
       "type":"stacked",
-      "name":"l1i_hit_miss",
-      "title":"L1I Hit/Miss Breakdown",
+      "name":"icache_hit_miss",
+      "title":"Icache Hit/Miss Breakdown",
       "y_label":"Events",
       "stats":[
-        "L1I_HIT_count",
-        "L1I_MISS_count"
+        "ICACHE_HIT",
+        "ICACHE_MISS"
       ]
     }
   ],
