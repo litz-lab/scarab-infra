@@ -227,7 +227,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                 if scarab_binary not in scarab_binaries:
                     scarab_binaries.append(scarab_binary)
 
-        scarab_githash, image_tag_list = prepare_simulation(user, scarab_path, scarab_build, descriptor_data['root_dir'], experiment_name, architecture, docker_prefix_list, githash, infra_dir, scarab_binaries, interactive_shell=False, available_slurm_nodes=[], dbg_lvl=dbg_lvl)
+        scarab_githash, image_tag_list = prepare_simulation(user, scarab_path, scarab_build, descriptor_data['root_dir'], experiment_name, architecture, docker_prefix_list, githash, infra_dir, scarab_binaries, interactive_shell=False, dbg_lvl=dbg_lvl)
 
         # Iterate over each workload and config combo
         for simulation in simulations:

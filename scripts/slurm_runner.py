@@ -166,15 +166,8 @@ def check_available_nodes(dbg_lvl = 1):
             all_nodes.append(node)
 
             # Index -1 is STATE. Skip if not partially available
-            if line[-1] != 'idle' and line[-1] != 'mix':
+            if line[-1] == 'drain':
                 info(f"{node} is not available. It is '{line[-1]}'", dbg_lvl)
-                continue
-
-            # If docker is not installed, skip
-            try:
-                docker_installed = subprocess.check_output(["srun", f"--nodelist={node}", "docker", "--version"])
-            except Exception as e:
-                info(f"docker is not installed on {node}", dbg_lvl)
                 continue
 
             # Now append node(s) to available list. May be single (bohr3) or multiple (bohr[3,5])
@@ -217,12 +210,9 @@ def list_cluster_nodes(dbg_lvl = 1):
     return nodes
 
 # Get command to sbatch scarab runs. 1 core each, exclude nodes where container isn't running
-def generate_sbatch_command(excludes, experiment_dir):
-    # If all nodes are usable, no need to exclude
-    if not excludes == set():
-        return f"sbatch --exclude {','.join(excludes)} -c 1 -o {experiment_dir}/logs/job_%j.out "
-
+def generate_sbatch_command(experiment_dir):
     return f"sbatch -c 1 -o {experiment_dir}/logs/job_%j.out "
+#return f"sbatch -c 1 --ntasks-per-core=2 --oversubscribe -o {experiment_dir}/logs/job_%j.out "
 
 def get_simulation_jobs(descriptor_data, workloads_data, docker_prefix, user, dbg_lvl = 1):
     architecture = descriptor_data["architecture"]
@@ -293,7 +283,6 @@ def get_simulation_jobs(descriptor_data, workloads_data, docker_prefix, user, db
 
                 # Use docker_container_name to get the job names of all jobs
                 all_jobs += [docker_container_name(workload_, config, cluster_id, sim_mode_, image_name) for config in configs.keys() for cluster_id in simpoint_ids]
-
         else:
             sim_mode_ = sim_mode
             if sim_mode_ == None:
@@ -436,7 +425,7 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
     # NOTE: Potential Subset issue again. conf2 and conf sims will be added to conf2
     # Tried to create such a scenario but was unable
     for sim in queued_sims:
-        print(sim)
+        #print(sim)
         for conf in confs:
             if conf in sim:
                 pending[conf] += 1
@@ -446,94 +435,116 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
     for file in log_files:
         with open(root_directory+file, 'r') as f:
             contents = f.read()
-            split = contents.split(" ")
-
+            contents_after_docker = str()
+            config = str("FAILED")
             # Cannot get config if file isn't complete
-            if len(split) < 2:
+            if len(contents.split(" ")) < 2:
                 continue
-
-            config = split[1] 
 
             # Check if currently running, skip if so. Running simulations will not contain
             # the completion message
-            is_stat_job = "stat_collection_job" in file
+            # New changes add docker preparation, don't include in line count check
+            if "BEGIN prepare_docker_image" in contents:
+                if "FAILED prepare_docker_image" in contents:
+                    error_runs.add(root_directory+file)
+                    print("Docker image preparation failed, Simulation is not running (1)")
+                    continue
 
-            if not is_stat_job:
-                # Non-stat jobs will have 4 lines in their log file until they complete.
-                # Fifth line completion message indicates completion
-                if len(contents.split("\n")) < 5:
-                    skipped += 1
-                    if config in running:
-                        running[config] += 1
+                # Built container. Trim container part
+                if "END prepare_docker_image" in contents:
+                    contents_after_docker = contents.split("END prepare_docker_image\n")[1]
+                    split = contents_after_docker.split(" ")
+                    config = split[1]
+                else:
+                    print("Docker image preparation failed, Simulation is not running (2)")
                     continue
             else:
-                # Stat jobs were modified to print DONE as a final message
-                if "DONE" not in contents:
-                    # skipped += 1
-                    stats_generating = True
+                print("Docker image preparation failed, Simulation is not running (3)")
+                # Didn't build container, use full contents
+                contents_after_docker = contents
+
+            # Seventh line indicates completion but lets double check
+            if len(contents_after_docker.split("\n")) > 6:
+                inst_stat_missing = False
+                lines = contents_after_docker.splitlines()
+                if "Completed Simulation" not in contents_after_docker:
+                    print(contents_after_docker)
+                    if config in failed:
+                        failed[config] += 1
                     continue
 
+                pattern = r"Running\s+\S+\s+(spec2017/[^\s]+)\s+(\d+)"
+                match = re.search(pattern, contents_after_docker)
+                if match:
+                    workload_token = match.group(1)
+                    cluster_token = match.group(2)
+                    if cluster_token.lower() != "none":
+                        workload_parts = workload_token.split("/")
+                        if workload_parts:
+                            sim_dir = Path(descriptor_data["root_dir"]) / "simulations" / descriptor_data["experiment"] / config
+                            sim_dir = sim_dir.joinpath(*workload_parts, cluster_token)
+                            inst_stat_path = sim_dir / "inst.stat.0.csv"
+                            if not inst_stat_path.is_file():
+                                #sim may be completed but log file not written/synced yet
+                                skipped += 1
+                                if config in running:
+                                    running[config] += 1
+                                continue
+                                #inst_stat_missing = True
+                else:
+                    if config in failed:
+                        failed[config] += 1
+                    continue
+                if inst_stat_missing:
+                    error_runs.add(root_directory+file)
+                    if config in failed:
+                        failed[config] += 1
+                    continue
+
+                if config != 'stat' and config in completed:
+                    completed[config] += 1
+                    continue
+
+            error = 0
             # Slurm error messages have 'node: error:' in them
             for node in all_nodes:
-                if f"{node}: error:" in contents:
+                if f"{node}: error:" in contents_after_docker:
                     error_runs.add(root_directory+file)
                     if config in slurm_failed:
                         slurm_failed[config] += 1
+                    print("FAILED " +str(config))
+                    error = 1
 
             # Some failures will have a line with "Segmentation falut" in them if they fail
-            if 'Segmentation fault' in contents:
+            if 'Segmentation fault' in contents_after_docker:
+                print("sefault")
                 error_runs.add(root_directory+file)
                 if config in failed:
                     failed[config] += 1
-                continue
+                error = 1
 
             # Most scarab runs and all stat runs will have a line with "Error" in them if they fail
-            if 'Error' in contents:
+            if 'Error' in contents_after_docker:
+                print("error")
                 error_runs.add(root_directory+file)
                 if config in failed:
                     failed[config] += 1
+                error = 1
+
+            if (error):
                 continue
 
-            # To be sure, check scarab runs with for final success line
-            if config != 'stat' and descriptor_data["experiment"] not in contents:
-                error_runs.add(root_directory+file)
-                if config in failed:
-                    failed[config] += 1
-                continue
-
-            inst_stat_missing = False
-            if config != "stat":
-                lines = contents.splitlines()
-                if lines:
-                    first_line = lines[0].strip()
-                    tokens = first_line.split()
-                    if len(tokens) >= 4 and tokens[0] == "Running":
-                        workload_token = tokens[2]
-                        cluster_token = tokens[3]
-                        if cluster_token.lower() != "none":
-                            workload_parts = workload_token.split("/")
-                            if workload_parts:
-                                sim_dir = Path(descriptor_data["root_dir"]) / "simulations" / descriptor_data["experiment"] / config
-                                sim_dir = sim_dir.joinpath(*workload_parts, cluster_token)
-                                inst_stat_path = sim_dir / "inst.stat.0.csv"
-                                if not inst_stat_path.is_file():
-                                    inst_stat_missing = True
-            if inst_stat_missing:
-                error_runs.add(root_directory+file)
-                if config in failed:
-                    failed[config] += 1
-                continue
-
-            if config != 'stat' and config in completed:
-                completed[config] += 1
-    
+            #Simulation is still running
+            skipped += 1
+            if config in running:
+                running[config] += 1
+            else:
+                print("Should not happen")
 
     print(f"Currently running {len(running_sims)} simulations (from logs: {skipped})")
     if stats_generating:
         print("Stat collector is running")
 
-    # print(f"\033[92mSuccessfully Completed Jobs: {len(all_jobs) - len(not_complete) - len(error_runs)}\033[0m")
-    
     data = {"Configuration":[],"Completed":[],"Failed":[],"Failed - Slurm":[],"Running":[],"Pending":[],"Non-existant":[],"Total":[]}
     for conf in confs:  
         data["Configuration"].append(conf)
@@ -545,7 +556,6 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
 
         # Calculated, number of simpoints that should exist in every config
         total_per_conf = int(len(all_jobs)/len(confs))
-
         # Number of simpoints accounted for
         total_found = completed[conf] + failed[conf] + running[conf] + pending[conf] + slurm_failed[conf]
 
@@ -714,17 +724,17 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
     traces_dir = descriptor_data["traces_dir"]
     configs = descriptor_data["configurations"]
     simulations = descriptor_data["simulations"]
-
+    total_sims = 0
     docker_prefix_list = get_image_list(simulations, workloads_data)
 
-    def run_single_workload(suite, subsuite, workload, exp_cluster_id, sim_mode, warmup, all_nodes):
+    def run_single_workload(suite, subsuite, workload, exp_cluster_id, sim_mode, warmup):
         try:
             docker_prefix = get_docker_prefix(sim_mode, workloads_data[suite][subsuite][workload]["simulation"])
+            if not hasattr(run_single_workload, "submitted"):
+                run_single_workload.submitted = 0   # initialize once
+
             info(f"Using docker image with name {docker_prefix}:{githash}", dbg_lvl)
-            docker_running = check_docker_image(available_slurm_nodes, docker_prefix, githash, dbg_lvl)
-            excludes = set(all_nodes) - set(docker_running)
-            info(f"Excluding following nodes: {', '.join(excludes)}", dbg_lvl)
-            sbatch_cmd = generate_sbatch_command(excludes, experiment_dir)
+            sbatch_cmd = generate_sbatch_command(experiment_dir)
             trace_warmup = None
             trace_type = ""
             trace_file = None
@@ -778,7 +788,6 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
 
                     # Create temp file with run command and run it
                     filename = f"{docker_container_name}_tmp_run.sh"
-
                     slurm_running_sims = check_slurm_task_queued_or_running(docker_prefix_list, experiment_name, user, dbg_lvl)
                     running_sims = []
                     for node_list in slurm_running_sims.values():
@@ -796,11 +805,12 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                                                  trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir)
                     tmp_files.append(filename)
 
+                    result = subprocess.run(["touch", f"{experiment_dir}/logs/job_%j.out"], capture_output=True, text=True, check=True)
                     info(f"Running sbatch command '{sbatch_cmd + filename}'", dbg_lvl)
                     result = subprocess.run((sbatch_cmd + filename).split(" "), capture_output=True, text=True)
-                    print(result.stdout.split(" ")[-1].strip())
                     slurm_ids.append(result.stdout.split(" ")[-1].strip())
-
+                    run_single_workload.submitted += 1
+                print("\rSubmitting jobs: "+str(run_single_workload.submitted), end="", flush=True)
             return slurm_ids
         except Exception as e:
             raise e
@@ -824,15 +834,6 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
         except subprocess.CalledProcessError:
             err("Error: Not in a Git repository or unable to retrieve Git hash.", dbg_lvl)
 
-
-        # Get avlailable nodes. Error if none available
-        available_slurm_nodes, all_nodes = check_available_nodes(dbg_lvl)
-        info(f"Available nodes: {', '.join(available_slurm_nodes)}", dbg_lvl)
-
-        if available_slurm_nodes == []:
-            err("Cannot find any running slurm nodes", dbg_lvl)
-            exit(1)
-
         scarab_binaries = []
         for sim in simulations:
             for config_key in configs:
@@ -842,7 +843,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
 
         # Generate commands for executing in users docker and sbatching to nodes with containers
         experiment_dir = f"{descriptor_data['root_dir']}/simulations/{experiment_name}"
-        scarab_githash, image_tag_list = prepare_simulation(user, scarab_path, scarab_build, descriptor_data['root_dir'], experiment_name, architecture, docker_prefix_list, githash, infra_dir, scarab_binaries, False, available_slurm_nodes, dbg_lvl)
+        scarab_githash, image_tag_list = prepare_simulation(user, scarab_path, scarab_build, descriptor_data['root_dir'], experiment_name, architecture, docker_prefix_list, githash, infra_dir, scarab_binaries, False, dbg_lvl)
 
         # Iterate over each workload and config combo
         tmp_files = []
@@ -865,7 +866,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                             sim_mode_ = workloads_data[suite][subsuite_][workload_]["simulation"]["prioritized_mode"]
                         if sim_warmup == None:  # Use the whole warmup available in the trace if not specified
                             sim_warmup = workloads_data[suite][subsuite_][workload_]["simulation"][sim_mode_]["warmup"]
-                        slurm_ids += run_single_workload(suite, subsuite_, workload_, exp_cluster_id, sim_mode_, sim_warmup, all_nodes)
+                        slurm_ids += run_single_workload(suite, subsuite_, workload_, exp_cluster_id, sim_mode_, sim_warmup)
             elif workload == None and subsuite != None:
                 for workload_ in workloads_data[suite][subsuite].keys():
                     sim_mode_ = sim_mode
@@ -873,21 +874,21 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                         sim_mode_ = workloads_data[suite][subsuite][workload_]["simulation"]["prioritized_mode"]
                     if sim_warmup == None:  # Use the whole warmup available in the trace if not specified
                         sim_warmup = workloads_data[suite][subsuite][workload_]["simulation"][sim_mode_]["warmup"]
-                    slurm_ids += run_single_workload(suite, subsuite, workload_, exp_cluster_id, sim_mode_, sim_warmup, all_nodes)
+                    slurm_ids += run_single_workload(suite, subsuite, workload_, exp_cluster_id, sim_mode_, sim_warmup)
             else:
                 sim_mode_ = sim_mode
                 if sim_mode_ == None:
                     sim_mode_ = workloads_data[suite][subsuite][workload]["simulation"]["prioritized_mode"]
                 if sim_warmup == None:  # Use the whole warmup available in the trace if not specified
                     sim_warmup = workloads_data[suite][subsuite][workload]["simulation"][sim_mode_]["warmup"]
-                slurm_ids += run_single_workload(suite, subsuite, workload, exp_cluster_id, sim_mode_, sim_warmup, all_nodes)
-
+                slurm_ids += run_single_workload(suite, subsuite, workload, exp_cluster_id, sim_mode_, sim_warmup)
+        print("\nSubmitted all jobs")
         # Clean up temp files
         for tmp in tmp_files:
             info(f"Removing temporary run script {tmp}", dbg_lvl)
             os.remove(tmp)
 
-        finish_simulation(user, docker_home, descriptor_path, descriptor_data['root_dir'], experiment_name, image_tag_list, available_slurm_nodes, slurm_ids)
+        #finish_simulation(user, docker_home, descriptor_path, descriptor_data['root_dir'], experiment_name, image_tag_list, slurm_ids)
 
         # TODO: check resource capping policies, add kill/info options
 
@@ -922,10 +923,7 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
 
     def run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd, trace_type, drio_args, clustering_k, application_dir):
         try:
-            docker_running = check_docker_image(available_slurm_nodes, image_name, githash, dbg_lvl)
-            excludes = set(all_nodes) - set(docker_running)
-            info(f"Excluding following nodes: {', '.join(excludes)}", dbg_lvl)
-            sbatch_cmd = generate_sbatch_command(excludes, trace_dir)
+            sbatch_cmd = generate_sbatch_command(trace_dir)
 
             if trace_type == "cluster_then_trace":
                 simpoint_mode = "cluster_then_trace"
