@@ -54,7 +54,7 @@ You only need additional steps if you want to inspect workloads, collect traces,
 Generates bar charts (value and speedup) for each counter listed in the descriptor’s `visualize_counters` field and saves them next to `collected_stats.csv` under `<root_dir>/simulations/<descriptor>/`.
 
 Each entry in `visualize_counters` can be either:
-- a single counter name (e.g. `"Periodic_IPC"`) to produce the existing bar and speedup plots, or
+- a single counter name (e.g. `"IPC"`) to produce the existing bar and speedup plots, or
 - a list of multiple counters (e.g. `["BTB_OFF_PATH_MISS_count", "BTB_OFF_PATH_HIT_count"]`) which will emit a stacked plot (`*_stacked.png`) combining those counters across workloads/configs.
 
 For additional control you may instead supply objects such as:
