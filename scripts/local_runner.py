@@ -49,12 +49,17 @@ def check_docker_container_running(docker_prefix_list, job_name, user, dbg_lvl):
 # Print info/status of running experiment and available cores
 def print_status(user, job_name, docker_prefix_list, dbg_lvl = 2):
     docker_running = check_docker_container_running(docker_prefix_list, job_name, user, dbg_lvl)
-    if len(docker_running) > 0:
+    count = len(docker_running)
+
+    if count > 0:
         print(f"\033[92mRUNNING:     local\033[0m")
+        print(f"\033[92mTOTAL RUNNING: {count}\033[0m")
         for docker in docker_running:
             print(f"\033[92m    CONTAINER: {docker}\033[0m")
     else:
         print(f"\033[31mNOT RUNNING: local\033[0m")
+        print(f"\033[31mTOTAL RUNNING: 0\033[0m")
+
 
 def kill_jobs(user, job_type, job_name, docker_prefix_list, infra_dir, dbg_lvl):
     # Define the process name pattern
