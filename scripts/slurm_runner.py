@@ -472,8 +472,7 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
                     if config in failed:
                         failed[config] += 1
                     continue
-
-                pattern = r"Running\s+\S+\s+(spec2017/[^\s]+)\s+(\d+)"
+                pattern = r"Running\s+\S+\s+(\S*/\S+)\s+(\d+)"
                 match = re.search(pattern, contents_after_docker)
                 if match:
                     workload_token = match.group(1)
@@ -484,6 +483,7 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
                             sim_dir = Path(descriptor_data["root_dir"]) / "simulations" / descriptor_data["experiment"] / config
                             sim_dir = sim_dir.joinpath(*workload_parts, cluster_token)
                             inst_stat_path = sim_dir / "inst.stat.0.csv"
+
                             if not inst_stat_path.is_file():
                                 #sim may be completed but log file not written/synced yet
                                 skipped += 1
@@ -491,6 +491,10 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
                                     running[config] += 1
                                 continue
                                 #inst_stat_missing = True
+                            else:
+                                completed[config] += 1
+                                continue
+
                 else:
                     if config in failed:
                         failed[config] += 1
@@ -499,10 +503,6 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
                     error_runs.add(root_directory+file)
                     if config in failed:
                         failed[config] += 1
-                    continue
-
-                if config != 'stat' and config in completed:
-                    completed[config] += 1
                     continue
 
             error = 0
