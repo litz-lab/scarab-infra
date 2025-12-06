@@ -28,7 +28,6 @@ mkdir -p $SIMHOME
 OUTDIR=$SIMHOME
 
 segID=$SEGMENT_ID
-SIMDIR=$(pwd)
 #echo "SEGMENT ID: $segID"
 mkdir -p $OUTDIR/$segID
 cp $SCARABHOME/src/PARAMS.$SCARABARCH $OUTDIR/$segID/PARAMS.in
@@ -92,13 +91,13 @@ pintool_args_str="${pintool_args[*]}"
 
 scarabCmd="python3 $SCARABHOME/bin/scarab_launch.py --program=\"$BINCMD\" \
   --scarab=\"$SCARABHOME/src/$SCARAB_BIN\" \
-  --simdir=\"$SIMDIR\" \
+  --simdir=\"$SIMHOME/$SCENARIONUM\$segID\" \
   --pintool_args=\"$pintool_args_str\" \
   --scarab_args=\"$scarab_args_str\" \
-  --scarab_stdout=\"$SIMHOME/scarab.out\" \
-  --scarab_stderr=\"$SIMHOME/scarab.err\" \
-  --pin_stdout=\"$SIMHOME/pin.out\" \
-  --pin_stderr=\"$SIMHOME/pin.err\" \
+  --scarab_stdout=\"$SIMHOME/$SCENARIONUM\$segID\scarab.out\" \
+  --scarab_stderr=\"$SIMHOME/$SCENARIONUM\$segID\scarab.err\" \
+  --pin_stdout=\"$SIMHOME/$SCENARIONUM\$segID\pin.out\" \
+  --pin_stderr=\"$SIMHOME/$SCENARIONUM\$segID\pin.err\" \
   "
 
 if [ "$enable_aslr" -eq 1 ]; then

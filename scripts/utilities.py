@@ -610,7 +610,6 @@ def generate_single_scarab_run_command(user, workload_home, experiment, config_k
             f"\\\"{client_bincmd_safe}\\\" "                 # $11 CLIENT_BINCMD
             f"\\\"{scarab_binary}\\\""                       # $12 SCARAB_BIN
         )
-        # command = f"run_exec_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{arch}\\\" /home/{user}/simulations/{experiment}/scarab \\\"{env_vars}\\\" \\\"{bincmd}\\\" \\\"{client_bincmd}\\\" {scarab_binary}"
     else:
         command = ""
 
