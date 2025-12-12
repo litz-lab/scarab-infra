@@ -101,6 +101,7 @@ def check_slurm_task_queued_or_running (docker_prefix_list, job_name, user, dbg_
 
             if pattern.match(command):
                 command = command[:-11] # Remove the _tmp_run.sh part
+
                 # Check if the command is already in the list
                 if node not in tasks_per_node.keys():
                     tasks_per_node[node] = []
@@ -778,7 +779,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                     for node_list in slurm_running_sims.values():
                         running_sims += node_list
 
-                    if check_can_skip(descriptor_data, config_key, suite, subsuite, workload, cluster_id, filename, running_sims, sim_mode, user, dbg_lvl):
+                    if check_can_skip(descriptor_data, config_key, suite, subsuite, workload, cluster_id, filename, sim_mode, user, slurm_queue=running_sims, dbg_lvl=dbg_lvl):
                         info(f"Skipping {workload} with config {config_key} and cluster id {cluster_id}", dbg_lvl)
                         continue
 
