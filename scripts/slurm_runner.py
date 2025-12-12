@@ -101,6 +101,7 @@ def check_slurm_task_queued_or_running (docker_prefix_list, job_name, user, dbg_
 
             if pattern.match(command):
                 command = command[:-11] # Remove the _tmp_run.sh part
+
                 # Check if the command is already in the list
                 if node not in tasks_per_node.keys():
                     tasks_per_node[node] = []
@@ -425,9 +426,11 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
     # NOTE: Potential Subset issue again. conf2 and conf sims will be added to conf2
     # Tried to create such a scenario but was unable
     for sim in queued_sims:
-        #print(sim)
+        #print("queued sim" +str(sim))
         for conf in confs:
-            if conf in sim:
+            parts = sim.split("_")
+            experiment = parts[-4]   # 4th from the end
+            if conf == experiment:
                 pending[conf] += 1
                 break
 
@@ -463,15 +466,12 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
                 # Didn't build container, use full contents
                 contents_after_docker = contents
 
+            error = 0
+
             # Seventh line indicates completion but lets double check
-            if len(contents_after_docker.split("\n")) > 6:
+            if len(contents_after_docker.split("\n")) > 6 and "Completed Simulation" in contents_after_docker:
                 inst_stat_missing = False
                 lines = contents_after_docker.splitlines()
-                if "Completed Simulation" not in contents_after_docker:
-                    print(contents_after_docker)
-                    if config in failed:
-                        failed[config] += 1
-                    continue
                 pattern = r"Running\s+\S+\s+(\S*/\S+)\s+(\d+)"
                 match = re.search(pattern, contents_after_docker)
                 if match:
@@ -484,14 +484,7 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
                             sim_dir = sim_dir.joinpath(*workload_parts, cluster_token)
                             inst_stat_path = sim_dir / "inst.stat.0.csv"
 
-                            if not inst_stat_path.is_file():
-                                #sim may be completed but log file not written/synced yet
-                                skipped += 1
-                                if config in running:
-                                    running[config] += 1
-                                continue
-                                #inst_stat_missing = True
-                            else:
+                            if inst_stat_path.is_file():
                                 completed[config] += 1
                                 continue
 
@@ -499,16 +492,10 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
                     if config in failed:
                         failed[config] += 1
                     continue
-                if inst_stat_missing:
-                    error_runs.add(root_directory+file)
-                    if config in failed:
-                        failed[config] += 1
-                    continue
+                        # Slurm error messages have 'node: error:' in them
 
-            error = 0
-            # Slurm error messages have 'node: error:' in them
             for node in all_nodes:
-                if f"{node}: error:" in contents_after_docker:
+                if f"{node}: error:" in contents_after_docker and not " Unable to unlink domain socket":
                     error_runs.add(root_directory+file)
                     if config in slurm_failed:
                         slurm_failed[config] += 1
@@ -517,7 +504,7 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
 
             # Some failures will have a line with "Segmentation falut" in them if they fail
             if 'Segmentation fault' in contents_after_docker:
-                print("sefault")
+                print("segfault")
                 error_runs.add(root_directory+file)
                 if config in failed:
                     failed[config] += 1
@@ -540,7 +527,6 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
                 running[config] += 1
             else:
                 print("Should not happen")
-
     print(f"Currently running {len(running_sims)} simulations (from logs: {skipped})")
     if stats_generating:
         print("Stat collector is running")
@@ -793,7 +779,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                     for node_list in slurm_running_sims.values():
                         running_sims += node_list
 
-                    if check_can_skip(descriptor_data, config_key, suite, subsuite, workload, cluster_id, filename, running_sims, sim_mode, user, dbg_lvl):
+                    if check_can_skip(descriptor_data, config_key, suite, subsuite, workload, cluster_id, filename, sim_mode, user, slurm_queue=running_sims, dbg_lvl=dbg_lvl):
                         info(f"Skipping {workload} with config {config_key} and cluster id {cluster_id}", dbg_lvl)
                         continue
 
