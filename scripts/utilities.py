@@ -11,6 +11,7 @@ import shutil
 from pathlib import Path
 import importlib
 import sys
+from typing import Optional
 
 try:
     import docker
@@ -324,6 +325,124 @@ def build_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_pre
     if exception != None:
         raise exception
 
+
+def _scarab_repo_clean(scarab_path: str) -> bool:
+    try:
+        status_output = subprocess.check_output(
+            ["git", "status", "--porcelain"], cwd=scarab_path, text=True
+        )
+    except subprocess.CalledProcessError:
+        return False
+    return status_output.strip() == ""
+
+
+def _current_git_ref(scarab_path: str) -> str:
+    branch_name = None
+    try:
+        branch_name = (
+            subprocess.check_output(
+                ["git", "symbolic-ref", "--short", "HEAD"],
+                cwd=scarab_path,
+                text=True,
+                stderr=subprocess.DEVNULL,
+            )
+            .strip()
+        )
+    except subprocess.CalledProcessError:
+        branch_name = None
+
+    commit_hash = (
+        subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=scarab_path, text=True)
+        .strip()
+    )
+    return branch_name if branch_name else commit_hash
+
+
+def _prompt_kill_processes_and_exit(dbg_lvl: int) -> None:
+    prompt = "Uncommitted changes detected in scarab repository. Do you want to kill these processes? [y/N]: "
+    response = ""
+    try:
+        if sys.stdin.isatty():
+            response = input(prompt).strip().lower()
+    except Exception:
+        response = ""
+
+    if response in {"y", "yes"}:
+        warn("User chose to kill processes; exiting current job.", dbg_lvl)
+    else:
+        warn("Leaving processes running; exiting current job.", dbg_lvl)
+    sys.exit(1)
+
+
+def _build_missing_scarab_version(
+    bin_name: str,
+    target_hash: str,
+    user: str,
+    scarab_path: str,
+    scarab_build: Optional[str],
+    docker_home: str,
+    docker_prefix: str,
+    githash: str,
+    infra_dir: str,
+    dbg_lvl: int,
+) -> None:
+    if not _scarab_repo_clean(scarab_path):
+        err(
+            f"Cannot auto-build missing scarab binary '{bin_name}' because the scarab repository has uncommitted changes. "
+            "Commit or stash them before rerunning.",
+            dbg_lvl,
+        )
+        _prompt_kill_processes_and_exit(dbg_lvl)
+
+    original_ref = _current_git_ref(scarab_path)
+    build_mode = scarab_build if scarab_build else "opt"
+    warn(
+        f"Missing {bin_name}; checking out {target_hash} to build ({build_mode}) and cache it.",
+        dbg_lvl,
+    )
+    try:
+        subprocess.run(
+            ["git", "checkout", target_hash],
+            cwd=scarab_path,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except subprocess.CalledProcessError as exc:
+        err(
+            f"Failed to checkout {target_hash} in scarab repository: {exc.stderr or exc.stdout or exc}",
+            dbg_lvl,
+        )
+        raise RuntimeError(f"Unable to checkout {target_hash} in scarab repo") from exc
+
+    try:
+        build_scarab_binary(
+            user,
+            scarab_path,
+            build_mode,
+            docker_home,
+            docker_prefix,
+            githash,
+            infra_dir,
+            dbg_lvl=dbg_lvl,
+            stream_build=True,
+        )
+        built_bin = Path(scarab_path) / "src" / "build" / build_mode / "scarab"
+        if not built_bin.is_file():
+            raise RuntimeError(f"Expected scarab binary at {built_bin} after build.")
+        dest = Path(infra_dir) / "scarab_builds" / bin_name
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(built_bin, dest)
+        info(f"Cached new scarab binary at {dest}", dbg_lvl)
+    finally:
+        subprocess.run(
+            ["git", "checkout", original_ref],
+            cwd=scarab_path,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
 # Wrapper function that handles rebuilding scarab if needed, and caching
 def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, githash, scarab_githash, scarab_build, stream_build=False, dbg_lvl=1):
     current_scarab_bin = f"{infra_dir}/scarab_builds/scarab_current"
@@ -454,7 +573,9 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
         os.system(f"mkdir -p {experiment_dir}/logs/")
         dest_scarab_bin = f"{experiment_dir}/scarab/src/scarab"
 
-        # Make sure each git hash is present in the cache
+        binary_pattern = re.compile(r"^scarab_([0-9a-fA-F]+)(?:_(\d+))?$")
+
+        # Make sure each requested scarab binary is present; build from git hash if missing
         for bin_name in scarab_binaries:
             # Current will build if not present
             if bin_name == "scarab_current":
@@ -465,8 +586,28 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
                 info(f"Scarab binary named {bin_name} found in cache!", dbg_lvl)
                 continue
 
-            err(f"Scarab binary named {bin_name} not found in cache. Please check out that version and build it", dbg_lvl)
-            exit()
+            match = binary_pattern.match(bin_name)
+            if not match:
+                err(
+                    f"Scarab binary named {bin_name} not found in cache and the name does not include a git hash. "
+                    "Build it manually or rename to 'scarab_<githash>[_index]'.",
+                    dbg_lvl,
+                )
+                raise RuntimeError(f"Missing scarab binary {bin_name}")
+
+            target_hash = match.group(1)
+            _build_missing_scarab_version(
+                bin_name,
+                target_hash,
+                user,
+                scarab_path,
+                scarab_build,
+                docker_home,
+                docker_prefix,
+                githash,
+                infra_dir,
+                dbg_lvl,
+            )
 
         # (Re)build the scarab binary first
         rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, githash, scarab_githash, scarab_build, stream_build=stream_build, dbg_lvl=dbg_lvl)
