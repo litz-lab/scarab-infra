@@ -615,6 +615,9 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
         # Copy architectural params to scarab/src
         arch_params = f"{scarab_path}/src/PARAMS.{architecture}"
         os.system(f"mkdir -p {experiment_dir}/scarab/src/")
+        # Copy pin_exec.so to scarab/src/pin/pin_exec/obj-intel64/pin_exec.so
+        pin_exec_so = f"{docker_home}/scarab/src/pin/pin_exec/obj-intel64/pin_exec.so"
+        os.system(f"mkdir -p {experiment_dir}/scarab/src/pin/pin_exec/obj-intel64/")
 
         # Copy from cache all required scarab binaries
         for bin_name in scarab_binaries:
@@ -622,6 +625,7 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
             os.system(f"cp {scarab_ver} {experiment_dir}/scarab/src/")
 
         os.system(f"cp {arch_params} {experiment_dir}/scarab/src")
+        os.system(f"cp {pin_exec_so} {experiment_dir}/scarab/src/pin/pin_exec/obj-intel64/pin_exec.so")
 
         # Required for non mode 4. Copy launch scripts from the docker container's scarab repo.
         # NOTE: Could cause issues if a copied version of scarab is incompatible with the version of
@@ -730,7 +734,23 @@ def generate_single_scarab_run_command(user, workload_home, experiment, config_k
         command = f"run_pt_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{arch}\\\" \\\"{warmup}\\\" /home/{user}/simulations/{experiment}/scarab {scarab_binary}"
 
     elif mode == "exec":
-        command = f"run_exec_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{arch}\\\" /home/{user}/simulations/{experiment}/scarab {env_vars} {bincmd} {client_bincmd} {scarab_binary}"
+        env_vars_safe = env_vars if env_vars else ""
+        client_bincmd_safe = client_bincmd if client_bincmd else ""
+        command = (
+            "run_exec_single_simpoint.sh "
+            f"\\\"{workload_home}\\\" "                      # $1 WORKLOAD_HOME
+            f"\\\"/home/{user}/simulations/{experiment}/{config_key}\\\" "  # $2 SCENARIO
+            f"\\\"{config}\\\" "                             # $3 SCARABPARAMS
+            f"\\\"{seg_size}\\\" "                           # $4 SEGSIZE
+            f"\\\"{arch}\\\" "                               # $5 SCARABARCH
+            f"\\\"\\\" "                                     # $6 TRACESSIMP (unused)
+            f"\\\"/home/{user}/simulations/{experiment}/scarab\\\" "  # $7 SCARABHOME
+            f"\\\"{cluster_id}\\\" "                         # $8 SEGMENT_ID
+            f"\\\"{env_vars_safe}\\\" "                      # $9 ENVVAR
+            f"\\\"{bincmd}\\\" "                             # $10 BINCMD (stay as one arg)
+            f"\\\"{client_bincmd_safe}\\\" "                 # $11 CLIENT_BINCMD
+            f"\\\"{scarab_binary}\\\""                       # $12 SCARAB_BIN
+        )
     else:
         command = ""
 
