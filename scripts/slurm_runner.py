@@ -520,12 +520,29 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
             if (error):
                 continue
 
-            #Simulation is still running
-            skipped += 1
-            if config in running:
-                running[config] += 1
-            else:
-                print("Should not happen")
+            if "Completed Simulation" in contents_after_docker:
+                completed[config] += 1
+                continue
+
+            # Is simulation still running?
+            # Look for script name in squeue
+            pattern = r"Script name: (\S*)"
+            match = re.search(pattern, contents_after_docker)
+            if match:
+                script_name = match.group(1)
+                is_running = any([sim in script_name for sim in running_sims])
+
+                if is_running:
+                    skipped += 1
+                    if config in running:
+                        running[config] += 1
+                        continue
+                    else:
+                        print("Should not happen. Marked as failure")
+
+            # Assume it failed
+            failed[config] += 1
+
     print(f"Currently running {len(running_sims)} simulations (from logs: {skipped})")
     if stats_generating:
         print("Stat collector is running")
