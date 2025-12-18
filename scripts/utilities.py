@@ -778,6 +778,7 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
             f.write(f"cd -\n")
             f.write(f"echo \"Running {config_key} {workload_home} {cluster_id}\"\n")
             f.write("echo \"Running on $(uname -n)\"\n")
+            f.write(f"echo \"Script name: {filename}\"\n")
             f.write(f"docker run \
             -e user_id={local_uid} \
             -e group_id={local_gid} \
@@ -805,7 +806,7 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
             elif scarab_mode == "exec":
                 f.write(f"docker cp {infra_dir}/common/scripts/run_exec_single_simpoint.sh {docker_container_name}:/usr/local/bin\n")
             f.write(f"docker exec --privileged {docker_container_name} /bin/bash -c '/usr/local/bin/root_entrypoint.sh'\n")
-            f.write(f"docker exec --user={user} {docker_container_name} /bin/bash -c \"source /usr/local/bin/user_entrypoint.sh && {scarab_cmd}\"\n")
+            f.write(f"docker exec --user={user} {docker_container_name} /bin/bash -c \"source /usr/local/bin/user_entrypoint.sh && {scarab_cmd}\" || echo \"Error\\n\"\n")
             f.write(f"docker rm -f {docker_container_name}\n")
             f.write("echo \"Completed Simulation\"\n")
     except Exception as e:
