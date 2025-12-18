@@ -465,8 +465,6 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
                 # Didn't build container, use full contents
                 contents_after_docker = contents
 
-            error = 0
-
             # Seventh line indicates completion but lets double check
             if len(contents_after_docker.split("\n")) > 6 and "Completed Simulation" in contents_after_docker:
                 inst_stat_missing = False
@@ -499,30 +497,7 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
                     if config in slurm_failed:
                         slurm_failed[config] += 1
                     print("FAILED " +str(config))
-                    error = 1
-
-            # Some failures will have a line with "Segmentation falut" in them if they fail
-            if 'Segmentation fault' in contents_after_docker:
-                print("segfault")
-                error_runs.add(root_directory+file)
-                if config in failed:
-                    failed[config] += 1
-                error = 1
-
-            # Most scarab runs and all stat runs will have a line with "Error" in them if they fail
-            if 'Error' in contents_after_docker:
-                print("error")
-                error_runs.add(root_directory+file)
-                if config in failed:
-                    failed[config] += 1
-                error = 1
-
-            if (error):
-                continue
-
-            if "Completed Simulation" in contents_after_docker:
-                completed[config] += 1
-                continue
+                    continue
 
             # Is simulation still running?
             # Look for script name in squeue
@@ -540,7 +515,23 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
                     else:
                         print("Should not happen. Marked as failure")
 
-            # Assume it failed
+            # Some failures will have a line with "Segmentation fault" in them if they fail
+            error = 0
+            if 'Segmentation fault' in contents_after_docker:
+                error = 1
+                print("Segfault simulation detected!")
+
+            # Most scarab runs and all stat runs will have a line with "Error" in them if they fail
+            if 'error' in contents_after_docker.lower():
+                error = 1
+                print("Error simulation detected!")
+
+            if "Completed Simulation" in contents_after_docker and not error:
+                completed[config] += 1
+                continue
+
+            # Error detected, or undefined stat (assume it failed)
+            error_runs.add(root_directory+file)
             failed[config] += 1
 
     print(f"Currently running {len(running_sims)} simulations (from logs: {skipped})")
