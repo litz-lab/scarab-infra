@@ -357,16 +357,17 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
 
     print()
 
-    root_directory = f"{descriptor_data["root_dir"]}/simulations/{descriptor_data["experiment"]}/logs/"
-    os.system(f"sync {root_directory}")
+    root_directory = f"{descriptor_data["root_dir"]}/simulations/{descriptor_data["experiment"]}/"
+    root_logfile_directory = root_directory + "logs/"
+    os.system(f"sync {root_logfile_directory}")
 
     # Check that experiment exists
-    if not os.path.exists(root_directory):
+    if not os.path.exists(root_logfile_directory):
         print("Log file directory does not exist")
         print("The current experiment does not seem to have been run yet")
         return
         
-    log_files = os.listdir(root_directory)
+    log_files = os.listdir(root_logfile_directory)
 
     # Running sims have log files
 
@@ -403,7 +404,7 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
 
     # Check each log file for errors
     for file in log_files:
-        with open(root_directory+file, 'r') as f:
+        with open(root_logfile_directory+file, 'r') as f:
             contents = f.read()
             contents_after_docker = str()
             config = str("FAILED")
@@ -411,33 +412,41 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
             if len(contents.split(" ")) < 2:
                 continue
 
+            # First line prints 'Running <config> <suite>/<subsuite>/<workload> <cluster_id>'
+            first_line = contents.split("\n")[0]
+            config = first_line.split(" ")[1]
+            cluster_id = first_line.split(" ")[3]
+            workload_path = first_line.split(" ")[2]
+            scarab_logfile_path = root_directory + f"{config}/{workload_path}/{cluster_id}/sim.log"
+
             # Check if currently running, skip if so. Running simulations will not contain
             # the completion message
             # New changes add docker preparation, don't include in line count check
             if "BEGIN prepare_docker_image" in contents:
                 if "FAILED prepare_docker_image" in contents:
-                    error_runs.add(root_directory+file)
-                    print("Docker image preparation failed, Simulation is not running (1)")
+                    slurm_failed[config] += 1
+                    error_runs.add(root_logfile_directory+file)
+                    print("Docker image preparation failed, Simulation is not running (Error message in log file)")
                     continue
 
                 # Built container. Trim container part
                 if "END prepare_docker_image" in contents:
                     contents_after_docker = contents.split("END prepare_docker_image\n")[1]
-                    split = contents_after_docker.split(" ")
-                    config = split[1]
                 else:
-                    print("Docker image preparation failed, Simulation is not running (2)")
+                    slurm_failed[config] += 1
+                    error_runs.add(root_logfile_directory+file)
+                    print("Docker image preparation failed, Simulation is not running (Image prep never completed; no failure message)")
                     continue
             else:
-                print("Docker image preparation failed, Simulation is not running (3)")
-                # Didn't build container, use full contents
-                contents_after_docker = contents
+                print("Docker image preparation failed (Image prep never started)")
+                slurm_failed[config] += 1
+                error_runs.add(root_logfile_directory+file)
+                continue
 
             for node in all_nodes:
                 if f"{node}: error:" in contents_after_docker and not " Unable to unlink domain socket":
-                    error_runs.add(root_directory+file)
-                    if config in slurm_failed:
-                        slurm_failed[config] += 1
+                    error_runs.add(root_logfile_directory+file)
+                    slurm_failed[config] += 1
                     continue
 
             # Is simulation still running?
@@ -450,11 +459,8 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
 
                 if is_running:
                     skipped += 1
-                    if config in running:
-                        running[config] += 1
-                        continue
-                    else:
-                        print("Should not happen. Marked as failure")
+                    running[config] += 1
+                    continue
 
             # Some failures will have a line with "Segmentation fault" in them if they fail
             error = 0
@@ -472,7 +478,7 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
                 continue
 
             # Error detected, or undefined stat (assume it failed)
-            error_runs.add(root_directory+file)
+            error_runs.add(scarab_logfile_path)
             failed[config] += 1
 
     print(f"Currently running {len(running_sims)} simulations (from logs: {skipped})")
