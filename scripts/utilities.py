@@ -311,8 +311,10 @@ def build_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_pre
 
         if build_result.returncode != 0:
             if stream_build:
+                exception = RuntimeError("Scarab build returned with non-zero code")
                 err("Scarab build failed. See output above for details.", dbg_lvl)
             else:
+                exception = RuntimeError("Scarab build returned with non-zero code")
                 err(f"Build stdout: {build_result.stdout}", dbg_lvl)
                 err(f"Build stderr: {build_result.stderr}", dbg_lvl)
 
