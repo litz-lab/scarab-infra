@@ -357,22 +357,17 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
 
     print()
 
-    root_directory = f"{descriptor_data["root_dir"]}/simulations/{descriptor_data["experiment"]}/logs/"
-    os.system(f"sync {root_directory}")
+    root_directory = f"{descriptor_data["root_dir"]}/simulations/{descriptor_data["experiment"]}/"
+    root_logfile_directory = root_directory + "logs/"
+    os.system(f"ls -R {root_directory} > /dev/null") # Sync all files in experiment
 
-    # Check that experiment exists
-    if not os.path.exists(root_directory):
+    # Get log files
+    try:
+        log_files = os.listdir(root_logfile_directory)
+    except:
         print("Log file directory does not exist")
         print("The current experiment does not seem to have been run yet")
         return
-        
-    log_files = os.listdir(root_directory)
-
-    # Running sims have log files
-
-    # Ignore stat collector. If log file found, ignore it
-    # We actually dont need to care about counts. Just the status reported in the logs
-    # COmpletely independently, read all logs and figure out error rates.
 
     # TODO: Check if log files are actually from this experiment - Shouldn't be necessary anymore
     if len(log_files) > len(all_jobs) + 1:
@@ -403,7 +398,7 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
 
     # Check each log file for errors
     for file in log_files:
-        with open(root_directory+file, 'r') as f:
+        with open(root_logfile_directory+file, 'r') as f:
             contents = f.read()
             contents_after_docker = str()
             config = str("FAILED")
@@ -416,7 +411,7 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
             # New changes add docker preparation, don't include in line count check
             if "BEGIN prepare_docker_image" in contents:
                 if "FAILED prepare_docker_image" in contents:
-                    error_runs.add(root_directory+file)
+                    error_runs.add(root_logfile_directory+file)
                     print("Docker image preparation failed, Simulation is not running (1)")
                     continue
 
@@ -435,7 +430,7 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
 
             for node in all_nodes:
                 if f"{node}: error:" in contents_after_docker and not " Unable to unlink domain socket":
-                    error_runs.add(root_directory+file)
+                    error_runs.add(root_logfile_directory+file)
                     if config in slurm_failed:
                         slurm_failed[config] += 1
                     continue
@@ -468,11 +463,23 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
                 print("Error simulation detected!")
 
             if "Completed Simulation" in contents_after_docker and not error:
-                completed[config] += 1
-                continue
+                pattern = r"Running\s+\S+\s+(\S*/\S+)\s+(\d+)"
+                match = re.search(pattern, contents_after_docker)
+                if match:
+                    workload_token = match.group(1)
+                    cluster_token = match.group(2)
+                    if cluster_token.lower() != "none":
+                        workload_parts = workload_token.split("/")
+                        if workload_parts:
+                            sim_dir = Path(descriptor_data["root_dir"]) / "simulations" / descriptor_data["experiment"] / config
+                            sim_dir = sim_dir.joinpath(*workload_parts, cluster_token)
+                            # Check stat files generated. They are only files that end with .csv
+                            if any(list(map(lambda x: x.endswith(".csv"), os.listdir(sim_dir)))):
+                                completed[config] += 1
+                                continue
 
             # Error detected, or undefined stat (assume it failed)
-            error_runs.add(root_directory+file)
+            error_runs.add(root_logfile_directory+file)
             failed[config] += 1
 
     print(f"Currently running {len(running_sims)} simulations (from logs: {skipped})")
