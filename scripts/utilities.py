@@ -809,6 +809,7 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
             f.write(f"docker exec --user={user} {docker_container_name} /bin/bash -c \"source /usr/local/bin/user_entrypoint.sh && {scarab_cmd}\" || echo \"Error\\n\"\n")
             f.write(f"docker rm -f {docker_container_name}\n")
             f.write("echo \"Completed Simulation\"\n")
+            f.write(f"sync {docker_home}/simulations/{experiment_name}/logs")
     except Exception as e:
         raise e
 
