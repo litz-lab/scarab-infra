@@ -483,6 +483,8 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
 
     print(f"Currently running {len(running_sims)} simulations (from logs: {skipped})")
 
+    calculated_logfile_count = 0
+
     data = {"Configuration":[],"Completed":[],"Failed":[],"Failed - Slurm":[],"Running":[],"Pending":[],"Non-existant":[],"Total":[]}
     for conf in confs:  
         data["Configuration"].append(conf)
@@ -497,9 +499,15 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
         # Number of simpoints accounted for
         total_found = completed[conf] + failed[conf] + running[conf] + pending[conf] + slurm_failed[conf]
 
+        calculated_logfile_count += total_found - pending[conf] # Pending slurm processes have no log file
+
+        # Ensure Non-existant column never goes negative
+        assert total_per_conf >= total_found, "ERR: Assert Failed: More jobs found (via squeue and log files) than should exist"
+
         data["Total"].append(total_per_conf)
         data["Non-existant"].append(total_per_conf - total_found) # Unaccounted for simpoints
 
+    assert calculated_logfile_count == len(log_files) - 1, "ERR: Assert Failed: Log file count doesn't match number of accounted jobs"
 
     print(generate_table(data))
 
