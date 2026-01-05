@@ -311,8 +311,10 @@ def build_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_pre
 
         if build_result.returncode != 0:
             if stream_build:
+                exception = RuntimeError("Scarab build returned with non-zero code")
                 err("Scarab build failed. See output above for details.", dbg_lvl)
             else:
+                exception = RuntimeError("Scarab build returned with non-zero code")
                 err(f"Build stdout: {build_result.stdout}", dbg_lvl)
                 err(f"Build stderr: {build_result.stderr}", dbg_lvl)
 
@@ -773,11 +775,11 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
                                                         warmup, trace_warmup, trace_type, trace_file, env_vars, bincmd, client_bincmd)
         with open(filename, "w") as f:
             f.write("#!/bin/bash\n")
+            f.write(f"echo \"Running {config_key} {workload_home} {cluster_id}\"\n")
+            f.write("echo \"Running on $(uname -n)\"\n")
             f.write(f"cd {infra_dir}\n")
             f.write(f"python -m scripts.prepare_docker_image --docker-prefix {docker_prefix} --githash {githash} \n")
             f.write(f"cd -\n")
-            f.write(f"echo \"Running {config_key} {workload_home} {cluster_id}\"\n")
-            f.write("echo \"Running on $(uname -n)\"\n")
             f.write(f"echo \"Script name: {filename}\"\n")
             f.write(f"docker run \
             -e user_id={local_uid} \
@@ -809,6 +811,7 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
             f.write(f"docker exec --user={user} {docker_container_name} /bin/bash -c \"source /usr/local/bin/user_entrypoint.sh && {scarab_cmd}\" || echo \"Error\\n\"\n")
             f.write(f"docker rm -f {docker_container_name}\n")
             f.write("echo \"Completed Simulation\"\n")
+            f.write(f"sync {docker_home}/simulations/{experiment_name}/logs")
     except Exception as e:
         raise e
 

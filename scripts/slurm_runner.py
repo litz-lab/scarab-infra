@@ -323,16 +323,6 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
         else:
             print(f"\033[31mUNAVAILABLE: {node}\033[0m")
 
-    # Again general info. Not helpful for --status <job>? 
-    # for docker_prefix in docker_prefix_list:
-    #     print(f"\nChecking what nodes have {docker_prefix}:{githash} image:")
-    #     docker_available_slurm_nodes = check_docker_image(all_nodes, docker_prefix, githash, dbg_lvl)
-    #     for node in all_nodes:
-    #         if node in docker_available_slurm_nodes:
-    #             print(f"\033[92mAVAILABLE:   {node}\033[0m")
-    #         else:
-    #             print(f"\033[31mUNAVAILABLE: {node}\033[0m")
-
     # Get dictionary of {node: [processes]}
     # NOTE: This is a list of run commands, not the actual containers. Container name will be same miunus tmp_run.sh
     slurm_running_sims = check_slurm_task_queued_or_running(docker_prefix_list, job_name, user, dbg_lvl)
@@ -342,26 +332,6 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
         print(f"{docker_prefix}_*_{job_name}_*_*_{user}")
 
     print()
-
-    # Print out every running job
-    # for key, val in running_sims.items():
-    #     if key == '':
-    #         print("Fount not running")
-    #         continue
-
-    #     if len(val) > 0:
-    #         print(f"\033[92mRUNNING:     {key}\033[0m")
-    #         for docker in val:
-    #             print(f"\033[92m    COMMAND: {docker}\033[0m")
-    #     else:
-    #         print(f"\033[31mNOT RUNNING: {key}\033[0m")
-
-    # if '' in running_sims.keys():
-    #     for val in running_sims['']:
-    #         if len(val) > 0:
-    #             print(f"\033[92mQUEUED:     {val}\033[0m")
-    # else:
-    #     print(f"\033[31mNO COMMANDS IN QUEUE\033[0m")
 
     running_sims = []
     queued_sims = []
@@ -384,21 +354,20 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
     not_complete = running_sims + queued_sims
 
     all_jobs = get_simulation_jobs(descriptor_data, workloads_data, docker_prefix_list, user, dbg_lvl)
-    # print(f"Completed Jobs: {len(all_jobs) - len(not_complete)}")
 
-    # completed_jobs = list(set(all_jobs) - set(not_complete))
- 
     print()
 
-    root_directory = f"{descriptor_data["root_dir"]}/simulations/{descriptor_data["experiment"]}/logs/"
+    root_directory = f"{descriptor_data["root_dir"]}/simulations/{descriptor_data["experiment"]}/"
+    root_logfile_directory = root_directory + "logs/"
+    os.system(f"sync {root_logfile_directory}")
 
     # Check that experiment exists
-    if not os.path.exists(root_directory):
+    if not os.path.exists(root_logfile_directory):
         print("Log file directory does not exist")
         print("The current experiment does not seem to have been run yet")
         return
         
-    log_files = os.listdir(root_directory)
+    log_files = os.listdir(root_logfile_directory)
 
     # Running sims have log files
 
@@ -413,7 +382,6 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
 
     error_runs = set()
     skipped = 0
-    stats_generating = False
 
     confs = list(descriptor_data["configurations"].keys())
 
@@ -423,20 +391,20 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
     running = {conf:0 for conf in confs}
     pending = {conf:0 for conf in confs}    
 
-    # NOTE: Potential Subset issue again. conf2 and conf sims will be added to conf2
     # Tried to create such a scenario but was unable
+    experiment_name = descriptor_data["experiment"]
     for sim in queued_sims:
-        #print("queued sim" +str(sim))
-        for conf in confs:
-            parts = sim.split("_")
-            experiment = parts[-4]   # 4th from the end
-            if conf == experiment:
-                pending[conf] += 1
-                break
+        matches = [conf for conf in confs if f"{experiment_name}_{conf}" in sim]
+        if not matches:
+            info(f"'{experiment_name}_{conf}' not found in any queued sim names", dbg_lvl)
+            continue # User is concurrently running different experiement
+
+        conf = max(matches, key=len) # Take longest matching conf when overlapping names used
+        pending[conf] += 1
 
     # Check each log file for errors
     for file in log_files:
-        with open(root_directory+file, 'r') as f:
+        with open(root_logfile_directory+file, 'r') as f:
             contents = f.read()
             contents_after_docker = str()
             config = str("FAILED")
@@ -444,60 +412,41 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
             if len(contents.split(" ")) < 2:
                 continue
 
+            # First line prints 'Running <config> <suite>/<subsuite>/<workload> <cluster_id>'
+            first_line = contents.split("\n")[0]
+            config = first_line.split(" ")[1]
+            cluster_id = first_line.split(" ")[3]
+            workload_path = first_line.split(" ")[2]
+            scarab_logfile_path = root_directory + f"{config}/{workload_path}/{cluster_id}/sim.log"
+
             # Check if currently running, skip if so. Running simulations will not contain
             # the completion message
             # New changes add docker preparation, don't include in line count check
             if "BEGIN prepare_docker_image" in contents:
                 if "FAILED prepare_docker_image" in contents:
-                    error_runs.add(root_directory+file)
-                    print("Docker image preparation failed, Simulation is not running (1)")
+                    slurm_failed[config] += 1
+                    error_runs.add(root_logfile_directory+file)
+                    print("Docker image preparation failed, Simulation is not running (Error message in log file)")
                     continue
 
                 # Built container. Trim container part
                 if "END prepare_docker_image" in contents:
                     contents_after_docker = contents.split("END prepare_docker_image\n")[1]
-                    split = contents_after_docker.split(" ")
-                    config = split[1]
                 else:
-                    print("Docker image preparation failed, Simulation is not running (2)")
+                    slurm_failed[config] += 1
+                    error_runs.add(root_logfile_directory+file)
+                    print("Docker image preparation failed, Simulation is not running (Image prep never completed; no failure message)")
                     continue
             else:
-                print("Docker image preparation failed, Simulation is not running (3)")
-                # Didn't build container, use full contents
-                contents_after_docker = contents
-
-            # Seventh line indicates completion but lets double check
-            if len(contents_after_docker.split("\n")) > 6 and "Completed Simulation" in contents_after_docker:
-                inst_stat_missing = False
-                lines = contents_after_docker.splitlines()
-                pattern = r"Running\s+\S+\s+(\S*/\S+)\s+(\d+)"
-                match = re.search(pattern, contents_after_docker)
-                if match:
-                    workload_token = match.group(1)
-                    cluster_token = match.group(2)
-                    if cluster_token.lower() != "none":
-                        workload_parts = workload_token.split("/")
-                        if workload_parts:
-                            sim_dir = Path(descriptor_data["root_dir"]) / "simulations" / descriptor_data["experiment"] / config
-                            sim_dir = sim_dir.joinpath(*workload_parts, cluster_token)
-                            inst_stat_path = sim_dir / "inst.stat.0.csv"
-
-                            if inst_stat_path.is_file():
-                                completed[config] += 1
-                                continue
-
-                else:
-                    if config in failed:
-                        failed[config] += 1
-                    continue
-                        # Slurm error messages have 'node: error:' in them
+                print("Docker image preparation failed (Image prep never started)")
+                slurm_failed[config] += 1
+                error_runs.add(root_logfile_directory+file)
+                continue
 
             for node in all_nodes:
                 if f"{node}: error:" in contents_after_docker and not " Unable to unlink domain socket":
-                    error_runs.add(root_directory+file)
-                    if config in slurm_failed:
-                        slurm_failed[config] += 1
-                    print("FAILED " +str(config))
+                    error_runs.add(root_logfile_directory+file)
+                    slurm_failed[config] += 1
                     continue
 
             # Is simulation still running?
@@ -510,11 +459,8 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
 
                 if is_running:
                     skipped += 1
-                    if config in running:
-                        running[config] += 1
-                        continue
-                    else:
-                        print("Should not happen. Marked as failure")
+                    running[config] += 1
+                    continue
 
             # Some failures will have a line with "Segmentation fault" in them if they fail
             error = 0
@@ -532,12 +478,12 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
                 continue
 
             # Error detected, or undefined stat (assume it failed)
-            error_runs.add(root_directory+file)
+            error_runs.add(scarab_logfile_path)
             failed[config] += 1
 
     print(f"Currently running {len(running_sims)} simulations (from logs: {skipped})")
-    if stats_generating:
-        print("Stat collector is running")
+
+    calculated_logfile_count = 0
 
     data = {"Configuration":[],"Completed":[],"Failed":[],"Failed - Slurm":[],"Running":[],"Pending":[],"Non-existant":[],"Total":[]}
     for conf in confs:  
@@ -553,22 +499,18 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
         # Number of simpoints accounted for
         total_found = completed[conf] + failed[conf] + running[conf] + pending[conf] + slurm_failed[conf]
 
+        calculated_logfile_count += total_found - pending[conf] # Pending slurm processes have no log file
+
+        # Ensure Non-existant column never goes negative
+        assert total_per_conf >= total_found, "ERR: Assert Failed: More jobs found (via squeue and log files) than should exist"
+
         data["Total"].append(total_per_conf)
         data["Non-existant"].append(total_per_conf - total_found) # Unaccounted for simpoints
 
+    assert calculated_logfile_count == len(log_files) - 1, "ERR: Assert Failed: Log file count doesn't match number of accounted jobs"
 
     print(generate_table(data))
 
-    if skipped != len(running_sims):
-        print("\033[33mWARN: Number of log files skipped due to being 'in progress' does not match number of running simulations.")
-        print("This could indicate the file format has changed in a way where the 'is running' checks need to be modified.")
-        if skipped > len(running_sims):
-            print("Completed jobs' log files were skipped. This could also be caused by running same experiment multiple times (check for prev. err).")
-        else:
-            print("Running jobs' log files were evaluated for success/failure")
-
-        print("\033[0m")
-    
     # Print up to five of the full paths
     if error_runs:
         error_list = sorted(error_runs)
