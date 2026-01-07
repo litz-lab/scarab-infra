@@ -1914,7 +1914,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"\\$tmpdir/application/cpu2017/bin/runcpu --config=\\$tmpdir/application/cpu2017/config/memtrace.cfg 500",
             "client_bincmd":null
           },
           "memtrace":{
@@ -2026,7 +2026,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"\\$tmpdir/application/cpu2017/bin/runcpu --config=\\$tmpdir/application/cpu2017/config/memtrace.cfg 502",
             "client_bincmd":null
           },
           "memtrace":{
@@ -2460,7 +2460,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"\\$tmpdir/application/cpu2017/bin/runcpu --config=\\$tmpdir/application/cpu2017/config/memtrace.cfg 505",
             "client_bincmd":null
           },
           "memtrace":{
@@ -2558,7 +2558,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"\\$tmpdir/application/cpu2017/bin/runcpu --config=\\$tmpdir/application/cpu2017/config/memtrace.cfg 520",
             "client_bincmd":null
           },
           "memtrace":{
@@ -2656,7 +2656,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"\\$tmpdir/application/cpu2017/bin/runcpu --config=\\$tmpdir/application/cpu2017/config/memtrace.cfg 523",
             "client_bincmd":null
           },
           "memtrace":{
@@ -2768,7 +2768,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"\\$tmpdir/application/cpu2017/bin/runcpu --config=\\$tmpdir/application/cpu2017/config/memtrace.cfg 525",
             "client_bincmd":null
           },
           "memtrace":{
@@ -2880,7 +2880,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"\\$tmpdir/application/cpu2017/bin/runcpu --config=\\$tmpdir/application/cpu2017/config/memtrace.cfg 531",
             "client_bincmd":null
           },
           "memtrace":{
@@ -2985,7 +2985,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"\\$tmpdir/application/cpu2017/bin/runcpu --config=\\$tmpdir/application/cpu2017/config/memtrace.cfg 541",
             "client_bincmd":null
           },
           "memtrace":{
@@ -3097,7 +3097,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"\\$tmpdir/application/cpu2017/bin/runcpu --config=\\$tmpdir/application/cpu2017/config/memtrace.cfg 548",
             "client_bincmd":null
           },
           "memtrace":{
@@ -3202,7 +3202,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"\\$tmpdir/application/cpu2017/bin/runcpu --config=\\$tmpdir/application/cpu2017/config/memtrace.cfg 557",
             "client_bincmd":null
           },
           "memtrace":{
@@ -3302,7 +3302,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"\\$tmpdir/application/cpu2017/bin/runcpu --config=\\$tmpdir/application/cpu2017/config/memtrace.cfg 503",
             "client_bincmd":null
           },
           "memtrace":{
@@ -3421,7 +3421,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"\\$tmpdir/application/cpu2017/bin/runcpu --config=\\$tmpdir/application/cpu2017/config/memtrace.cfg 507",
             "client_bincmd":null
           },
           "memtrace":{
@@ -3519,7 +3519,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"\\$tmpdir/application/cpu2017/bin/runcpu --config=\\$tmpdir/application/cpu2017/config/memtrace.cfg 508",
             "client_bincmd":null
           },
           "memtrace":{
@@ -3792,7 +3792,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"\\$tmpdir/application/cpu2017/bin/runcpu --config=\\$tmpdir/application/cpu2017/config/memtrace.cfg 510",
             "client_bincmd":null
           },
           "memtrace":{
@@ -4352,7 +4352,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"\\$tmpdir/application/cpu2017/bin/runcpu --config=\\$tmpdir/application/cpu2017/config/memtrace.cfg 511",
             "client_bincmd":null
           },
           "memtrace":{
@@ -4457,7 +4457,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"\\$tmpdir/application/cpu2017/bin/runcpu --config=\\$tmpdir/application/cpu2017/config/memtrace.cfg 519",
             "client_bincmd":null
           },
           "memtrace":{
@@ -4527,7 +4527,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"\\$tmpdir/application/cpu2017/bin/runcpu --config=\\$tmpdir/application/cpu2017/config/memtrace.cfg 521",
             "client_bincmd":null
           },
           "memtrace":{
@@ -5549,7 +5549,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"\\$tmpdir/application/cpu2017/bin/runcpu --config=\\$tmpdir/application/cpu2017/config/memtrace.cfg 526",
             "client_bincmd":null
           },
           "memtrace":{
@@ -5682,7 +5682,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"\\$tmpdir/application/cpu2017/bin/runcpu --config=\\$tmpdir/application/cpu2017/config/memtrace.cfg 527",
             "client_bincmd":null
           },
           "memtrace":{
@@ -6130,7 +6130,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"\\$tmpdir/application/cpu2017/bin/runcpu --config=\\$tmpdir/application/cpu2017/config/memtrace.cfg 538",
             "client_bincmd":null
           },
           "memtrace":{
@@ -6186,7 +6186,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"\\$tmpdir/application/cpu2017/bin/runcpu --config=\\$tmpdir/application/cpu2017/config/memtrace.cfg 544",
             "client_bincmd":null
           },
           "memtrace":{
@@ -6263,7 +6263,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"\\$tmpdir/application/cpu2017/bin/runcpu --config=\\$tmpdir/application/cpu2017/config/memtrace.cfg 549",
             "client_bincmd":null
           },
           "memtrace":{
@@ -6431,7 +6431,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":null,
+            "binary_cmd":"\\$tmpdir/application/cpu2017/bin/runcpu --config=\\$tmpdir/application/cpu2017/config/memtrace.cfg 554",
             "client_bincmd":null
           },
           "memtrace":{
