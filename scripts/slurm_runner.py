@@ -323,16 +323,6 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
         else:
             print(f"\033[31mUNAVAILABLE: {node}\033[0m")
 
-    # Again general info. Not helpful for --status <job>? 
-    # for docker_prefix in docker_prefix_list:
-    #     print(f"\nChecking what nodes have {docker_prefix}:{githash} image:")
-    #     docker_available_slurm_nodes = check_docker_image(all_nodes, docker_prefix, githash, dbg_lvl)
-    #     for node in all_nodes:
-    #         if node in docker_available_slurm_nodes:
-    #             print(f"\033[92mAVAILABLE:   {node}\033[0m")
-    #         else:
-    #             print(f"\033[31mUNAVAILABLE: {node}\033[0m")
-
     # Get dictionary of {node: [processes]}
     # NOTE: This is a list of run commands, not the actual containers. Container name will be same miunus tmp_run.sh
     slurm_running_sims = check_slurm_task_queued_or_running(docker_prefix_list, job_name, user, dbg_lvl)
@@ -342,26 +332,6 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
         print(f"{docker_prefix}_*_{job_name}_*_*_{user}")
 
     print()
-
-    # Print out every running job
-    # for key, val in running_sims.items():
-    #     if key == '':
-    #         print("Fount not running")
-    #         continue
-
-    #     if len(val) > 0:
-    #         print(f"\033[92mRUNNING:     {key}\033[0m")
-    #         for docker in val:
-    #             print(f"\033[92m    COMMAND: {docker}\033[0m")
-    #     else:
-    #         print(f"\033[31mNOT RUNNING: {key}\033[0m")
-
-    # if '' in running_sims.keys():
-    #     for val in running_sims['']:
-    #         if len(val) > 0:
-    #             print(f"\033[92mQUEUED:     {val}\033[0m")
-    # else:
-    #     print(f"\033[31mNO COMMANDS IN QUEUE\033[0m")
 
     running_sims = []
     queued_sims = []
@@ -384,27 +354,20 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
     not_complete = running_sims + queued_sims
 
     all_jobs = get_simulation_jobs(descriptor_data, workloads_data, docker_prefix_list, user, dbg_lvl)
-    # print(f"Completed Jobs: {len(all_jobs) - len(not_complete)}")
 
-    # completed_jobs = list(set(all_jobs) - set(not_complete))
- 
     print()
 
-    root_directory = f"{descriptor_data["root_dir"]}/simulations/{descriptor_data["experiment"]}/logs/"
+    root_directory = f"{descriptor_data["root_dir"]}/simulations/{descriptor_data["experiment"]}/"
+    root_logfile_directory = root_directory + "logs/"
+    os.system(f"ls -R {root_directory} > /dev/null") # Sync all files in experiment
 
-    # Check that experiment exists
-    if not os.path.exists(root_directory):
+    # Get log files
+    try:
+        log_files = os.listdir(root_logfile_directory)
+    except:
         print("Log file directory does not exist")
         print("The current experiment does not seem to have been run yet")
         return
-        
-    log_files = os.listdir(root_directory)
-
-    # Running sims have log files
-
-    # Ignore stat collector. If log file found, ignore it
-    # We actually dont need to care about counts. Just the status reported in the logs
-    # COmpletely independently, read all logs and figure out error rates.
 
     # TODO: Check if log files are actually from this experiment - Shouldn't be necessary anymore
     if len(log_files) > len(all_jobs) + 1:
@@ -413,7 +376,6 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
 
     error_runs = set()
     skipped = 0
-    stats_generating = False
 
     confs = list(descriptor_data["configurations"].keys())
 
@@ -423,20 +385,20 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
     running = {conf:0 for conf in confs}
     pending = {conf:0 for conf in confs}    
 
-    # NOTE: Potential Subset issue again. conf2 and conf sims will be added to conf2
     # Tried to create such a scenario but was unable
+    experiment_name = descriptor_data["experiment"]
     for sim in queued_sims:
-        #print("queued sim" +str(sim))
-        for conf in confs:
-            parts = sim.split("_")
-            experiment = parts[-4]   # 4th from the end
-            if conf == experiment:
-                pending[conf] += 1
-                break
+        matches = [conf for conf in confs if f"{experiment_name}_{conf}" in sim]
+        if not matches:
+            info(f"'{experiment_name}_{conf}' not found in any queued sim names", dbg_lvl)
+            continue # User is concurrently running different experiement
+
+        conf = max(matches, key=len) # Take longest matching conf when overlapping names used
+        pending[conf] += 1
 
     # Check each log file for errors
     for file in log_files:
-        with open(root_directory+file, 'r') as f:
+        with open(root_logfile_directory+file, 'r') as f:
             contents = f.read()
             contents_after_docker = str()
             config = str("FAILED")
@@ -449,7 +411,7 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
             # New changes add docker preparation, don't include in line count check
             if "BEGIN prepare_docker_image" in contents:
                 if "FAILED prepare_docker_image" in contents:
-                    error_runs.add(root_directory+file)
+                    error_runs.add(root_logfile_directory+file)
                     print("Docker image preparation failed, Simulation is not running (1)")
                     continue
 
@@ -466,38 +428,11 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
                 # Didn't build container, use full contents
                 contents_after_docker = contents
 
-            # Seventh line indicates completion but lets double check
-            if len(contents_after_docker.split("\n")) > 6 and "Completed Simulation" in contents_after_docker:
-                inst_stat_missing = False
-                lines = contents_after_docker.splitlines()
-                pattern = r"Running\s+\S+\s+(\S*/\S+)\s+(\d+)"
-                match = re.search(pattern, contents_after_docker)
-                if match:
-                    workload_token = match.group(1)
-                    cluster_token = match.group(2)
-                    if cluster_token.lower() != "none":
-                        workload_parts = workload_token.split("/")
-                        if workload_parts:
-                            sim_dir = Path(descriptor_data["root_dir"]) / "simulations" / descriptor_data["experiment"] / config
-                            sim_dir = sim_dir.joinpath(*workload_parts, cluster_token)
-                            inst_stat_path = sim_dir / "inst.stat.0.csv"
-
-                            if inst_stat_path.is_file():
-                                completed[config] += 1
-                                continue
-
-                else:
-                    if config in failed:
-                        failed[config] += 1
-                    continue
-                        # Slurm error messages have 'node: error:' in them
-
             for node in all_nodes:
                 if f"{node}: error:" in contents_after_docker and not " Unable to unlink domain socket":
-                    error_runs.add(root_directory+file)
+                    error_runs.add(root_logfile_directory+file)
                     if config in slurm_failed:
                         slurm_failed[config] += 1
-                    print("FAILED " +str(config))
                     continue
 
             # Is simulation still running?
@@ -528,16 +463,28 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
                 print("Error simulation detected!")
 
             if "Completed Simulation" in contents_after_docker and not error:
-                completed[config] += 1
-                continue
+                pattern = r"Running\s+\S+\s+(\S*/\S+)\s+(\d+)"
+                match = re.search(pattern, contents_after_docker)
+                if match:
+                    workload_token = match.group(1)
+                    cluster_token = match.group(2)
+                    if cluster_token.lower() != "none":
+                        workload_parts = workload_token.split("/")
+                        if workload_parts:
+                            sim_dir = Path(descriptor_data["root_dir"]) / "simulations" / descriptor_data["experiment"] / config
+                            sim_dir = sim_dir.joinpath(*workload_parts, cluster_token)
+                            # Check stat files generated. They are only files that end with .csv
+                            if any(list(map(lambda x: x.endswith(".csv"), os.listdir(sim_dir)))):
+                                completed[config] += 1
+                                continue
+                # This error can be triggered by either 1) a NFS syncing error, or 2) SLURM not capturing a failed simulation
+                err("Stat files not generated, despite being completed with no errors.", 1)
 
             # Error detected, or undefined stat (assume it failed)
-            error_runs.add(root_directory+file)
+            error_runs.add(root_logfile_directory+file)
             failed[config] += 1
 
     print(f"Currently running {len(running_sims)} simulations (from logs: {skipped})")
-    if stats_generating:
-        print("Stat collector is running")
 
     data = {"Configuration":[],"Completed":[],"Failed":[],"Failed - Slurm":[],"Running":[],"Pending":[],"Non-existant":[],"Total":[]}
     for conf in confs:  
@@ -559,16 +506,6 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
 
     print(generate_table(data))
 
-    if skipped != len(running_sims):
-        print("\033[33mWARN: Number of log files skipped due to being 'in progress' does not match number of running simulations.")
-        print("This could indicate the file format has changed in a way where the 'is running' checks need to be modified.")
-        if skipped > len(running_sims):
-            print("Completed jobs' log files were skipped. This could also be caused by running same experiment multiple times (check for prev. err).")
-        else:
-            print("Running jobs' log files were evaluated for success/failure")
-
-        print("\033[0m")
-    
     # Print up to five of the full paths
     if error_runs:
         error_list = sorted(error_runs)
