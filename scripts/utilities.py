@@ -776,11 +776,11 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
         with open(filename, "w") as f:
             f.write("#!/bin/bash\n")
             f.write(f"echo \"Running {config_key} {workload_home} {cluster_id}\"\n")
+            f.write(f"echo \"Script name: {filename}\"\n")
             f.write("echo \"Running on $(uname -n)\"\n")
             f.write(f"cd {infra_dir}\n")
             f.write(f"python -m scripts.prepare_docker_image --docker-prefix {docker_prefix} --githash {githash} \n")
             f.write(f"cd -\n")
-            f.write(f"echo \"Script name: {filename}\"\n")
             f.write(f"docker run \
             -e user_id={local_uid} \
             -e group_id={local_gid} \

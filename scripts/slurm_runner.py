@@ -236,6 +236,9 @@ def get_simulation_jobs(descriptor_data, workloads_data, docker_prefix, user, db
         elif exp_cluster_id > 0:
             assert isinstance(exp_cluster_id, int), f"exp_cluster_id must be of type int, but got {type(exp_cluster_id)}"
             return [exp_cluster_id]
+
+        # Simpoint '0' passed in
+        return [0]
         
     all_jobs = []
 
@@ -409,7 +412,7 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
             contents_after_docker = str()
             config = str("FAILED")
             # Cannot get config if file isn't complete
-            if len(contents.split(" ")) < 2:
+            if len(contents.split("\n")) < 2:
                 continue
 
             # First line prints 'Running <config> <suite>/<subsuite>/<workload> <cluster_id>'
@@ -418,6 +421,19 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
             cluster_id = first_line.split(" ")[3]
             workload_path = first_line.split(" ")[2]
             scarab_logfile_path = root_directory + f"{config}/{workload_path}/{cluster_id}/sim.log"
+
+            # Is simulation still running?
+            # Look for script name in squeue
+            pattern = r"Script name: (\S*)"
+            match = re.search(pattern, contents)
+            if match:
+                script_name = match.group(1)
+                is_running = any([sim in script_name for sim in running_sims])
+
+                if is_running:
+                    skipped += 1
+                    running[config] += 1
+                    continue
 
             # Check if currently running, skip if so. Running simulations will not contain
             # the completion message
@@ -447,19 +463,6 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
                 if f"{node}: error:" in contents_after_docker and not " Unable to unlink domain socket":
                     error_runs.add(root_logfile_directory+file)
                     slurm_failed[config] += 1
-                    continue
-
-            # Is simulation still running?
-            # Look for script name in squeue
-            pattern = r"Script name: (\S*)"
-            match = re.search(pattern, contents_after_docker)
-            if match:
-                script_name = match.group(1)
-                is_running = any([sim in script_name for sim in running_sims])
-
-                if is_running:
-                    skipped += 1
-                    running[config] += 1
                     continue
 
             # Some failures will have a line with "Segmentation fault" in them if they fail
