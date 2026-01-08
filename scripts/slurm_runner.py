@@ -477,6 +477,8 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
                             if any(list(map(lambda x: x.endswith(".csv"), os.listdir(sim_dir)))):
                                 completed[config] += 1
                                 continue
+                # This error can be triggered by either 1) a NFS syncing error, or 2) SLURM not capturing a failed simulation
+                err("Stat files not generated, despite being completed with no errors.", 1)
 
             # Error detected, or undefined stat (assume it failed)
             error_runs.add(root_logfile_directory+file)
