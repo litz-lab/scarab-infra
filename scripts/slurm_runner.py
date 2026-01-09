@@ -469,12 +469,11 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
             error = 0
             if 'Segmentation fault' in contents_after_docker:
                 error = 1
-                print("Segfault simulation detected!")
 
             # Most scarab runs and all stat runs will have a line with "Error" in them if they fail
+            # Also catches the scarab binary fail message: 'Scarab error detected'
             if 'error' in contents_after_docker.lower():
                 error = 1
-                print("Error simulation detected!")
 
             if "Completed Simulation" in contents_after_docker and not error:
                 completed[config] += 1
