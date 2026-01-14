@@ -405,6 +405,8 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
         conf = max(matches, key=len) # Take longest matching conf when overlapping names used
         pending[conf] += 1
 
+    not_in_experiment = []
+
     # Check each log file for errors
     for file in log_files:
         with open(root_logfile_directory+file, 'r') as f:
@@ -421,6 +423,14 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
             cluster_id = first_line.split(" ")[3]
             workload_path = first_line.split(" ")[2]
             scarab_logfile_path = root_directory + f"{config}/{workload_path}/{cluster_id}/sim.log"
+
+            if config not in confs:
+                if config not in not_in_experiment:
+                    print(f"WARN: Log files for config {config}, which is not in the experiment file")
+
+                # Add to list of such configs to avoid spamming console
+                not_in_experiment.append(config)
+                continue
 
             # Is simulation still running?
             # Look for script name in squeue
@@ -509,7 +519,10 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
         data["Total"].append(total_per_conf)
         data["Non-existant"].append(total_per_conf - total_found) # Unaccounted for simpoints
 
-    assert calculated_logfile_count == len(log_files) - 1, "ERR: Assert Failed: Log file count doesn't match number of accounted jobs"
+    # Following Assertion will fail if extra log files present. User was alerted earlier if this was the case
+    # We previously assert columns will not be negative (see above) so this is safe
+    if len(not_in_experiment) == 0:
+        assert calculated_logfile_count == len(log_files) - 1, "ERR: Assert Failed: Log file count doesn't match number of accounted jobs"
 
     print(generate_table(data))
 
