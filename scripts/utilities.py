@@ -623,6 +623,29 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
 
         os.system(f"cp {arch_params} {experiment_dir}/scarab/src")
 
+        # Export hash-specific PARAMS so each scarab binary can use matching defaults.
+        for bin_name in scarab_binaries:
+            match = binary_pattern.match(bin_name)
+            if not match:
+                continue
+            target_hash = match.group(1)
+            params_target = f"{experiment_dir}/scarab/src/PARAMS.{architecture}.{target_hash}"
+            if os.path.isfile(params_target):
+                continue
+            try:
+                params_blob = subprocess.check_output(
+                    ["git", "show", f"{target_hash}:src/PARAMS.{architecture}"],
+                    cwd=scarab_path,
+                )
+            except Exception as exc:
+                warn(
+                    f"Unable to load PARAMS.{architecture} for scarab {target_hash}: {exc}",
+                    dbg_lvl,
+                )
+                continue
+            with open(params_target, "wb") as handle:
+                handle.write(params_blob)
+
         # Required for non mode 4. Copy launch scripts from the docker container's scarab repo.
         # NOTE: Could cause issues if a copied version of scarab is incompatible with the version of
         # the launch scripts in the docker container's repo
