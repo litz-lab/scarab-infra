@@ -13,6 +13,7 @@ import docker
 from .utilities import (
     info,
     err,
+    warn,
     read_descriptor_from_json,
     remove_docker_containers,
     remove_tmp_run_scripts,
@@ -114,6 +115,13 @@ def open_interactive_shell(user, descriptor_data, workloads_data, infra_dir, dbg
         except subprocess.CalledProcessError:
             err("Error: Not in a Git repository or unable to retrieve Git hash.")
 
+        scarab_git_hash = None
+        try:
+            scarab_git_hash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=scarab_path).decode("utf-8").strip()
+            info(f"Scarab git hash: {scarab_git_hash}", dbg_lvl)
+        except Exception as exc:  # pragma: no cover - best-effort logging for interactive shell
+            warn(f"Could not read scarab git hash: {exc}", dbg_lvl)
+
         # TODO: always make sure to open the interactive shell on a development node (not worker nodes) if slurm mode
         # need to maintain the list of nodes for development
         # currently open it on local
@@ -140,18 +148,23 @@ def open_interactive_shell(user, descriptor_data, workloads_data, infra_dir, dbg
                 f.write(f"\n{entry}\n")
 
         # Generate commands for executing in users docker and sbatching to nodes with containers
-        scarab_githash, image_tag_list = prepare_simulation(user,
-                                            scarab_path,
-                                            descriptor_data['scarab_build'],
-                                            docker_home,
-                                            experiment_name,
-                                            descriptor_data['architecture'],
-                                            docker_prefix_list,
-                                            githash,
-                                            infra_dir,
-                                            ["scarab_current"],
-                                            interactive_shell=True,
-                                            dbg_lvl=dbg_lvl)
+        try:
+            scarab_githash, image_tag_list = prepare_simulation(user,
+                                                scarab_path,
+                                                descriptor_data['scarab_build'],
+                                                docker_home,
+                                                experiment_name,
+                                                descriptor_data['architecture'],
+                                                docker_prefix_list,
+                                                githash,
+                                                infra_dir,
+                                                ["scarab_current"],
+                                                interactive_shell=True,
+                                                dbg_lvl=dbg_lvl)
+        except Exception as exc:
+            warn(f"Scarab build failed; continuing to interactive shell anyway: {exc}", dbg_lvl)
+            scarab_githash = scarab_git_hash if scarab_git_hash else "unknown"
+            image_tag_list = [f"{docker_prefix}:{githash}"]
         workload = descriptor_data['simulations'][0]['workload']
         mode = descriptor_data['simulations'][0]['simulation_type']
 

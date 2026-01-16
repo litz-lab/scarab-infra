@@ -362,21 +362,15 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
 
     root_directory = f"{descriptor_data["root_dir"]}/simulations/{descriptor_data["experiment"]}/"
     root_logfile_directory = root_directory + "logs/"
-    os.system(f"sync {root_logfile_directory}")
+    os.system(f"ls -R {root_directory} > /dev/null") # Sync all files in experiment
 
-    # Check that experiment exists
-    if not os.path.exists(root_logfile_directory):
+    # Get log files
+    try:
+        log_files = os.listdir(root_logfile_directory)
+    except:
         print("Log file directory does not exist")
         print("The current experiment does not seem to have been run yet")
         return
-        
-    log_files = os.listdir(root_logfile_directory)
-
-    # Running sims have log files
-
-    # Ignore stat collector. If log file found, ignore it
-    # We actually dont need to care about counts. Just the status reported in the logs
-    # COmpletely independently, read all logs and figure out error rates.
 
     # TODO: Check if log files are actually from this experiment - Shouldn't be necessary anymore
     if len(log_files) > len(all_jobs) + 1:
@@ -486,8 +480,22 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
                 error = 1
 
             if "Completed Simulation" in contents_after_docker and not error:
-                completed[config] += 1
-                continue
+                pattern = r"Running\s+\S+\s+(\S*/\S+)\s+(\d+)"
+                match = re.search(pattern, contents_after_docker)
+                if match:
+                    workload_token = match.group(1)
+                    cluster_token = match.group(2)
+                    if cluster_token.lower() != "none":
+                        workload_parts = workload_token.split("/")
+                        if workload_parts:
+                            sim_dir = Path(descriptor_data["root_dir"]) / "simulations" / descriptor_data["experiment"] / config
+                            sim_dir = sim_dir.joinpath(*workload_parts, cluster_token)
+                            # Check stat files generated. They are only files that end with .csv
+                            if any(list(map(lambda x: x.endswith(".csv"), os.listdir(sim_dir)))):
+                                completed[config] += 1
+                                continue
+                # This error can be triggered by either 1) a NFS syncing error, or 2) SLURM not capturing a failed simulation
+                err("Stat files not generated, despite being completed with no errors.", 1)
 
             # Error detected, or undefined stat (assume it failed)
             error_runs.add(scarab_logfile_path)
