@@ -236,6 +236,9 @@ def get_simulation_jobs(descriptor_data, workloads_data, docker_prefix, user, db
         elif exp_cluster_id > 0:
             assert isinstance(exp_cluster_id, int), f"exp_cluster_id must be of type int, but got {type(exp_cluster_id)}"
             return [exp_cluster_id]
+
+        # Simpoint '0' passed in
+        return [0]
         
     all_jobs = []
 
@@ -396,6 +399,8 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
         conf = max(matches, key=len) # Take longest matching conf when overlapping names used
         pending[conf] += 1
 
+    not_in_experiment = []
+
     # Check each log file for errors
     for file in log_files:
         with open(root_logfile_directory+file, 'r') as f:
@@ -403,64 +408,76 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
             contents_after_docker = str()
             config = str("FAILED")
             # Cannot get config if file isn't complete
-            if len(contents.split(" ")) < 2:
+            if len(contents.split("\n")) < 2:
                 continue
 
-            # Check if currently running, skip if so. Running simulations will not contain
-            # the completion message
-            # New changes add docker preparation, don't include in line count check
-            if "BEGIN prepare_docker_image" in contents:
-                if "FAILED prepare_docker_image" in contents:
-                    error_runs.add(root_logfile_directory+file)
-                    print("Docker image preparation failed, Simulation is not running (1)")
-                    continue
+            # First line prints 'Running <config> <suite>/<subsuite>/<workload> <cluster_id>'
+            first_line = contents.split("\n")[0]
+            config = first_line.split(" ")[1]
+            cluster_id = first_line.split(" ")[3]
+            workload_path = first_line.split(" ")[2]
+            scarab_logfile_path = root_directory + f"{config}/{workload_path}/{cluster_id}/sim.log"
 
-                # Built container. Trim container part
-                if "END prepare_docker_image" in contents:
-                    contents_after_docker = contents.split("END prepare_docker_image\n")[1]
-                    split = contents_after_docker.split(" ")
-                    config = split[1]
-                else:
-                    print("Docker image preparation failed, Simulation is not running (2)")
-                    continue
-            else:
-                print("Docker image preparation failed, Simulation is not running (3)")
-                # Didn't build container, use full contents
-                contents_after_docker = contents
+            if config not in confs:
+                if config not in not_in_experiment:
+                    print(f"WARN: Log files for config {config}, which is not in the experiment file")
 
-            for node in all_nodes:
-                if f"{node}: error:" in contents_after_docker and not " Unable to unlink domain socket":
-                    error_runs.add(root_logfile_directory+file)
-                    if config in slurm_failed:
-                        slurm_failed[config] += 1
-                    continue
+                # Add to list of such configs to avoid spamming console
+                not_in_experiment.append(config)
+                continue
 
             # Is simulation still running?
             # Look for script name in squeue
             pattern = r"Script name: (\S*)"
-            match = re.search(pattern, contents_after_docker)
+            match = re.search(pattern, contents)
             if match:
                 script_name = match.group(1)
                 is_running = any([sim in script_name for sim in running_sims])
 
                 if is_running:
                     skipped += 1
-                    if config in running:
-                        running[config] += 1
-                        continue
-                    else:
-                        print("Should not happen. Marked as failure")
+                    running[config] += 1
+                    continue
+
+            # Check if currently running, skip if so. Running simulations will not contain
+            # the completion message
+            # New changes add docker preparation, don't include in line count check
+            if "BEGIN prepare_docker_image" in contents:
+                if "FAILED prepare_docker_image" in contents:
+                    slurm_failed[config] += 1
+                    error_runs.add(root_logfile_directory+file)
+                    print("Docker image preparation failed, Simulation is not running (Error message in log file)")
+                    continue
+
+                # Built container. Trim container part
+                if "END prepare_docker_image" in contents:
+                    contents_after_docker = contents.split("END prepare_docker_image\n")[1]
+                else:
+                    slurm_failed[config] += 1
+                    error_runs.add(root_logfile_directory+file)
+                    print("Docker image preparation failed, Simulation is not running (Image prep never completed; no failure message)")
+                    continue
+            else:
+                print("Docker image preparation failed (Image prep never started)")
+                slurm_failed[config] += 1
+                error_runs.add(root_logfile_directory+file)
+                continue
+
+            for node in all_nodes:
+                if f"{node}: error:" in contents_after_docker and not " Unable to unlink domain socket":
+                    error_runs.add(root_logfile_directory+file)
+                    slurm_failed[config] += 1
+                    continue
 
             # Some failures will have a line with "Segmentation fault" in them if they fail
             error = 0
             if 'Segmentation fault' in contents_after_docker:
                 error = 1
-                print("Segfault simulation detected!")
 
             # Most scarab runs and all stat runs will have a line with "Error" in them if they fail
+            # Also catches the scarab binary fail message: 'Scarab error detected'
             if 'error' in contents_after_docker.lower():
                 error = 1
-                print("Error simulation detected!")
 
             if "Completed Simulation" in contents_after_docker and not error:
                 pattern = r"Running\s+\S+\s+(\S*/\S+)\s+(\d+)"
@@ -481,10 +498,12 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
                 err("Stat files not generated, despite being completed with no errors.", 1)
 
             # Error detected, or undefined stat (assume it failed)
-            error_runs.add(root_logfile_directory+file)
+            error_runs.add(scarab_logfile_path)
             failed[config] += 1
 
     print(f"Currently running {len(running_sims)} simulations (from logs: {skipped})")
+
+    calculated_logfile_count = 0
 
     data = {"Configuration":[],"Completed":[],"Failed":[],"Failed - Slurm":[],"Running":[],"Pending":[],"Non-existant":[],"Total":[]}
     for conf in confs:  
@@ -500,9 +519,18 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
         # Number of simpoints accounted for
         total_found = completed[conf] + failed[conf] + running[conf] + pending[conf] + slurm_failed[conf]
 
+        calculated_logfile_count += total_found - pending[conf] # Pending slurm processes have no log file
+
+        # Ensure Non-existant column never goes negative
+        assert total_per_conf >= total_found, "ERR: Assert Failed: More jobs found (via squeue and log files) than should exist"
+
         data["Total"].append(total_per_conf)
         data["Non-existant"].append(total_per_conf - total_found) # Unaccounted for simpoints
 
+    # Following Assertion will fail if extra log files present. User was alerted earlier if this was the case
+    # We previously assert columns will not be negative (see above) so this is safe
+    if len(not_in_experiment) == 0:
+        assert calculated_logfile_count == len(log_files) - 1, "ERR: Assert Failed: Log file count doesn't match number of accounted jobs"
 
     print(generate_table(data))
 
@@ -774,7 +802,12 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
 
         # Generate commands for executing in users docker and sbatching to nodes with containers
         experiment_dir = f"{descriptor_data['root_dir']}/simulations/{experiment_name}"
-        scarab_githash, image_tag_list = prepare_simulation(user, scarab_path, scarab_build, descriptor_data['root_dir'], experiment_name, architecture, docker_prefix_list, githash, infra_dir, scarab_binaries, False, dbg_lvl)
+
+        try:
+            scarab_githash, image_tag_list = prepare_simulation(user, scarab_path, scarab_build, descriptor_data['root_dir'], experiment_name, architecture, docker_prefix_list, githash, infra_dir, scarab_binaries, False, dbg_lvl)
+        except RuntimeError as e:
+            # This error prints a message. Now stop execution
+            return
 
         # Iterate over each workload and config combo
         tmp_files = []
@@ -806,6 +839,20 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                     if sim_warmup == None:  # Use the whole warmup available in the trace if not specified
                         sim_warmup = workloads_data[suite][subsuite][workload_]["simulation"][sim_mode_]["warmup"]
                     slurm_ids += run_single_workload(suite, subsuite, workload_, exp_cluster_id, sim_mode_, sim_warmup)
+            elif workload != None and subsuite == None:
+                found = False
+                for subsuite_ in workloads_data[suite].keys():
+                    if not workload in workloads_data[suite][subsuite_].keys():
+                        continue
+                    found = True
+                    _subsuite = subsuite_
+                assert found, f"Workload {workload} could not be found for any subsuite of {suite}. Check descriptor validation code"
+                sim_mode_ = sim_mode
+                if sim_mode_ == None:
+                    sim_mode_ = workloads_data[suite][_subsuite][workload]["simulation"]["prioritized_mode"]
+                if sim_warmup == None:  # Use the whole warmup available in the trace if not specified
+                    sim_warmup = workloads_data[suite][_subsuite][workload]["simulation"][sim_mode_]["warmup"]
+                slurm_ids += run_single_workload(suite, _subsuite, workload, exp_cluster_id, sim_mode_, sim_warmup)
             else:
                 sim_mode_ = sim_mode
                 if sim_mode_ == None:
