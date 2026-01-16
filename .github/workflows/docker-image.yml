@@ -135,7 +135,7 @@ jobs:
           echo "Created PR #$PR_NUMBER"
 
           # Optional small delay to let GitHub index the PR
-          sleep 5
+          sleep 50
 
           if [[ "${{ github.event_name }}" == "push" ]]; then
             echo "Enabling auto-merge for PR #$PR_NUMBER"
