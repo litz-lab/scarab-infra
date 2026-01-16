@@ -33,12 +33,12 @@ from .utilities import (
 # Check if the docker image exists on available slurm nodes
 # Inputs: list of available slurm nodes
 # Output: list of nodes where the docker image is ready
-def check_docker_image(nodes, docker_prefix, githash, dbg_lvl = 1):
+def check_docker_image(nodes, docker_prefix, githash, slurm_options="", dbg_lvl = 1):
     try:
         available_nodes = []
         for node in nodes:
             # Check if the image exists
-            image = subprocess.check_output(["srun", f"--nodelist={node}", "docker", "images", "-q", f"{docker_prefix}:{githash}"])
+            image = subprocess.check_output(["srun", slurm_options, f"--nodelist={node}", "docker", "images", "-q", f"{docker_prefix}:{githash}"])
             info(f"{image}", dbg_lvl)
             if image == [] or image == b'':
                 info(f"Couldn't find image {docker_prefix}:{githash} on {node}", dbg_lvl)
@@ -167,7 +167,7 @@ def check_available_nodes(dbg_lvl = 1):
             all_nodes.append(node)
 
             # Index -1 is STATE. Skip if not partially available
-            if line[-1] == 'drain':
+            if line[-1] != 'idle' and line[-1] != 'mixed':
                 info(f"{node} is not available. It is '{line[-1]}'", dbg_lvl)
                 continue
 
@@ -211,8 +211,8 @@ def list_cluster_nodes(dbg_lvl = 1):
     return nodes
 
 # Get command to sbatch scarab runs. 1 core each, exclude nodes where container isn't running
-def generate_sbatch_command(experiment_dir):
-    return f"sbatch -c 1 -o {experiment_dir}/logs/job_%j.out "
+def generate_sbatch_command(experiment_dir, slurm_options=""):
+    return f"sbatch -c 1  {slurm_options} -o {experiment_dir}/logs/job_%j.out "
 #return f"sbatch -c 1 --ntasks-per-core=2 --oversubscribe -o {experiment_dir}/logs/job_%j.out "
 
 def get_simulation_jobs(descriptor_data, workloads_data, docker_prefix, user, dbg_lvl = 1):
@@ -655,6 +655,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
     traces_dir = descriptor_data["traces_dir"]
     configs = descriptor_data["configurations"]
     simulations = descriptor_data["simulations"]
+    slurm_options = descriptor_data["slurm_options"] # TODO: Fix slurm options. Move inside config
     total_sims = 0
     docker_prefix_list = get_image_list(simulations, workloads_data)
 
@@ -665,7 +666,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                 run_single_workload.submitted = 0   # initialize once
 
             info(f"Using docker image with name {docker_prefix}:{githash}", dbg_lvl)
-            sbatch_cmd = generate_sbatch_command(experiment_dir)
+            sbatch_cmd = generate_sbatch_command(experiment_dir, slurm_options=slurm_options)
             trace_warmup = None
             trace_type = ""
             trace_file = None
@@ -819,7 +820,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
             info(f"Removing temporary run script {tmp}", dbg_lvl)
             os.remove(tmp)
 
-        #finish_simulation(user, docker_home, descriptor_path, descriptor_data['root_dir'], experiment_name, image_tag_list, slurm_ids)
+        #finish_simulation(user, docker_home, descriptor_path, descriptor_data['root_dir'], experiment_name, image_tag_list, slurm_ids, slurm_options=slurm_options)
 
         # TODO: check resource capping policies, add kill/info options
 
@@ -843,6 +844,7 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
     traces_dir = descriptor_data["traces_dir"]
     trace_configs = descriptor_data["trace_configurations"]
     application_dir = descriptor_data["application_dir"]
+    slurm_options = descriptor_data["slurm_options"] # TODO: Fix slurm options
 
     docker_prefix_list = []
     for config in trace_configs:
@@ -854,7 +856,7 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
 
     def run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd, trace_type, drio_args, clustering_k, application_dir):
         try:
-            sbatch_cmd = generate_sbatch_command(trace_dir)
+            sbatch_cmd = generate_sbatch_command(trace_dir, slurm_options=slurm_options)
 
             if trace_type == "cluster_then_trace":
                 simpoint_mode = "cluster_then_trace"

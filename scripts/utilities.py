@@ -652,14 +652,14 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
 
         raise e
 
-def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_name, image_tag_list, slurm_ids = None, dont_collect = False):
+def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_name, image_tag_list, slurm_ids = None, dont_collect = False, slurm_options=""):
     experiment_dir = f"{root_dir}/simulations/{experiment_name}"
     # clean up docker images only when no container is running on top of the image (the other user may be using it)
     # ignore the exception to ignore the rmi failure due to existing containers
     images = ' '.join(image_tag_list)
     clean_cmd = f"scripts/docker_cleaner.py --images {images}"
     if slurm_ids:
-        sbatch_cmd = f"sbatch --dependency=afterany:{','.join(slurm_ids)} -o {experiment_dir}/logs/stat_collection_job_%j.out "
+        sbatch_cmd = f"sbatch {slurm_options} --dependency=afterany:{','.join(slurm_ids)} -o {experiment_dir}/logs/stat_collection_job_%j.out "
         clean_cmd = sbatch_cmd + clean_cmd
     print(clean_cmd)
     os.system(clean_cmd)
@@ -711,7 +711,7 @@ def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_n
         # afterok will not run if jobs fail. afterany used with stat_collector's error checking
         log_path = os.path.join(experiment_dir, "logs", "stat_collection_job_%j.out")
         sbatch_cmd = (
-            f"sbatch --dependency=afterany:{','.join(slurm_ids)} "
+            f"sbatch {slurm_options} --dependency=afterany:{','.join(slurm_ids)} "
             f"-o {shlex.quote(log_path)} --wrap={shlex.quote(collect_stats_cmd)}"
         )
         collect_stats_cmd = sbatch_cmd
