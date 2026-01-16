@@ -167,6 +167,7 @@ def validate_simulation(workloads_data, simulations, dbg_lvl = 2):
             else:
                 if workload not in workloads_data[suite][subsuite].keys():
                     err(f"Workload '{workload}' is not valid in suite {suite} and subsuite {subsuite}.", dbg_lvl)
+                    exit(1)
                 predef_mode = workloads_data[suite][subsuite][workload]["simulation"]["prioritized_mode"]
                 sim_mode_ = sim_mode
                 if sim_mode_ == None:
@@ -985,13 +986,19 @@ def get_image_list(simulations, workloads_data):
                         image_list.append(workloads_data[suite][subsuite][workload_]["simulation"][sim_mode_]["image_name"])
         else:
             if subsuite == None:
+                found = False
                 for subsuite_ in workloads_data[suite].keys():
+                    if not workload in workloads_data[suite][subsuite_].keys():
+                        continue
+
+                    found = True
                     predef_mode = workloads_data[suite][subsuite_][workload]["simulation"]["prioritized_mode"]
                     sim_mode_ = sim_mode
                     if sim_mode_ == None:
                         sim_mode_ = predef_mode
                     if sim_mode_ in workloads_data[suite][subsuite_][workload]["simulation"].keys() and workloads_data[suite][subsuite_][workload]["simulation"][sim_mode_]["image_name"] not in image_list:
                         image_list.append(workloads_data[suite][subsuite_][workload]["simulation"][sim_mode_]["image_name"])
+                assert found, f"Workload {workload} could not be found for any subsuite of {suite}. Check descriptor validation code"
             else:
                 predef_mode = workloads_data[suite][subsuite][workload]["simulation"]["prioritized_mode"]
                 sim_mode_ = sim_mode

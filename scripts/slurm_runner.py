@@ -802,7 +802,12 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
 
         # Generate commands for executing in users docker and sbatching to nodes with containers
         experiment_dir = f"{descriptor_data['root_dir']}/simulations/{experiment_name}"
-        scarab_githash, image_tag_list = prepare_simulation(user, scarab_path, scarab_build, descriptor_data['root_dir'], experiment_name, architecture, docker_prefix_list, githash, infra_dir, scarab_binaries, False, dbg_lvl)
+
+        try:
+            scarab_githash, image_tag_list = prepare_simulation(user, scarab_path, scarab_build, descriptor_data['root_dir'], experiment_name, architecture, docker_prefix_list, githash, infra_dir, scarab_binaries, False, dbg_lvl)
+        except RuntimeError as e:
+            # This error prints a message. Now stop execution
+            return
 
         # Iterate over each workload and config combo
         tmp_files = []
@@ -834,6 +839,20 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                     if sim_warmup == None:  # Use the whole warmup available in the trace if not specified
                         sim_warmup = workloads_data[suite][subsuite][workload_]["simulation"][sim_mode_]["warmup"]
                     slurm_ids += run_single_workload(suite, subsuite, workload_, exp_cluster_id, sim_mode_, sim_warmup)
+            elif workload != None and subsuite == None:
+                found = False
+                for subsuite_ in workloads_data[suite].keys():
+                    if not workload in workloads_data[suite][subsuite_].keys():
+                        continue
+                    found = True
+                    _subsuite = subsuite_
+                assert found, f"Workload {workload} could not be found for any subsuite of {suite}. Check descriptor validation code"
+                sim_mode_ = sim_mode
+                if sim_mode_ == None:
+                    sim_mode_ = workloads_data[suite][_subsuite][workload]["simulation"]["prioritized_mode"]
+                if sim_warmup == None:  # Use the whole warmup available in the trace if not specified
+                    sim_warmup = workloads_data[suite][_subsuite][workload]["simulation"][sim_mode_]["warmup"]
+                slurm_ids += run_single_workload(suite, _subsuite, workload, exp_cluster_id, sim_mode_, sim_warmup)
             else:
                 sim_mode_ = sim_mode
                 if sim_mode_ == None:
