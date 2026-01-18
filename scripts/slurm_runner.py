@@ -769,7 +769,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                     result = subprocess.run((sbatch_cmd + filename).split(" "), capture_output=True, text=True)
                     slurm_ids.append(result.stdout.split(" ")[-1].strip())
                     run_single_workload.submitted += 1
-                print("\rSubmitting jobs: "+str(run_single_workload.submitted), end="", flush=True)
+                print("\rSubmitting jobs: "+str(run_single_workload.submitted), flush=True)
             return slurm_ids
         except Exception as e:
             raise e
@@ -809,6 +809,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
             # This error prints a message. Now stop execution
             return
 
+        print("Submitting jobs...")
         # Iterate over each workload and config combo
         tmp_files = []
         for simulation in simulations:
@@ -860,7 +861,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                 if sim_warmup == None:  # Use the whole warmup available in the trace if not specified
                     sim_warmup = workloads_data[suite][subsuite][workload]["simulation"][sim_mode_]["warmup"]
                 slurm_ids += run_single_workload(suite, subsuite, workload, exp_cluster_id, sim_mode_, sim_warmup)
-        print("\nSubmitted all jobs")
+        print("Submitted all jobs")
         # Clean up temp files
         for tmp in tmp_files:
             info(f"Removing temporary run script {tmp}", dbg_lvl)
