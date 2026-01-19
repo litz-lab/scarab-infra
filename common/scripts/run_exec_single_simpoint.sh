@@ -18,6 +18,15 @@ BINCMD="${10}"
 CLIENT_BINCMD="${11}"
 SCARAB_BIN="${12}"
 
+PARAMS_FILE="$SCARABHOME/src/PARAMS.$SCARABARCH"
+if [[ "$SCARAB_BIN" =~ ^scarab_([0-9a-fA-F]+) ]]; then
+  HASH="${BASH_REMATCH[1]}"
+  PARAMS_BY_HASH="$SCARABHOME/src/PARAMS.$SCARABARCH.$HASH"
+  if [ -f "$PARAMS_BY_HASH" ]; then
+    PARAMS_FILE="$PARAMS_BY_HASH"
+  fi
+fi
+
 for token in $ENVVAR;
 do
   export $token
@@ -37,7 +46,7 @@ OUTDIR=$SIMHOME
 segID=$SEGMENT_ID
 #echo "SEGMENT ID: $segID"
 mkdir -p $OUTDIR/$segID
-cp $SCARABHOME/src/PARAMS.$SCARABARCH $OUTDIR/$segID/PARAMS.in
+cp "$PARAMS_FILE" "$OUTDIR/$segID/PARAMS.in"
 cd $OUTDIR/$segID
 
 # SEGMENT_ID = 0 represents non-simpoint trace simulation

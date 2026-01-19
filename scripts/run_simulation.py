@@ -256,6 +256,12 @@ def run_simulation_command(descriptor_path, action, dbg_lvl=2, infra_dir=None):
     workload_manager = descriptor_data.get("workload_manager")
     experiment_name = descriptor_data.get("experiment")
     simulations = descriptor_data.get("simulations") or []
+
+    try:
+        verify_descriptor(descriptor_data, workloads_data, False, dbg_lvl)
+    except SystemExit as exc:
+        return 1
+
     docker_image_list = get_image_list(simulations, workloads_data)
 
     try:
@@ -292,10 +298,6 @@ def run_simulation_command(descriptor_path, action, dbg_lvl=2, infra_dir=None):
             return 0
 
         # default: run simulation
-        try:
-            verify_descriptor(descriptor_data, workloads_data, False, dbg_lvl)
-        except SystemExit as exc:
-            raise RuntimeError("Descriptor verification failed") from exc
 
         if workload_manager == "manual":
             local_runner.run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_path, dbg_lvl)

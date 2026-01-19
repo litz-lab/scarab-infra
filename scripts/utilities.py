@@ -167,6 +167,7 @@ def validate_simulation(workloads_data, simulations, dbg_lvl = 2):
             else:
                 if workload not in workloads_data[suite][subsuite].keys():
                     err(f"Workload '{workload}' is not valid in suite {suite} and subsuite {subsuite}.", dbg_lvl)
+                    exit(1)
                 predef_mode = workloads_data[suite][subsuite][workload]["simulation"]["prioritized_mode"]
                 sim_mode_ = sim_mode
                 if sim_mode_ == None:
@@ -311,8 +312,10 @@ def build_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_pre
 
         if build_result.returncode != 0:
             if stream_build:
+                exception = RuntimeError("Scarab build returned with non-zero code")
                 err("Scarab build failed. See output above for details.", dbg_lvl)
             else:
+                exception = RuntimeError("Scarab build returned with non-zero code")
                 err(f"Build stdout: {build_result.stdout}", dbg_lvl)
                 err(f"Build stderr: {build_result.stderr}", dbg_lvl)
 
@@ -623,6 +626,29 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
 
         os.system(f"cp {arch_params} {experiment_dir}/scarab/src")
 
+        # Export hash-specific PARAMS so each scarab binary can use matching defaults.
+        for bin_name in scarab_binaries:
+            match = binary_pattern.match(bin_name)
+            if not match:
+                continue
+            target_hash = match.group(1)
+            params_target = f"{experiment_dir}/scarab/src/PARAMS.{architecture}.{target_hash}"
+            if os.path.isfile(params_target):
+                continue
+            try:
+                params_blob = subprocess.check_output(
+                    ["git", "show", f"{target_hash}:src/PARAMS.{architecture}"],
+                    cwd=scarab_path,
+                )
+            except Exception as exc:
+                warn(
+                    f"Unable to load PARAMS.{architecture} for scarab {target_hash}: {exc}",
+                    dbg_lvl,
+                )
+                continue
+            with open(params_target, "wb") as handle:
+                handle.write(params_blob)
+
         # Required for non mode 4. Copy launch scripts from the docker container's scarab repo.
         # NOTE: Could cause issues if a copied version of scarab is incompatible with the version of
         # the launch scripts in the docker container's repo
@@ -773,12 +799,12 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
                                                         warmup, trace_warmup, trace_type, trace_file, env_vars, bincmd, client_bincmd)
         with open(filename, "w") as f:
             f.write("#!/bin/bash\n")
+            f.write(f"echo \"Running {config_key} {workload_home} {cluster_id}\"\n")
+            f.write(f"echo \"Script name: {filename}\"\n")
+            f.write("echo \"Running on $(uname -n)\"\n")
             f.write(f"cd {infra_dir}\n")
             f.write(f"python -m scripts.prepare_docker_image --docker-prefix {docker_prefix} --githash {githash} \n")
             f.write(f"cd -\n")
-            f.write(f"echo \"Running {config_key} {workload_home} {cluster_id}\"\n")
-            f.write("echo \"Running on $(uname -n)\"\n")
-            f.write(f"echo \"Script name: {filename}\"\n")
             f.write(f"docker run \
             -e user_id={local_uid} \
             -e group_id={local_gid} \
@@ -806,7 +832,7 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
             elif scarab_mode == "exec":
                 f.write(f"docker cp {infra_dir}/common/scripts/run_exec_single_simpoint.sh {docker_container_name}:/usr/local/bin\n")
             f.write(f"docker exec --privileged {docker_container_name} /bin/bash -c '/usr/local/bin/root_entrypoint.sh'\n")
-            f.write(f"docker exec --user={user} {docker_container_name} /bin/bash -c \"source /usr/local/bin/user_entrypoint.sh && {scarab_cmd}\" || echo \"Error\\n\"\n")
+            f.write(f"docker exec --user={user} {docker_container_name} /bin/bash -c \"source /usr/local/bin/user_entrypoint.sh && {scarab_cmd}\" || echo \"Scarab error detected\"\n")
             f.write(f"docker rm -f {docker_container_name}\n")
             f.write("echo \"Completed Simulation\"\n")
             f.write(f"sync {docker_home}/simulations/{experiment_name}/logs")
@@ -983,13 +1009,19 @@ def get_image_list(simulations, workloads_data):
                         image_list.append(workloads_data[suite][subsuite][workload_]["simulation"][sim_mode_]["image_name"])
         else:
             if subsuite == None:
+                found = False
                 for subsuite_ in workloads_data[suite].keys():
+                    if not workload in workloads_data[suite][subsuite_].keys():
+                        continue
+
+                    found = True
                     predef_mode = workloads_data[suite][subsuite_][workload]["simulation"]["prioritized_mode"]
                     sim_mode_ = sim_mode
                     if sim_mode_ == None:
                         sim_mode_ = predef_mode
                     if sim_mode_ in workloads_data[suite][subsuite_][workload]["simulation"].keys() and workloads_data[suite][subsuite_][workload]["simulation"][sim_mode_]["image_name"] not in image_list:
                         image_list.append(workloads_data[suite][subsuite_][workload]["simulation"][sim_mode_]["image_name"])
+                assert found, f"Workload {workload} could not be found for any subsuite of {suite}. Check descriptor validation code"
             else:
                 predef_mode = workloads_data[suite][subsuite][workload]["simulation"]["prioritized_mode"]
                 sim_mode_ = sim_mode

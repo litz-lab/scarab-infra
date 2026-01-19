@@ -21,6 +21,15 @@ SEGMENT_ID="${10}"
 TRACEFILE="${11}"
 SCARAB_BIN="${12}"
 
+PARAMS_FILE="$SCARABHOME/src/PARAMS.$SCARABARCH"
+if [[ "$SCARAB_BIN" =~ ^scarab_([0-9a-fA-F]+) ]]; then
+  HASH="${BASH_REMATCH[1]}"
+  PARAMS_BY_HASH="$SCARABHOME/src/PARAMS.$SCARABARCH.$HASH"
+  if [ -f "$PARAMS_BY_HASH" ]; then
+    PARAMS_FILE="$PARAMS_BY_HASH"
+  fi
+fi
+
 SIMHOME=$SCENARIO/$WORKLOAD_HOME
 mkdir -p $SIMHOME
 OUTDIR=$SIMHOME
@@ -28,7 +37,7 @@ OUTDIR=$SIMHOME
 segID=$SEGMENT_ID
 #echo "SEGMENT ID: $segID"
 mkdir -p $OUTDIR/$segID
-cp $SCARABHOME/src/PARAMS.$SCARABARCH $OUTDIR/$segID/PARAMS.in
+cp "$PARAMS_FILE" "$OUTDIR/$segID/PARAMS.in"
 cd $OUTDIR/$segID
 
 # SEGMENT_ID = -1 represents whole trace simulation
@@ -139,7 +148,3 @@ fi
 #echo "command: ${scarabCmd}"
 eval $scarabCmd &
 wait $!
-
-# Issues. See sim.log in new_experiment20.
-# Failed to open $trace_home/postgres/traces_simp/trace/postgres0.zip
-# CMD:  docker exec --user aesymons --workdir /home/aesymons --privileged allbench_traces_aesymons slurm_payload.sh "postgres" "allbench_traces" "" "new_experiment20/fe_ftq_block_num.16" "--inst_limit 99900000 --fdip_enable 1 --fe_ftq_block_num 16" "4" "sunny_cove" "1" /home/aesymons/new_experiment20/scarab "3954"
