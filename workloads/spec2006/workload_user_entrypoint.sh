@@ -1,0 +1,1 @@
+cd /tmp_home/application/cpu2006 && source shrc
