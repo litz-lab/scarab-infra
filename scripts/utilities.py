@@ -196,7 +196,7 @@ def validate_simulation(workloads_data, simulations, dbg_lvl = 2):
                     err(f"Cluster ID should be greater than 0. {cluster_id} is not valid.", dbg_lvl)
                     exit(1)
 
-        print(f"[{suite}, {subsuite}, {workload}, {cluster_id}, {sim_mode}] is a valid simulation option. Submitting jobs..")
+        print(f"[{suite}, {subsuite}, {workload}, {cluster_id}, {sim_mode}] is a valid simulation option.")
 
 
 import os
@@ -451,11 +451,12 @@ def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, git
     current_scarab_bin = f"{infra_dir}/scarab_builds/scarab_current"
     build_mode = scarab_build if scarab_build else "opt"
 
-    # Check for suitable current binary in cache
-    if not os.path.isfile(current_scarab_bin):
-        warn(f"Scarab binary for current hash not found in cache. Will build it", dbg_lvl)
-        build_mode = "opt"
+    # Suitable binary found and build mode not set
+    if os.path.isfile(current_scarab_bin) and scarab_build == None:
+        print("Found recent Scarab binary, no build required")
+        return
 
+    print("Rebuilding Scarab binary...")
     scarab_bin = f"{scarab_path}/src/build/{build_mode}/scarab"
 
     # Build and copy to cache
@@ -529,6 +530,8 @@ def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, git
         err(f"Scarab binary for current hash not found in cache after building", dbg_lvl)
         exit(1)
 
+    print("Scarab build successful!")
+
 # copy_scarab deprecated
 # new API prepare_simulation
 # Copies specified scarab binary, parameters, and launch scripts
@@ -599,6 +602,7 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
                 raise RuntimeError(f"Missing scarab binary {bin_name}")
 
             target_hash = match.group(1)
+            warn(f"Missing Scarab binary with git version {target_hash}. Building...", dbg_lvl)
             _build_missing_scarab_version(
                 bin_name,
                 target_hash,
@@ -611,6 +615,7 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
                 infra_dir,
                 dbg_lvl,
             )
+            warn(f"Scarab version {target_hash} built successfully!", dbg_lvl)
 
         # (Re)build the scarab binary first
         rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, githash, scarab_githash, scarab_build, stream_build=stream_build, dbg_lvl=dbg_lvl)

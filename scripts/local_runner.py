@@ -233,6 +233,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
             # This error prints a message. Now stop execution
             return
 
+        print("Submitting jobs...")
         # Iterate over each workload and config combo
         for simulation in simulations:
             suite = simulation["suite"]
