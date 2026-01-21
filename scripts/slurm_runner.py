@@ -405,7 +405,7 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
     for file in log_files:
         with open(root_logfile_directory+file, 'r') as f:
             contents = f.read()
-            contents_after_docker = str()
+            contents_after_docker = contents
             config = str("FAILED")
             # Cannot get config if file isn't complete
             if len(contents.split("\n")) < 2:
