@@ -51,9 +51,23 @@ RUN mkdir -p $tmpdir && chmod -R 755 $tmpdir
 WORKDIR $tmpdir
 
 # DynamoRIO package
-RUN cd $tmpdir && wget https://github.com/DynamoRIO/dynamorio/releases/download/release_10.0.0/DynamoRIO-Linux-10.0.0.tar.gz && tar -xzvf DynamoRIO-Linux-10.0.0.tar.gz
-ENV DYNAMORIO_HOME=$tmpdir/DynamoRIO-Linux-10.0.0/
-RUN chmod 777 $tmpdir/DynamoRIO-Linux-10.0.0/lib64/release/libdynamorio.so
+# We will switch back to the official DynamoRIO once the fetched instruction counting logic is resolved (https://github.com/DynamoRIO/dynamorio/issues/4948)
+# RUN cd $tmpdir && wget https://github.com/DynamoRIO/dynamorio/releases/download/release_10.0.0/DynamoRIO-Linux-10.0.0.tar.gz && tar -xzvf DynamoRIO-Linux-10.0.0.tar.gz
+RUN cd $tmpdir && \
+    git clone --branch release_10.0.0 --depth 1 https://github.com/moonseoppkim/dynamorio.git DynamoRIO-Linux-10.0.0 && \
+    cd DynamoRIO-Linux-10.0.0 && \
+    git submodule update --init --recursive && \
+    cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+          -DBUILD_DOCS=OFF \
+          -DGENERATE_DOCS=OFF \
+          -DDOXYGEN=OFF \
+          . && \
+    make -j$(nproc) all && \
+    make install && \
+    mkdir -p tools/bin64 && cp -r clients/bin64/* tools/bin64/
+ENV DYNAMORIO_HOME=$tmpdir/DynamoRIO-Linux-10.0.0/exports
+RUN chmod 777 $DYNAMORIO_HOME/lib64/release/libdynamorio.so
+
 
 # Build fingerprint client
 COPY fingerprint_src $tmpdir/fingerprint_src/

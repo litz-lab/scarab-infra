@@ -259,7 +259,7 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
         if client_bincmd:
             subprocess.Popen("exec " + client_bincmd, stdout=subprocess.PIPE, shell=True)
         start_time = time.perf_counter()
-        fp_cmd = f"{dynamorio_home}/bin64/drrun -max_bb_instrs 4096 -opt_cleancall 2 -c $tmpdir/libfpg.so -no_use_bb_pc -no_use_fetched_count -segment_size {seg_size} -output {workload_home}/fingerprint/bbfp -pcmap_output {workload_home}/fingerprint/pcmap -- {bincmd}"
+        fp_cmd = f"{dynamorio_home}/bin64/drrun -max_bb_instrs 4095 -opt_cleancall 2 -c $tmpdir/libfpg.so -no_use_bb_pc -segment_size {seg_size} -output {workload_home}/fingerprint/bbfp -pcmap_output {workload_home}/fingerprint/pcmap -- {bincmd}"
         subprocess.run([fp_cmd], check=True, capture_output=True, text=True, shell=True)
         end_time = time.perf_counter()
 
@@ -314,18 +314,11 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
                 roi_start = 0
 
             roi_length = roi_end - roi_start
-            if manual_trace:
-                # because we are using exit_after_tracing,
-                # want to to pad saome extra so we can likely have enough instrs
-                roi_length += 8 * seg_size
-            else:
-                # pad even more
-                roi_length += 2 * seg_size
 
             if roi_start == 0:
-                trace_cmd = f"{dynamorio_home}/bin64/drrun -t drcachesim -jobs 40 -outdir {seg_dir} -offline -exit_after_tracing {roi_length} -- {bincmd}"
+                trace_cmd = f"{dynamorio_home}/bin64/drrun -max_bb_instrs 4095 -opt_cleancall 2 -t drcachesim -jobs 40 -outdir {seg_dir} -offline -count_fetched_instrs -trace_for_instrs {roi_length} -- {bincmd}"
             else:
-                trace_cmd = f"{dynamorio_home}/bin64/drrun -t drcachesim -jobs 40 -outdir {seg_dir} -offline -trace_after_instrs {roi_start} -exit_after_tracing {roi_length} -- {bincmd}"
+                trace_cmd = f"{dynamorio_home}/bin64/drrun -max_bb_instrs 4095 -opt_cleancall 2 -t drcachesim -jobs 40 -outdir {seg_dir} -offline -count_fetched_instrs -trace_after_instrs {roi_start} -trace_for_instrs {roi_length} -- {bincmd}"
 
             process = subprocess.Popen("exec " + trace_cmd, stdout=subprocess.PIPE, shell=True)
             cluster_tracing_processes.add(process)
