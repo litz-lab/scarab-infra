@@ -1246,8 +1246,8 @@ class stat_aggregator:
 
                 w_out.writerow([out_stat, True, 0, *(_fmt_num(x) for x in out)])
 
-            _write_weighted_ratio_row("Cumulative_IPC", "Cumulative_Instructions", "Cumulative_Cycles")
-            _write_weighted_ratio_row("Periodic_IPC", "Periodic_Instructions", "Periodic_Cycles")
+            _write_weighted_ratio_row("IPC_total", "Cumulative_Instructions", "Cumulative_Cycles")
+            _write_weighted_ratio_row("IPC", "Periodic_Instructions", "Periodic_Cycles")
 
             # 4) Distribution stats (vectorized NumPy implementation of legacy calculate_distribution_stats)
             groups = set(int(g) for g in set(groups0))
