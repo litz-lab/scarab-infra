@@ -520,6 +520,24 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
 
         data["Total"].append(total_per_conf)
         data["Non-existant"].append(total_per_conf - total_found) # Unaccounted for simpoints
+    
+    total_completed = sum(data["Completed"])
+    total_failed = sum(data["Failed"])
+    total_slurm_failed = sum(data["Failed - Slurm"])
+    total_running = sum(data["Running"])
+    total_pending = sum(data["Pending"])
+    total_non_existant = sum(data["Non-existant"])
+    total_total = sum(data["Total"])
+
+    data["Configuration"].append("TOTAL")
+    data["Completed"].append(total_completed)
+    data["Failed"].append(total_failed)
+    data["Failed - Slurm"].append(total_slurm_failed)
+    data["Running"].append(total_running)
+    data["Pending"].append(total_pending)
+
+    data["Total"].append(total_total)
+    data["Non-existant"].append(total_non_existant)
 
     # Following Assertion will fail if extra log files present. User was alerted earlier if this was the case
     # We previously assert columns will not be negative (see above) so this is safe
