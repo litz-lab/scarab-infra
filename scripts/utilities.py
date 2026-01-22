@@ -201,6 +201,7 @@ def validate_simulation(workloads_data, simulations, dbg_lvl = 2):
 
 import os
 import fcntl
+import stat
 from contextlib import contextmanager
 
 @contextmanager
@@ -212,6 +213,16 @@ def file_lock(lock_path):
     os.makedirs(os.path.dirname(lock_path), exist_ok=True)
     fd = os.open(lock_path, os.O_CREAT | os.O_RDWR)
     try:
+        # Ensure other users can use the same lock file.
+        os.fchmod(
+            fd,
+            stat.S_IRUSR
+            | stat.S_IWUSR
+            | stat.S_IRGRP
+            | stat.S_IWGRP
+            | stat.S_IROTH
+            | stat.S_IWOTH,
+        )
         fcntl.flock(fd, fcntl.LOCK_EX)  # blocks until lock acquired
         yield
     finally:
