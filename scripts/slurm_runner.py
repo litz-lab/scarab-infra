@@ -38,7 +38,9 @@ def check_docker_image(nodes, docker_prefix, githash, slurm_options="", dbg_lvl 
         available_nodes = []
         for node in nodes:
             # Check if the image exists
-            image = subprocess.check_output(["srun", slurm_options, f"--nodelist={node}", "docker", "images", "-q", f"{docker_prefix}:{githash}"])
+            # NOTE: This is deprecated, but if it is recycled, we need to incorporate slurm_options.
+            # subprocess fails when there are extra spaces in the commands. Be careful when slurm_options=""
+            image = subprocess.check_output(["srun", f"--nodelist={node}", "docker", "images", "-q", f"{docker_prefix}:{githash}"])
             info(f"{image}", dbg_lvl)
             if image == [] or image == b'':
                 info(f"Couldn't find image {docker_prefix}:{githash} on {node}", dbg_lvl)
@@ -212,7 +214,7 @@ def list_cluster_nodes(dbg_lvl = 1):
 
 # Get command to sbatch scarab runs. 1 core each, exclude nodes where container isn't running
 def generate_sbatch_command(experiment_dir, slurm_options=""):
-    return f"sbatch -c 1  {slurm_options} -o {experiment_dir}/logs/job_%j.out "
+    return f"sbatch -c 1{'' if slurm_options == '' else ' ' + slurm_options} -o {experiment_dir}/logs/job_%j.out "
 #return f"sbatch -c 1 --ntasks-per-core=2 --oversubscribe -o {experiment_dir}/logs/job_%j.out "
 
 def get_simulation_jobs(descriptor_data, workloads_data, docker_prefix, user, dbg_lvl = 1):
@@ -683,7 +685,6 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
     traces_dir = descriptor_data["traces_dir"]
     configs = descriptor_data["configurations"]
     simulations = descriptor_data["simulations"]
-    slurm_options = descriptor_data["slurm_options"] # TODO: Fix slurm options. Move inside config
     total_sims = 0
     docker_prefix_list = get_image_list(simulations, workloads_data)
 
@@ -694,7 +695,6 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                 run_single_workload.submitted = 0   # initialize once
 
             info(f"Using docker image with name {docker_prefix}:{githash}", dbg_lvl)
-            sbatch_cmd = generate_sbatch_command(experiment_dir, slurm_options=slurm_options)
             trace_warmup = None
             trace_type = ""
             trace_file = None
@@ -731,6 +731,8 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
             for config_key in configs:
                 config = configs[config_key]["params"]
                 binary_name = configs[config_key]["binary"]
+                slurm_options = configs[config_key].get("slurm_options", "")
+                sbatch_cmd = generate_sbatch_command(experiment_dir, slurm_options=slurm_options)
                 if config == "":
                     config = None
 
@@ -773,6 +775,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                 print("\rSubmitting jobs: "+str(run_single_workload.submitted), end="", flush=True)
             return slurm_ids
         except Exception as e:
+            print(f"Error running workload {workload}: {e}")
             raise e
 
     tmp_files = []
@@ -867,7 +870,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
             info(f"Removing temporary run script {tmp}", dbg_lvl)
             os.remove(tmp)
 
-        #finish_simulation(user, docker_home, descriptor_path, descriptor_data['root_dir'], experiment_name, image_tag_list, slurm_ids, slurm_options=slurm_options)
+        #finish_simulation(user, docker_home, descriptor_path, descriptor_data['root_dir'], experiment_name, image_tag_list, slurm_ids)
 
         # TODO: check resource capping policies, add kill/info options
 
@@ -891,7 +894,6 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
     traces_dir = descriptor_data["traces_dir"]
     trace_configs = descriptor_data["trace_configurations"]
     application_dir = descriptor_data["application_dir"]
-    slurm_options = descriptor_data["slurm_options"] # TODO: Fix slurm options
 
     docker_prefix_list = []
     for config in trace_configs:
@@ -901,7 +903,7 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
 
     tmp_files = []
 
-    def run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd, trace_type, drio_args, clustering_k, application_dir):
+    def run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd, trace_type, drio_args, clustering_k, application_dir, slurm_options):
         try:
             sbatch_cmd = generate_sbatch_command(trace_dir, slurm_options=slurm_options)
 
@@ -969,9 +971,10 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
             trace_type = config["trace_type"]
             drio_args = config["dynamorio_args"]
             clustering_k = config["clustering_k"]
+            slurm_options = config.get("slurm_options", "")
 
             run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd,
-                             trace_type, drio_args, clustering_k, application_dir)
+                             trace_type, drio_args, clustering_k, application_dir, slurm_options)
 
         # Clean up temp files
         for tmp in tmp_files:

@@ -685,7 +685,7 @@ def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_n
     images = ' '.join(image_tag_list)
     clean_cmd = f"scripts/docker_cleaner.py --images {images}"
     if slurm_ids:
-        sbatch_cmd = f"sbatch {slurm_options} --dependency=afterany:{','.join(slurm_ids)} -o {experiment_dir}/logs/stat_collection_job_%j.out "
+        sbatch_cmd = f"sbatch{'' if slurm_options != '' else ' ' + slurm_options} --dependency=afterany:{','.join(slurm_ids)} -o {experiment_dir}/logs/stat_collection_job_%j.out "
         clean_cmd = sbatch_cmd + clean_cmd
     print(clean_cmd)
     os.system(clean_cmd)
