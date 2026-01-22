@@ -405,7 +405,7 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
     for file in log_files:
         with open(root_logfile_directory+file, 'r') as f:
             contents = f.read()
-            contents_after_docker = str()
+            contents_after_docker = contents
             config = str("FAILED")
             # Cannot get config if file isn't complete
             if len(contents.split("\n")) < 2:
@@ -480,20 +480,14 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
                 error = 1
 
             if "Completed Simulation" in contents_after_docker and not error:
-                pattern = r"Running\s+\S+\s+(\S*/\S+)\s+(\d+)"
-                match = re.search(pattern, contents_after_docker)
-                if match:
-                    workload_token = match.group(1)
-                    cluster_token = match.group(2)
-                    if cluster_token.lower() != "none":
-                        workload_parts = workload_token.split("/")
-                        if workload_parts:
-                            sim_dir = Path(descriptor_data["root_dir"]) / "simulations" / descriptor_data["experiment"] / config
-                            sim_dir = sim_dir.joinpath(*workload_parts, cluster_token)
-                            # Check stat files generated. They are only files that end with .csv
-                            if any(list(map(lambda x: x.endswith(".csv"), os.listdir(sim_dir)))):
-                                completed[config] += 1
-                                continue
+                workload_parts = workload_path.split("/")
+                sim_dir = Path(descriptor_data["root_dir"]) / "simulations" / descriptor_data["experiment"] / config
+                sim_dir = sim_dir.joinpath(*workload_parts, cluster_id)
+                # Check stat files generated. They are only files that end with .csv
+                if any(list(map(lambda x: x.endswith(".csv"), os.listdir(sim_dir)))):
+                    completed[config] += 1
+                    continue
+
                 # This error can be triggered by either 1) a NFS syncing error, or 2) SLURM not capturing a failed simulation
                 err("Stat files not generated, despite being completed with no errors.", 1)
 
