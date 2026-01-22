@@ -2,7 +2,15 @@
 # set -x #echo on
 
 # Activate conda environment first
-CONDA_BIN=$(command -v conda)
+CONDA_BIN="${CONDA_EXE}"
+if [[ -z "$CONDA_BIN" ]]; then
+    USER_CONDA="$HOME/miniconda3/bin/conda"
+    if [[ -x "$USER_CONDA" ]]; then
+        CONDA_BIN="$USER_CONDA"
+    else
+        CONDA_BIN=$(command -v conda)
+    fi
+fi
 if [[ -z "$CONDA_BIN" ]]; then
     echo "ERR: conda not found on PATH."
     exit 1

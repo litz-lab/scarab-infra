@@ -702,19 +702,33 @@ def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_n
     stats_output = os.path.join(experiment_dir, "collected_stats.csv")
     stat_script = os.path.join(project_root, "scarab_stats", "stat_collector.py")
 
-    conda_cmd = shutil.which("conda")
+    conda_cmd = os.environ.get("CONDA_EXE")
+    if conda_cmd:
+        conda_cmd = str(Path(conda_cmd).expanduser())
+    else:
+        user_conda = Path.home() / "miniconda3" / "bin" / "conda"
+        if user_conda.exists():
+            conda_cmd = str(user_conda)
+        else:
+            conda_cmd = shutil.which("conda")
     python_executable = sys.executable
     env_python = None
     if conda_cmd:
-        conda_path = Path(conda_cmd).resolve()
-        base_dir = conda_path.parent
-        if base_dir.name in {"bin", "condabin"}:
-            base_prefix = base_dir.parent
-        else:
-            base_prefix = base_dir
-        candidate = base_prefix / "envs" / DEFAULT_CONDA_ENV / "bin" / "python"
-        if candidate.exists():
-            env_python = str(candidate)
+        try:
+            output = subprocess.check_output(
+                [conda_cmd, "env", "list", "--json"],
+                text=True,
+                stderr=subprocess.DEVNULL,
+            )
+            data = json.loads(output or "{}")
+            for env in data.get("envs", []):
+                if Path(env).name == DEFAULT_CONDA_ENV:
+                    candidate = Path(env) / "bin" / "python"
+                    if candidate.exists():
+                        env_python = str(candidate)
+                        break
+        except (OSError, subprocess.CalledProcessError, json.JSONDecodeError):
+            env_python = None
 
     tmp_dir = os.environ.get("TMPDIR")
     if not tmp_dir or not os.path.isdir(tmp_dir):
