@@ -9,6 +9,7 @@ import signal
 import re
 import traceback
 import json
+from pathlib import Path
 from .utilities import (
         err,
         warn,
@@ -25,8 +26,10 @@ from .utilities import (
         write_trace_docker_command_to_file,
         get_weight_by_cluster_id,
         image_exist,
-        check_can_skip
+        check_can_skip,
+        generate_table
         )
+from .slurm_runner import get_simulation_jobs
 
 # Check if a container is running on local
 # Inputs: docker_prefix, job_name, user,
@@ -47,7 +50,7 @@ def check_docker_container_running(docker_prefix_list, job_name, user, dbg_lvl):
         raise e
 
 # Print info/status of running experiment and available cores
-def print_status(user, job_name, docker_prefix_list, dbg_lvl = 2):
+def print_status(user, job_name, docker_prefix_list, descriptor_data=None, workloads_data=None, dbg_lvl = 2):
     docker_running = check_docker_container_running(docker_prefix_list, job_name, user, dbg_lvl)
     if len(docker_running) > 0:
         print(f"\033[92mRUNNING:     local\033[0m")
@@ -55,6 +58,171 @@ def print_status(user, job_name, docker_prefix_list, dbg_lvl = 2):
             print(f"\033[92m    CONTAINER: {docker}\033[0m")
     else:
         print(f"\033[31mNOT RUNNING: local\033[0m")
+
+    if descriptor_data is None or workloads_data is None:
+        return
+
+    running_sims = docker_running
+    queued_sims = []
+    all_jobs = get_simulation_jobs(descriptor_data, workloads_data, docker_prefix_list, user, dbg_lvl)
+
+    root_directory = os.path.join(
+        descriptor_data["root_dir"],
+        "simulations",
+        descriptor_data["experiment"],
+    )
+    root_logfile_directory = os.path.join(root_directory, "logs")
+    os.system(f"ls -R {root_directory} > /dev/null")
+
+    try:
+        log_files = os.listdir(root_logfile_directory)
+    except Exception:
+        print("Log file directory does not exist")
+        print("The current experiment does not seem to have been run yet")
+        return
+
+    if len(log_files) > len(all_jobs):
+        print("More log files than total runs. Maybe same experiment name was run multiple times?")
+        print("Any errors from a previous run with the same experiment name will be re-reported now")
+
+    error_runs = set()
+    skipped = 0
+
+    confs = list(descriptor_data["configurations"].keys())
+
+    completed = {conf: 0 for conf in confs}
+    failed = {conf: 0 for conf in confs}
+    prep_failed = {conf: 0 for conf in confs}
+    running = {conf: 0 for conf in confs}
+    pending = {conf: 0 for conf in confs}
+
+    experiment_name = descriptor_data["experiment"]
+    for sim in queued_sims:
+        matches = [conf for conf in confs if f"{experiment_name}_{conf}" in sim]
+        if not matches:
+            info(f"'{experiment_name}_{conf}' not found in any queued sim names", dbg_lvl)
+            continue
+        conf = max(matches, key=len)
+        pending[conf] += 1
+
+    not_in_experiment = []
+    for file in log_files:
+        log_path = os.path.join(root_logfile_directory, file)
+        with open(log_path, 'r') as f:
+            contents = f.read()
+            contents_after_docker = contents
+            if len(contents.split("\n")) < 2:
+                continue
+
+            first_line = contents.split("\n")[0]
+            config = first_line.split(" ")[1]
+            cluster_id = first_line.split(" ")[3]
+            workload_path = first_line.split(" ")[2]
+            scarab_logfile_path = os.path.join(
+                root_directory,
+                config,
+                workload_path,
+                cluster_id,
+                "sim.log",
+            )
+
+            if config not in confs:
+                if config not in not_in_experiment:
+                    print(f"WARN: Log files for config {config}, which is not in the experiment file")
+                not_in_experiment.append(config)
+                continue
+
+            pattern = r"Script name: (\S*)"
+            match = re.search(pattern, contents)
+            if match:
+                script_name = match.group(1)
+                is_running = any(sim in script_name for sim in running_sims)
+                if is_running:
+                    skipped += 1
+                    running[config] += 1
+                    continue
+
+            if "BEGIN prepare_docker_image" in contents:
+                if "FAILED prepare_docker_image" in contents:
+                    prep_failed[config] += 1
+                    error_runs.add(log_path)
+                    print("Docker image preparation failed, Simulation is not running (Error message in log file)")
+                    continue
+
+                if "END prepare_docker_image" in contents:
+                    contents_after_docker = contents.split("END prepare_docker_image\n")[1]
+                else:
+                    prep_failed[config] += 1
+                    error_runs.add(log_path)
+                    print("Docker image preparation failed, Simulation is not running (Image prep never completed; no failure message)")
+                    continue
+            else:
+                print("Docker image preparation failed (Image prep never started)")
+                prep_failed[config] += 1
+                error_runs.add(log_path)
+                continue
+
+            error = 0
+            if 'Segmentation fault' in contents_after_docker:
+                error = 1
+
+            if 'error' in contents_after_docker.lower():
+                error = 1
+
+            if "Completed Simulation" in contents_after_docker and not error:
+                workload_parts = workload_path.split("/")
+                sim_dir = Path(descriptor_data["root_dir"]) / "simulations" / descriptor_data["experiment"] / config
+                sim_dir = sim_dir.joinpath(*workload_parts, cluster_id)
+                if any(list(map(lambda x: x.endswith(".csv"), os.listdir(sim_dir)))):
+                    completed[config] += 1
+                    continue
+                err("Stat files not generated, despite being completed with no errors.", 1)
+
+            error_runs.add(scarab_logfile_path)
+            failed[config] += 1
+
+    print(f"Currently running {len(running_sims)} simulations (from logs: {skipped})")
+
+    calculated_logfile_count = 0
+    data = {
+        "Configuration": [],
+        "Completed": [],
+        "Failed": [],
+        "Failed - Prep": [],
+        "Running": [],
+        "Pending": [],
+        "Non-existant": [],
+        "Total": [],
+    }
+    for conf in confs:
+        data["Configuration"].append(conf)
+        data["Completed"].append(completed[conf])
+        data["Failed"].append(failed[conf])
+        data["Failed - Prep"].append(prep_failed[conf])
+        data["Running"].append(running[conf])
+        data["Pending"].append(pending[conf])
+
+        total_per_conf = int(len(all_jobs) / len(confs))
+        total_found = completed[conf] + failed[conf] + running[conf] + pending[conf] + prep_failed[conf]
+        calculated_logfile_count += total_found - pending[conf]
+
+        assert total_per_conf >= total_found, "ERR: Assert Failed: More jobs found than should exist"
+
+        data["Total"].append(total_per_conf)
+        data["Non-existant"].append(total_per_conf - total_found)
+
+    if len(not_in_experiment) == 0 and calculated_logfile_count != len(log_files):
+        warn("Log file count doesn't match number of accounted jobs.", dbg_lvl)
+
+    print(generate_table(data))
+
+    if error_runs:
+        error_list = sorted(error_runs)
+        print(f"\033[31mErroneous Jobs: {len(error_list)}\033[0m")
+        print(f"\033[31mErrors found in {len(error_list)}/{len(log_files)} log files.")
+        print("First 5 error runs:\n", "\n".join(error_list[:5]), "\033[0m", sep='')
+    else:
+        print(f"\033[92mNo errors found in log files\033[0m")
 
 def kill_jobs(user, job_type, job_name, docker_prefix_list, infra_dir, dbg_lvl):
     # Define the process name pattern
@@ -125,12 +293,16 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
     available_cores = os.cpu_count()
     max_processes = int(available_cores * 0.9)
     processes = set()
+    process_logs = {}
     tmp_files = []
+    log_files = []
+    log_index = 0
 
     dont_collect = True
 
     def run_single_workload(suite, subsuite, workload, exp_cluster_id, sim_mode, warmup):
         nonlocal dont_collect
+        nonlocal log_index
         try:
             docker_prefix = get_docker_prefix(sim_mode, workloads_data[suite][subsuite][workload]["simulation"])
             info(f"Using docker image with name {docker_prefix}:{githash}", dbg_lvl)
@@ -193,8 +365,24 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                                                  trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir)
                     tmp_files.append(filename)
                     command = '/bin/bash ' + filename
-                    process = subprocess.Popen("exec " + command, stdout=subprocess.PIPE, shell=True)
+                    log_path = os.path.join(
+                        docker_home,
+                        "simulations",
+                        experiment_name,
+                        "logs",
+                        f"local_job_{log_index}.out",
+                    )
+                    log_index += 1
+                    log_handle = open(log_path, "w")
+                    log_files.append(log_handle)
+                    process = subprocess.Popen(
+                        "exec " + command,
+                        stdout=log_handle,
+                        stderr=log_handle,
+                        shell=True,
+                    )
                     processes.add(process)
+                    process_logs[process] = log_handle
                     info(f"Running command '{command}'", dbg_lvl)
                     while len(processes) >= max_processes:
                         # Loop through the processes and wait for one to finish
@@ -202,6 +390,9 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                             if p.poll() is not None: # This process has finished
                                 p.wait() # Make sure it's really finished
                                 processes.remove(p) # Remove from set of active processes
+                                handle = process_logs.pop(p, None)
+                                if handle:
+                                    handle.close()
                                 break # Exit the loop after removing one process
         except Exception as e:
             raise e
@@ -232,6 +423,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
         except RuntimeError as e:
             # This error prints a message. Now stop execution
             return
+        os.makedirs(os.path.join(docker_home, "simulations", experiment_name, "logs"), exist_ok=True)
 
         print("Submitting jobs...")
         # Iterate over each workload and config combo
@@ -287,6 +479,11 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
         for p in processes:
             p.wait()
 
+        for p in processes:
+            log_handle = process_logs.get(p)
+            if log_handle:
+                log_handle.close()
+
         # Clean up temp files
         for tmp in tmp_files:
             info(f"Removing temporary run script {tmp}", dbg_lvl)
@@ -299,6 +496,9 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
         traceback.print_exc()  # Print the full stack trace
         for p in processes:
             p.kill()
+
+        for handle in log_files:
+            handle.close()
 
         # Clean up temp files
         for tmp in tmp_files:
