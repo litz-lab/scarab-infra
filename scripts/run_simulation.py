@@ -274,7 +274,7 @@ def run_simulation_command(descriptor_path, action, dbg_lvl=2, infra_dir=None):
 
         if action == "info":
             if workload_manager == "manual":
-                local_runner.print_status(user, experiment_name, docker_image_list, dbg_lvl)
+                local_runner.print_status(user, experiment_name, docker_image_list, descriptor_data, workloads_data, dbg_lvl)
             else:
                 slurm_runner.print_status(user, experiment_name, docker_image_list, descriptor_data, workloads_data, dbg_lvl)
             return 0
