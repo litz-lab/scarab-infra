@@ -1462,11 +1462,11 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
                 whole_trace_dir = trace_clustering_info['dr_folder']
                 trace_file = trace_clustering_info['trace_file']
                 subprocess.run([f"cp {trace_dir}/{workload}/traces/whole/{whole_trace_dir}/trace/{trace_file} {target_traces_path}/traces/whole/"], check=True, shell=True)
-                memtrace_dict['warmup'] = 10000000
+                memtrace_dict['warmup'] = 50000000
                 memtrace_dict['whole_trace_file'] = trace_clustering_info['trace_file']
             elif config['trace_type'] == "cluster_then_trace":
                 os.system(f"cp -r {trace_dir}/{workload}/traces_simp/trace/* {target_traces_path}/traces/simp/")
-                memtrace_dict['warmup'] = 10000000
+                memtrace_dict['warmup'] = 50000000
                 memtrace_dict['whole_trace_file'] = None
                 print("cluster_then_trace doesn't have a whole trace file.")
             else: # iterative_trace
