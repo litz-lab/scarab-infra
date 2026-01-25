@@ -2417,7 +2417,7 @@ def _mp_init_csv_part_writer(
         _CSV_SHM = shared_memory.SharedMemory(name=shm_name)
         try:
             from multiprocessing import resource_tracker
-            resource_tracker.unregister(_CSV_SHM._name, "shared_memory")
+            # resource_tracker.unregister(_CSV_SHM._name, "shared_memory")
         except Exception:
             pass
 
@@ -2463,11 +2463,11 @@ def _mp_init_shared_collector(
         # Python 3.13+: opt out of resource_tracker bookkeeping.
         _MP_SHM = shared_memory.SharedMemory(name=shm_name, track=False)
     except TypeError:
-        # Python < 3.13: attach normally, then unregister so the worker won't try to unlink at shutdown.
+        # Python < 3.13: attach normally, then unregister (commented for now) so the worker won't try to unlink at shutdown.
         _MP_SHM = shared_memory.SharedMemory(name=shm_name)
         try:
             from multiprocessing import resource_tracker
-            resource_tracker.unregister(_MP_SHM._name, "shared_memory")
+            # resource_tracker.unregister(_MP_SHM._name, "shared_memory")
         except Exception:
             pass
 
