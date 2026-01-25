@@ -168,7 +168,7 @@ def adjust_simpoints(workload_home):
             all_valid = False
     
     if all_valid:
-        print(f"\n✓ All segments are under {INSTRUCTION_THRESHOLD:,} instructions")
+        print(f"\nAll segments are under {INSTRUCTION_THRESHOLD:,} instructions")
     
     shutil.copy(opt_p_path, backup_path)
     print(f"\nBacked up original to {backup_path}")
