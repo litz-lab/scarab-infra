@@ -924,6 +924,7 @@ def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_contai
             f.write(f"docker cp {infra_dir}/common/scripts/run_clustering.sh {docker_container_name}:/usr/local/bin\n")
             f.write(f"docker cp {infra_dir}/common/scripts/run_simpoint_trace.py {docker_container_name}:/usr/local/bin\n")
             f.write(f"docker cp {infra_dir}/common/scripts/minimize_trace.sh {docker_container_name}:/usr/local/bin\n")
+            f.write(f"docker cp {infra_dir}/common/scripts/replace_oversized_simpoints.py {docker_container_name}:/usr/local/bin\n")
             f.write(f"docker cp {infra_dir}/common/scripts/run_trace_post_processing.sh {docker_container_name}:/usr/local/bin\n")
             f.write(f"docker cp {infra_dir}/common/scripts/gather_fp_pieces.py {docker_container_name}:/usr/local/bin\n")
             f.write(f"docker exec --privileged {docker_container_name} /bin/bash -c '/usr/local/bin/root_entrypoint.sh'\n")
