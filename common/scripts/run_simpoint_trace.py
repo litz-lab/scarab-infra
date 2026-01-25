@@ -274,6 +274,7 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
         start_time = time.perf_counter()
         trace_clustering_info = {}
         bbfp_files = glob.glob(os.path.join(f"{workload_home}/fingerprint", "bbfp.*"))
+        bbfp_files = [f for f in bbfp_files if not f.endswith('.inscount')]
         num_bbfp = len(bbfp_files)
         if num_bbfp == 1:
             bbfp_file = bbfp_files[0]
@@ -286,6 +287,11 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
             with open(os.path.join(workload_home, "trace_clustering_info.json"), "w") as json_file:
                 json.dump(trace_clustering_info, json_file, indent=2, separators=(",", ":"))
             exit(1)
+
+        print("adjusting oversized simpoints..")
+        replace_cmd = f"python3 /usr/local/bin/replace_oversized_simpoints.py {workload_home}"
+        subprocess.run([replace_cmd], check=True, shell=True)
+
         end_time = time.perf_counter()
         report_time("clustering", start_time, end_time)
 
