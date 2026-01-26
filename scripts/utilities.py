@@ -462,10 +462,43 @@ def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, git
     current_scarab_bin = f"{infra_dir}/scarab_builds/scarab_current"
     build_mode = scarab_build if scarab_build else "opt"
 
-    # Suitable binary found and build mode not set
-    if os.path.isfile(current_scarab_bin) and scarab_build == None:
-        print("Found recent Scarab binary, no build required")
-        return
+    # Suitable binary found
+    if os.path.isfile(current_scarab_bin):
+        scarab_bin = f"{scarab_path}/src/build/{build_mode}/scarab"
+        if os.path.isfile(scarab_bin):
+            try:
+                result = subprocess.run(
+                    ["diff", current_scarab_bin, scarab_bin],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
+                diff_matches = result.returncode == 0
+
+                hash_tag_matches = True
+                try:
+                    if os.path.islink(current_scarab_bin):
+                        link_target = os.readlink(current_scarab_bin)
+                        hash_tag_matches = scarab_githash in link_target
+                    else:
+                        hash_tag_matches = False
+                except OSError:
+                    hash_tag_matches = False
+
+                if diff_matches and hash_tag_matches:
+                    print("Found recent Scarab binary, no build required")
+                    return
+                if result.returncode == 1 or not hash_tag_matches:
+                    info("Cached scarab_current differs from repo binary; rebuilding.", dbg_lvl)
+                else:
+                    warn(
+                        f"Could not compare cached vs repo scarab binary (diff exit {result.returncode}); rebuilding.",
+                        dbg_lvl,
+                    )
+            except Exception as exc:
+                warn(f"Could not compare cached vs repo scarab binary: {exc}; rebuilding.", dbg_lvl)
+        else:
+            warn(f"Scarab repo binary not found at {scarab_bin}; rebuilding.", dbg_lvl)
 
     print("Rebuilding Scarab binary...")
     scarab_bin = f"{scarab_path}/src/build/{build_mode}/scarab"
@@ -529,8 +562,12 @@ def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, git
                 githash_scarab_bin = f"{infra_dir}/scarab_builds/scarab_{scarab_githash}_{max(current_indicies)+1}"
 
             info(f"Copying scarab binary for {githash_scarab_bin} to cache", dbg_lvl)
-            os.system(f"cp {scarab_bin} {githash_scarab_bin}")
-            os.system(f"cp {scarab_bin} {current_scarab_bin}")
+            shutil.copy2(scarab_bin, githash_scarab_bin)
+            current_path = Path(current_scarab_bin)
+            if current_path.exists() or current_path.is_symlink():
+                current_path.unlink()
+            # Keep scarab_current as a symlink to the hash-specific binary for traceability.
+            current_path.symlink_to(Path(githash_scarab_bin).name)
 
     except Exception as e:
         err(f"Scarab build failed! {str(e)}", dbg_lvl)
