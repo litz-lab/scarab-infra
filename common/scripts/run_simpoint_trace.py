@@ -327,7 +327,7 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
             else:
                 trace_cmd = f"{dynamorio_home}/bin64/drrun -max_bb_instrs 4095 -opt_cleancall 2 -t drcachesim -jobs 40 -outdir {seg_dir} -offline -count_fetched_instrs -trace_after_instrs {roi_start} -trace_for_instrs {roi_length} -- {bincmd}"
 
-            process = subprocess.Popen("exec " + trace_cmd, stdout=subprocess.PIPE, shell=True)
+            process = subprocess.Popen("exec " + trace_cmd, stdout=subprocess.DEVNULL, shell=True)
             cluster_tracing_processes.add(process)
 
         for p in cluster_tracing_processes:
