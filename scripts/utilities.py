@@ -534,6 +534,28 @@ def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, git
 
         if not build_differs:
             info(f"Current scarab binary is the same as the cached version. Not updating cache.", dbg_lvl)
+
+            current_path = Path(current_scarab_bin)
+            if current_path.exists() and not current_path.is_symlink():
+                # Ensure scarab_current is a symlink to a hash-specific binary for traceability.
+                scarab_binaries = os.listdir(f"{infra_dir}/scarab_builds")
+                pattern = re.compile(f"scarab_{scarab_githash}(_|$)")
+                current_githash_binaries = list(filter(pattern.match, scarab_binaries))
+
+                if current_githash_binaries == []:
+                    githash_scarab_bin = f"{infra_dir}/scarab_builds/scarab_{scarab_githash}_0"
+                    shutil.copy2(scarab_bin, githash_scarab_bin)
+                else:
+                    idx_pattern = re.compile(f"scarab_{scarab_githash}_")
+                    current_githash_versions = list(filter(idx_pattern.match, current_githash_binaries))
+                    if current_githash_versions == []:
+                        githash_scarab_bin = f"{infra_dir}/scarab_builds/scarab_{scarab_githash}"
+                    else:
+                        current_indicies = list(map(lambda x: int(x.split("_")[-1]), current_githash_versions))
+                        githash_scarab_bin = f"{infra_dir}/scarab_builds/scarab_{scarab_githash}_{max(current_indicies)}"
+
+                current_path.unlink()
+                current_path.symlink_to(Path(githash_scarab_bin).name)
         else:
             info(f"Current scarab binary differs from cached version. Updating cache...", dbg_lvl)
 
