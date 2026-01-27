@@ -66,7 +66,7 @@ def get_cluster_map(workload_home):
 
     return cluster_map
 
-def minimize_simpoint_traces(cluster_map, workload_home):
+def minimize_simpoint_traces(cluster_map, workload_home, warmup_chunks):
     ################################################################
     # minimize traces, rename traces
     # it is possible that SimPoint picks interval zero,
@@ -94,9 +94,8 @@ def minimize_simpoint_traces(cluster_map, workload_home):
             if num_chunk < 2:
                 print(f"WARN: the big trace {segment_id} contains less than 2 chunks: {num_chunk} !")
 
-
-            # Copy chunk 0 and chunk 1 into a new zip file
-            subprocess.run(f"zip {big_zip_file} --copy chunk.0000 chunk.0001 --out {os.path.join(dest_trace_dir, f'{segment_id}.zip')}", shell=True)
+            chunk_list = ' '.join([f'chunk.{i:04d}' for i in range(warmup_chunks)])
+            subprocess.run(f"zip {big_zip_file} --copy {chunk_list} --out {os.path.join(dest_trace_dir, f'{segment_id}.zip')}", shell=True)
 
             # Remove the big zip file
             os.remove(big_zip_file)
@@ -111,6 +110,7 @@ def trace_then_cluster(workload, suite, simpoint_home, bincmd, client_bincmd, si
     # 5. clustering
     chunk_size = 10000000
     seg_size = 10000000
+    warmup_chunks = 5
     try:
         start_time = time.perf_counter()
         subprocess.run(["mkdir", "-p", f"{simpoint_home}/{workload}/traces/whole"], check=True, capture_output=True, text=True)
@@ -235,7 +235,7 @@ def trace_then_cluster(workload, suite, simpoint_home, bincmd, client_bincmd, si
         print("minimizing traces..")
         start_time = time.perf_counter()
         os.makedirs(f"{workload_home}/traces_simp", exist_ok=True)
-        minimize_trace_cmd = f"/bin/bash /usr/local/bin/minimize_trace.sh {dr_folder}/bin {whole_trace} {workload_home}/simpoints 1 {workload_home}/traces_simp"
+        minimize_trace_cmd = f"/bin/bash /usr/local/bin/minimize_trace.sh {dr_folder}/bin {whole_trace} {workload_home}/simpoints {warmup_chunks} {workload_home}/traces_simp"
         subprocess.run([minimize_trace_cmd], check=True, shell=True, stdin=open(os.devnull, 'r'))
         end_time = time.perf_counter()
         report_time("minimizing traces done", start_time, end_time)
@@ -250,6 +250,7 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
     # 4. minimize traces
     chunk_size = 10000000
     seg_size = 10000000
+    warmup_chunks = 5
     try:
         os.makedirs(os.path.join(simpoint_home, workload, "fingerprint"), exist_ok=True)
         os.makedirs(os.path.join(simpoint_home, workload, "traces_simp"), exist_ok=True)
@@ -259,7 +260,7 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
         if client_bincmd:
             subprocess.Popen("exec " + client_bincmd, stdout=subprocess.PIPE, shell=True)
         start_time = time.perf_counter()
-        fp_cmd = f"{dynamorio_home}/bin64/drrun -max_bb_instrs 4096 -opt_cleancall 2 -c $tmpdir/libfpg.so -no_use_bb_pc -no_use_fetched_count -segment_size {seg_size} -output {workload_home}/fingerprint/bbfp -pcmap_output {workload_home}/fingerprint/pcmap -- {bincmd}"
+        fp_cmd = f"{dynamorio_home}/bin64/drrun -max_bb_instrs 4095 -opt_cleancall 2 -c $tmpdir/libfpg.so -no_use_bb_pc -segment_size {seg_size} -output {workload_home}/fingerprint/bbfp -pcmap_output {workload_home}/fingerprint/pcmap -- {bincmd}"
         subprocess.run([fp_cmd], check=True, capture_output=True, text=True, shell=True)
         end_time = time.perf_counter()
 
@@ -273,6 +274,7 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
         start_time = time.perf_counter()
         trace_clustering_info = {}
         bbfp_files = glob.glob(os.path.join(f"{workload_home}/fingerprint", "bbfp.*"))
+        bbfp_files = [f for f in bbfp_files if not f.endswith('.inscount')]
         num_bbfp = len(bbfp_files)
         if num_bbfp == 1:
             bbfp_file = bbfp_files[0]
@@ -285,6 +287,11 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
             with open(os.path.join(workload_home, "trace_clustering_info.json"), "w") as json_file:
                 json.dump(trace_clustering_info, json_file, indent=2, separators=(",", ":"))
             exit(1)
+
+        print("adjusting oversized simpoints..")
+        replace_cmd = f"python3 /usr/local/bin/replace_oversized_simpoints.py {workload_home}"
+        subprocess.run([replace_cmd], check=True, shell=True)
+
         end_time = time.perf_counter()
         report_time("clustering", start_time, end_time)
 
@@ -303,7 +310,7 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
 
             # assume warm-up length is the segsize
             # this will limit the amount of warmup that can be done during the simulation
-            warmup = seg_size
+            warmup = seg_size * warmup_chunks
 
             if roi_start > warmup:
                 # enough room for warmup, extend roi start to the left
@@ -314,20 +321,13 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
                 roi_start = 0
 
             roi_length = roi_end - roi_start
-            if manual_trace:
-                # because we are using exit_after_tracing,
-                # want to to pad saome extra so we can likely have enough instrs
-                roi_length += 8 * seg_size
-            else:
-                # pad even more
-                roi_length += 2 * seg_size
 
             if roi_start == 0:
-                trace_cmd = f"{dynamorio_home}/bin64/drrun -t drcachesim -jobs 40 -outdir {seg_dir} -offline -exit_after_tracing {roi_length} -- {bincmd}"
+                trace_cmd = f"{dynamorio_home}/bin64/drrun -max_bb_instrs 4095 -opt_cleancall 2 -t drcachesim -jobs 40 -outdir {seg_dir} -offline -count_fetched_instrs -trace_for_instrs {roi_length} -- {bincmd}"
             else:
-                trace_cmd = f"{dynamorio_home}/bin64/drrun -t drcachesim -jobs 40 -outdir {seg_dir} -offline -trace_after_instrs {roi_start} -exit_after_tracing {roi_length} -- {bincmd}"
+                trace_cmd = f"{dynamorio_home}/bin64/drrun -max_bb_instrs 4095 -opt_cleancall 2 -t drcachesim -jobs 40 -outdir {seg_dir} -offline -count_fetched_instrs -trace_after_instrs {roi_start} -trace_for_instrs {roi_length} -- {bincmd}"
 
-            process = subprocess.Popen("exec " + trace_cmd, stdout=subprocess.PIPE, shell=True)
+            process = subprocess.Popen("exec " + trace_cmd, stdout=subprocess.DEVNULL, shell=True)
             cluster_tracing_processes.add(process)
 
         for p in cluster_tracing_processes:
@@ -370,7 +370,7 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
 
         print("minimize traces..")
         start_time = time.perf_counter()
-        minimize_simpoint_traces(cluster_map, workload_home)
+        minimize_simpoint_traces(cluster_map, workload_home, warmup_chunks + 1)
         end_time = time.perf_counter()
         report_time("minimize traces done", start_time, end_time)
     except Exception as e:

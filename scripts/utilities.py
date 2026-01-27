@@ -196,11 +196,12 @@ def validate_simulation(workloads_data, simulations, dbg_lvl = 2):
                     err(f"Cluster ID should be greater than 0. {cluster_id} is not valid.", dbg_lvl)
                     exit(1)
 
-        print(f"[{suite}, {subsuite}, {workload}, {cluster_id}, {sim_mode}] is a valid simulation option. Submitting jobs..")
+        print(f"[{suite}, {subsuite}, {workload}, {cluster_id}, {sim_mode}] is a valid simulation option.")
 
 
 import os
 import fcntl
+import stat
 from contextlib import contextmanager
 
 @contextmanager
@@ -212,6 +213,16 @@ def file_lock(lock_path):
     os.makedirs(os.path.dirname(lock_path), exist_ok=True)
     fd = os.open(lock_path, os.O_CREAT | os.O_RDWR)
     try:
+        # Ensure other users can use the same lock file.
+        os.fchmod(
+            fd,
+            stat.S_IRUSR
+            | stat.S_IWUSR
+            | stat.S_IRGRP
+            | stat.S_IWGRP
+            | stat.S_IROTH
+            | stat.S_IWOTH,
+        )
         fcntl.flock(fd, fcntl.LOCK_EX)  # blocks until lock acquired
         yield
     finally:
@@ -451,11 +462,12 @@ def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, git
     current_scarab_bin = f"{infra_dir}/scarab_builds/scarab_current"
     build_mode = scarab_build if scarab_build else "opt"
 
-    # Check for suitable current binary in cache
-    if not os.path.isfile(current_scarab_bin):
-        warn(f"Scarab binary for current hash not found in cache. Will build it", dbg_lvl)
-        build_mode = "opt"
+    # Suitable binary found and build mode not set
+    if os.path.isfile(current_scarab_bin) and scarab_build == None:
+        print("Found recent Scarab binary, no build required")
+        return
 
+    print("Rebuilding Scarab binary...")
     scarab_bin = f"{scarab_path}/src/build/{build_mode}/scarab"
 
     # Build and copy to cache
@@ -529,6 +541,8 @@ def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, git
         err(f"Scarab binary for current hash not found in cache after building", dbg_lvl)
         exit(1)
 
+    print("Scarab build successful!")
+
 # copy_scarab deprecated
 # new API prepare_simulation
 # Copies specified scarab binary, parameters, and launch scripts
@@ -599,6 +613,7 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
                 raise RuntimeError(f"Missing scarab binary {bin_name}")
 
             target_hash = match.group(1)
+            warn(f"Missing Scarab binary with git version {target_hash}. Building...", dbg_lvl)
             _build_missing_scarab_version(
                 bin_name,
                 target_hash,
@@ -611,6 +626,7 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
                 infra_dir,
                 dbg_lvl,
             )
+            warn(f"Scarab version {target_hash} built successfully!", dbg_lvl)
 
         # (Re)build the scarab binary first
         rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, githash, scarab_githash, scarab_build, stream_build=stream_build, dbg_lvl=dbg_lvl)
@@ -697,19 +713,33 @@ def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_n
     stats_output = os.path.join(experiment_dir, "collected_stats.csv")
     stat_script = os.path.join(project_root, "scarab_stats", "stat_collector.py")
 
-    conda_cmd = shutil.which("conda")
+    conda_cmd = os.environ.get("CONDA_EXE")
+    if conda_cmd:
+        conda_cmd = str(Path(conda_cmd).expanduser())
+    else:
+        user_conda = Path.home() / "miniconda3" / "bin" / "conda"
+        if user_conda.exists():
+            conda_cmd = str(user_conda)
+        else:
+            conda_cmd = shutil.which("conda")
     python_executable = sys.executable
     env_python = None
     if conda_cmd:
-        conda_path = Path(conda_cmd).resolve()
-        base_dir = conda_path.parent
-        if base_dir.name in {"bin", "condabin"}:
-            base_prefix = base_dir.parent
-        else:
-            base_prefix = base_dir
-        candidate = base_prefix / "envs" / DEFAULT_CONDA_ENV / "bin" / "python"
-        if candidate.exists():
-            env_python = str(candidate)
+        try:
+            output = subprocess.check_output(
+                [conda_cmd, "env", "list", "--json"],
+                text=True,
+                stderr=subprocess.DEVNULL,
+            )
+            data = json.loads(output or "{}")
+            for env in data.get("envs", []):
+                if Path(env).name == DEFAULT_CONDA_ENV:
+                    candidate = Path(env) / "bin" / "python"
+                    if candidate.exists():
+                        env_python = str(candidate)
+                        break
+        except (OSError, subprocess.CalledProcessError, json.JSONDecodeError):
+            env_python = None
 
     tmp_dir = os.environ.get("TMPDIR")
     if not tmp_dir or not os.path.isdir(tmp_dir):
@@ -730,7 +760,7 @@ def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_n
     else:
         stat_runner_parts = [python_executable, stat_script]
 
-    collect_parts = ["env", f"TMPDIR={tmp_dir}"] + stat_runner_parts + ["-d", descriptor_abs, "-o", stats_output]
+    collect_parts = ["env", f"TMPDIR={tmp_dir}"] + stat_runner_parts + ["-d", descriptor_abs, "-o", stats_output, "--postprocess", "--skip-incomplete"]
     collect_stats_cmd = shlex.join(collect_parts)
 
     if slurm_ids:
@@ -894,6 +924,7 @@ def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_contai
             f.write(f"docker cp {infra_dir}/common/scripts/run_clustering.sh {docker_container_name}:/usr/local/bin\n")
             f.write(f"docker cp {infra_dir}/common/scripts/run_simpoint_trace.py {docker_container_name}:/usr/local/bin\n")
             f.write(f"docker cp {infra_dir}/common/scripts/minimize_trace.sh {docker_container_name}:/usr/local/bin\n")
+            f.write(f"docker cp {infra_dir}/common/scripts/replace_oversized_simpoints.py {docker_container_name}:/usr/local/bin\n")
             f.write(f"docker cp {infra_dir}/common/scripts/run_trace_post_processing.sh {docker_container_name}:/usr/local/bin\n")
             f.write(f"docker cp {infra_dir}/common/scripts/gather_fp_pieces.py {docker_container_name}:/usr/local/bin\n")
             f.write(f"docker exec --privileged {docker_container_name} /bin/bash -c '/usr/local/bin/root_entrypoint.sh'\n")
@@ -941,6 +972,260 @@ def get_image_name(workloads_data, simulation):
             sim_mode = predef_sim_mode
 
     return workloads_data[suite][subsuite][workload]["simulation"][sim_mode]["image_name"]
+
+def get_simulation_jobs(descriptor_data, workloads_data, docker_prefix, user, dbg_lvl = 1):
+    experiment_name = descriptor_data["experiment"]
+    configs = descriptor_data["configurations"]
+    simulations = descriptor_data["simulations"]
+
+    def get_simpoints_wrapper(suite, subsuite, workload, exp_cluster_id, sim_mode):
+        if "simpoints" not in workloads_data[suite][subsuite][workload].keys():
+            return [0]
+        if exp_cluster_id == None:
+            return list(map(int, get_simpoints(workloads_data[suite][subsuite][workload], sim_mode, dbg_lvl).keys()))
+        if exp_cluster_id > 0:
+            assert isinstance(exp_cluster_id, int), f"exp_cluster_id must be of type int, but got {type(exp_cluster_id)}"
+            return [exp_cluster_id]
+        return [0]
+
+    all_jobs = []
+
+    def docker_container_name(workload, config, cluster, sim_mode, img_name):
+        return f"{img_name}_{workload}_{experiment_name}_{config.replace('/', '-')}_{cluster}_{sim_mode}_{user}"
+
+    for simulation in simulations:
+        suite = simulation["suite"]
+        subsuite = simulation["subsuite"]
+        workload = simulation["workload"]
+        exp_cluster_id = simulation["cluster_id"]
+        sim_mode = simulation["simulation_type"]
+
+        image_name = get_image_name(workloads_data, simulation)
+
+        if image_name not in docker_prefix:
+            print(f"suite {image_name} not in docker_prefix")
+            exit()
+
+        if workload == None and subsuite == None:
+            for subsuite_ in workloads_data[suite].keys():
+                for workload_ in workloads_data[suite][subsuite_].keys():
+                    sim_mode_ = sim_mode
+                    if sim_mode_ == None:
+                        sim_mode_ = workloads_data[suite][subsuite_][workload_]["simulation"]["prioritized_mode"]
+                    simpoint_ids = get_simpoints_wrapper(suite, subsuite_, workload_, exp_cluster_id, sim_mode_) * len(configs)
+                    all_jobs += [
+                        docker_container_name(workload_, config, cluster_id, sim_mode_, image_name)
+                        for config in configs.keys()
+                        for cluster_id in simpoint_ids
+                    ]
+        elif workload == None and subsuite != None:
+            for workload_ in workloads_data[suite][subsuite].keys():
+                sim_mode_ = sim_mode
+                if sim_mode_ == None:
+                    sim_mode_ = workloads_data[suite][subsuite][workload_]["simulation"]["prioritized_mode"]
+                simpoint_ids = get_simpoints_wrapper(suite, subsuite, workload_, exp_cluster_id, sim_mode_) * len(configs)
+                all_jobs += [
+                    docker_container_name(workload_, config, cluster_id, sim_mode_, image_name)
+                    for config in configs.keys()
+                    for cluster_id in simpoint_ids
+                ]
+        else:
+            sim_mode_ = sim_mode
+            if sim_mode_ == None:
+                sim_mode_ = workloads_data[suite][subsuite][workload]["simulation"]["prioritized_mode"]
+            simpoint_ids = get_simpoints_wrapper(suite, subsuite, workload, exp_cluster_id, sim_mode_) * len(configs)
+            all_jobs += [
+                docker_container_name(workload, config, cluster_id, sim_mode_, image_name)
+                for config in configs.keys()
+                for cluster_id in simpoint_ids
+            ]
+
+    return set(all_jobs)
+
+def print_simulation_status_summary(
+    descriptor_data,
+    workloads_data,
+    docker_prefix_list,
+    user,
+    running_sims,
+    queued_sims,
+    dbg_lvl = 1,
+    all_nodes = None,
+    log_file_count_buffer = 0,
+    strict_log_count = False,
+    log_count_offset = 0,
+    prep_failed_label = "Failed - Slurm",
+):
+    all_jobs = get_simulation_jobs(descriptor_data, workloads_data, docker_prefix_list, user, dbg_lvl)
+
+    root_directory = os.path.join(
+        descriptor_data["root_dir"],
+        "simulations",
+        descriptor_data["experiment"],
+    )
+    root_logfile_directory = os.path.join(root_directory, "logs")
+    os.system(f"ls -R {root_directory} > /dev/null")
+
+    try:
+        log_files = os.listdir(root_logfile_directory)
+    except Exception:
+        print("Log file directory does not exist")
+        print("The current experiment does not seem to have been run yet")
+        return
+
+    if len(log_files) > len(all_jobs) + log_file_count_buffer:
+        print("More log files than total runs. Maybe same experiment name was run multiple times?")
+        print("Any errors from a previous run with the same experiment name will be re-reported now")
+
+    error_runs = set()
+    skipped = 0
+
+    confs = list(descriptor_data["configurations"].keys())
+
+    completed = {conf: 0 for conf in confs}
+    failed = {conf: 0 for conf in confs}
+    prep_failed = {conf: 0 for conf in confs}
+    running = {conf: 0 for conf in confs}
+    pending = {conf: 0 for conf in confs}
+
+    experiment_name = descriptor_data["experiment"]
+    for sim in queued_sims:
+        matches = [conf for conf in confs if f"{experiment_name}_{conf}" in sim]
+        if not matches:
+            info(f"'{experiment_name}_{conf}' not found in any queued sim names", dbg_lvl)
+            continue
+        conf = max(matches, key=len)
+        pending[conf] += 1
+
+    not_in_experiment = []
+    for file in log_files:
+        log_path = os.path.join(root_logfile_directory, file)
+        with open(log_path, 'r') as f:
+            contents = f.read()
+            contents_after_docker = contents
+            if len(contents.split("\n")) < 2:
+                continue
+
+            first_line = contents.split("\n")[0]
+            config = first_line.split(" ")[1]
+            cluster_id = first_line.split(" ")[3]
+            workload_path = first_line.split(" ")[2]
+            scarab_logfile_path = os.path.join(
+                root_directory,
+                config,
+                workload_path,
+                cluster_id,
+                "sim.log",
+            )
+
+            if config not in confs:
+                if config not in not_in_experiment:
+                    print(f"WARN: Log files for config {config}, which is not in the experiment file")
+                not_in_experiment.append(config)
+                continue
+
+            pattern = r"Script name: (\S*)"
+            match = re.search(pattern, contents)
+            if match:
+                script_name = match.group(1)
+                is_running = any(sim in script_name for sim in running_sims)
+                if is_running:
+                    skipped += 1
+                    running[config] += 1
+                    continue
+
+            if "BEGIN prepare_docker_image" in contents:
+                if "FAILED prepare_docker_image" in contents:
+                    prep_failed[config] += 1
+                    error_runs.add(log_path)
+                    print("Docker image preparation failed, Simulation is not running (Error message in log file)")
+                    continue
+
+                if "END prepare_docker_image" in contents:
+                    contents_after_docker = contents.split("END prepare_docker_image\n")[1]
+                else:
+                    prep_failed[config] += 1
+                    error_runs.add(log_path)
+                    print("Docker image preparation failed, Simulation is not running (Image prep never completed; no failure message)")
+                    continue
+            else:
+                print("Docker image preparation failed (Image prep never started)")
+                prep_failed[config] += 1
+                error_runs.add(log_path)
+                continue
+
+            if all_nodes:
+                for node in all_nodes:
+                    if f"{node}: error:" in contents_after_docker and not " Unable to unlink domain socket":
+                        error_runs.add(log_path)
+                        prep_failed[config] += 1
+                        continue
+
+            error = 0
+            if 'Segmentation fault' in contents_after_docker:
+                error = 1
+
+            if 'error' in contents_after_docker.lower():
+                error = 1
+
+            if "Completed Simulation" in contents_after_docker and not error:
+                workload_parts = workload_path.split("/")
+                sim_dir = Path(descriptor_data["root_dir"]) / "simulations" / descriptor_data["experiment"] / config
+                sim_dir = sim_dir.joinpath(*workload_parts, cluster_id)
+                if any(list(map(lambda x: x.endswith(".csv"), os.listdir(sim_dir)))):
+                    completed[config] += 1
+                    continue
+                err("Stat files not generated, despite being completed with no errors.", 1)
+
+            error_runs.add(scarab_logfile_path)
+            failed[config] += 1
+
+    print(f"Currently running {len(running_sims)} simulations (from logs: {skipped})")
+
+    calculated_logfile_count = 0
+    data = {
+        "Configuration": [],
+        "Completed": [],
+        "Failed": [],
+        prep_failed_label: [],
+        "Running": [],
+        "Pending": [],
+        "Non-existant": [],
+        "Total": [],
+    }
+    for conf in confs:
+        data["Configuration"].append(conf)
+        data["Completed"].append(completed[conf])
+        data["Failed"].append(failed[conf])
+        data[prep_failed_label].append(prep_failed[conf])
+        data["Running"].append(running[conf])
+        data["Pending"].append(pending[conf])
+
+        total_per_conf = int(len(all_jobs) / len(confs))
+        total_found = completed[conf] + failed[conf] + running[conf] + pending[conf] + prep_failed[conf]
+        calculated_logfile_count += total_found - pending[conf]
+
+        assert total_per_conf >= total_found, "ERR: Assert Failed: More jobs found (via squeue and log files) than should exist"
+
+        data["Total"].append(total_per_conf)
+        data["Non-existant"].append(total_per_conf - total_found)
+
+    if len(not_in_experiment) == 0:
+        expected_log_count = len(log_files) - log_count_offset
+        if strict_log_count:
+            assert calculated_logfile_count == expected_log_count, "ERR: Assert Failed: Log file count doesn't match number of accounted jobs"
+        elif calculated_logfile_count != expected_log_count:
+            warn("Log file count doesn't match number of accounted jobs.", dbg_lvl)
+
+    print(generate_table(data))
+
+    if error_runs:
+        error_list = sorted(error_runs)
+        print(f"\033[31mErroneous Jobs: {len(error_list)}\033[0m")
+        print(f"\033[31mErrors found in {len(error_list)}/{len(log_files)} log files.")
+        print("First 5 error runs:\n", "\n".join(error_list[:5]), "\033[0m", sep='')
+    else:
+        print(f"\033[92mNo errors found in log files\033[0m")
 
 def remove_docker_containers(docker_prefix_list, job_name, user, dbg_lvl):
     try:
@@ -1178,11 +1463,11 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
                 whole_trace_dir = trace_clustering_info['dr_folder']
                 trace_file = trace_clustering_info['trace_file']
                 subprocess.run([f"cp {trace_dir}/{workload}/traces/whole/{whole_trace_dir}/trace/{trace_file} {target_traces_path}/traces/whole/"], check=True, shell=True)
-                memtrace_dict['warmup'] = 10000000
+                memtrace_dict['warmup'] = 50000000
                 memtrace_dict['whole_trace_file'] = trace_clustering_info['trace_file']
             elif config['trace_type'] == "cluster_then_trace":
                 os.system(f"cp -r {trace_dir}/{workload}/traces_simp/trace/* {target_traces_path}/traces/simp/")
-                memtrace_dict['warmup'] = 10000000
+                memtrace_dict['warmup'] = 50000000
                 memtrace_dict['whole_trace_file'] = None
                 print("cluster_then_trace doesn't have a whole trace file.")
             else: # iterative_trace

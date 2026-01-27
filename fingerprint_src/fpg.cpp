@@ -80,6 +80,8 @@ typedef struct per_thread_data {
 
     uint64 inspect_case_as_built[NUM_INSPECTION];
 
+    uint64 total_instrs_in_seg;
+
     void clear() {
         bb_id = 0;
         thread_id = 0;
@@ -89,6 +91,7 @@ typedef struct per_thread_data {
         num_of_segments = 0;
         cur_counter = 0;
         prev_first_addr = 0;
+        total_instrs_in_seg = 0;
         addr_to_bb_for_trace.clear();
         memset(inspect_case_as_built, 0, sizeof(inspect_case_as_built));
     }
@@ -147,6 +150,7 @@ clean_call(uint instruction_count, uint64 bb_id, uint64 segment_size, uint emula
 // identical to memtrace post processing
 // excepty for assertions
 uint64_t output_fingerprint(std::string file_name, std::map<uint64_t, uint64_t> fingerprint, bool exit);
+void output_total_instrs_in_seg(per_thread_data *t_data, uint64 seg_idx);
 
 DR_EXPORT void
 dr_client_main(client_id_t id, int argc, const char *argv[])
@@ -274,6 +278,9 @@ event_thread_exit(void *drcontext)
     if (fp.size() > 0) {
         t_data->num_of_segments++;
 
+        output_total_instrs_in_seg(t_data, t_data->num_of_segments);
+        t_data->total_instrs_in_seg = 0;
+
         uint64_t instrs_count = output_fingerprint(op_output.get_value() + "." + std::to_string(dr_get_thread_id(drcontext)), fp, true);
         // can move the following two into the func; but need more parameters
         dr_printf("[%llu] exiting, num of instrs within last segment: %llu\n", dr_get_thread_id(drcontext), instrs_count);
@@ -387,7 +394,9 @@ clean_call(uint instruction_count, uint64 bb_id, uint64 segment_size, uint emula
     // }
 
     if (is_rep_emulation && first_addr == t_data->prev_first_addr) {
-        // We are not counting the REP consequent instructions for basic block vectors
+        // We are not counting the REP consequent instructions for basic block vectors.
+        // But, we check the total instruction counts per segments only for debugging purpose.
+        t_data->total_instrs_in_seg += 1;
         return;
     } else {
         // otherwise just increment
@@ -402,6 +411,7 @@ clean_call(uint instruction_count, uint64 bb_id, uint64 segment_size, uint emula
     t_data->counts_dynamic.rep_string_count += emulation_start_count;
     t_data->counts_dynamic.blocks++;
     t_data->counts_dynamic.total_size += instruction_count;
+    t_data->total_instrs_in_seg += instruction_count;
 
     uint to_last_vector_count = 0;
     uint to_new_vector_count = 0;
@@ -453,6 +463,9 @@ clean_call(uint instruction_count, uint64 bb_id, uint64 segment_size, uint emula
     if (t_data->cur_counter >= segment_size) {
         t_data->num_of_segments++;
         dr_printf("[%llu] to be appened segment num %llu\n", t_data->thread_id, t_data->num_of_segments);
+
+        output_total_instrs_in_seg(t_data, t_data->num_of_segments);
+        t_data->total_instrs_in_seg = 0;
 
         t_data->cur_counter = 0;
 
@@ -898,4 +911,22 @@ uint64_t output_fingerprint(std::string file_name, std::map<uint64_t, uint64_t> 
     myfile.close();
 
     return instrs_count;
+}
+
+void output_total_instrs_in_seg(per_thread_data *t_data, uint64 seg_idx)
+{
+    const std::string fname =
+        op_output.get_value() + "." + std::to_string(t_data->thread_id) + ".inscount";
+
+    std::ofstream out(fname, std::ofstream::out | std::ofstream::app);
+    if (!out.is_open()) {
+        dr_printf("open file failed: %s\n", fname.c_str());
+        return;
+    }
+
+    if (seg_idx == 1)
+        out << "segment,total_instrs_in_seg\n";
+
+    out << seg_idx << "," << t_data->total_instrs_in_seg << "\n";
+    out.close();
 }

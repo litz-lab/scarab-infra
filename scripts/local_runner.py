@@ -8,10 +8,8 @@ import psutil
 import signal
 import re
 import traceback
-import json
 from .utilities import (
         err,
-        warn,
         info,
         get_simpoints,
         write_docker_command_to_file,
@@ -25,7 +23,8 @@ from .utilities import (
         write_trace_docker_command_to_file,
         get_weight_by_cluster_id,
         image_exist,
-        check_can_skip
+        check_can_skip,
+        print_simulation_status_summary
         )
 
 # Check if a container is running on local
@@ -47,7 +46,7 @@ def check_docker_container_running(docker_prefix_list, job_name, user, dbg_lvl):
         raise e
 
 # Print info/status of running experiment and available cores
-def print_status(user, job_name, docker_prefix_list, dbg_lvl = 2):
+def print_status(user, job_name, docker_prefix_list, descriptor_data=None, workloads_data=None, dbg_lvl = 2):
     docker_running = check_docker_container_running(docker_prefix_list, job_name, user, dbg_lvl)
     if len(docker_running) > 0:
         print(f"\033[92mRUNNING:     local\033[0m")
@@ -55,6 +54,22 @@ def print_status(user, job_name, docker_prefix_list, dbg_lvl = 2):
             print(f"\033[92m    CONTAINER: {docker}\033[0m")
     else:
         print(f"\033[31mNOT RUNNING: local\033[0m")
+
+    if descriptor_data is None or workloads_data is None:
+        return
+    print_simulation_status_summary(
+        descriptor_data,
+        workloads_data,
+        docker_prefix_list,
+        user,
+        docker_running,
+        [],
+        dbg_lvl=dbg_lvl,
+        log_file_count_buffer=0,
+        strict_log_count=False,
+        log_count_offset=0,
+        prep_failed_label="Failed - Prep",
+    )
 
 def kill_jobs(user, job_type, job_name, docker_prefix_list, infra_dir, dbg_lvl):
     # Define the process name pattern
@@ -125,12 +140,16 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
     available_cores = os.cpu_count()
     max_processes = int(available_cores * 0.9)
     processes = set()
+    process_logs = {}
     tmp_files = []
+    log_files = []
+    log_index = 0
 
     dont_collect = True
 
     def run_single_workload(suite, subsuite, workload, exp_cluster_id, sim_mode, warmup):
         nonlocal dont_collect
+        nonlocal log_index
         try:
             docker_prefix = get_docker_prefix(sim_mode, workloads_data[suite][subsuite][workload]["simulation"])
             info(f"Using docker image with name {docker_prefix}:{githash}", dbg_lvl)
@@ -193,8 +212,24 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                                                  trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir)
                     tmp_files.append(filename)
                     command = '/bin/bash ' + filename
-                    process = subprocess.Popen("exec " + command, stdout=subprocess.PIPE, shell=True)
+                    log_path = os.path.join(
+                        docker_home,
+                        "simulations",
+                        experiment_name,
+                        "logs",
+                        f"local_job_{log_index}.out",
+                    )
+                    log_index += 1
+                    log_handle = open(log_path, "w")
+                    log_files.append(log_handle)
+                    process = subprocess.Popen(
+                        "exec " + command,
+                        stdout=log_handle,
+                        stderr=log_handle,
+                        shell=True,
+                    )
                     processes.add(process)
+                    process_logs[process] = log_handle
                     info(f"Running command '{command}'", dbg_lvl)
                     while len(processes) >= max_processes:
                         # Loop through the processes and wait for one to finish
@@ -202,6 +237,9 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                             if p.poll() is not None: # This process has finished
                                 p.wait() # Make sure it's really finished
                                 processes.remove(p) # Remove from set of active processes
+                                handle = process_logs.pop(p, None)
+                                if handle:
+                                    handle.close()
                                 break # Exit the loop after removing one process
         except Exception as e:
             raise e
@@ -232,7 +270,9 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
         except RuntimeError as e:
             # This error prints a message. Now stop execution
             return
+        os.makedirs(os.path.join(docker_home, "simulations", experiment_name, "logs"), exist_ok=True)
 
+        print("Submitting jobs...")
         # Iterate over each workload and config combo
         for simulation in simulations:
             suite = simulation["suite"]
@@ -286,6 +326,11 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
         for p in processes:
             p.wait()
 
+        for p in processes:
+            log_handle = process_logs.get(p)
+            if log_handle:
+                log_handle.close()
+
         # Clean up temp files
         for tmp in tmp_files:
             info(f"Removing temporary run script {tmp}", dbg_lvl)
@@ -298,6 +343,9 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
         traceback.print_exc()  # Print the full stack trace
         for p in processes:
             p.kill()
+
+        for handle in log_files:
+            handle.close()
 
         # Clean up temp files
         for tmp in tmp_files:

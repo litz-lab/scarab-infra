@@ -7,6 +7,7 @@ docker cp ./utilities.sh $CONTAINERID:/usr/local/bin
 docker cp ../common/scripts/run_clustering.sh $CONTAINERID:/usr/local/bin
 docker cp ../common/scripts/run_simpoint_trace.py $CONTAINERID:/usr/local/bin
 docker cp ../common/scripts/minimize_trace.sh $CONTAINERID:/usr/local/bin
+docker cp ../common/scripts/replace_oversized_simpoints.py $CONTAINERID:/usr/local/bin
 docker cp ../common/scripts/run_trace_post_processing.sh $CONTAINERID:/usr/local/bin
 docker cp ../common/scripts/gather_fp_pieces.py $CONTAINERID:/usr/local/bin
 docker cp ../common/scripts/root_entrypoint.sh $CONTAINERID:/usr/local/bin
