@@ -97,7 +97,6 @@ def run_command(
         return completed.stdout or ""
     return None
 
-
 def extract_descriptor_expectations(descriptor: Dict[str, Any]) -> Tuple[Set[str], Set[str]]:
     workloads: Set[str] = set()
     workloads_db: Optional[Dict[str, Any]] = None
@@ -114,8 +113,16 @@ def extract_descriptor_expectations(descriptor: Dict[str, Any]) -> Tuple[Set[str
         workloads_db = loaded if isinstance(loaded, dict) else {}
         return workloads_db
 
+    def canon(suite: Optional[str], subsuite: Optional[str], workload: str) -> str:
+        # Match scarab_stats.py: meta["Workload"][j] = f"{suite}/{subsuite}/{workload}"
+        if suite and subsuite:
+            return f"{suite}/{subsuite}/{workload}"
+        return workload
+
     def add_workloads_from_subsuite(
         subsuite_node: Optional[Dict[str, Any]],
+        suite_name: str,
+        subsuite_name: str,
         *,
         required_type: Optional[str] = None,
     ) -> None:
@@ -125,41 +132,51 @@ def extract_descriptor_expectations(descriptor: Dict[str, Any]) -> Tuple[Set[str
             if isinstance(payload, dict):
                 if required_type:
                     sim_info = payload.get("simulation")
-                    if (
-                        not isinstance(sim_info, dict)
-                        or required_type not in sim_info
-                    ):
+                    if not isinstance(sim_info, dict) or required_type not in sim_info:
                         continue
-                workloads.add(str(name))
+                workloads.add(canon(suite_name, subsuite_name, str(name)))
 
     simulations = descriptor.get("simulations")
     if isinstance(simulations, list):
         for entry in simulations:
-            if isinstance(entry, dict):
-                workload = entry.get("workload")
-                if workload:
-                    workloads.add(str(workload))
+            if not isinstance(entry, dict):
+                continue
+
+            suite = entry.get("suite")
+            subsuite = entry.get("subsuite")
+            workload = entry.get("workload")
+            sim_type = entry.get("simulation_type")
+
+            # If workload is explicitly listed, include suite/subsuite in the expected name.
+            if workload:
+                workloads.add(canon(str(suite) if suite else None,
+                                    str(subsuite) if subsuite else None,
+                                    str(workload)))
+                continue
+
+            # If only suite/subsuite given (or just suite), expand from workloads_db.json.
+            if suite:
+                db = ensure_workloads_db()
+                suite_node = db.get(str(suite))
+                if not isinstance(suite_node, dict):
                     continue
-                suite = entry.get("suite")
-                subsuite = entry.get("subsuite")
-                sim_type = entry.get("simulation_type")
-                if suite and workload is None:
-                    db = ensure_workloads_db()
-                    suite_node = db.get(str(suite))
-                    if not isinstance(suite_node, dict):
-                        continue
-                    if subsuite:
-                        add_workloads_from_subsuite(
-                            suite_node.get(str(subsuite)),
-                            required_type=str(sim_type) if sim_type else None,
-                        )
-                    else:
-                        for subsuite_node in suite_node.values():
-                            if isinstance(subsuite_node, dict):
-                                add_workloads_from_subsuite(
-                                    subsuite_node,
-                                    required_type=str(sim_type) if sim_type else None,
-                                )
+
+                if subsuite:
+                    add_workloads_from_subsuite(
+                        suite_node.get(str(subsuite)),
+                        str(suite),
+                        str(subsuite),
+                        required_type=str(sim_type) if sim_type else None,
+                    )
+                else:
+                    for subsuite_name, subsuite_node in suite_node.items():
+                        if isinstance(subsuite_node, dict):
+                            add_workloads_from_subsuite(
+                                subsuite_node,
+                                str(suite),
+                                str(subsuite_name),
+                                required_type=str(sim_type) if sim_type else None,
+                            )
 
     configurations = descriptor.get("configurations")
     config_names: Set[str] = set()
@@ -212,6 +229,8 @@ def collect_stats_for_visualization(descriptor_path: Path, stats_path: Path) -> 
         str(descriptor_path),
         "-o",
         str(stats_path),
+        "--postprocess",
+        "--skip-incomplete",
     ]
     print("Refreshing collected stats via stat_collector.py...")
     try:

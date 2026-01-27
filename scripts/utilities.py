@@ -797,7 +797,7 @@ def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_n
     else:
         stat_runner_parts = [python_executable, stat_script]
 
-    collect_parts = ["env", f"TMPDIR={tmp_dir}"] + stat_runner_parts + ["-d", descriptor_abs, "-o", stats_output]
+    collect_parts = ["env", f"TMPDIR={tmp_dir}"] + stat_runner_parts + ["-d", descriptor_abs, "-o", stats_output, "--postprocess", "--skip-incomplete"]
     collect_stats_cmd = shlex.join(collect_parts)
 
     if slurm_ids:
