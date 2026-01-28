@@ -510,7 +510,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                     result = subprocess.run((sbatch_cmd + filename).split(" "), capture_output=True, text=True)
                     slurm_ids.append(result.stdout.split(" ")[-1].strip())
                     run_single_workload.submitted += 1
-                print("Submitting jobs: "+str(run_single_workload.submitted), end=' ', flush=True)
+                print("\rSubmitting jobs: "+str(run_single_workload.submitted), end=' ', flush=True)
             return slurm_ids
         except Exception as e:
             raise e
