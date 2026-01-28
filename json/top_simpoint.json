@@ -32,7 +32,8 @@
   "configurations": {
       "this_pr": {
         "params": "--bp_mech tage64k",
-        "binary": "scarab_current"
+        "binary": "scarab_current",
+        "slurm_options": "--mem 4G"
       }
   }
 }
