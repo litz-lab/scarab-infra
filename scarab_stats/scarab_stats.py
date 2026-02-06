@@ -1393,11 +1393,32 @@ class stat_aggregator:
         if colors == None:
             colors = ['#8ec1da', '#cde1ec', '#ededed', '#f6d6c2', '#d47264', '#800000', '#911eb4', '#4363d8', '#f58231', '#3cb44b', '#46f0f0', '#f032e6', '#bcf60c', '#fabebe', '#e6beff', '#e6194b', '#000075', '#800000', '#9a6324', '#808080', '#ffffff', '#000000']
 
-        num_configs = len(configs_to_load)
+        num_configs = len(configs)
         ind = np.arange(len(benchmarks_to_plot))
-        start_id = -int(num_configs/2)
+
+        # Ensure grouped bars fit within a workload slot to avoid overlap.
+        available_width = max(0.1, 1.0 - workload_spacing)
+        if num_configs > 1:
+            max_bar_width = (available_width - (num_configs - 1) * bar_spacing) / num_configs
+            if max_bar_width <= 0:
+                bar_spacing = 0.0
+                bar_width = available_width / num_configs
+            else:
+                bar_width = min(bar_width, max_bar_width)
+        else:
+            bar_width = min(bar_width, available_width)
+
+        offsets = (np.arange(num_configs) - (num_configs - 1) / 2.0) * (bar_width + bar_spacing)
         for conf_number, config in enumerate(configs):
-            ax.bar(ind + (start_id+conf_number)*bar_width, data_to_plot[config], width=bar_width, fill=True, color=colors[conf_number], edgecolor='black', label=config)
+            ax.bar(
+                ind + offsets[conf_number],
+                data_to_plot[config],
+                width=bar_width,
+                fill=True,
+                color=colors[conf_number],
+                edgecolor='black',
+                label=config,
+            )
         ax.set_xlabel(x_label)
         ax.set_ylabel(y_label)
         ax.set_xticks(ind)
@@ -1502,11 +1523,32 @@ class stat_aggregator:
         if colors == None:
             colors = ['#8ec1da', '#cde1ec', '#ededed', '#f6d6c2', '#d47264', '#800000', '#911eb4', '#4363d8', '#f58231', '#3cb44b', '#46f0f0', '#f032e6', '#bcf60c', '#fabebe', '#e6beff', '#e6194b', '#000075', '#800000', '#9a6324', '#808080', '#ffffff', '#000000']
 
-        num_configs = len(configs_to_load)
+        num_configs = len(configs)
         ind = np.arange(len(benchmarks_to_plot))
-        start_id = -int(num_configs/2)
+
+        # Ensure grouped bars fit within a workload slot to avoid overlap.
+        available_width = max(0.1, 1.0 - workload_spacing)
+        if num_configs > 1:
+            max_bar_width = (available_width - (num_configs - 1) * bar_spacing) / num_configs
+            if max_bar_width <= 0:
+                bar_spacing = 0.0
+                bar_width = available_width / num_configs
+            else:
+                bar_width = min(bar_width, max_bar_width)
+        else:
+            bar_width = min(bar_width, available_width)
+
+        offsets = (np.arange(num_configs) - (num_configs - 1) / 2.0) * (bar_width + bar_spacing)
         for conf_number, config in enumerate(configs):
-            ax.bar(ind + (start_id+conf_number)*bar_width, data_to_plot[config], width=bar_width, fill=True, color=colors[conf_number], edgecolor='black', label=config)
+            ax.bar(
+                ind + offsets[conf_number],
+                data_to_plot[config],
+                width=bar_width,
+                fill=True,
+                color=colors[conf_number],
+                edgecolor='black',
+                label=config,
+            )
         ax.set_xlabel(x_label)
         ax.set_ylabel(y_label)
         ax.set_xticks(ind)
