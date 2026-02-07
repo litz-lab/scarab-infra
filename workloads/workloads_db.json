@@ -6956,17 +6956,23 @@
           {
             "cluster_id":67197,
             "segment_id":0,
-            "weight":0.34724098
+            "weight":0.34724098,
+            "drive_id":"1SNZGKagEHnnNJYOH2lMGSjghH1iddXVN",
+            "size_bytes":81750735
           },
           {
             "cluster_id":52790,
             "segment_id":1,
-            "weight":0.17565936
+            "weight":0.17565936,
+            "drive_id":"1PZA3bRD4EuOWY6M3DqSsgFpOsUOY_VPi",
+            "size_bytes":47668770
           },
           {
             "cluster_id":109678,
             "segment_id":2,
-            "weight":0.47709966
+            "weight":0.47709966,
+            "drive_id":"1n-HUXBtlBeg7pvzzklzuV1qugyPK-ABK",
+            "size_bytes":63485935
           }
         ]
       },
@@ -6996,17 +7002,23 @@
           {
             "cluster_id":45284,
             "segment_id":0,
-            "weight":0.49689996
+            "weight":0.49689996,
+            "drive_id":"1niQOKncny34pCARitg4UYLKkaBKmc2U6",
+            "size_bytes":73960071
           },
           {
             "cluster_id":43154,
             "segment_id":1,
-            "weight":0.01452509
+            "weight":0.01452509,
+            "drive_id":"1QW0aTdyUJ7UidDo4cC1OEN-jJ7lDyLA2",
+            "size_bytes":45016646
           },
           {
             "cluster_id":55827,
             "segment_id":2,
-            "weight":0.48857495
+            "weight":0.48857495,
+            "drive_id":"1BmWHAttHko83Mw1RAmL2LhQ-sH4Remey",
+            "size_bytes":83968761
           }
         ]
       },
@@ -7036,17 +7048,23 @@
           {
             "cluster_id":67123,
             "segment_id":0,
-            "weight":0.07494244
+            "weight":0.07494244,
+            "drive_id":"1JajYJQPMEksM4Mp9iMB5CTg0YNqfhWVW",
+            "size_bytes":105256001
           },
           {
             "cluster_id":12723,
             "segment_id":1,
-            "weight":0.83540404
+            "weight":0.83540404,
+            "drive_id":"1GSV6JgUFgYWUQTRDWwdLTfUkmq9htmJu",
+            "size_bytes":50198611
           },
           {
             "cluster_id":51347,
             "segment_id":2,
-            "weight":0.08965351
+            "weight":0.08965351,
+            "drive_id":"18_Qdb3HIBCjN1Sh32jL0eO-x4JddOlKb",
+            "size_bytes":51389558
           }
         ]
       },
@@ -7076,97 +7094,135 @@
           {
             "cluster_id":15233,
             "segment_id":0,
-            "weight":0.0422845
+            "weight":0.0422845,
+            "drive_id":"1KsIM-gGDsO2MvQAwKJWsa-la3IBuCCNZ",
+            "size_bytes":92455967
           },
           {
             "cluster_id":1390,
             "segment_id":1,
-            "weight":0.07690769
+            "weight":0.07690769,
+            "drive_id":"1Pyq08DLJtXRgkzVssJyXXp1jdBJ7Qc5b",
+            "size_bytes":97202144
           },
           {
             "cluster_id":371,
             "segment_id":3,
-            "weight":0.02057747
+            "weight":0.02057747,
+            "drive_id":"1MyIFNWkKFDUwa37SwN7XICC6ICh_zRNu",
+            "size_bytes":180265835
           },
           {
             "cluster_id":18877,
             "segment_id":4,
-            "weight":0.03113632
+            "weight":0.03113632,
+            "drive_id":"1LywEB5byzYGSNVMRsDTldJWfRAs2a-Lv",
+            "size_bytes":123369272
           },
           {
             "cluster_id":13741,
             "segment_id":5,
-            "weight":0.04302116
+            "weight":0.04302116,
+            "drive_id":"1avITyZQrxAzp_C3s2L8_7aR0aAy6XSqx",
+            "size_bytes":110614337
           },
           {
             "cluster_id":510,
             "segment_id":6,
-            "weight":0.03511786
+            "weight":0.03511786,
+            "drive_id":"1rLgLC63YdMOUAiBlJ6Lq1WlHybuQ_IGG",
+            "size_bytes":121949946
           },
           {
             "cluster_id":12369,
             "segment_id":7,
-            "weight":0.02013548
+            "weight":0.02013548,
+            "drive_id":"165KCjlQq9aRrxoCd14dlOGITuvUMqND-",
+            "size_bytes":106662996
           },
           {
             "cluster_id":13966,
             "segment_id":8,
-            "weight":0.03786451
+            "weight":0.03786451,
+            "drive_id":"1Ql7KU_f4buvi76spnRQOaUlx_ZvCDUTe",
+            "size_bytes":106697160
           },
           {
             "cluster_id":19972,
             "segment_id":9,
-            "weight":0.04577137
+            "weight":0.04577137,
+            "drive_id":"1sJjgDmvzfOJOTTLYH7slMu1HMB2-2qDE",
+            "size_bytes":99415051
           },
           {
             "cluster_id":9136,
             "segment_id":10,
-            "weight":0.06993394
+            "weight":0.06993394,
+            "drive_id":"1NSXiVMyYbeDfLUnbATYJ4JoW1LxBUcwg",
+            "size_bytes":161447115
           },
           {
             "cluster_id":17351,
             "segment_id":11,
-            "weight":0.02416257
+            "weight":0.02416257,
+            "drive_id":"1X4plUIP8OcDMe4z-Zk_g5jMMAMnMaLSj",
+            "size_bytes":114617401
           },
           {
             "cluster_id":18096,
             "segment_id":12,
-            "weight":0.13372903
+            "weight":0.13372903,
+            "drive_id":"1hRTDIfG7fqxvSYHEg2yW8uo6FpuRTKA7",
+            "size_bytes":110369103
           },
           {
             "cluster_id":16405,
             "segment_id":13,
-            "weight":0.03540897
+            "weight":0.03540897,
+            "drive_id":"1X9qk053prcVu8WZ4j7c8Ae1DhBrZj8VW",
+            "size_bytes":97379684
           },
           {
             "cluster_id":11668,
             "segment_id":14,
-            "weight":0.02882811
+            "weight":0.02882811,
+            "drive_id":"1bOk1p8_CNm2Zfla--gvfM4_z-GyPPdL6",
+            "size_bytes":110347770
           },
           {
             "cluster_id":2258,
             "segment_id":15,
-            "weight":0.09237763
+            "weight":0.09237763,
+            "drive_id":"1I94ZrUQlorLIvg25KZo59TurMfxZ4niT",
+            "size_bytes":125276212
           },
           {
             "cluster_id":16861,
             "segment_id":16,
-            "weight":0.05117357
+            "weight":0.05117357,
+            "drive_id":"1kOBG1-RNS99wWxD3qloXw3W3i1CLYknH",
+            "size_bytes":113318294
           },
           {
             "cluster_id":19034,
             "segment_id":17,
-            "weight":0.02961388
+            "weight":0.02961388,
+            "drive_id":"1y0hEEJ_5yzfCyceFWBdrXam7G9yJ_hEV",
+            "size_bytes":104008825
           },
           {
             "cluster_id":17210,
             "segment_id":18,
-            "weight":0.14330564
+            "weight":0.14330564,
+            "drive_id":"1HWDHMam-nExR2pDwCqA-hZtErcVdJz6x",
+            "size_bytes":106153039
           },
           {
             "cluster_id":17326,
             "segment_id":19,
-            "weight":0.03545808
+            "weight":0.03545808,
+            "drive_id":"1nXFrkecA_aJotpivl0BijgVU0Lhpx-zl",
+            "size_bytes":111019368
           }
         ]
       },
@@ -7196,97 +7252,135 @@
           {
             "cluster_id":9732,
             "segment_id":0,
-            "weight":0.02051722
+            "weight":0.02051722,
+            "drive_id":"1MYrdZABE-NXFwi1UimmJcMxRsoOPlrAq",
+            "size_bytes":118968128
           },
           {
             "cluster_id":10399,
             "segment_id":1,
-            "weight":0.10788087
+            "weight":0.10788087,
+            "drive_id":"1Mp4UaJLq2ktwHHW_L3lnx6SyjRYse0AH",
+            "size_bytes":160425896
           },
           {
             "cluster_id":17992,
             "segment_id":3,
-            "weight":0.04231676
+            "weight":0.04231676,
+            "drive_id":"1dsbXt0Wzm_E7UyCvtY4XqqQfnMnQwb4S",
+            "size_bytes":110951479
           },
           {
             "cluster_id":20141,
             "segment_id":4,
-            "weight":0.05269184
+            "weight":0.05269184,
+            "drive_id":"1fAP14zO8e9JSFt7fgt4Dao4cvTV8HS0_",
+            "size_bytes":106850325
           },
           {
             "cluster_id":23896,
             "segment_id":5,
-            "weight":0.02994852
+            "weight":0.02994852,
+            "drive_id":"1dnRbmyK3t5E8lU0ybBWihCIvb0xMhKEw",
+            "size_bytes":115235830
           },
           {
             "cluster_id":4217,
             "segment_id":6,
-            "weight":0.06978337
+            "weight":0.06978337,
+            "drive_id":"1jBWX4fkFSq7EsU6Wghatn7eysnk2T1Kj",
+            "size_bytes":123293577
           },
           {
             "cluster_id":17561,
             "segment_id":7,
-            "weight":0.02643247
+            "weight":0.02643247,
+            "drive_id":"1Ihd_qUpsNElHyqI3LYdLIq8SFKiQxFgJ",
+            "size_bytes":94221770
           },
           {
             "cluster_id":17594,
             "segment_id":8,
-            "weight":0.04128263
+            "weight":0.04128263,
+            "drive_id":"1u8fllmvXynOYvuiRQlscDZWPxvWqf0dG",
+            "size_bytes":102139664
           },
           {
             "cluster_id":11314,
             "segment_id":9,
-            "weight":0.04182038
+            "weight":0.04182038,
+            "drive_id":"1nMqQfJcSZCrZPYOGA30iD524fVy1HL16",
+            "size_bytes":166416965
           },
           {
             "cluster_id":21440,
             "segment_id":10,
-            "weight":0.03102402
+            "weight":0.03102402,
+            "drive_id":"1H-COvHGKEjy7ctTYEBQs7sKwZOdyq7JC",
+            "size_bytes":106395298
           },
           {
             "cluster_id":3647,
             "segment_id":11,
-            "weight":0.03280273
+            "weight":0.03280273,
+            "drive_id":"11CNFSMIURgp8UUvdSWy21fbuzamr0Jcs",
+            "size_bytes":106321523
           },
           {
             "cluster_id":373,
             "segment_id":12,
-            "weight":0.01770438
+            "weight":0.01770438,
+            "drive_id":"1B0VDJZPD30fhDG7nkKE-kizf5qw4eoKf",
+            "size_bytes":182534046
           },
           {
             "cluster_id":1406,
             "segment_id":13,
-            "weight":0.04876976
+            "weight":0.04876976,
+            "drive_id":"1WyZU05uRYAXYFQzhHF0dhP9JFu9qtEEx",
+            "size_bytes":111345219
           },
           {
             "cluster_id":17731,
             "segment_id":14,
-            "weight":0.04343363
+            "weight":0.04343363,
+            "drive_id":"1eruNRsrHu_Iw01WkVJvS4s3i_chKVThr",
+            "size_bytes":116885007
           },
           {
             "cluster_id":2707,
             "segment_id":15,
-            "weight":0.15834661
+            "weight":0.15834661,
+            "drive_id":"1yXydl3bQfAbQmVH0r-unTrujqs6gVUnu",
+            "size_bytes":124579192
           },
           {
             "cluster_id":3648,
             "segment_id":16,
-            "weight":0.05625689
+            "weight":0.05625689,
+            "drive_id":"1v9K1aUMN_ifUQTuGmniyab6YInWueaX5",
+            "size_bytes":101767292
           },
           {
             "cluster_id":19268,
             "segment_id":17,
-            "weight":0.03946256
+            "weight":0.03946256,
+            "drive_id":"1ZONsoRLtRUQV12ANiAlIrrZrY-gmTw3o",
+            "size_bytes":123818506
           },
           {
             "cluster_id":18055,
             "segment_id":18,
-            "weight":0.01472607
+            "weight":0.01472607,
+            "drive_id":"1ZqsoxZIs3u6zF9ECKCs5Ww4ds6p9bl0e",
+            "size_bytes":71781116
           },
           {
             "cluster_id":20812,
             "segment_id":19,
-            "weight":0.11503708
+            "weight":0.11503708,
+            "drive_id":"153qQ_VTMA4s2yOK4lp8cYMnqRBcKhdED",
+            "size_bytes":117342875
           }
         ]
       },
@@ -7316,97 +7410,135 @@
           {
             "cluster_id":9796,
             "segment_id":0,
-            "weight":0.02839764
+            "weight":0.02839764,
+            "drive_id":"1gL9FL5hvUyrcvOZPxx54aY-GhY-8t-zq",
+            "size_bytes":104170264
           },
           {
             "cluster_id":9591,
             "segment_id":1,
-            "weight":0.11181571
+            "weight":0.11181571,
+            "drive_id":"1SbdxXe8aNld5MhiAlzXgqobdAl1378Pp",
+            "size_bytes":106445488
           },
           {
             "cluster_id":21882,
             "segment_id":2,
-            "weight":0.05200731
+            "weight":0.05200731,
+            "drive_id":"1sGU9Xs7C_uuRMqWsiO1tMyAbMgQMiHsU",
+            "size_bytes":84856161
           },
           {
             "cluster_id":19215,
             "segment_id":3,
-            "weight":0.02947081
+            "weight":0.02947081,
+            "drive_id":"1zUwPJPgalY0lqoYE3gg-ZGjUrIh_HHXn",
+            "size_bytes":170045109
           },
           {
             "cluster_id":48,
             "segment_id":4,
-            "weight":0.01296055
+            "weight":0.01296055,
+            "drive_id":"1ufNld9cfL9Ris48jFqqeDNeQ-l6z0Uc0",
+            "size_bytes":189406973
           },
           {
             "cluster_id":1264,
             "segment_id":5,
-            "weight":0.00941085
+            "weight":0.00941085,
+            "drive_id":"1DO3qtCLrJLO3KTnuurIILCVCXrre2XN-",
+            "size_bytes":54169008
           },
           {
             "cluster_id":23288,
             "segment_id":6,
-            "weight":0.01853276
+            "weight":0.01853276,
+            "drive_id":"14uPVm9CpPaTCcA3TnuqEYShSHlpvedEB",
+            "size_bytes":98058167
           },
           {
             "cluster_id":13605,
             "segment_id":7,
-            "weight":0.04933946
+            "weight":0.04933946,
+            "drive_id":"1yhNu3bfzaFHmlFfsVgQacJTrNfSdMFGb",
+            "size_bytes":105217178
           },
           {
             "cluster_id":2181,
             "segment_id":8,
-            "weight":0.06331683
+            "weight":0.06331683,
+            "drive_id":"1FVcUrg3Ft34exP8zbB-jfmK0nbvSTQRK",
+            "size_bytes":62444672
           },
           {
             "cluster_id":22247,
             "segment_id":9,
-            "weight":0.03479537
+            "weight":0.03479537,
+            "drive_id":"1ZWjJGTSL5H4JV6n3EbjEPTqvok7FHivr",
+            "size_bytes":101186480
           },
           {
             "cluster_id":18670,
             "segment_id":10,
-            "weight":0.06550444
+            "weight":0.06550444,
+            "drive_id":"1VA5Ed0JK0qd-vgqQs_iJu1gRgsWGZZz4",
+            "size_bytes":164341880
           },
           {
             "cluster_id":657,
             "segment_id":11,
-            "weight":0.01114442
+            "weight":0.01114442,
+            "drive_id":"1J5RBHhR37PRb3YsbfsiP_7ZUbJL6K8q7",
+            "size_bytes":79228732
           },
           {
             "cluster_id":11284,
             "segment_id":12,
-            "weight":0.02554962
+            "weight":0.02554962,
+            "drive_id":"1ZH7PMqEwk-b_QMf03-t7XJkZJqZ8JLhZ",
+            "size_bytes":103713787
           },
           {
             "cluster_id":2198,
             "segment_id":13,
-            "weight":0.15020205
+            "weight":0.15020205,
+            "drive_id":"1SIItYuqPs-rBfOKPA1nbttaI0W00mgzX",
+            "size_bytes":62322932
           },
           {
             "cluster_id":12895,
             "segment_id":14,
-            "weight":0.09344805
+            "weight":0.09344805,
+            "drive_id":"1R0EEYBXt0iLQ0xSUy3XHccagjwXfPtVD",
+            "size_bytes":121641529
           },
           {
             "cluster_id":23335,
             "segment_id":15,
-            "weight":0.03859272
+            "weight":0.03859272,
+            "drive_id":"1zUJOZkUsOHqkuvyDc6SKFA9eHMxRWy-6",
+            "size_bytes":116999423
           },
           {
             "cluster_id":14493,
             "segment_id":16,
-            "weight":0.14838593
+            "weight":0.14838593,
+            "drive_id":"1yumxgkHyDnC6GOSMcjpdnHyL8yAK2zp_",
+            "size_bytes":114246158
           },
           {
             "cluster_id":14237,
             "segment_id":17,
-            "weight":0.04317432
+            "weight":0.04317432,
+            "drive_id":"1VsE0Bb07SSugDbGS6g_iDctBRu1Q3dl7",
+            "size_bytes":116463528
           },
           {
             "cluster_id":6423,
             "segment_id":18,
-            "weight":0.00899809
+            "weight":0.00899809,
+            "drive_id":"1sySJZ8231hbI6eB-pwdoXEJwEKPXgL5w",
+            "size_bytes":55541065
           }
         ]
       },
@@ -7436,102 +7568,142 @@
           {
             "cluster_id":15008,
             "segment_id":0,
-            "weight":0.05429234
+            "weight":0.05429234,
+            "drive_id":"1i_WTxSnbrPHwevHTsA6EpScxfX8x6Ri_",
+            "size_bytes":145933011
           },
           {
             "cluster_id":2054,
             "segment_id":1,
-            "weight":0.06596363
+            "weight":0.06596363,
+            "drive_id":"19Vzl3j_Xj_DU4pWVrKDZGTf4w73X6lL8",
+            "size_bytes":98431610
           },
           {
             "cluster_id":16086,
             "segment_id":2,
-            "weight":0.03360706
+            "weight":0.03360706,
+            "drive_id":"1xZHvqdeQB5mGHQwZXs9aFukXIcpKPGDm",
+            "size_bytes":83138032
           },
           {
             "cluster_id":1886,
             "segment_id":3,
-            "weight":0.10676105
+            "weight":0.10676105,
+            "drive_id":"1Oj4GD9V9s01-1yo0G5AxSUPxQC9st4dd",
+            "size_bytes":100977290
           },
           {
             "cluster_id":1754,
             "segment_id":4,
-            "weight":0.0917551
+            "weight":0.0917551,
+            "drive_id":"10PPQxUeIKu3ixHba_9LURr-LJTdJz3Ti",
+            "size_bytes":112875170
           },
           {
             "cluster_id":8062,
             "segment_id":5,
-            "weight":0.03371127
+            "weight":0.03371127,
+            "drive_id":"1_Y3E4CHIeEHkFo2--o97mlcD418gKK6z",
+            "size_bytes":173076489
           },
           {
             "cluster_id":16369,
             "segment_id":6,
-            "weight":0.03652488
+            "weight":0.03652488,
+            "drive_id":"1YfjTjrcFo5k3ymEEEpBBwEN6A0rJZQ-M",
+            "size_bytes":94001050
           },
           {
             "cluster_id":19177,
             "segment_id":7,
-            "weight":0.01276547
+            "weight":0.01276547,
+            "drive_id":"1SDqs9cHQTotX-CLXFFTbfX2ZRbWuWYEZ",
+            "size_bytes":174080056
           },
           {
             "cluster_id":10769,
             "segment_id":8,
-            "weight":0.01953899
+            "weight":0.01953899,
+            "drive_id":"1XmWfIDg5dHNWx6SH_R-Z3BOvuZEEO8QC",
+            "size_bytes":173762872
           },
           {
             "cluster_id":5349,
             "segment_id":9,
-            "weight":0.04012006
+            "weight":0.04012006,
+            "drive_id":"13iaQkEsJXzhxSQHvBOpAcgLlFE5odBSF",
+            "size_bytes":120591985
           },
           {
             "cluster_id":2422,
             "segment_id":10,
-            "weight":0.05545916
+            "weight":0.05545916,
+            "drive_id":"12zn2Z3fWolRpaHwjmQLFvcl1hM9F5jx8",
+            "size_bytes":86352693
           },
           {
             "cluster_id":9075,
             "segment_id":11,
-            "weight":0.03913008
+            "weight":0.03913008,
+            "drive_id":"121oHrK79OWWPxSJJi8ZHNpEhMVE1mVGB",
+            "size_bytes":55845760
           },
           {
             "cluster_id":3385,
             "segment_id":12,
-            "weight":0.01219233
+            "weight":0.01219233,
+            "drive_id":"1mwklHdR7bg8zu1JCnw8G6ggryyMmqAeN",
+            "size_bytes":71061191
           },
           {
             "cluster_id":14844,
             "segment_id":13,
-            "weight":0.02214419
+            "weight":0.02214419,
+            "drive_id":"1rN2QgyNTIOmj6E-aE8ksNBnW0xO4KNY3",
+            "size_bytes":133432278
           },
           {
             "cluster_id":15628,
             "segment_id":14,
-            "weight":0.03610805
+            "weight":0.03610805,
+            "drive_id":"1jTXYu0gfV5UI9JYMNfH5xDjap4ka_9iV",
+            "size_bytes":397708537
           },
           {
             "cluster_id":11009,
             "segment_id":15,
-            "weight":0.06825621
+            "weight":0.06825621,
+            "drive_id":"1aEyhIDO_ALDWHN629l2IwYFpZLupzuKk",
+            "size_bytes":168224266
           },
           {
             "cluster_id":13226,
             "segment_id":16,
-            "weight":0.0236031
+            "weight":0.0236031,
+            "drive_id":"1QkDeIvl3LmdRE2IbMe6dn155uTvMXaSK",
+            "size_bytes":104073251
           },
           {
             "cluster_id":7196,
             "segment_id":17,
-            "weight":0.11765078
+            "weight":0.11765078,
+            "drive_id":"1roE65TWaf4N5H4-Msj2IAgcTU_hrqMcj",
+            "size_bytes":46043938
           },
           {
             "cluster_id":1872,
             "segment_id":18,
-            "weight":0.07872911
+            "weight":0.07872911,
+            "drive_id":"1a7qF4CuP-oTN-Mhit0q43TgtOSIN4txS",
+            "size_bytes":107760414
           },
           {
             "cluster_id":2938,
             "segment_id":19,
-            "weight":0.05168714
+            "weight":0.05168714,
+            "drive_id":"1vw5XerAxlx5Gn3ESQDsxHzqnXQrrtD10",
+            "size_bytes":100218454
           }
         ]
       },
@@ -7561,97 +7733,135 @@
           {
             "cluster_id":16588,
             "segment_id":0,
-            "weight":0.05059312
+            "weight":0.05059312,
+            "drive_id":"1fijzCmPja4BfEeC5d2GtGyreusxuZmud",
+            "size_bytes":53851476
           },
           {
             "cluster_id":5291,
             "segment_id":1,
-            "weight":0.0631554
+            "weight":0.0631554,
+            "drive_id":"1035rF648eKPwGkJ2Ot7ytdrnfDd7OY8P",
+            "size_bytes":138170685
           },
           {
             "cluster_id":17988,
             "segment_id":3,
-            "weight":0.03090878
+            "weight":0.03090878,
+            "drive_id":"1zIUJuLnRaSZICLxhL_rJJnONUvjWrmDi",
+            "size_bytes":51537164
           },
           {
             "cluster_id":19492,
             "segment_id":4,
-            "weight":0.04654769
+            "weight":0.04654769,
+            "drive_id":"1kXPt1tyi4CJLivXqq06cuvtzrS2Pt2p_",
+            "size_bytes":63892722
           },
           {
             "cluster_id":1646,
             "segment_id":5,
-            "weight":0.05646618
+            "weight":0.05646618,
+            "drive_id":"1wQyunStYj9gy7g5RDLy4N8gVfS-YFNzm",
+            "size_bytes":99436015
           },
           {
             "cluster_id":19563,
             "segment_id":6,
-            "weight":0.01946792
+            "weight":0.01946792,
+            "drive_id":"1ylTYhtkechegJW-VTOjZKPojYIC25fbu",
+            "size_bytes":61697506
           },
           {
             "cluster_id":19722,
             "segment_id":7,
-            "weight":0.03556816
+            "weight":0.03556816,
+            "drive_id":"1xOoOsKwBcTI55gQvHq1UiUBXmTnrSkjF",
+            "size_bytes":33695905
           },
           {
             "cluster_id":1751,
             "segment_id":8,
-            "weight":0.05448248
+            "weight":0.05448248,
+            "drive_id":"1-c0Zs0yq1Ojt8NXmFTXfi9LGfvEgogaB",
+            "size_bytes":95200818
           },
           {
             "cluster_id":2083,
             "segment_id":9,
-            "weight":0.09263406
+            "weight":0.09263406,
+            "drive_id":"1vwLOjXF0TjHtP6EyGfJa58yWzwRN8BP6",
+            "size_bytes":105136432
           },
           {
             "cluster_id":14423,
             "segment_id":10,
-            "weight":0.05217586
+            "weight":0.05217586,
+            "drive_id":"1_1gaCLdeykPqbRXO7YBOknSGuqKhG99c",
+            "size_bytes":49964738
           },
           {
             "cluster_id":2034,
             "segment_id":11,
-            "weight":0.06384739
+            "weight":0.06384739,
+            "drive_id":"1ddHHSzb8IYxsCrzGrjKyLV9eIXt6TP48",
+            "size_bytes":94369950
           },
           {
             "cluster_id":1956,
             "segment_id":12,
-            "weight":0.10896496
+            "weight":0.10896496,
+            "drive_id":"1R4tAf6CC3DmKPu5au6PZ-Eyd_MShOvOm",
+            "size_bytes":121965121
           },
           {
             "cluster_id":20595,
             "segment_id":13,
-            "weight":0.04756261
+            "weight":0.04756261,
+            "drive_id":"1s4r-yZ5iPCR7BRCV2W-5R6i0H1zO3lPU",
+            "size_bytes":169115334
           },
           {
             "cluster_id":1681,
             "segment_id":14,
-            "weight":0.03155463
+            "weight":0.03155463,
+            "drive_id":"1U694dVeLbNblbut8nmLsDYZIbNgHdNFA",
+            "size_bytes":168616452
           },
           {
             "cluster_id":9398,
             "segment_id":15,
-            "weight":0.0388897
+            "weight":0.0388897,
+            "drive_id":"1Kz2wAZytGvDM1SfnPNS19PPei9TgaASD",
+            "size_bytes":73609557
           },
           {
             "cluster_id":359,
             "segment_id":16,
-            "weight":0.01577732
+            "weight":0.01577732,
+            "drive_id":"1zKwzHOzzEYaUD2HE3-VH8s1OVa3xna8p",
+            "size_bytes":172453047
           },
           {
             "cluster_id":9420,
             "segment_id":17,
-            "weight":0.03847451
+            "weight":0.03847451,
+            "drive_id":"1PVvTqrgEJGpDm0CbAebbdU4elGLqgy48",
+            "size_bytes":67132138
           },
           {
             "cluster_id":2025,
             "segment_id":18,
-            "weight":0.11362435
+            "weight":0.11362435,
+            "drive_id":"1OXv9l-tiAdZMLujXOlH_b1GDR4_zpwTn",
+            "size_bytes":126128223
           },
           {
             "cluster_id":7262,
             "segment_id":19,
-            "weight":0.03755186
+            "weight":0.03755186,
+            "drive_id":"1fT1RPOnXtcSIzEF-ibHb45M4f5adxjK7",
+            "size_bytes":55747561
           }
         ]
       },
@@ -7681,22 +7891,30 @@
           {
             "cluster_id":19408,
             "segment_id":0,
-            "weight":0.13461258
+            "weight":0.13461258,
+            "drive_id":"1CQ84WHflC_ZWM-rZDluSS4-9wDE1Cfp1",
+            "size_bytes":72421782
           },
           {
             "cluster_id":85716,
             "segment_id":1,
-            "weight":0.54475975
+            "weight":0.54475975,
+            "drive_id":"14rk3hLP0nx2LMfjy8j8QNZa12-7kCzey",
+            "size_bytes":63532197
           },
           {
             "cluster_id":63310,
             "segment_id":2,
-            "weight":0.07917584
+            "weight":0.07917584,
+            "drive_id":"1tFYRWD9IQkSfAt2NDQEocmpkSUqtpleT",
+            "size_bytes":50125523
           },
           {
             "cluster_id":93581,
             "segment_id":3,
-            "weight":0.24145183
+            "weight":0.24145183,
+            "drive_id":"1opa2OMC6BPFdlhLeShDE0PRUwgRfAcgI",
+            "size_bytes":37100891
           }
         ]
       },
@@ -7726,12 +7944,16 @@
           {
             "cluster_id":89111,
             "segment_id":0,
-            "weight":0.83876729
+            "weight":0.83876729,
+            "drive_id":"1HD3FhXGM6wbiPY15JyJjUvNdZZg6EsPH",
+            "size_bytes":175929956
           },
           {
             "cluster_id":2420,
             "segment_id":1,
-            "weight":0.15584698
+            "weight":0.15584698,
+            "drive_id":"1ySJfOgRUiIrtsrDMEw3_TInvTTh1PbY-",
+            "size_bytes":164863964
           }
         ]
       },
@@ -7761,62 +7983,86 @@
           {
             "cluster_id":106818,
             "segment_id":0,
-            "weight":0.06049864
+            "weight":0.06049864,
+            "drive_id":"1sFFt7FkNSWygwCSVOZrXl0BbfiuDqAzS",
+            "size_bytes":109618222
           },
           {
             "cluster_id":29880,
             "segment_id":1,
-            "weight":0.08003628
+            "weight":0.08003628,
+            "drive_id":"1ktrTNtHKdz3boe4e5t2u03GJ5ELStDbP",
+            "size_bytes":131564495
           },
           {
             "cluster_id":104011,
             "segment_id":2,
-            "weight":0.13339379
+            "weight":0.13339379,
+            "drive_id":"1JW3GHTiFrSQtuXaYTzF7NSGpEsHs04dq",
+            "size_bytes":118644456
           },
           {
             "cluster_id":46397,
             "segment_id":3,
-            "weight":0.11068747
+            "weight":0.11068747,
+            "drive_id":"1YNFGFubEOkjOR_3vHEShDQ2UpLN_94UA",
+            "size_bytes":132531997
           },
           {
             "cluster_id":89395,
             "segment_id":4,
-            "weight":0.09922096
+            "weight":0.09922096,
+            "drive_id":"1Ck-ycELY5V05uem7ks5_kCsnMpCM6Db2",
+            "size_bytes":137271217
           },
           {
             "cluster_id":35604,
             "segment_id":5,
-            "weight":0.06680509
+            "weight":0.06680509,
+            "drive_id":"1Bd53iO3Fj9nq_DeGl824EXiW71gRAEgl",
+            "size_bytes":138881467
           },
           {
             "cluster_id":3719,
             "segment_id":6,
-            "weight":0.05717539
+            "weight":0.05717539,
+            "drive_id":"1QSjw36I2vO25NZdyqiCF4qX_BPJcNx6Z",
+            "size_bytes":47760149
           },
           {
             "cluster_id":793,
             "segment_id":7,
-            "weight":0.01642305
+            "weight":0.01642305,
+            "drive_id":"15XUu_cjxj-lHF4Sw0hgdbVDYeFJ1bBA2",
+            "size_bytes":67568575
           },
           {
             "cluster_id":65066,
             "segment_id":8,
-            "weight":0.04191935
+            "weight":0.04191935,
+            "drive_id":"1fY0CDhBJI8Lm-DYeL8LMMaJQl_9c3Zzm",
+            "size_bytes":123407074
           },
           {
             "cluster_id":44066,
             "segment_id":9,
-            "weight":0.12510112
+            "weight":0.12510112,
+            "drive_id":"18vOkWoJAz3_d6uCX-qsiks41PgJuI4xu",
+            "size_bytes":124970400
           },
           {
             "cluster_id":122989,
             "segment_id":10,
-            "weight":0.05852015
+            "weight":0.05852015,
+            "drive_id":"1fKnsrLE57Dy9EzSyUorYbdpMcvqs4Vvv",
+            "size_bytes":118668929
           },
           {
             "cluster_id":14116,
             "segment_id":11,
-            "weight":0.15021871
+            "weight":0.15021871,
+            "drive_id":"1IRTICM6MX6Gd1UVjt9HuIcJ8XRyOXrmk",
+            "size_bytes":45096565
           }
         ]
       },
@@ -7846,27 +8092,37 @@
           {
             "cluster_id":20908,
             "segment_id":0,
-            "weight":0.10634656
+            "weight":0.10634656,
+            "drive_id":"1nWafXe7eLWGlO1SlDz0j9Tg6exveR1cF",
+            "size_bytes":82351526
           },
           {
             "cluster_id":90,
             "segment_id":1,
-            "weight":0.05339483
+            "weight":0.05339483,
+            "drive_id":"1XVRDVZUuAFEpie1QT8bdnV_e5yKUilP9",
+            "size_bytes":72212567
           },
           {
             "cluster_id":11255,
             "segment_id":2,
-            "weight":0.27209365
+            "weight":0.27209365,
+            "drive_id":"1aSCMFEKoFcYOEu2ReF9NAkL38UaG-7I1",
+            "size_bytes":75051675
           },
           {
             "cluster_id":35371,
             "segment_id":3,
-            "weight":0.33402765
+            "weight":0.33402765,
+            "drive_id":"1P4rARFl7aGEzI8gg7UoYMsRhyRLKST3X",
+            "size_bytes":73545342
           },
           {
             "cluster_id":12295,
             "segment_id":4,
-            "weight":0.23413733
+            "weight":0.23413733,
+            "drive_id":"1Ik2G4cQj3a2JIzoMo11PRAk899nAHTQ6",
+            "size_bytes":76144805
           }
         ]
       },
@@ -7896,17 +8152,23 @@
           {
             "cluster_id":45590,
             "segment_id":0,
-            "weight":0.24375729
+            "weight":0.24375729,
+            "drive_id":"1eWQrkAixA-578_0SHm4tJTELIDpFUmOu",
+            "size_bytes":74778098
           },
           {
             "cluster_id":104659,
             "segment_id":1,
-            "weight":0.32645547
+            "weight":0.32645547,
+            "drive_id":"1QcD-_gJEY8ZFvfE9loMa03mu4ZbQZ_WA",
+            "size_bytes":73576210
           },
           {
             "cluster_id":98383,
             "segment_id":2,
-            "weight":0.42978722
+            "weight":0.42978722,
+            "drive_id":"1zZ7QsB2DtHRTg55YPikLhBG1d63VxR7M",
+            "size_bytes":78812551
           }
         ]
       },
@@ -7936,17 +8198,23 @@
           {
             "cluster_id":175247,
             "segment_id":0,
-            "weight":0.42330238
+            "weight":0.42330238,
+            "drive_id":"15AL997wZH8zdclCWPnwXXVWSzFrsaQ5l",
+            "size_bytes":80170790
           },
           {
             "cluster_id":194540,
             "segment_id":1,
-            "weight":0.45998916
+            "weight":0.45998916,
+            "drive_id":"1LBDhDSOyTy0pDpQzifGDdtUanVvBRQ7j",
+            "size_bytes":76344855
           },
           {
             "cluster_id":33181,
             "segment_id":2,
-            "weight":0.11670845
+            "weight":0.11670845,
+            "drive_id":"1z-e2HyCutJu64TF6_H4OcGq5lZTjlgsf",
+            "size_bytes":68329142
           }
         ]
       },
@@ -7976,17 +8244,23 @@
           {
             "cluster_id":41830,
             "segment_id":0,
-            "weight":0.31860226
+            "weight":0.31860226,
+            "drive_id":"1DXSAdoyiaFrTbhI1gIh50m7oAgpCjqXk",
+            "size_bytes":145272546
           },
           {
             "cluster_id":3284,
             "segment_id":1,
-            "weight":0.2442715
+            "weight":0.2442715,
+            "drive_id":"1jV1Jhcc3OHDvRmQPV5FFmGW8s67RIvo4",
+            "size_bytes":138010067
           },
           {
             "cluster_id":50298,
             "segment_id":2,
-            "weight":0.43712622
+            "weight":0.43712622,
+            "drive_id":"1uygCziEEg3sx2h5uvnG3DtY7XO-LKh_y",
+            "size_bytes":133392848
           }
         ]
       },
@@ -8016,17 +8290,23 @@
           {
             "cluster_id":207092,
             "segment_id":0,
-            "weight":0.32402956
+            "weight":0.32402956,
+            "drive_id":"1Gqb_g4mb4w1aRvJwA8alN_18sOW8rWH_",
+            "size_bytes":97312512
           },
           {
             "cluster_id":148156,
             "segment_id":1,
-            "weight":0.46853948
+            "weight":0.46853948,
+            "drive_id":"1sp5b4SEqMj_LM-x3vo3MuJWbOqx8Y15f",
+            "size_bytes":97075721
           },
           {
             "cluster_id":42427,
             "segment_id":2,
-            "weight":0.20743094
+            "weight":0.20743094,
+            "drive_id":"1ljbUpMPFJEeovoN2dGTfskAnl6TXIHlv",
+            "size_bytes":95550008
           }
         ]
       },
@@ -8056,17 +8336,23 @@
           {
             "cluster_id":30781,
             "segment_id":0,
-            "weight":0.09178881
+            "weight":0.09178881,
+            "drive_id":"1m6Y9oD9rmuTLK6_lrzdNEz_gQOx-mlxx",
+            "size_bytes":74223947
           },
           {
             "cluster_id":141811,
             "segment_id":1,
-            "weight":0.54146606
+            "weight":0.54146606,
+            "drive_id":"1AFl71JmuxeggO8Wy5YaS5XTr9SI_wgpY",
+            "size_bytes":85228648
           },
           {
             "cluster_id":41002,
             "segment_id":2,
-            "weight":0.36674511
+            "weight":0.36674511,
+            "drive_id":"1pQCEczUX18ELkXd3XaKN2iI8dNgex2dI",
+            "size_bytes":81577115
           }
         ]
       },
@@ -8096,17 +8382,23 @@
           {
             "cluster_id":5933,
             "segment_id":0,
-            "weight":0.37419137
+            "weight":0.37419137,
+            "drive_id":"1wyixe8phhYSrwEYDrI5cgGgfgUOxHKyR",
+            "size_bytes":53994333
           },
           {
             "cluster_id":20105,
             "segment_id":1,
-            "weight":0.49243918
+            "weight":0.49243918,
+            "drive_id":"1SdhYdq5AZqAatam7GEN5Z0oI8m9zN4m-",
+            "size_bytes":55434409
           },
           {
             "cluster_id":2726,
             "segment_id":2,
-            "weight":0.13336945
+            "weight":0.13336945,
+            "drive_id":"1NvWz5DV9LI5oeRG7jrl3OSYBJ1h--NlG",
+            "size_bytes":51863807
           }
         ]
       },
@@ -8136,27 +8428,37 @@
           {
             "cluster_id":36264,
             "segment_id":0,
-            "weight":0.25457475
+            "weight":0.25457475,
+            "drive_id":"18j9x_HGTlgUSSLbIQM7oKIi9EhFRLELj",
+            "size_bytes":62854350
           },
           {
             "cluster_id":52911,
             "segment_id":1,
-            "weight":0.09297182
+            "weight":0.09297182,
+            "drive_id":"1YfusL-XUDyiNE7CmziW8L4vV7QKRD1qU",
+            "size_bytes":40186340
           },
           {
             "cluster_id":51271,
             "segment_id":2,
-            "weight":0.21495195
+            "weight":0.21495195,
+            "drive_id":"1_f8axuJfrYuYEx69rp72bG_We3OL-bGS",
+            "size_bytes":84847823
           },
           {
             "cluster_id":284,
             "segment_id":3,
-            "weight":0.03167899
+            "weight":0.03167899,
+            "drive_id":"1qnvxRk29BtkuB2WLyn0lqjHdPHzh0pza",
+            "size_bytes":42032355
           },
           {
             "cluster_id":34685,
             "segment_id":4,
-            "weight":0.40582249
+            "weight":0.40582249,
+            "drive_id":"1hMEQMxDCysYQEJANa_EnOhlp-mzJgQ_o",
+            "size_bytes":60021305
           }
         ]
       },
@@ -8186,27 +8488,37 @@
           {
             "cluster_id":105994,
             "segment_id":0,
-            "weight":0.0159538
+            "weight":0.0159538,
+            "drive_id":"1qLULGRW7uR8SyblIrliI9Tz01yRRRqyz",
+            "size_bytes":42047659
           },
           {
             "cluster_id":28352,
             "segment_id":1,
-            "weight":0.291446
+            "weight":0.291446,
+            "drive_id":"1OGb8J5S9uWCllB6RmHU540VpPrPm5zE4",
+            "size_bytes":54475924
           },
           {
             "cluster_id":40606,
             "segment_id":2,
-            "weight":0.335186
+            "weight":0.335186,
+            "drive_id":"1o3xn4VReF87uTA0hrvYjjv1Ae9PZq9rn",
+            "size_bytes":56203113
           },
           {
             "cluster_id":2443,
             "segment_id":3,
-            "weight":0.23704438
+            "weight":0.23704438,
+            "drive_id":"1VuHWwURo5EWUd_i8KDIlbYu6l6QOP9Dg",
+            "size_bytes":49797373
           },
           {
             "cluster_id":69106,
             "segment_id":4,
-            "weight":0.12036983
+            "weight":0.12036983,
+            "drive_id":"1bbhJUkZxVoyW9G3ZrTKEQbd7XQUHLxWO",
+            "size_bytes":56042385
           }
         ]
       }
@@ -8238,57 +8550,79 @@
           {
             "cluster_id":15663,
             "segment_id":0,
-            "weight":0.03098874
+            "weight":0.03098874,
+            "drive_id":"1kv2TJ5EsxWvYSTM6nczUJSz6nxFVcyJU",
+            "size_bytes":55764502
           },
           {
             "cluster_id":29110,
             "segment_id":1,
-            "weight":0.01961426
+            "weight":0.01961426,
+            "drive_id":"1pTPHYg5e4gcmkPEn38pgSioHOYzO8W0E",
+            "size_bytes":62320380
           },
           {
             "cluster_id":7936,
             "segment_id":2,
-            "weight":0.01650941
+            "weight":0.01650941,
+            "drive_id":"1bqzIi4ljcsZokBewE6eCXWW3j6oSvYcI",
+            "size_bytes":63144859
           },
           {
             "cluster_id":26004,
             "segment_id":4,
-            "weight":0.57893407
+            "weight":0.57893407,
+            "drive_id":"1L8Vi_HAaQ3ikeGoL4OI7ftcKLCVhDc1T",
+            "size_bytes":66032784
           },
           {
             "cluster_id":29689,
             "segment_id":5,
-            "weight":0.02439221
+            "weight":0.02439221,
+            "drive_id":"1V8LwF_CbwRqN9sP8hYJSVQFtBH7hKZLi",
+            "size_bytes":33057176
           },
           {
             "cluster_id":3063,
             "segment_id":6,
-            "weight":0.03827318
+            "weight":0.03827318,
+            "drive_id":"1b0dMOiC7MZvcVxgsYApWRlIEch_MLSmg",
+            "size_bytes":56345234
           },
           {
             "cluster_id":27341,
             "segment_id":7,
-            "weight":0.01812154
+            "weight":0.01812154,
+            "drive_id":"1UEqiD3pEHILSHuNhQmBN69UcSm-wqw1s",
+            "size_bytes":62164586
           },
           {
             "cluster_id":4349,
             "segment_id":8,
-            "weight":0.10431083
+            "weight":0.10431083,
+            "drive_id":"124FVbgC6EIemz7mRA044g5s2orC-GNpG",
+            "size_bytes":35013725
           },
           {
             "cluster_id":23367,
             "segment_id":9,
-            "weight":0.03797464
+            "weight":0.03797464,
+            "drive_id":"1ntAFkT0n4XNoe1F9g_pdc4iG8DjTH6qs",
+            "size_bytes":62275589
           },
           {
             "cluster_id":891,
             "segment_id":10,
-            "weight":0.11099819
+            "weight":0.11099819,
+            "drive_id":"1mB3rdh-gLQT3daGKrtVunw1DF2XXmuOX",
+            "size_bytes":38399641
           },
           {
             "cluster_id":13984,
             "segment_id":11,
-            "weight":0.01549437
+            "weight":0.01549437,
+            "drive_id":"1sWfb4ynKtG-shRhbbsVsNZd_ABTEkBI9",
+            "size_bytes":56585991
           }
         ]
       },
@@ -8318,47 +8652,65 @@
           {
             "cluster_id":37888,
             "segment_id":0,
-            "weight":0.04725296
+            "weight":0.04725296,
+            "drive_id":"15MyHMqgiJqQzPw5IVNiPOjDOlL7C_QWu",
+            "size_bytes":55989310
           },
           {
             "cluster_id":20236,
             "segment_id":1,
-            "weight":0.02545729
+            "weight":0.02545729,
+            "drive_id":"1NjQDVcBE_hCliIxrTI3NjZWep3AxhjsF",
+            "size_bytes":48677608
           },
           {
             "cluster_id":5201,
             "segment_id":2,
-            "weight":0.03982075
+            "weight":0.03982075,
+            "drive_id":"1DtBLW2RvUjNul8wMr_slgoYl6awlk_Iy",
+            "size_bytes":63260634
           },
           {
             "cluster_id":47124,
             "segment_id":3,
-            "weight":0.11382209
+            "weight":0.11382209,
+            "drive_id":"165PUh1cEA1PEJ7LxIwadeky37EYkZ___",
+            "size_bytes":38617619
           },
           {
             "cluster_id":25491,
             "segment_id":6,
-            "weight":0.03070971
+            "weight":0.03070971,
+            "drive_id":"1ke3459TxaBOHJs7jORAwOgW2xYYIUmnK",
+            "size_bytes":62624570
           },
           {
             "cluster_id":4299,
             "segment_id":7,
-            "weight":0.10738965
+            "weight":0.10738965,
+            "drive_id":"18fdfqWjtlP6WejRhOsGCOA3NEtn-3QDF",
+            "size_bytes":34832585
           },
           {
             "cluster_id":32961,
             "segment_id":8,
-            "weight":0.02580521
+            "weight":0.02580521,
+            "drive_id":"1SgZ0MRi_OEF_-iHGeLTIuBlvVnf1qBv0",
+            "size_bytes":62352402
           },
           {
             "cluster_id":40144,
             "segment_id":9,
-            "weight":0.57637286
+            "weight":0.57637286,
+            "drive_id":"1DLPKsf0WcoiUQnvbNxEOUKaw3Ukb0bXF",
+            "size_bytes":66014673
           },
           {
             "cluster_id":38833,
             "segment_id":11,
-            "weight":0.02406977
+            "weight":0.02406977,
+            "drive_id":"1KUpgZ7X7MZTvBOgX1ZF4Rr-H5x7-zk77",
+            "size_bytes":57571215
           }
         ]
       },
@@ -8388,52 +8740,72 @@
           {
             "cluster_id":37140,
             "segment_id":0,
-            "weight":0.11375943
+            "weight":0.11375943,
+            "drive_id":"11Yd2zpzSo_e8rwCBkpPzcyAC8bmdrAjk",
+            "size_bytes":38407323
           },
           {
             "cluster_id":36457,
             "segment_id":1,
-            "weight":0.03180423
+            "weight":0.03180423,
+            "drive_id":"1qY2J0ec9xT0iFB3o4a4dI7WALA_8I7U7",
+            "size_bytes":56164707
           },
           {
             "cluster_id":5478,
             "segment_id":2,
-            "weight":0.01628938
+            "weight":0.01628938,
+            "drive_id":"1keR_QzWMa4FLX0b4QGV5D-F0IC3RTWQp",
+            "size_bytes":35006760
           },
           {
             "cluster_id":16814,
             "segment_id":3,
-            "weight":0.03596734
+            "weight":0.03596734,
+            "drive_id":"1aiqrD7xIJ1e34N0Fm-X4J9eXlvYyoS1w",
+            "size_bytes":56819907
           },
           {
             "cluster_id":40860,
             "segment_id":4,
-            "weight":0.01793526
+            "weight":0.01793526,
+            "drive_id":"1NmIGG_zoE3ZvMkDZUDCS2KDp3NwRoPbe",
+            "size_bytes":62248689
           },
           {
             "cluster_id":32522,
             "segment_id":5,
-            "weight":0.0158053
+            "weight":0.0158053,
+            "drive_id":"15Hy6-fEJhnnFLGGVffkpcm7Iw45ospsc",
+            "size_bytes":63259551
           },
           {
             "cluster_id":11735,
             "segment_id":7,
-            "weight":0.1306539
+            "weight":0.1306539,
+            "drive_id":"1nGqLlVrOf15svLGixD6VsSwt7aOu6901",
+            "size_bytes":28896813
           },
           {
             "cluster_id":3577,
             "segment_id":8,
-            "weight":0.01924228
+            "weight":0.01924228,
+            "drive_id":"1jzghP5XSD1xLgUin_Q66KNCpDS0dBW6t",
+            "size_bytes":62672532
           },
           {
             "cluster_id":6401,
             "segment_id":9,
-            "weight":0.57179844
+            "weight":0.57179844,
+            "drive_id":"1TY_6dhUZrf21s_XO1OdHA7jKRxCsIsd4",
+            "size_bytes":66239423
           },
           {
             "cluster_id":7327,
             "segment_id":11,
-            "weight":0.03849082
+            "weight":0.03849082,
+            "drive_id":"1dscZLOG983VOTtcGbPUcUGAvLC-M4CuH",
+            "size_bytes":62343820
           }
         ]
       },
@@ -8463,57 +8835,79 @@
           {
             "cluster_id":22542,
             "segment_id":0,
-            "weight":0.10927594
+            "weight":0.10927594,
+            "drive_id":"1QwDPZbypVu6rQeu-u4fcL6eDb7j1VtCE",
+            "size_bytes":38002832
           },
           {
             "cluster_id":45908,
             "segment_id":1,
-            "weight":0.03411133
+            "weight":0.03411133,
+            "drive_id":"1JHJL_43ZFCF7vHkkfOVKkzOx2M04-Vsh",
+            "size_bytes":50152377
           },
           {
             "cluster_id":35361,
             "segment_id":2,
-            "weight":0.0241971
+            "weight":0.0241971,
+            "drive_id":"1NXVdwzSGRwemuwYcXb2RBf76tAoaiw_o",
+            "size_bytes":48223148
           },
           {
             "cluster_id":8517,
             "segment_id":3,
-            "weight":0.0183124
+            "weight":0.0183124,
+            "drive_id":"12I3D1C74prHu8TOIPVujB6y8B9vyCTWn",
+            "size_bytes":61867145
           },
           {
             "cluster_id":3046,
             "segment_id":4,
-            "weight":0.03855926
+            "weight":0.03855926,
+            "drive_id":"1CtEVbuhUzsfR2ozV_28_kRvmavm6GcBz",
+            "size_bytes":61932018
           },
           {
             "cluster_id":46091,
             "segment_id":5,
-            "weight":0.016158
+            "weight":0.016158,
+            "drive_id":"1GQmf1OJEurLDf7AKBjSzw1RAUDJeNJv5",
+            "size_bytes":62806387
           },
           {
             "cluster_id":48400,
             "segment_id":6,
-            "weight":0.58138871
+            "weight":0.58138871,
+            "drive_id":"1PEsbUyLmIQACtUJIpbDfaG3q16SIwhIr",
+            "size_bytes":65725486
           },
           {
             "cluster_id":5540,
             "segment_id":7,
-            "weight":0.1032117
+            "weight":0.1032117,
+            "drive_id":"1W_Q6Y3zrO4MYvupRUUjSu4HxyT4QJWhd",
+            "size_bytes":34843069
           },
           {
             "cluster_id":1459,
             "segment_id":8,
-            "weight":0.01541992
+            "weight":0.01541992,
+            "drive_id":"1qcQYICM0Qw3K00EAX7zgUUij_2z0M9kJ",
+            "size_bytes":55914600
           },
           {
             "cluster_id":24967,
             "segment_id":10,
-            "weight":0.01950929
+            "weight":0.01950929,
+            "drive_id":"1zvpSA0jG2hINvI21EQ5wBfsEIGYAlmx9",
+            "size_bytes":62023400
           },
           {
             "cluster_id":41194,
             "segment_id":11,
-            "weight":0.0360064
+            "weight":0.0360064,
+            "drive_id":"1mmhZE5TQcHqF8EcwVUk5JeLt_usnbp8J",
+            "size_bytes":56192193
           }
         ]
       },
@@ -8543,32 +8937,44 @@
           {
             "cluster_id":78747,
             "segment_id":0,
-            "weight":0.28882003
+            "weight":0.28882003,
+            "drive_id":"1qFhVZRszSs4-bEyXiqvT7ZbiDnbEAiSk",
+            "size_bytes":257099683
           },
           {
             "cluster_id":101419,
             "segment_id":1,
-            "weight":0.04949999
+            "weight":0.04949999,
+            "drive_id":"1nm53wzC2AG9zoN1TYp12z4j23Nhv2b1a",
+            "size_bytes":37445492
           },
           {
             "cluster_id":774,
             "segment_id":2,
-            "weight":0.11071357
+            "weight":0.11071357,
+            "drive_id":"14-LS74XZP4qb149vRWKDzTQnq7-ZZY7i",
+            "size_bytes":46637401
           },
           {
             "cluster_id":94978,
             "segment_id":3,
-            "weight":0.0198535
+            "weight":0.0198535,
+            "drive_id":"1TgeofUSWUJoMNXg1KlaoYAjvmtrpWmEf",
+            "size_bytes":9540228
           },
           {
             "cluster_id":38889,
             "segment_id":4,
-            "weight":0.10436598
+            "weight":0.10436598,
+            "drive_id":"1_-7ZyOHJ_lrsD5V1RNkUiD7wlj0dErwj",
+            "size_bytes":276982062
           },
           {
             "cluster_id":3206,
             "segment_id":5,
-            "weight":0.4267469
+            "weight":0.4267469,
+            "drive_id":"1RsBvkb9A8We3GJhG-qa5gLU-MZHhaDk1",
+            "size_bytes":273521052
           }
         ]
       },
@@ -8598,97 +9004,135 @@
           {
             "cluster_id":76919,
             "segment_id":0,
-            "weight":0.05621095
+            "weight":0.05621095,
+            "drive_id":"1w7QSg8p0O3JPovHNKftFqf-W_AHSbsar",
+            "size_bytes":75592832
           },
           {
             "cluster_id":79473,
             "segment_id":1,
-            "weight":0.02375633
+            "weight":0.02375633,
+            "drive_id":"1ef93M2VopGK3NdumsE-szqIERBvSxZCq",
+            "size_bytes":62315762
           },
           {
             "cluster_id":45299,
             "segment_id":2,
-            "weight":0.06311826
+            "weight":0.06311826,
+            "drive_id":"1lyLkSu0QC-Hu1QfwsOsTq6znvE8woY-2",
+            "size_bytes":74368387
           },
           {
             "cluster_id":80062,
             "segment_id":4,
-            "weight":0.04629775
+            "weight":0.04629775,
+            "drive_id":"1-q1RvCDg2Mf3Rx6GlwhsAriP9gI5R6OG",
+            "size_bytes":82396086
           },
           {
             "cluster_id":141858,
             "segment_id":5,
-            "weight":0.02984799
+            "weight":0.02984799,
+            "drive_id":"1bT2VV3UlIPD1NqRYy9wCQYHVHDEYe1JE",
+            "size_bytes":64931485
           },
           {
             "cluster_id":12843,
             "segment_id":6,
-            "weight":0.01117945
+            "weight":0.01117945,
+            "drive_id":"16PsRktMX5nX1ow7Lz-Ub_AsnKBXxPkLz",
+            "size_bytes":77563685
           },
           {
             "cluster_id":92357,
             "segment_id":7,
-            "weight":0.07498787
+            "weight":0.07498787,
+            "drive_id":"1wxeKclCxOaRq7wQMlRLq7jVvl1npUUUb",
+            "size_bytes":69585252
           },
           {
             "cluster_id":96600,
             "segment_id":8,
-            "weight":0.11442965
+            "weight":0.11442965,
+            "drive_id":"135JEirVqMGbB3FTa6Gkdml4-z9aW0D-K",
+            "size_bytes":76494821
           },
           {
             "cluster_id":173837,
             "segment_id":9,
-            "weight":0.0175563
+            "weight":0.0175563,
+            "drive_id":"1gAMca_3N67-t-tDOViXzwSJHXIJ8QrIE",
+            "size_bytes":61783197
           },
           {
             "cluster_id":85893,
             "segment_id":10,
-            "weight":0.03372657
+            "weight":0.03372657,
+            "drive_id":"1_o9jbewKXTw_m_dT3gdBPsKdzEy3njeg",
+            "size_bytes":87800079
           },
           {
             "cluster_id":120306,
             "segment_id":11,
-            "weight":0.03202684
+            "weight":0.03202684,
+            "drive_id":"1TxoI2QKlW-9etMVrsvfnNTfzmSN4tLQP",
+            "size_bytes":61729918
           },
           {
             "cluster_id":103841,
             "segment_id":12,
-            "weight":0.07705265
+            "weight":0.07705265,
+            "drive_id":"1x5ORyTeIsC-F7rJyapkrzl4_2pzsB5a7",
+            "size_bytes":69025412
           },
           {
             "cluster_id":35605,
             "segment_id":13,
-            "weight":0.05632503
+            "weight":0.05632503,
+            "drive_id":"14NZ454KZE4L-iKnLUIX83NEEQwYFfbyJ",
+            "size_bytes":73219535
           },
           {
             "cluster_id":91011,
             "segment_id":14,
-            "weight":0.0103581
+            "weight":0.0103581,
+            "drive_id":"1VMa5uX9WQ-OzQ012Y4-6RuToqm-MfoOj",
+            "size_bytes":87609500
           },
           {
             "cluster_id":159716,
             "segment_id":15,
-            "weight":0.07072712
+            "weight":0.07072712,
+            "drive_id":"11kJJzIMpkBQwl-_5BrrqRroLVNl3LElL",
+            "size_bytes":76923666
           },
           {
             "cluster_id":20223,
             "segment_id":16,
-            "weight":0.10469896
+            "weight":0.10469896,
+            "drive_id":"10EAjQZays5LkTBFB4Ag1JS56Pu0r8T2C",
+            "size_bytes":66152794
           },
           {
             "cluster_id":13935,
             "segment_id":17,
-            "weight":0.09382182
+            "weight":0.09382182,
+            "drive_id":"1tQTc-MDbtL5lWrxWQ7mj_4JmdO2FPWBg",
+            "size_bytes":75957709
           },
           {
             "cluster_id":19792,
             "segment_id":18,
-            "weight":0.03547764
+            "weight":0.03547764,
+            "drive_id":"1WLm4v0yF_5fFYd9XrIYIBQC9f0Belhov",
+            "size_bytes":63366461
           },
           {
             "cluster_id":161686,
             "segment_id":19,
-            "weight":0.04590419
+            "weight":0.04590419,
+            "drive_id":"1xdZim4zov3En04Ti66tg96q2Jr9XKdXn",
+            "size_bytes":84140969
           }
         ]
       },
@@ -8718,57 +9162,79 @@
           {
             "cluster_id":102667,
             "segment_id":0,
-            "weight":0.01822123
+            "weight":0.01822123,
+            "drive_id":"1eIKh6VmhvEOY1vtgTUMbD_T2nFeAgpk7",
+            "size_bytes":52986165
           },
           {
             "cluster_id":151973,
             "segment_id":1,
-            "weight":0.11207113
+            "weight":0.11207113,
+            "drive_id":"1I3FUBPCCCSA7-2-VZcrXLN9bLchfqZUs",
+            "size_bytes":61960042
           },
           {
             "cluster_id":35686,
             "segment_id":2,
-            "weight":0.0145822
+            "weight":0.0145822,
+            "drive_id":"1aDu_vd7Gluiq7J3r-tUSEz3R5rkG9rWz",
+            "size_bytes":35723876
           },
           {
             "cluster_id":209025,
             "segment_id":3,
-            "weight":0.08026728
+            "weight":0.08026728,
+            "drive_id":"15F0dxXtJPfxsvVl4hfp5PCBKl4jGA_IP",
+            "size_bytes":112435951
           },
           {
             "cluster_id":152080,
             "segment_id":4,
-            "weight":0.20241238
+            "weight":0.20241238,
+            "drive_id":"1tSZ2dA3uhZLE8GEeuBONannamnVBcx8_",
+            "size_bytes":61589665
           },
           {
             "cluster_id":32615,
             "segment_id":5,
-            "weight":0.09246788
+            "weight":0.09246788,
+            "drive_id":"1hxNu95TrdqwkcdbJwPqpv7U25VXMdsxh",
+            "size_bytes":61812058
           },
           {
             "cluster_id":194482,
             "segment_id":6,
-            "weight":0.24605177
+            "weight":0.24605177,
+            "drive_id":"1v5FPfpjNZnW-EMBhFvMXN_ZBpeOM23wH",
+            "size_bytes":62013851
           },
           {
             "cluster_id":282836,
             "segment_id":7,
-            "weight":0.02431429
+            "weight":0.02431429,
+            "drive_id":"1jylxoPgzmwz8Wz5OLZVDiqw0pWEEE-yd",
+            "size_bytes":34724379
           },
           {
             "cluster_id":270489,
             "segment_id":8,
-            "weight":0.16354777
+            "weight":0.16354777,
+            "drive_id":"1VOAsC7um_gq8ixpq0vnJBZQL5T-SZk1s",
+            "size_bytes":61276811
           },
           {
             "cluster_id":215242,
             "segment_id":9,
-            "weight":0.03143879
+            "weight":0.03143879,
+            "drive_id":"1u75ENxMSIMgzF-NgemZJJ8rg5CtNUi1i",
+            "size_bytes":33284570
           },
           {
             "cluster_id":120523,
             "segment_id":10,
-            "weight":0.01462527
+            "weight":0.01462527,
+            "drive_id":"1UfMvd-nVxNkGn2AALN07J8q0Nmep6QpO",
+            "size_bytes":47086013
           }
         ]
       },
@@ -8798,17 +9264,23 @@
           {
             "cluster_id":37267,
             "segment_id":0,
-            "weight":0.43995684
+            "weight":0.43995684,
+            "drive_id":"1SjvERjUAIPFLttaCJuTdal380VAyb7gX",
+            "size_bytes":88892797
           },
           {
             "cluster_id":149154,
             "segment_id":1,
-            "weight":0.31585094
+            "weight":0.31585094,
+            "drive_id":"1cj_koqRqmIJk6Whr7Nrfd5vsJ9wfOEEB",
+            "size_bytes":94253021
           },
           {
             "cluster_id":259211,
             "segment_id":2,
-            "weight":0.2441922
+            "weight":0.2441922,
+            "drive_id":"1rbifkbRBC6ybgQG22L8wipICAuFOJ0JE",
+            "size_bytes":92799065
           }
         ]
       },
@@ -8838,12 +9310,16 @@
           {
             "cluster_id":95785,
             "segment_id":1,
-            "weight":0.97355813
+            "weight":0.97355813,
+            "drive_id":"1uAlDqASz33vbXH-Qbhhl19jVcmRI-awM",
+            "size_bytes":52845296
           },
           {
             "cluster_id":107196,
             "segment_id":2,
-            "weight":0.02223744
+            "weight":0.02223744,
+            "drive_id":"1h8xz7FeKSAVJhpKUxTjBuXFRq4lJ0dFK",
+            "size_bytes":52702710
           }
         ]
       },
@@ -8873,102 +9349,142 @@
           {
             "cluster_id":257701,
             "segment_id":0,
-            "weight":0.05088364
+            "weight":0.05088364,
+            "drive_id":"1mvG1CcOwU19jzNewAAZAsgUPcN7W7mRz",
+            "size_bytes":52559837
           },
           {
             "cluster_id":13203,
             "segment_id":1,
-            "weight":0.04247437
+            "weight":0.04247437,
+            "drive_id":"1jYlvbXmmO6QdBZC9QAwchvR6uDH0diuL",
+            "size_bytes":61719451
           },
           {
             "cluster_id":86809,
             "segment_id":2,
-            "weight":0.01668007
+            "weight":0.01668007,
+            "drive_id":"1DJeTX24wsaGGw8qiDt8IVSVLX6rDQkJA",
+            "size_bytes":53701624
           },
           {
             "cluster_id":125825,
             "segment_id":3,
-            "weight":0.01853376
+            "weight":0.01853376,
+            "drive_id":"1GJVDCYaXIwTOWX46QR2xQLpUh8r0Wse9",
+            "size_bytes":80131900
           },
           {
             "cluster_id":55366,
             "segment_id":4,
-            "weight":0.03236112
+            "weight":0.03236112,
+            "drive_id":"19Dmz2uPUjT0tawgtrgsm-UGKT4J0KGHF",
+            "size_bytes":58860177
           },
           {
             "cluster_id":39355,
             "segment_id":5,
-            "weight":0.03721228
+            "weight":0.03721228,
+            "drive_id":"1Dps3uBH8sZCtN1r8AWEzHPjdb_scI8H5",
+            "size_bytes":65395797
           },
           {
             "cluster_id":101516,
             "segment_id":6,
-            "weight":0.06363288
+            "weight":0.06363288,
+            "drive_id":"1oadUcBD5AxoP9gInatklfTLs-vpSjWs9",
+            "size_bytes":79337439
           },
           {
             "cluster_id":311062,
             "segment_id":7,
-            "weight":0.03136796
+            "weight":0.03136796,
+            "drive_id":"16lcDaBqgQJ7nFr3YFG2RKn7L9gbdiwpm",
+            "size_bytes":63575313
           },
           {
             "cluster_id":273808,
             "segment_id":8,
-            "weight":0.12697621
+            "weight":0.12697621,
+            "drive_id":"1GeNUOUU49OCRFNcuiXl2hIAAfLZFbWrA",
+            "size_bytes":56593804
           },
           {
             "cluster_id":310781,
             "segment_id":9,
-            "weight":0.19599706
+            "weight":0.19599706,
+            "drive_id":"1pvhQLGxwCDYby4oUNQOHtchzCcscbeEV",
+            "size_bytes":54472408
           },
           {
             "cluster_id":101531,
             "segment_id":10,
-            "weight":0.02832464
+            "weight":0.02832464,
+            "drive_id":"16XzKO48ddjk0jXNofARfWEuBamQuMQDH",
+            "size_bytes":51583460
           },
           {
             "cluster_id":165882,
             "segment_id":11,
-            "weight":0.02843479
+            "weight":0.02843479,
+            "drive_id":"1DvH_eaaq3S2TA26n00aYYkmQkKvcYK8g",
+            "size_bytes":55075666
           },
           {
             "cluster_id":180739,
             "segment_id":12,
-            "weight":0.0407088
+            "weight":0.0407088,
+            "drive_id":"1k_QhEG-hq63amyz85zJ2Hx_gP9o6LL80",
+            "size_bytes":68802998
           },
           {
             "cluster_id":5274,
             "segment_id":13,
-            "weight":0.03512885
+            "weight":0.03512885,
+            "drive_id":"1FTleljBW7qH3dd5yovOVqEv_EfApbMi0",
+            "size_bytes":104704095
           },
           {
             "cluster_id":228395,
             "segment_id":14,
-            "weight":0.04947999
+            "weight":0.04947999,
+            "drive_id":"1-hrVX2p8I9dvqnHyWYa7Hw7FDtUFE4wB",
+            "size_bytes":77216195
           },
           {
             "cluster_id":99138,
             "segment_id":15,
-            "weight":0.04825574
+            "weight":0.04825574,
+            "drive_id":"1TKJaut4ClbO4YvhkYRU76kKNcl4O4Tzi",
+            "size_bytes":79526397
           },
           {
             "cluster_id":316103,
             "segment_id":16,
-            "weight":0.0190373
+            "weight":0.0190373,
+            "drive_id":"1kDSZEUNdhSH3XkMg9ueZTwBLa6VMY4tL",
+            "size_bytes":76123985
           },
           {
             "cluster_id":243792,
             "segment_id":17,
-            "weight":0.07105393
+            "weight":0.07105393,
+            "drive_id":"10x_OdCQ5NkGG1mJGO4iWz-HGwSMAJXxR",
+            "size_bytes":52939620
           },
           {
             "cluster_id":268040,
             "segment_id":18,
-            "weight":0.03803684
+            "weight":0.03803684,
+            "drive_id":"1yHPwh3Po7cnNg9ASAEIrb1yDGJcwSWhO",
+            "size_bytes":78254798
           },
           {
             "cluster_id":99784,
             "segment_id":19,
-            "weight":0.02541979
+            "weight":0.02541979,
+            "drive_id":"1KjHNrsF6gZsgtn3Tsqe3MhAsPn9bCz4j",
+            "size_bytes":69545410
           }
         ]
       },
@@ -8998,17 +9514,23 @@
           {
             "cluster_id":95521,
             "segment_id":0,
-            "weight":0.18497767
+            "weight":0.18497767,
+            "drive_id":"1Etvz9UKxLlPaN4Bu9zgtzb7OzG9GzXRs",
+            "size_bytes":68405439
           },
           {
             "cluster_id":36576,
             "segment_id":1,
-            "weight":0.77214247
+            "weight":0.77214247,
+            "drive_id":"10QD039XesKR3bIRE_7kZi2TAfqT7BHhZ",
+            "size_bytes":71647431
           },
           {
             "cluster_id":141622,
             "segment_id":2,
-            "weight":0.04287986
+            "weight":0.04287986,
+            "drive_id":"1YVuNy_e5c2pN_3VOg4CV7LYpietXB5l3",
+            "size_bytes":53567073
           }
         ]
       },
@@ -9038,97 +9560,135 @@
           {
             "cluster_id":289,
             "segment_id":0,
-            "weight":0.00565614
+            "weight":0.00565614,
+            "drive_id":"1ioq0RtoIJGYw4LKSQlBOCm_sbd-VSNRj",
+            "size_bytes":32419856
           },
           {
             "cluster_id":179872,
             "segment_id":1,
-            "weight":0.14742118
+            "weight":0.14742118,
+            "drive_id":"16xDme9bpCYbbkHVb1IA97ON_Gacm55RP",
+            "size_bytes":64547185
           },
           {
             "cluster_id":58314,
             "segment_id":2,
-            "weight":0.06852451
+            "weight":0.06852451,
+            "drive_id":"1hOjJTPXxurXdS5pZ7s8kIb0Q-boBY0Rf",
+            "size_bytes":68080801
           },
           {
             "cluster_id":146719,
             "segment_id":3,
-            "weight":0.07985228
+            "weight":0.07985228,
+            "drive_id":"1Q6eBCjEHzn5jm32jO8Z6mOs4DPCRbMuG",
+            "size_bytes":74845701
           },
           {
             "cluster_id":121897,
             "segment_id":5,
-            "weight":0.06121543
+            "weight":0.06121543,
+            "drive_id":"1NhLFluxmjMLgcvdY27ffvn2fm6YGNcm7",
+            "size_bytes":53158172
           },
           {
             "cluster_id":60621,
             "segment_id":6,
-            "weight":0.09243525
+            "weight":0.09243525,
+            "drive_id":"1tbNYsYb3CSb7NvWjqv6eUJ_OYz_uzpvy",
+            "size_bytes":69109278
           },
           {
             "cluster_id":166831,
             "segment_id":7,
-            "weight":0.07143264
+            "weight":0.07143264,
+            "drive_id":"1ArURaBmRGW-ESbYXrWVYto0xt1dsGZeS",
+            "size_bytes":74312101
           },
           {
             "cluster_id":78104,
             "segment_id":8,
-            "weight":0.03746998
+            "weight":0.03746998,
+            "drive_id":"14Muk5XRxswPkeuXLCBO2hMSeHsQ0KKcy",
+            "size_bytes":74534059
           },
           {
             "cluster_id":122026,
             "segment_id":9,
-            "weight":0.03787288
+            "weight":0.03787288,
+            "drive_id":"12QFiClfYbqvnfygQVLqoaFJ7axRFH6Op",
+            "size_bytes":50458323
           },
           {
             "cluster_id":173450,
             "segment_id":10,
-            "weight":0.01469563
+            "weight":0.01469563,
+            "drive_id":"1ZnRaTihoJ7YpXAbubVw8926el1RUpo3d",
+            "size_bytes":50306750
           },
           {
             "cluster_id":139155,
             "segment_id":11,
-            "weight":0.02309461
+            "weight":0.02309461,
+            "drive_id":"1PswWxCSIYd2FDGHzrIftZSk5yZB4mgIn",
+            "size_bytes":74579654
           },
           {
             "cluster_id":10895,
             "segment_id":12,
-            "weight":0.07049254
+            "weight":0.07049254,
+            "drive_id":"1ocVEdHvXxKTVBM3g2GyNViPAvAnN2-nl",
+            "size_bytes":59104248
           },
           {
             "cluster_id":91836,
             "segment_id":13,
-            "weight":0.04840002
+            "weight":0.04840002,
+            "drive_id":"1vFWijCaTTVMGFLHuY0CrnOQkGGHpRnUc",
+            "size_bytes":58970042
           },
           {
             "cluster_id":24977,
             "segment_id":14,
-            "weight":0.05567293
+            "weight":0.05567293,
+            "drive_id":"18plMKWQK1h3z5E44fP32VUcjtRPyyVMw",
+            "size_bytes":74817453
           },
           {
             "cluster_id":167258,
             "segment_id":15,
-            "weight":0.04110127
+            "weight":0.04110127,
+            "drive_id":"1_LXZ3MAx-AppIHfYvvK-6DKxr3QrfZBS",
+            "size_bytes":74892261
           },
           {
             "cluster_id":13286,
             "segment_id":16,
-            "weight":0.02873525
+            "weight":0.02873525,
+            "drive_id":"1ar5tmatKhKDjMEkwhximdA_BeOtRVg1h",
+            "size_bytes":74466771
           },
           {
             "cluster_id":176729,
             "segment_id":17,
-            "weight":0.05615848
+            "weight":0.05615848,
+            "drive_id":"1Ym1Z-Zd_Wce0DBVTxSWvIOXRU27ktC1d",
+            "size_bytes":76181262
           },
           {
             "cluster_id":99271,
             "segment_id":18,
-            "weight":0.03479946
+            "weight":0.03479946,
+            "drive_id":"15JWvNQ859AULmg907OjWA9WIUwrl3LQe",
+            "size_bytes":51407029
           },
           {
             "cluster_id":193024,
             "segment_id":19,
-            "weight":0.01957695
+            "weight":0.01957695,
+            "drive_id":"1JPkt8CJh969kmLJ9lBHKONWy54uXEXP4",
+            "size_bytes":74293820
           }
         ]
       },
@@ -9158,27 +9718,37 @@
           {
             "cluster_id":1983,
             "segment_id":0,
-            "weight":0.0173632
+            "weight":0.0173632,
+            "drive_id":"1CTf0F4LOJYbt23LpW4QtQ9D1z1ffZowP",
+            "size_bytes":39324845
           },
           {
             "cluster_id":389845,
             "segment_id":1,
-            "weight":0.11920736
+            "weight":0.11920736,
+            "drive_id":"17RBxqCrs1x6HlBlSwfplcn9q6Z859T8R",
+            "size_bytes":13358612
           },
           {
             "cluster_id":326902,
             "segment_id":2,
-            "weight":0.15149572
+            "weight":0.15149572,
+            "drive_id":"18iysXh825TnVt99gCdl7TrthmG_so3UI",
+            "size_bytes":13308592
           },
           {
             "cluster_id":94577,
             "segment_id":3,
-            "weight":0.51363224
+            "weight":0.51363224,
+            "drive_id":"1vVJHNY-TMcKeVFAu72omr_dRvif_ToW1",
+            "size_bytes":35796924
           },
           {
             "cluster_id":260089,
             "segment_id":5,
-            "weight":0.19535159
+            "weight":0.19535159,
+            "drive_id":"12t7isSUN9k0AaVVOJO7SIynBpQ05rbnd",
+            "size_bytes":14507042
           }
         ]
       },
@@ -9208,27 +9778,37 @@
           {
             "cluster_id":146385,
             "segment_id":0,
-            "weight":0.1092897
+            "weight":0.1092897,
+            "drive_id":"1apRf5Zl_qrklgAF2AhM7BV8FPRU9Ln1Q",
+            "size_bytes":32487034
           },
           {
             "cluster_id":130940,
             "segment_id":1,
-            "weight":0.31200674
+            "weight":0.31200674,
+            "drive_id":"1iPnT9PFDy300RH7TWyKQQ7r0XEo97qVN",
+            "size_bytes":22868547
           },
           {
             "cluster_id":13344,
             "segment_id":2,
-            "weight":0.1721334
+            "weight":0.1721334,
+            "drive_id":"17OdJjBgPr3AkDhZ_LNpElEgB30MgNkgg",
+            "size_bytes":36398787
           },
           {
             "cluster_id":127547,
             "segment_id":3,
-            "weight":0.1801856
+            "weight":0.1801856,
+            "drive_id":"16WRvqByJqC5USuxygv4X5DHuMi1YDWSh",
+            "size_bytes":24301507
           },
           {
             "cluster_id":59950,
             "segment_id":4,
-            "weight":0.22638455
+            "weight":0.22638455,
+            "drive_id":"1zThpwwQzaBMGJlXLQ1LoE_0lBfvoK5M5",
+            "size_bytes":32789920
           }
         ]
       },
@@ -9258,57 +9838,79 @@
           {
             "cluster_id":174809,
             "segment_id":0,
-            "weight":0.0584892
+            "weight":0.0584892,
+            "drive_id":"1r5ccZ_fcOLCtgydAvXlQ5EjlbUE5Zp_k",
+            "size_bytes":66260026
           },
           {
             "cluster_id":150651,
             "segment_id":1,
-            "weight":0.03310826
+            "weight":0.03310826,
+            "drive_id":"1nJPEZW6jFebcxywBYZiczWa9frztUD4O",
+            "size_bytes":74791984
           },
           {
             "cluster_id":148717,
             "segment_id":2,
-            "weight":0.17669666
+            "weight":0.17669666,
+            "drive_id":"1W5BADhJpnZ7qDzhrwpCFI5tydcY4dRH6",
+            "size_bytes":73320188
           },
           {
             "cluster_id":146316,
             "segment_id":3,
-            "weight":0.0398609
+            "weight":0.0398609,
+            "drive_id":"1cdH_ooRd7sOKqpCxd3401qjYpIdodKz1",
+            "size_bytes":68275584
           },
           {
             "cluster_id":75075,
             "segment_id":4,
-            "weight":0.03939861
+            "weight":0.03939861,
+            "drive_id":"1RN36QMME8Uf2aJZom12ocRmskc5GhREu",
+            "size_bytes":78756858
           },
           {
             "cluster_id":11319,
             "segment_id":5,
-            "weight":0.02967967
+            "weight":0.02967967,
+            "drive_id":"113E0K0X_UtGRVAWA_by932H6EUv4AOV3",
+            "size_bytes":71216880
           },
           {
             "cluster_id":53067,
             "segment_id":6,
-            "weight":0.19919993
+            "weight":0.19919993,
+            "drive_id":"1xJ5ZOrzFZXNlzyyqUjdqjI6Z7MJPcnyl",
+            "size_bytes":72048696
           },
           {
             "cluster_id":145481,
             "segment_id":7,
-            "weight":0.30727509
+            "weight":0.30727509,
+            "drive_id":"19Zp5Zm3UUcLatSpf9qymWt0_b1toG411",
+            "size_bytes":71967960
           },
           {
             "cluster_id":102117,
             "segment_id":8,
-            "weight":0.03566183
+            "weight":0.03566183,
+            "drive_id":"1bSql1t-m7_HdblbZH-SkjPuKnW8K9tix",
+            "size_bytes":70646195
           },
           {
             "cluster_id":78623,
             "segment_id":9,
-            "weight":0.04409849
+            "weight":0.04409849,
+            "drive_id":"1MO86Jp2SONTh2bMghK04eMduIfh2t7_q",
+            "size_bytes":76338252
           },
           {
             "cluster_id":169441,
             "segment_id":10,
-            "weight":0.0323543
+            "weight":0.0323543,
+            "drive_id":"1-OrMvyINdyHzSkEQVqegT43D4D__dPSe",
+            "size_bytes":81469705
           }
         ]
       },
@@ -9338,97 +9940,135 @@
           {
             "cluster_id":132312,
             "segment_id":0,
-            "weight":0.06175291
+            "weight":0.06175291,
+            "drive_id":"1t34z4RnSOmu4rbZ53Pl6t0dZJRKW-eGT",
+            "size_bytes":82700854
           },
           {
             "cluster_id":129408,
             "segment_id":1,
-            "weight":0.04640476
+            "weight":0.04640476,
+            "drive_id":"1B9lp_B31-hHgQbIMEKwe1Q3cjgcRjWji",
+            "size_bytes":73969085
           },
           {
             "cluster_id":54007,
             "segment_id":2,
-            "weight":0.07210511
+            "weight":0.07210511,
+            "drive_id":"1R8ltAbf2UtAHK92mFlR20uT_sJRrzDwo",
+            "size_bytes":73832365
           },
           {
             "cluster_id":6959,
             "segment_id":3,
-            "weight":0.05643559
+            "weight":0.05643559,
+            "drive_id":"1zAaHqxh7X__XFiSSDFnx6a_7pYPdwNrT",
+            "size_bytes":73894304
           },
           {
             "cluster_id":115641,
             "segment_id":4,
-            "weight":0.07614179
+            "weight":0.07614179,
+            "drive_id":"1iJGmsVXUU-WTyghya4j4NyxgSRxDEsUJ",
+            "size_bytes":64882115
           },
           {
             "cluster_id":159651,
             "segment_id":5,
-            "weight":0.03838912
+            "weight":0.03838912,
+            "drive_id":"1oGNByA45d-zxg7NkL-85Y-6tfRGsg9uR",
+            "size_bytes":51546142
           },
           {
             "cluster_id":94532,
             "segment_id":6,
-            "weight":0.04377045
+            "weight":0.04377045,
+            "drive_id":"1Wu314PsBfhZNNva-L5RvHnzgkkSCOT2V",
+            "size_bytes":74197418
           },
           {
             "cluster_id":84544,
             "segment_id":7,
-            "weight":0.03396848
+            "weight":0.03396848,
+            "drive_id":"1X9VAQgFVSVivh2YdWpPDrumWjCaUTqhz",
+            "size_bytes":59570968
           },
           {
             "cluster_id":179854,
             "segment_id":8,
-            "weight":0.05406909
+            "weight":0.05406909,
+            "drive_id":"1vzKoy20mCgNM95vy0Yz4bOd5yRlZh_yd",
+            "size_bytes":35909910
           },
           {
             "cluster_id":12094,
             "segment_id":9,
-            "weight":0.04689657
+            "weight":0.04689657,
+            "drive_id":"1y4jB_jnWXvoB6YxGS950-dh7tk7V1bMG",
+            "size_bytes":38693696
           },
           {
             "cluster_id":51599,
             "segment_id":10,
-            "weight":0.04174968
+            "weight":0.04174968,
+            "drive_id":"1Xw6aEmIiaYDZnqfdi_yd9Qqd25oOdu6l",
+            "size_bytes":77980656
           },
           {
             "cluster_id":188464,
             "segment_id":11,
-            "weight":0.03319426
+            "weight":0.03319426,
+            "drive_id":"1B-9tYwNOHkQlghEEeCVA2V1kRHmmdCnL",
+            "size_bytes":63629432
           },
           {
             "cluster_id":77171,
             "segment_id":12,
-            "weight":0.03657844
+            "weight":0.03657844,
+            "drive_id":"1HXAtBgL8DlPhJjUjFMsn_sUlPavsB3Wu",
+            "size_bytes":64821772
           },
           {
             "cluster_id":47036,
             "segment_id":13,
-            "weight":0.03939779
+            "weight":0.03939779,
+            "drive_id":"1xp3qzg5SGXDwopcRZyqT90dkwo6ulzhy",
+            "size_bytes":54917199
           },
           {
             "cluster_id":70325,
             "segment_id":14,
-            "weight":0.04240217
+            "weight":0.04240217,
+            "drive_id":"1ssaaJ62PaEr3OlQGCP2Py_On7WUdh1cN",
+            "size_bytes":73499486
           },
           {
             "cluster_id":155482,
             "segment_id":15,
-            "weight":0.07025964
+            "weight":0.07025964,
+            "drive_id":"1BwHYAHefQKofOUDoaypGmp3hTNtCb8_V",
+            "size_bytes":37611023
           },
           {
             "cluster_id":161316,
             "segment_id":16,
-            "weight":0.12490331
+            "weight":0.12490331,
+            "drive_id":"1VNMfTNHmlAvqGZ6SXAWm2hHbS3U97-wN",
+            "size_bytes":62172065
           },
           {
             "cluster_id":192672,
             "segment_id":17,
-            "weight":0.04196393
+            "weight":0.04196393,
+            "drive_id":"1MsP9SsaMliPGQ0Jiqwrk1e6f0XYuecns",
+            "size_bytes":26103844
           },
           {
             "cluster_id":181593,
             "segment_id":19,
-            "weight":0.03695825
+            "weight":0.03695825,
+            "drive_id":"1_rTlL1mxIo8S34Ucf37ynIr-tchBKkWZ",
+            "size_bytes":63462608
           }
         ]
       }
