@@ -1660,7 +1660,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"/tmp_home/application/cpu2017/benchspec/CPU/500.perlbench_r/run/run_base_refrate_memtrace-m64.0000/perlbench_r_base.memtrace-m64 -I/tmp_home/application/cpu2017/benchspec/CPU/500.perlbench_r/run/run_base_refrate_memtrace-m64.0000/lib /tmp_home/application/cpu2017/benchspec/CPU/500.perlbench_r/run/run_base_refrate_memtrace-m64.0000/checkspam.pl 2500 5 25 11 150 1 1 1 1",
+            "binary_cmd":"\\$tmpdir/application/cpu2017/benchspec/CPU/500.perlbench_r/run/run_base_refrate_memtrace-m64.0000/perlbench_r_base.memtrace-m64 -I\\$tmpdir/application/cpu2017/benchspec/CPU/500.perlbench_r/run/run_base_refrate_memtrace-m64.0000/lib \\$tmpdir/application/cpu2017/benchspec/CPU/500.perlbench_r/run/run_base_refrate_memtrace-m64.0000/checkspam.pl 2500 5 25 11 150 1 1 1 1",
             "client_bincmd":null
           },
           "memtrace":{
@@ -1700,7 +1700,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"/tmp_home/application/cpu2017/benchspec/CPU/500.perlbench_r/run/run_base_refrate_memtrace-m64.0000/perlbench_r_base.memtrace-m64 -I/tmp_home/application/cpu2017/benchspec/CPU/500.perlbench_r/run/run_base_refrate_memtrace-m64.0000/lib /tmp_home/application/cpu2017/benchspec/CPU/500.perlbench_r/run/run_base_refrate_memtrace-m64.0000/diffmail.pl 4 800 10 17 19 300",
+            "binary_cmd":"\\$tmpdir/application/cpu2017/benchspec/CPU/500.perlbench_r/run/run_base_refrate_memtrace-m64.0000/perlbench_r_base.memtrace-m64 -I\\$tmpdir/application/cpu2017/benchspec/CPU/500.perlbench_r/run/run_base_refrate_memtrace-m64.0000/lib \\$tmpdir/application/cpu2017/benchspec/CPU/500.perlbench_r/run/run_base_refrate_memtrace-m64.0000/diffmail.pl 4 800 10 17 19 300",
             "client_bincmd":null
           },
           "memtrace":{
@@ -1740,7 +1740,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"/tmp_home/application/cpu2017/benchspec/CPU/500.perlbench_r/run/run_base_refrate_memtrace-m64.0000/perlbench_r_base.memtrace-m64 -I/tmp_home/application/cpu2017/benchspec/CPU/500.perlbench_r/run/run_base_refrate_memtrace-m64.0000/lib /tmp_home/application/cpu2017/benchspec/CPU/500.perlbench_r/run/run_base_refrate_memtrace-m64.0000/splitmail.pl 6400 12 26 16 100 0",
+            "binary_cmd":"\\$tmpdir/application/cpu2017/benchspec/CPU/500.perlbench_r/run/run_base_refrate_memtrace-m64.0000/perlbench_r_base.memtrace-m64 -I\\$tmpdir/application/cpu2017/benchspec/CPU/500.perlbench_r/run/run_base_refrate_memtrace-m64.0000/lib \\$tmpdir/application/cpu2017/benchspec/CPU/500.perlbench_r/run/run_base_refrate_memtrace-m64.0000/splitmail.pl 6400 12 26 16 100 0",
             "client_bincmd":null
           },
           "memtrace":{
@@ -1780,7 +1780,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"/tmp_home/application/cpu2017/benchspec/CPU/502.gcc_r/run/run_base_refrate_memtrace-m64.0000/cpugcc_r_base.memtrace-m64 /tmp_home/application/cpu2017/benchspec/CPU/502.gcc_r/run/run_base_refrate_memtrace-m64.0000/gcc-pp.c -O3 -finline-limit=0 -fif-conversion -fif-conversion2 -o /tmp_home/application/cpu2017/benchspec/CPU/502.gcc_r/run/run_base_refrate_memtrace-m64.0000/gcc-pp.opts-O3_-finline-limit_0_-fif-conversion_-fif-conversion2.s",
+            "binary_cmd":"\\$tmpdir/application/cpu2017/benchspec/CPU/502.gcc_r/run/run_base_refrate_memtrace-m64.0000/cpugcc_r_base.memtrace-m64 \\$tmpdir/application/cpu2017/benchspec/CPU/502.gcc_r/run/run_base_refrate_memtrace-m64.0000/gcc-pp.c -O3 -finline-limit=0 -fif-conversion -fif-conversion2 -o \\$tmpdir/application/cpu2017/benchspec/CPU/502.gcc_r/run/run_base_refrate_memtrace-m64.0000/gcc-pp.opts-O3_-finline-limit_0_-fif-conversion_-fif-conversion2.s",
             "client_bincmd":null
           },
           "memtrace":{
@@ -1820,7 +1820,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"/tmp_home/application/cpu2017/benchspec/CPU/502.gcc_r/run/run_base_refrate_memtrace-m64.0000/cpugcc_r_base.memtrace-m64 /tmp_home/application/cpu2017/benchspec/CPU/502.gcc_r/run/run_base_refrate_memtrace-m64.0000/gcc-pp.c -O2 -finline-limit=36000 -fpic -o /tmp_home/application/cpu2017/benchspec/CPU/502.gcc_r/run/run_base_refrate_memtrace-m64.0000/gcc-pp.opts-O2_-finline-limit_36000_-fpic.s",
+            "binary_cmd":"\\$tmpdir/application/cpu2017/benchspec/CPU/502.gcc_r/run/run_base_refrate_memtrace-m64.0000/cpugcc_r_base.memtrace-m64 \\$tmpdir/application/cpu2017/benchspec/CPU/502.gcc_r/run/run_base_refrate_memtrace-m64.0000/gcc-pp.c -O2 -finline-limit=36000 -fpic -o \\$tmpdir/application/cpu2017/benchspec/CPU/502.gcc_r/run/run_base_refrate_memtrace-m64.0000/gcc-pp.opts-O2_-finline-limit_36000_-fpic.s",
             "client_bincmd":null
           },
           "memtrace":{
@@ -1860,7 +1860,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"/tmp_home/application/cpu2017/benchspec/CPU/502.gcc_r/run/run_base_refrate_memtrace-m64.0000/cpugcc_r_base.memtrace-m64 /tmp_home/application/cpu2017/benchspec/CPU/502.gcc_r/run/run_base_refrate_memtrace-m64.0000/gcc-smaller.c -O3 -fipa-pta -o /tmp_home/application/cpu2017/benchspec/CPU/502.gcc_r/run/run_base_refrate_memtrace-m64.0000/gcc-smaller.opts-O3_-fipa-pta.s",
+            "binary_cmd":"\\$tmpdir/application/cpu2017/benchspec/CPU/502.gcc_r/run/run_base_refrate_memtrace-m64.0000/cpugcc_r_base.memtrace-m64 \\$tmpdir/application/cpu2017/benchspec/CPU/502.gcc_r/run/run_base_refrate_memtrace-m64.0000/gcc-smaller.c -O3 -fipa-pta -o \\$tmpdir/application/cpu2017/benchspec/CPU/502.gcc_r/run/run_base_refrate_memtrace-m64.0000/gcc-smaller.opts-O3_-fipa-pta.s",
             "client_bincmd":null
           },
           "memtrace":{
@@ -1900,7 +1900,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"/tmp_home/application/cpu2017/benchspec/CPU/502.gcc_r/run/run_base_refrate_memtrace-m64.0000/cpugcc_r_base.memtrace-m64 /tmp_home/application/cpu2017/benchspec/CPU/502.gcc_r/run/run_base_refrate_memtrace-m64.0000/ref32.c -O5 -o /tmp_home/application/cpu2017/benchspec/CPU/502.gcc_r/run/run_base_refrate_memtrace-m64.0000/ref32.opts-O5.s",
+            "binary_cmd":"\\$tmpdir/application/cpu2017/benchspec/CPU/502.gcc_r/run/run_base_refrate_memtrace-m64.0000/cpugcc_r_base.memtrace-m64 \\$tmpdir/application/cpu2017/benchspec/CPU/502.gcc_r/run/run_base_refrate_memtrace-m64.0000/ref32.c -O5 -o \\$tmpdir/application/cpu2017/benchspec/CPU/502.gcc_r/run/run_base_refrate_memtrace-m64.0000/ref32.opts-O5.s",
             "client_bincmd":null
           },
           "memtrace":{
@@ -1940,7 +1940,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"/tmp_home/application/cpu2017/benchspec/CPU/502.gcc_r/run/run_base_refrate_memtrace-m64.0000/cpugcc_r_base.memtrace-m64 /tmp_home/application/cpu2017/benchspec/CPU/502.gcc_r/run/run_base_refrate_memtrace-m64.0000/ref32.c -O3 -fselective-scheduling -fselective-scheduling2 -o /tmp_home/application/cpu2017/benchspec/CPU/502.gcc_r/run/run_base_refrate_memtrace-m64.0000/ref32.opts-O3_-fselective-scheduling_-fselective-scheduling2.s",
+            "binary_cmd":"\\$tmpdir/application/cpu2017/benchspec/CPU/502.gcc_r/run/run_base_refrate_memtrace-m64.0000/cpugcc_r_base.memtrace-m64 \\$tmpdir/application/cpu2017/benchspec/CPU/502.gcc_r/run/run_base_refrate_memtrace-m64.0000/ref32.c -O3 -fselective-scheduling -fselective-scheduling2 -o \\$tmpdir/application/cpu2017/benchspec/CPU/502.gcc_r/run/run_base_refrate_memtrace-m64.0000/ref32.opts-O3_-fselective-scheduling_-fselective-scheduling2.s",
             "client_bincmd":null
           },
           "memtrace":{
@@ -1980,7 +1980,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"/tmp_home/application/cpu2017/benchspec/CPU/505.mcf_r/run/run_base_refrate_memtrace-m64.0000/mcf_r_base.memtrace-m64 /tmp_home/application/cpu2017/benchspec/CPU/505.mcf_r/run/run_base_refrate_memtrace-m64.0000/inp.in",
+            "binary_cmd":"\\$tmpdir/application/cpu2017/benchspec/CPU/505.mcf_r/run/run_base_refrate_memtrace-m64.0000/mcf_r_base.memtrace-m64 \\$tmpdir/application/cpu2017/benchspec/CPU/505.mcf_r/run/run_base_refrate_memtrace-m64.0000/inp.in",
             "client_bincmd":null
           },
           "memtrace":{
@@ -2020,7 +2020,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"/tmp_home/application/cpu2017/benchspec/CPU/520.omnetpp_r/run/run_base_refrate_memtrace-m64.0000/omnetpp_r_base.memtrace-m64 -c General -r 0",
+            "binary_cmd":"\\$tmpdir/application/cpu2017/benchspec/CPU/520.omnetpp_r/run/run_base_refrate_memtrace-m64.0000/omnetpp_r_base.memtrace-m64 -c General -r 0",
             "client_bincmd":null
           },
           "memtrace":{
@@ -2055,7 +2055,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"/tmp_home/application/cpu2017/benchspec/CPU/523.xalancbmk_r/run/run_base_refrate_memtrace-m64.0000/cpuxalan_r_base.memtrace-m64 -v /tmp_home/application/cpu2017/benchspec/CPU/523.xalancbmk_r/run/run_base_refrate_memtrace-m64.0000/t5.xml /tmp_home/application/cpu2017/benchspec/CPU/523.xalancbmk_r/run/run_base_refrate_memtrace-m64.0000/xalanc.xsl",
+            "binary_cmd":"\\$tmpdir/application/cpu2017/benchspec/CPU/523.xalancbmk_r/run/run_base_refrate_memtrace-m64.0000/cpuxalan_r_base.memtrace-m64 -v \\$tmpdir/application/cpu2017/benchspec/CPU/523.xalancbmk_r/run/run_base_refrate_memtrace-m64.0000/t5.xml \\$tmpdir/application/cpu2017/benchspec/CPU/523.xalancbmk_r/run/run_base_refrate_memtrace-m64.0000/xalanc.xsl",
             "client_bincmd":null
           },
           "memtrace":{
@@ -2095,7 +2095,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"/tmp_home/application/cpu2017/benchspec/CPU/525.x264_r/run/run_base_refrate_memtrace-m64.0000/x264_r_base.memtrace-m64 --pass 1 --stats /tmp_home/application/cpu2017/benchspec/CPU/525.x264_r/run/run_base_refrate_memtrace-m64.0000/x264_stats.log --bitrate 1000 --frames 1000 -o /tmp_home/application/cpu2017/benchspec/CPU/525.x264_r/run/run_base_refrate_memtrace-m64.0000/BuckBunny_New.264 /tmp_home/application/cpu2017/benchspec/CPU/525.x264_r/run/run_base_refrate_memtrace-m64.0000/BuckBunny.yuv 1280x720",
+            "binary_cmd":"\\$tmpdir/application/cpu2017/benchspec/CPU/525.x264_r/run/run_base_refrate_memtrace-m64.0000/x264_r_base.memtrace-m64 --pass 1 --stats \\$tmpdir/application/cpu2017/benchspec/CPU/525.x264_r/run/run_base_refrate_memtrace-m64.0000/x264_stats.log --bitrate 1000 --frames 1000 -o \\$tmpdir/application/cpu2017/benchspec/CPU/525.x264_r/run/run_base_refrate_memtrace-m64.0000/BuckBunny_New.264 \\$tmpdir/application/cpu2017/benchspec/CPU/525.x264_r/run/run_base_refrate_memtrace-m64.0000/BuckBunny.yuv 1280x720",
             "client_bincmd":null
           },
           "memtrace":{
@@ -2135,7 +2135,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"/tmp_home/application/cpu2017/benchspec/CPU/525.x264_r/run/run_base_refrate_memtrace-m64.0000/x264_r_base.memtrace-m64 --pass 2 --stats /tmp_home/application/cpu2017/benchspec/CPU/525.x264_r/run/run_base_refrate_memtrace-m64.0000/x264_stats.log --bitrate 1000 --dumpyuv 200 --frames 1000 -o /tmp_home/application/cpu2017/benchspec/CPU/525.x264_r/run/run_base_refrate_memtrace-m64.0000/BuckBunny_New.264 /tmp_home/application/cpu2017/benchspec/CPU/525.x264_r/run/run_base_refrate_memtrace-m64.0000/BuckBunny.yuv 1280x720",
+            "binary_cmd":"\\$tmpdir/application/cpu2017/benchspec/CPU/525.x264_r/run/run_base_refrate_memtrace-m64.0000/x264_r_base.memtrace-m64 --pass 2 --stats \\$tmpdir/application/cpu2017/benchspec/CPU/525.x264_r/run/run_base_refrate_memtrace-m64.0000/x264_stats.log --bitrate 1000 --dumpyuv 200 --frames 1000 -o \\$tmpdir/application/cpu2017/benchspec/CPU/525.x264_r/run/run_base_refrate_memtrace-m64.0000/BuckBunny_New.264 \\$tmpdir/application/cpu2017/benchspec/CPU/525.x264_r/run/run_base_refrate_memtrace-m64.0000/BuckBunny.yuv 1280x720",
             "client_bincmd":null
           },
           "memtrace":{
@@ -2175,7 +2175,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"/tmp_home/application/cpu2017/benchspec/CPU/525.x264_r/run/run_base_refrate_memtrace-m64.0000/x264_r_base.memtrace-m64 --seek 500 --dumpyuv 200 --frames 1250 -o /tmp_home/application/cpu2017/benchspec/CPU/525.x264_r/run/run_base_refrate_memtrace-m64.0000/BuckBunny_New.264 /tmp_home/application/cpu2017/benchspec/CPU/525.x264_r/run/run_base_refrate_memtrace-m64.0000/BuckBunny.yuv 1280x720",
+            "binary_cmd":"\\$tmpdir/application/cpu2017/benchspec/CPU/525.x264_r/run/run_base_refrate_memtrace-m64.0000/x264_r_base.memtrace-m64 --seek 500 --dumpyuv 200 --frames 1250 -o \\$tmpdir/application/cpu2017/benchspec/CPU/525.x264_r/run/run_base_refrate_memtrace-m64.0000/BuckBunny_New.264 \\$tmpdir/application/cpu2017/benchspec/CPU/525.x264_r/run/run_base_refrate_memtrace-m64.0000/BuckBunny.yuv 1280x720",
             "client_bincmd":null
           },
           "memtrace":{
@@ -2215,7 +2215,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"/tmp_home/application/cpu2017/benchspec/CPU/531.deepsjeng_r/run/run_base_refrate_memtrace-m64.0000/deepsjeng_r_base.memtrace-m64 /tmp_home/application/cpu2017/benchspec/CPU/531.deepsjeng_r/run/run_base_refrate_memtrace-m64.0000/ref.txt",
+            "binary_cmd":"\\$tmpdir/application/cpu2017/benchspec/CPU/531.deepsjeng_r/run/run_base_refrate_memtrace-m64.0000/deepsjeng_r_base.memtrace-m64 \\$tmpdir/application/cpu2017/benchspec/CPU/531.deepsjeng_r/run/run_base_refrate_memtrace-m64.0000/ref.txt",
             "client_bincmd":null
           },
           "memtrace":{
@@ -2255,7 +2255,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"/tmp_home/application/cpu2017/benchspec/CPU/541.leela_r/run/run_base_refrate_memtrace-m64.0000/leela_r_base.memtrace-m64 /tmp_home/application/cpu2017/benchspec/CPU/541.leela_r/run/run_base_refrate_memtrace-m64.0000/ref.sgf",
+            "binary_cmd":"\\$tmpdir/application/cpu2017/benchspec/CPU/541.leela_r/run/run_base_refrate_memtrace-m64.0000/leela_r_base.memtrace-m64 \\$tmpdir/application/cpu2017/benchspec/CPU/541.leela_r/run/run_base_refrate_memtrace-m64.0000/ref.sgf",
             "client_bincmd":null
           },
           "memtrace":{
@@ -2295,7 +2295,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"/tmp_home/application/cpu2017/benchspec/CPU/548.exchange2_r/run/run_base_refrate_memtrace-m64.0000/exchange2_r_base.memtrace-m64 6",
+            "binary_cmd":"\\$tmpdir/application/cpu2017/benchspec/CPU/548.exchange2_r/run/run_base_refrate_memtrace-m64.0000/exchange2_r_base.memtrace-m64 6",
             "client_bincmd":null
           },
           "memtrace":{
@@ -2335,7 +2335,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"/tmp_home/application/cpu2017/benchspec/CPU/557.xz_r/run/run_base_refrate_memtrace-m64.0000/xz_r_base.memtrace-m64 /tmp_home/application/cpu2017/benchspec/CPU/557.xz_r/run/run_base_refrate_memtrace-m64.0000/cld.tar.xz 160 19cf30ae51eddcbefda78dd06014b4b96281456e078ca7c13e1c0c9e6aaea8dff3efb4ad6b0456697718cede6bd5454852652806a657bb56e07d61128434b474 59796407 61004416 6",
+            "binary_cmd":"\\$tmpdir/application/cpu2017/benchspec/CPU/557.xz_r/run/run_base_refrate_memtrace-m64.0000/xz_r_base.memtrace-m64 \\$tmpdir/application/cpu2017/benchspec/CPU/557.xz_r/run/run_base_refrate_memtrace-m64.0000/cld.tar.xz 160 19cf30ae51eddcbefda78dd06014b4b96281456e078ca7c13e1c0c9e6aaea8dff3efb4ad6b0456697718cede6bd5454852652806a657bb56e07d61128434b474 59796407 61004416 6",
             "client_bincmd":null
           },
           "memtrace":{
@@ -2375,7 +2375,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"/tmp_home/application/cpu2017/benchspec/CPU/557.xz_r/run/run_base_refrate_memtrace-m64.0000/xz_r_base.memtrace-m64 /tmp_home/application/cpu2017/benchspec/CPU/557.xz_r/run/run_base_refrate_memtrace-m64.0000/cpu2006docs.tar.xz 250 055ce243071129412e9dd0b3b69a21654033a9b723d874b2015c774fac1553d9713be561ca86f74e4f16f22e664fc17a79f30caa5ad2c04fbc447549c2810fae 23047774 23513385 6e",
+            "binary_cmd":"\\$tmpdir/application/cpu2017/benchspec/CPU/557.xz_r/run/run_base_refrate_memtrace-m64.0000/xz_r_base.memtrace-m64 \\$tmpdir/application/cpu2017/benchspec/CPU/557.xz_r/run/run_base_refrate_memtrace-m64.0000/cpu2006docs.tar.xz 250 055ce243071129412e9dd0b3b69a21654033a9b723d874b2015c774fac1553d9713be561ca86f74e4f16f22e664fc17a79f30caa5ad2c04fbc447549c2810fae 23047774 23513385 6e",
             "client_bincmd":null
           },
           "memtrace":{
@@ -2415,7 +2415,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"/tmp_home/application/cpu2017/benchspec/CPU/557.xz_r/run/run_base_refrate_memtrace-m64.0000/xz_r_base.memtrace-m64 /tmp_home/application/cpu2017/benchspec/CPU/557.xz_r/run/run_base_refrate_memtrace-m64.0000/input.combined.xz 250 a841f68f38572a49d86226b7ff5baeb31bd19dc637a922a972b2e6d1257a890f6a544ecab967c313e370478c74f760eb229d4eef8a8d2836d233d3e9dd1430bf 40401484 41217675 7",
+            "binary_cmd":"\\$tmpdir/application/cpu2017/benchspec/CPU/557.xz_r/run/run_base_refrate_memtrace-m64.0000/xz_r_base.memtrace-m64 \\$tmpdir/application/cpu2017/benchspec/CPU/557.xz_r/run/run_base_refrate_memtrace-m64.0000/input.combined.xz 250 a841f68f38572a49d86226b7ff5baeb31bd19dc637a922a972b2e6d1257a890f6a544ecab967c313e370478c74f760eb229d4eef8a8d2836d233d3e9dd1430bf 40401484 41217675 7",
             "client_bincmd":null
           },
           "memtrace":{
@@ -2457,7 +2457,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"/tmp_home/application/cpu2017/benchspec/CPU/503.bwaves_r/run/run_base_refrate_memtrace-m64.0000/bwaves_r_base.memtrace-m64 /tmp_home/application/cpu2017/benchspec/CPU/503.bwaves_r/run/run_base_refrate_memtrace-m64.0000/bwaves_1 < /tmp_home/application/cpu2017/benchspec/CPU/503.bwaves_r/run/run_base_refrate_memtrace-m64.0000/bwaves_1.in",
+            "binary_cmd":"\\$tmpdir/application/cpu2017/benchspec/CPU/503.bwaves_r/run/run_base_refrate_memtrace-m64.0000/bwaves_r_base.memtrace-m64 \\$tmpdir/application/cpu2017/benchspec/CPU/503.bwaves_r/run/run_base_refrate_memtrace-m64.0000/bwaves_1 < \\$tmpdir/application/cpu2017/benchspec/CPU/503.bwaves_r/run/run_base_refrate_memtrace-m64.0000/bwaves_1.in",
             "client_bincmd":null
           },
           "memtrace":{
@@ -2497,7 +2497,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"/tmp_home/application/cpu2017/benchspec/CPU/503.bwaves_r/run/run_base_refrate_memtrace-m64.0000/bwaves_r_base.memtrace-m64 /tmp_home/application/cpu2017/benchspec/CPU/503.bwaves_r/run/run_base_refrate_memtrace-m64.0000/bwaves_2 < /tmp_home/application/cpu2017/benchspec/CPU/503.bwaves_r/run/run_base_refrate_memtrace-m64.0000/bwaves_2.in",
+            "binary_cmd":"\\$tmpdir/application/cpu2017/benchspec/CPU/503.bwaves_r/run/run_base_refrate_memtrace-m64.0000/bwaves_r_base.memtrace-m64 \\$tmpdir/application/cpu2017/benchspec/CPU/503.bwaves_r/run/run_base_refrate_memtrace-m64.0000/bwaves_2 < \\$tmpdir/application/cpu2017/benchspec/CPU/503.bwaves_r/run/run_base_refrate_memtrace-m64.0000/bwaves_2.in",
             "client_bincmd":null
           },
           "memtrace":{
@@ -2537,7 +2537,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"/tmp_home/application/cpu2017/benchspec/CPU/503.bwaves_r/run/run_base_refrate_memtrace-m64.0000/bwaves_r_base.memtrace-m64 /tmp_home/application/cpu2017/benchspec/CPU/503.bwaves_r/run/run_base_refrate_memtrace-m64.0000/bwaves_3 < /tmp_home/application/cpu2017/benchspec/CPU/503.bwaves_r/run/run_base_refrate_memtrace-m64.0000/bwaves_3.in",
+            "binary_cmd":"\\$tmpdir/application/cpu2017/benchspec/CPU/503.bwaves_r/run/run_base_refrate_memtrace-m64.0000/bwaves_r_base.memtrace-m64 \\$tmpdir/application/cpu2017/benchspec/CPU/503.bwaves_r/run/run_base_refrate_memtrace-m64.0000/bwaves_3 < \\$tmpdir/application/cpu2017/benchspec/CPU/503.bwaves_r/run/run_base_refrate_memtrace-m64.0000/bwaves_3.in",
             "client_bincmd":null
           },
           "memtrace":{
@@ -2577,7 +2577,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"/tmp_home/application/cpu2017/benchspec/CPU/503.bwaves_r/run/run_base_refrate_memtrace-m64.0000/bwaves_r_base.memtrace-m64 /tmp_home/application/cpu2017/benchspec/CPU/503.bwaves_r/run/run_base_refrate_memtrace-m64.0000/bwaves_4 < /tmp_home/application/cpu2017/benchspec/CPU/503.bwaves_r/run/run_base_refrate_memtrace-m64.0000/bwaves_4.in",
+            "binary_cmd":"\\$tmpdir/application/cpu2017/benchspec/CPU/503.bwaves_r/run/run_base_refrate_memtrace-m64.0000/bwaves_r_base.memtrace-m64 \\$tmpdir/application/cpu2017/benchspec/CPU/503.bwaves_r/run/run_base_refrate_memtrace-m64.0000/bwaves_4 < \\$tmpdir/application/cpu2017/benchspec/CPU/503.bwaves_r/run/run_base_refrate_memtrace-m64.0000/bwaves_4.in",
             "client_bincmd":null
           },
           "memtrace":{
@@ -2617,7 +2617,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"/tmp_home/application/cpu2017/benchspec/CPU/507.cactuBSSN_r/run/run_base_refrate_memtrace-m64.0000/cactusBSSN_r_base.memtrace-m64 /tmp_home/application/cpu2017/benchspec/CPU/507.cactuBSSN_r/run/run_base_refrate_memtrace-m64.0000/spec_ref.par",
+            "binary_cmd":"\\$tmpdir/application/cpu2017/benchspec/CPU/507.cactuBSSN_r/run/run_base_refrate_memtrace-m64.0000/cactusBSSN_r_base.memtrace-m64 \\$tmpdir/application/cpu2017/benchspec/CPU/507.cactuBSSN_r/run/run_base_refrate_memtrace-m64.0000/spec_ref.par",
             "client_bincmd":null
           },
           "memtrace":{
@@ -2657,7 +2657,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"/tmp_home/application/cpu2017/benchspec/CPU/508.namd_r/run/run_base_refrate_memtrace-m64.0000/namd_r_base.memtrace-m64 --input /tmp_home/application/cpu2017/benchspec/CPU/508.namd_r/run/run_base_refrate_memtrace-m64.0000/apoa1.input --output /tmp_home/application/cpu2017/benchspec/CPU/508.namd_r/run/run_base_refrate_memtrace-m64.0000/apoa1.ref.output --iterations 65",
+            "binary_cmd":"\\$tmpdir/application/cpu2017/benchspec/CPU/508.namd_r/run/run_base_refrate_memtrace-m64.0000/namd_r_base.memtrace-m64 --input \\$tmpdir/application/cpu2017/benchspec/CPU/508.namd_r/run/run_base_refrate_memtrace-m64.0000/apoa1.input --output \\$tmpdir/application/cpu2017/benchspec/CPU/508.namd_r/run/run_base_refrate_memtrace-m64.0000/apoa1.ref.output --iterations 65",
             "client_bincmd":null
           },
           "memtrace":{
@@ -2697,7 +2697,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"/tmp_home/application/cpu2017/benchspec/CPU/510.parest_r/run/run_base_refrate_memtrace-m64.0000/parest_r_base.memtrace-m64 ref.prm",
+            "binary_cmd":"\\$tmpdir/application/cpu2017/benchspec/CPU/510.parest_r/run/run_base_refrate_memtrace-m64.0000/parest_r_base.memtrace-m64 ref.prm",
             "client_bincmd":null
           },
           "memtrace":{
@@ -2737,7 +2737,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"/tmp_home/application/cpu2017/benchspec/CPU/511.povray_r/run/run_base_refrate_memtrace-m64.0000/povray_r_base.memtrace-m64 /tmp_home/application/cpu2017/benchspec/CPU/511.povray_r/run/run_base_refrate_memtrace-m64.0000/SPEC-benchmark-ref.ini",
+            "binary_cmd":"\\$tmpdir/application/cpu2017/benchspec/CPU/511.povray_r/run/run_base_refrate_memtrace-m64.0000/povray_r_base.memtrace-m64 \\$tmpdir/application/cpu2017/benchspec/CPU/511.povray_r/run/run_base_refrate_memtrace-m64.0000/SPEC-benchmark-ref.ini",
             "client_bincmd":null
           },
           "memtrace":{
@@ -2777,7 +2777,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"/tmp_home/application/cpu2017/benchspec/CPU/519.lbm_r/run/run_base_refrate_memtrace-m64.0000/lbm_r_base.memtrace-m64 3000 /tmp_home/application/cpu2017/benchspec/CPU/519.lbm_r/run/run_base_refrate_memtrace-m64.0000/reference.dat 0 0 100_100_130_ldc.of",
+            "binary_cmd":"\\$tmpdir/application/cpu2017/benchspec/CPU/519.lbm_r/run/run_base_refrate_memtrace-m64.0000/lbm_r_base.memtrace-m64 3000 \\$tmpdir/application/cpu2017/benchspec/CPU/519.lbm_r/run/run_base_refrate_memtrace-m64.0000/reference.dat 0 0 100_100_130_ldc.of",
             "client_bincmd":null
           },
           "memtrace":{
@@ -2812,7 +2812,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"/tmp_home/application/cpu2017/benchspec/CPU/521.wrf_r/run/run_base_refrate_memtrace-m64.0000/wrf_r_base.memtrace-m64",
+            "binary_cmd":"\\$tmpdir/application/cpu2017/benchspec/CPU/521.wrf_r/run/run_base_refrate_memtrace-m64.0000/wrf_r_base.memtrace-m64",
             "client_bincmd":null
           },
           "memtrace":{
@@ -2852,7 +2852,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"/tmp_home/application/cpu2017/benchspec/CPU/526.blender_r/run/run_base_refrate_memtrace-m64.0000/blender_r_base.memtrace-m64 /tmp_home/application/cpu2017/benchspec/CPU/526.blender_r/run/run_base_refrate_memtrace-m64.0000/sh3_no_char.blend --render-output /tmp_home/application/cpu2017/benchspec/CPU/526.blender_r/run/run_base_refrate_memtrace-m64.0000/sh3_no_char_ --threads 1 -b -F RAWTGA -s 849 -e 849 -a",
+            "binary_cmd":"\\$tmpdir/application/cpu2017/benchspec/CPU/526.blender_r/run/run_base_refrate_memtrace-m64.0000/blender_r_base.memtrace-m64 \\$tmpdir/application/cpu2017/benchspec/CPU/526.blender_r/run/run_base_refrate_memtrace-m64.0000/sh3_no_char.blend --render-output \\$tmpdir/application/cpu2017/benchspec/CPU/526.blender_r/run/run_base_refrate_memtrace-m64.0000/sh3_no_char_ --threads 1 -b -F RAWTGA -s 849 -e 849 -a",
             "client_bincmd":null
           },
           "memtrace":{
@@ -2892,7 +2892,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"/tmp_home/application/cpu2017/benchspec/CPU/527.cam4_r/run/run_base_refrate_memtrace-m64.0000/cam4_r_base.memtrace-m64",
+            "binary_cmd":"\\$tmpdir/application/cpu2017/benchspec/CPU/527.cam4_r/run/run_base_refrate_memtrace-m64.0000/cam4_r_base.memtrace-m64",
             "client_bincmd":null
           },
           "memtrace":{
@@ -2932,7 +2932,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"/tmp_home/application/cpu2017/benchspec/CPU/538.imagick_r/run/run_base_refrate_memtrace-m64.0000/imagick_r_base.memtrace-m64 -limit disk 0 /tmp_home/application/cpu2017/benchspec/CPU/538.imagick_r/run/run_base_refrate_memtrace-m64.0000/refrate_input.tga -edge 41 -resample 181% -emboss 31 -colorspace YUV -mean-shift 19x19+15% -resize 30% /tmp_home/application/cpu2017/benchspec/CPU/538.imagick_r/run/run_base_refrate_memtrace-m64.0000/refrate_output.tga",
+            "binary_cmd":"\\$tmpdir/application/cpu2017/benchspec/CPU/538.imagick_r/run/run_base_refrate_memtrace-m64.0000/imagick_r_base.memtrace-m64 -limit disk 0 \\$tmpdir/application/cpu2017/benchspec/CPU/538.imagick_r/run/run_base_refrate_memtrace-m64.0000/refrate_input.tga -edge 41 -resample 181% -emboss 31 -colorspace YUV -mean-shift 19x19+15% -resize 30% \\$tmpdir/application/cpu2017/benchspec/CPU/538.imagick_r/run/run_base_refrate_memtrace-m64.0000/refrate_output.tga",
             "client_bincmd":null
           },
           "memtrace":{
@@ -2972,7 +2972,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"/tmp_home/application/cpu2017/benchspec/CPU/544.nab_r/run/run_base_refrate_memtrace-m64.0000/nab_r_base.memtrace-m64 1am0 1122214447 122",
+            "binary_cmd":"\\$tmpdir/application/cpu2017/benchspec/CPU/544.nab_r/run/run_base_refrate_memtrace-m64.0000/nab_r_base.memtrace-m64 1am0 1122214447 122",
             "client_bincmd":null
           },
           "memtrace":{
@@ -3012,7 +3012,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"/tmp_home/application/cpu2017/benchspec/CPU/549.fotonik3d_r/run/run_base_refrate_memtrace-m64.0000/fotonik3d_r_base.memtrace-m64",
+            "binary_cmd":"\\$tmpdir/application/cpu2017/benchspec/CPU/549.fotonik3d_r/run/run_base_refrate_memtrace-m64.0000/fotonik3d_r_base.memtrace-m64",
             "client_bincmd":null
           },
           "memtrace":{
@@ -3052,7 +3052,7 @@
             "image_name":"spec2017",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"/tmp_home/application/cpu2017/benchspec/CPU/554.roms_r/run/run_base_refrate_memtrace-m64.0000/roms_r_base.memtrace-m64 < /tmp_home/application/cpu2017/benchspec/CPU/554.roms_r/run/run_base_refrate_memtrace-m64.0000/ocean_benchmark2.in.x",
+            "binary_cmd":"\\$tmpdir/application/cpu2017/benchspec/CPU/554.roms_r/run/run_base_refrate_memtrace-m64.0000/roms_r_base.memtrace-m64 < \\$tmpdir/application/cpu2017/benchspec/CPU/554.roms_r/run/run_base_refrate_memtrace-m64.0000/ocean_benchmark2.in.x",
             "client_bincmd":null
           },
           "memtrace":{
