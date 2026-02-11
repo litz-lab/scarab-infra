@@ -6929,7 +6929,7 @@
         ]
       }
     },
-    "rate_int_bbv":{
+    "rate_int_v2":{
       "perlbench_r":{
         "trace":{
           "dynamorio_args":null,
@@ -8523,7 +8523,7 @@
         ]
       }
     },
-    "rate_fp_bbv":{
+    "rate_fp_v2":{
       "bwaves_r":{
         "trace":{
           "dynamorio_args":null,
