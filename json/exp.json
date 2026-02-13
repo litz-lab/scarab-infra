@@ -29,7 +29,7 @@
     },
     {
       "suite":"spec2017",
-      "subsuite":"rate_int",
+      "subsuite":"rate_int_v2",
       "workload":null,
       "cluster_id":null,
       "simulation_type":null,
@@ -37,8 +37,8 @@
     },
     {
       "suite":"spec2017",
-      "subsuite":"rate_fp",
-      "workload":"bwaves",
+      "subsuite":"rate_fp_v2",
+      "workload":"bwaves_r",
       "cluster_id":null,
       "simulation_type":"exec",
       "warmup":null
