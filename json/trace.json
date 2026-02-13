@@ -27,7 +27,8 @@
       "client_bincmd":null,
       "trace_type":"trace_then_cluster",
       "dynamorio_args":null,
-      "clustering_k":null
+      "clustering_k":null,
+      "slurm_options": "--mem 4G"
     },
    {
       "workload":"random_benchmark",
@@ -39,7 +40,8 @@
       "client_bincmd":null,
       "trace_type":"trace_then_cluster",
       "dynamorio_args":null,
-      "clustering_k":null
+      "clustering_k":null,
+      "slurm_options": "--mem 4G"
     }
   ]
 }
