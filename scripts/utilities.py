@@ -461,9 +461,24 @@ def _build_missing_scarab_version(
 def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, githash, scarab_githash, scarab_build, stream_build=False, dbg_lvl=1):
     current_scarab_bin = f"{infra_dir}/scarab_builds/scarab_current"
     build_mode = scarab_build if scarab_build else "opt"
+    force_rebuild = False
+    try:
+        dirty = bool(
+            subprocess.check_output(
+                ["git", "status", "--porcelain"],
+                cwd=scarab_path,
+                text=True,
+            ).strip()
+        )
+        if dirty:
+            info("Scarab repo has uncommitted changes; rebuilding.", dbg_lvl)
+            force_rebuild = True
+    except Exception as exc:
+        warn(f"Unable to check scarab git status: {exc}; rebuilding.", dbg_lvl)
+        force_rebuild = True
 
     # Suitable binary found
-    if os.path.isfile(current_scarab_bin):
+    if os.path.isfile(current_scarab_bin) and not force_rebuild:
         scarab_bin = f"{scarab_path}/src/build/{build_mode}/scarab"
         if os.path.isfile(scarab_bin):
             try:

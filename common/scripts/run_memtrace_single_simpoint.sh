@@ -128,7 +128,7 @@ else
       --fast_forward_trace_ins=$(( $TRACE_WARMUP - $WARMUP )) \
       --inst_limit=$instLimit \
       --full_warmup=$WARMUP \
-      --use_fetched_count=0 \
+      --use_fetched_count=1 \
       $SCARABPARAMS \
       &> sim.log"
     else
@@ -137,7 +137,7 @@ else
       --cbp_trace_r0=$TRACEFILE \
       --inst_limit=$instLimit \
       --full_warmup=$WARMUP \
-      --use_fetched_count=0 \
+      --use_fetched_count=1 \
       $SCARABPARAMS \
       &> sim.log"
     fi
