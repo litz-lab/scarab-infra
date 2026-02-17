@@ -21,9 +21,9 @@
   "simulations": [
     {
       "suite":"spec2017",
-      "subsuite":"rate_int",
-      "workload":"perlbench",
-      "cluster_id":29229,
+      "subsuite":"rate_int_v2",
+      "workload":"perlbench_r",
+      "cluster_id":109678,
       "simulation_type":"memtrace",
       "warmup":null
     }
