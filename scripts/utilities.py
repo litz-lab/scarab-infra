@@ -967,7 +967,7 @@ def generate_single_trace_run_command(user, workload, image_name, trace_name, bi
 def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_container_name, githash,
                                        workload, image_name, trace_name, traces_dir, docker_home,
                                        env_vars, binary_cmd, client_bincmd, simpoint_mode, drio_args,
-                                       clustering_k, filename, infra_dir, application_dir):
+                                       clustering_k, filename, infra_dir, application_dir, slurm = False):
     try:
         trace_cmd = generate_single_trace_run_command(user, workload, image_name, trace_name, binary_cmd, client_bincmd,
                                                       simpoint_mode, drio_args, clustering_k)
@@ -982,6 +982,13 @@ def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_contai
                     -e HOME=/home/{user} \
                     -e APP_GROUPNAME={image_name} \
                     -e APPNAME={workload} "
+
+            if slurm:
+                f.write("SLURM_CGROUP=$(cat /proc/self/cgroup | cut -d: -f3 | head -n 1)\n")
+                f.write("echo $SLURM_CGROUP\n")
+                command += "--cgroup-parent $SLURM_CGROUP \
+                            --cgroupns=host "
+
             if env_vars:
                 for env in env_vars:
                     command = command + f"-e {env} "

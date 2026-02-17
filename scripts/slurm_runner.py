@@ -663,7 +663,7 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
             write_trace_docker_command_to_file(user, local_uid, local_gid, docker_container_name, githash,
                                                workload, image_name, trace_name, traces_dir, docker_home,
                                                env_vars, binary_cmd, client_bincmd, simpoint_mode, drio_args,
-                                               clustering_k, filename, infra_dir, application_dir)
+                                               clustering_k, filename, infra_dir, application_dir, slurm=True)
             tmp_files.append(filename)
 
             os.system(sbatch_cmd + filename)
