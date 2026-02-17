@@ -881,7 +881,7 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
                                  docker_prefix, docker_container_name, traces_dir,
                                  docker_home, githash, config_key, config, scarab_mode, scarab_binary,
                                  seg_size, architecture, cluster_id, warmup, trace_warmup, trace_type,
-                                 trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir):
+                                 trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir, slurm=False):
     try:
         scarab_cmd = generate_single_scarab_run_command(user, workload_home, experiment_name, config_key, config,
                                                         scarab_mode, seg_size, architecture, scarab_binary, cluster_id,
@@ -894,19 +894,38 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
             f.write(f"cd {infra_dir}\n")
             f.write(f"python -m scripts.prepare_docker_image --docker-prefix {docker_prefix} --githash {githash} \n")
             f.write(f"cd -\n")
-            f.write(f"docker run \
-            -e user_id={local_uid} \
-            -e group_id={local_gid} \
-            -e username={user} \
-            -e HOME=/home/{user} \
-            -e APP_GROUPNAME={docker_prefix} \
-            -e APPNAME={workload} \
-            -dit \
-            --name {docker_container_name} \
-            --mount type=bind,source={traces_dir},target=/simpoint_traces,readonly=true \
-            --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
-            {docker_prefix}:{githash} \
-            /bin/bash\n")
+            if slurm:
+                f.write("SLURM_CGROUP=$(cat /proc/self/cgroup | cut -d: -f3 | head -n 1)\n")
+                f.write("echo $SLURM_CGROUP\n")
+                f.write(f"docker run \
+                --cgroup-parent $SLURM_CGROUP \
+                --cgroupns=host \
+                -e user_id={local_uid} \
+                -e group_id={local_gid} \
+                -e username={user} \
+                -e HOME=/home/{user} \
+                -e APP_GROUPNAME={docker_prefix} \
+                -e APPNAME={workload} \
+                -dit \
+                --name {docker_container_name} \
+                --mount type=bind,source={traces_dir},target=/simpoint_traces,readonly=true \
+                --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
+                {docker_prefix}:{githash} \
+                /bin/bash\n")
+            else:
+                f.write(f"docker run \
+                -e user_id={local_uid} \
+                -e group_id={local_gid} \
+                -e username={user} \
+                -e HOME=/home/{user} \
+                -e APP_GROUPNAME={docker_prefix} \
+                -e APPNAME={workload} \
+                -dit \
+                --name {docker_container_name} \
+                --mount type=bind,source={traces_dir},target=/simpoint_traces,readonly=true \
+                --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
+                {docker_prefix}:{githash} \
+                /bin/bash\n")
             f.write(f"docker cp {infra_dir}/scripts/utilities.sh {docker_container_name}:/usr/local/bin\n")
             f.write(f"docker cp {infra_dir}/common/scripts/root_entrypoint.sh {docker_container_name}:/usr/local/bin\n")
             f.write(f"docker cp {infra_dir}/common/scripts/user_entrypoint.sh {docker_container_name}:/usr/local/bin\n")
