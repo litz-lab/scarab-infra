@@ -56,6 +56,11 @@ def info(msg: str, level: int):
     if level >= 3:
         print("INFO:", msg)
 
+# Print a non-warning informational message at default debug levels
+def note(msg: str, level: int):
+    if level >= 2:
+        print("INFO:", msg)
+
 # json descriptor reader
 def read_descriptor_from_json(filename="experiment.json", dbg_lvl = 1):
     # Read the descriptor data from a JSON file
@@ -372,6 +377,14 @@ def _current_git_ref(scarab_path: str) -> str:
     return branch_name if branch_name else commit_hash
 
 
+def _cache_bin_name(bin_name: str, build_mode: str) -> str:
+    if bin_name.endswith((".opt", ".dbg")):
+        return bin_name
+    if bin_name.startswith("scarab_"):
+        return f"{bin_name}.{build_mode}"
+    return bin_name
+
+
 def _prompt_kill_processes_and_exit(dbg_lvl: int) -> None:
     prompt = "Uncommitted changes detected in scarab repository. Do you want to kill these processes? [y/N]: "
     response = ""
@@ -444,7 +457,8 @@ def _build_missing_scarab_version(
         built_bin = Path(scarab_path) / "src" / "build" / build_mode / "scarab"
         if not built_bin.is_file():
             raise RuntimeError(f"Expected scarab binary at {built_bin} after build.")
-        dest = Path(infra_dir) / "scarab_builds" / bin_name
+        cache_name = _cache_bin_name(bin_name, build_mode)
+        dest = Path(infra_dir) / "scarab_builds" / cache_name
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(built_bin, dest)
         info(f"Cached new scarab binary at {dest}", dbg_lvl)
@@ -459,9 +473,11 @@ def _build_missing_scarab_version(
 
 # Wrapper function that handles rebuilding scarab if needed, and caching
 def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, githash, scarab_githash, scarab_build, stream_build=False, dbg_lvl=1):
-    current_scarab_bin = f"{infra_dir}/scarab_builds/scarab_current"
     build_mode = scarab_build if scarab_build else "opt"
+    current_cache_name = _cache_bin_name("scarab_current", build_mode)
+    current_scarab_bin = f"{infra_dir}/scarab_builds/{current_cache_name}"
     force_rebuild = False
+    rebuild_reasons = []
     try:
         dirty = bool(
             subprocess.check_output(
@@ -473,9 +489,12 @@ def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, git
         if dirty:
             info("Scarab repo has uncommitted changes; rebuilding.", dbg_lvl)
             force_rebuild = True
+            rebuild_reasons.append("scarab repo has uncommitted changes")
     except Exception as exc:
         warn(f"Unable to check scarab git status: {exc}; rebuilding.", dbg_lvl)
         force_rebuild = True
+        rebuild_reasons.append("unable to check scarab git status")
+
 
     # Suitable binary found
     if os.path.isfile(current_scarab_bin) and not force_rebuild:
@@ -505,16 +524,27 @@ def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, git
                     return
                 if result.returncode == 1 or not hash_tag_matches:
                     info("Cached scarab_current differs from repo binary; rebuilding.", dbg_lvl)
+                    if result.returncode == 1:
+                        rebuild_reasons.append("cached scarab_current differs from repo binary")
+                    if not hash_tag_matches:
+                        rebuild_reasons.append("cached scarab_current symlink does not match current git hash")
                 else:
                     warn(
                         f"Could not compare cached vs repo scarab binary (diff exit {result.returncode}); rebuilding.",
                         dbg_lvl,
                     )
+                    rebuild_reasons.append(f"could not compare cached vs repo binary (diff exit {result.returncode})")
             except Exception as exc:
                 warn(f"Could not compare cached vs repo scarab binary: {exc}; rebuilding.", dbg_lvl)
+                rebuild_reasons.append(f"could not compare cached vs repo binary: {exc}")
         else:
             warn(f"Scarab repo binary not found at {scarab_bin}; rebuilding.", dbg_lvl)
+            rebuild_reasons.append(f"scarab repo binary not found at {scarab_bin}")
+    elif not os.path.isfile(current_scarab_bin):
+        rebuild_reasons.append("no cached scarab_current for this build mode")
 
+    if rebuild_reasons:
+        note("Rebuild reason(s): " + "; ".join(dict.fromkeys(rebuild_reasons)), dbg_lvl)
     print("Rebuilding Scarab binary...")
     scarab_bin = f"{scarab_path}/src/build/{build_mode}/scarab"
 
@@ -547,27 +577,43 @@ def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, git
         except FileNotFoundError:
             build_differs = True
 
+        def githash_candidates():
+            try:
+                scarab_binaries = os.listdir(f"{infra_dir}/scarab_builds")
+            except OSError:
+                scarab_binaries = []
+            pattern = re.compile(rf"^scarab_{scarab_githash}(?:_(\d+))?\.{build_mode}$")
+            candidates = []
+            indices = []
+            for name in scarab_binaries:
+                match = pattern.match(name)
+                if not match:
+                    continue
+                candidates.append(name)
+                if match.group(1) is not None:
+                    indices.append(int(match.group(1)))
+            return candidates, indices
+
         if not build_differs:
             info(f"Current scarab binary is the same as the cached version. Not updating cache.", dbg_lvl)
 
             current_path = Path(current_scarab_bin)
             if current_path.exists() and not current_path.is_symlink():
                 # Ensure scarab_current is a symlink to a hash-specific binary for traceability.
-                scarab_binaries = os.listdir(f"{infra_dir}/scarab_builds")
-                pattern = re.compile(f"scarab_{scarab_githash}(_|$)")
-                current_githash_binaries = list(filter(pattern.match, scarab_binaries))
-
+                current_githash_binaries, current_indicies = githash_candidates()
                 if current_githash_binaries == []:
-                    githash_scarab_bin = f"{infra_dir}/scarab_builds/scarab_{scarab_githash}_0"
+                    githash_name = _cache_bin_name(f"scarab_{scarab_githash}_0", build_mode)
+                    githash_scarab_bin = f"{infra_dir}/scarab_builds/{githash_name}"
                     shutil.copy2(scarab_bin, githash_scarab_bin)
+                elif not current_indicies:
+                    githash_name = _cache_bin_name(f"scarab_{scarab_githash}", build_mode)
+                    githash_scarab_bin = f"{infra_dir}/scarab_builds/{githash_name}"
                 else:
-                    idx_pattern = re.compile(f"scarab_{scarab_githash}_")
-                    current_githash_versions = list(filter(idx_pattern.match, current_githash_binaries))
-                    if current_githash_versions == []:
-                        githash_scarab_bin = f"{infra_dir}/scarab_builds/scarab_{scarab_githash}"
-                    else:
-                        current_indicies = list(map(lambda x: int(x.split("_")[-1]), current_githash_versions))
-                        githash_scarab_bin = f"{infra_dir}/scarab_builds/scarab_{scarab_githash}_{max(current_indicies)}"
+                    githash_name = _cache_bin_name(
+                        f"scarab_{scarab_githash}_{max(current_indicies)}",
+                        build_mode,
+                    )
+                    githash_scarab_bin = f"{infra_dir}/scarab_builds/{githash_name}"
 
                 current_path.unlink()
                 current_path.symlink_to(Path(githash_scarab_bin).name)
@@ -576,27 +622,21 @@ def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, git
 
             # Figure out index for binary. Order is _0 _1, _2, ...
             # Find all existing binaries with the githash
-            scarab_binaries = os.listdir(f"{infra_dir}/scarab_builds")
-            pattern = re.compile(f"scarab_{scarab_githash}(_|$)")
-            current_githash_binaries = list(filter(pattern.match, scarab_binaries))
+            current_githash_binaries, current_indicies = githash_candidates()
 
-            print("Binaries matching current githash:", current_githash_binaries, "out of:", scarab_binaries, pattern)
+            print("Binaries matching current githash:", current_githash_binaries)
 
             # If none exist, put it without index. Otherwise, add postfix index
             if current_githash_binaries == []:
                 info(f"No binaries with hash {scarab_githash} exist. Creating version 0...", dbg_lvl)
-                githash_scarab_bin = f"{infra_dir}/scarab_builds/scarab_{scarab_githash}_0"
+                githash_name = _cache_bin_name(f"scarab_{scarab_githash}_0", build_mode)
+                githash_scarab_bin = f"{infra_dir}/scarab_builds/{githash_name}"
             else:
-                idx_pattern = re.compile(f"scarab_{scarab_githash}_")
-                current_githash_versions = list(filter(idx_pattern.match, current_githash_binaries))
-
                 print("Versions matching current githash:", current_githash_binaries)
-
-                # If they do exist, take max index and increment it
-                current_indicies = list(map(lambda x: int(x.split("_")[-1]), current_githash_versions))
-
-                print("New index:", max(current_indicies)+1)
-                githash_scarab_bin = f"{infra_dir}/scarab_builds/scarab_{scarab_githash}_{max(current_indicies)+1}"
+                next_index = max(current_indicies) + 1 if current_indicies else 1
+                print("New index:", next_index)
+                githash_name = _cache_bin_name(f"scarab_{scarab_githash}_{next_index}", build_mode)
+                githash_scarab_bin = f"{infra_dir}/scarab_builds/{githash_name}"
 
             info(f"Copying scarab binary for {githash_scarab_bin} to cache", dbg_lvl)
             shutil.copy2(scarab_bin, githash_scarab_bin)
@@ -663,8 +703,9 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
         experiment_dir = f"{docker_home}/simulations/{experiment_name}"
         os.system(f"mkdir -p {experiment_dir}/logs/")
         dest_scarab_bin = f"{experiment_dir}/scarab/src/scarab"
+        build_mode = scarab_build if scarab_build else "opt"
 
-        binary_pattern = re.compile(r"^scarab_([0-9a-fA-F]+)(?:_(\d+))?$")
+        binary_pattern = re.compile(r"^scarab_([0-9a-fA-F]+)(?:_(\d+))?(?:\.(opt|dbg))?$")
 
         # Make sure each requested scarab binary is present; build from git hash if missing
         for bin_name in scarab_binaries:
@@ -672,7 +713,8 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
             if bin_name == "scarab_current":
                 continue
 
-            scarab_ver = f"{infra_dir}/scarab_builds/{bin_name}"
+            cache_name = _cache_bin_name(bin_name, build_mode)
+            scarab_ver = f"{infra_dir}/scarab_builds/{cache_name}"
             if os.path.isfile(scarab_ver):
                 info(f"Scarab binary named {bin_name} found in cache!", dbg_lvl)
                 continue
@@ -700,7 +742,7 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
                 infra_dir,
                 dbg_lvl,
             )
-            warn(f"Scarab version {target_hash} built successfully!", dbg_lvl)
+            note(f"Scarab version {target_hash} built successfully!", dbg_lvl)
 
         # (Re)build the scarab binary first
         rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, githash, scarab_githash, scarab_build, stream_build=stream_build, dbg_lvl=dbg_lvl)
@@ -711,8 +753,24 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
 
         # Copy from cache all required scarab binaries
         for bin_name in scarab_binaries:
-            scarab_ver = f"{infra_dir}/scarab_builds/{bin_name}"
-            os.system(f"cp {scarab_ver} {experiment_dir}/scarab/src/")
+            cache_name = _cache_bin_name(bin_name, build_mode)
+            scarab_ver = f"{infra_dir}/scarab_builds/{cache_name}"
+            dest_dir = Path(experiment_dir) / "scarab" / "src"
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            dest_plain = dest_dir / bin_name
+            if bin_name.endswith((".opt", ".dbg")):
+                dest_mode = dest_plain
+            else:
+                dest_mode = dest_dir / f"{bin_name}.{build_mode}"
+            try:
+                shutil.copy2(scarab_ver, dest_plain)
+            except Exception:
+                os.system(f"cp {scarab_ver} {dest_plain}")
+            if dest_mode != dest_plain:
+                try:
+                    shutil.copy2(scarab_ver, dest_mode)
+                except Exception:
+                    os.system(f"cp {scarab_ver} {dest_mode}")
 
         os.system(f"cp {arch_params} {experiment_dir}/scarab/src")
 
@@ -1419,6 +1477,7 @@ def prepare_trace(user, scarab_path, scarab_build, docker_home, job_name, infra_
     try:
         local_uid = os.getuid()
         local_gid = os.getgid()
+        build_mode = scarab_build if scarab_build else "opt"
 
         trace_dir = f"{docker_home}/simpoint_flow/{job_name}"
         os.system(f"mkdir -p {trace_dir}/scarab/src/")
@@ -1427,7 +1486,8 @@ def prepare_trace(user, scarab_path, scarab_build, docker_home, job_name, infra_
         rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, githash, scarab_githash, scarab_build, stream_build=False, dbg_lvl=dbg_lvl)
 
         # Copy current scarab binary to trace dir
-        scarab_ver = f"{infra_dir}/scarab_builds/scarab_current"
+        cache_name = _cache_bin_name("scarab_current", build_mode)
+        scarab_ver = f"{infra_dir}/scarab_builds/{cache_name}"
         os.system(f"cp {scarab_ver} {trace_dir}/scarab/src/scarab")
 
         os.system(f"mkdir -p {trace_dir}/scarab/bin/scarab_globals")
