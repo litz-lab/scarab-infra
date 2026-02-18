@@ -12,6 +12,7 @@ import json
 import math
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -30,8 +31,10 @@ REPO_ROOT = Path(__file__).resolve().parent
 ENV_NAME = "scarabinfra"
 MINICONDA_URL = "https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh"
 OPTIONAL_TITLES = {
-    "Optional Slurm installation",
-    "Optional ghcr.io login",
+    "(Optional) Slurm installation",
+    "(Optional) ghcr.io login to pull pre-built images from GitHub Container Registry (recommended)",
+    "(Optional) Install Codex CLI",
+    "(Optional) Install Gemini CLI",
 }
 
 COOKIES_CACHE_PATH = Path.home() / ".cache" / "gdown" / "cookies.txt"
@@ -1736,6 +1739,54 @@ def maybe_docker_login(_: argparse.Namespace) -> Tuple[bool, str]:
     return True, "Authenticated with ghcr.io."
 
 
+def maybe_install_codex_cli(_: argparse.Namespace) -> Tuple[bool, str]:
+    if shutil.which("codex"):
+        return True, "Codex CLI already installed."
+    print(
+        "Codex CLI enables AI-assisted local analysis from commands like "
+        "`./sci --perf-analyze <descriptor>`."
+    )
+    if not confirm(
+        "Install Codex CLI (optional)?",
+        default=False,
+    ):
+        return True, "Skipped Codex CLI installation."
+    npm = shutil.which("npm")
+    if not npm:
+        return False, "npm not found. Install Node.js/npm, then run: npm install -g @openai/codex"
+    try:
+        run_command([npm, "install", "-g", "@openai/codex"])
+    except StepError as exc:
+        return False, str(exc)
+    if shutil.which("codex"):
+        return True, "Installed Codex CLI."
+    return False, "Codex CLI install command completed, but `codex` is not on PATH."
+
+
+def maybe_install_gemini_cli(_: argparse.Namespace) -> Tuple[bool, str]:
+    if shutil.which("gemini"):
+        return True, "Gemini CLI already installed."
+    print(
+        "Gemini CLI can be used as an alternate analyzer command in descriptor "
+        "`perf_analyze.analyzer_cli_cmd`."
+    )
+    if not confirm(
+        "Install Gemini CLI (optional)?",
+        default=False,
+    ):
+        return True, "Skipped Gemini CLI installation."
+    npm = shutil.which("npm")
+    if not npm:
+        return False, "npm not found. Install Node.js/npm, then run: npm install -g @google/gemini-cli"
+    try:
+        run_command([npm, "install", "-g", "@google/gemini-cli"])
+    except StepError as exc:
+        return False, str(exc)
+    if shutil.which("gemini"):
+        return True, "Installed Gemini CLI."
+    return False, "Gemini CLI install command completed, but `gemini` is not on PATH."
+
+
 def run_init(args: argparse.Namespace) -> int:
     if sys.stdin.isatty():
         print_heading("Prepare Google Drive cookies.txt")
@@ -1765,6 +1816,8 @@ def run_init(args: argparse.Namespace) -> int:
         ("Download simpoint traces", ensure_traces),
         ("(Optional) Slurm installation", maybe_install_slurm),
         ("(Optional) ghcr.io login to pull pre-built images from GitHub Container Registry (recommended)", maybe_docker_login),
+        ("(Optional) Install Codex CLI", maybe_install_codex_cli),
+        ("(Optional) Install Gemini CLI", maybe_install_gemini_cli),
     ]
     summary: List[Tuple[str, bool, str]] = []
     for title, func in steps:
@@ -1804,6 +1857,8 @@ def run_ci_init(args: argparse.Namespace) -> int:
         ("Download CI simpoint trace", ensure_ci_trace),
         ("(Optional) Slurm installation", maybe_install_slurm),
         ("(Optional) ghcr.io login to pull pre-built images from GitHub Container Registry (recommended)", maybe_docker_login),
+        ("(Optional) Install Codex CLI", maybe_install_codex_cli),
+        ("(Optional) Install Gemini CLI", maybe_install_gemini_cli),
     ]
     summary: List[Tuple[str, bool, str]] = []
     for title, func in steps:
@@ -1830,46 +1885,50 @@ def run_ci_init(args: argparse.Namespace) -> int:
     return 0
 
 
-def run_visualize(descriptor_name: str) -> int:
+def load_simulation_experiment(
+    descriptor_name: str,
+    *,
+    action_label: str,
+) -> Optional[Tuple[Path, Dict[str, Any], Path, Any, Any, List[str], List[str]]]:
     try:
         descriptor_path, descriptor = read_descriptor(descriptor_name)
     except StepError as exc:
         print(exc)
-        return 1
+        return None
 
     if descriptor.get("descriptor_type") != "simulation":
-        print("Visualization only supports simulation descriptors.")
-        return 1
+        print(f"{action_label} only supports simulation descriptors.")
+        return None
 
     root_dir = descriptor.get("root_dir")
     experiment_name = descriptor.get("experiment")
     if not root_dir or not experiment_name:
         print("Descriptor must include 'root_dir' and 'experiment'.")
-        return 1
+        return None
 
     stats_path = Path(root_dir) / "simulations" / experiment_name / "collected_stats.csv"
     if not stats_path.is_file():
         print(f"No collected stats found at {stats_path}. Attempting to collect now...")
         if not collect_stats_for_visualization(descriptor_path, stats_path):
             print("Automatic stat collection failed; run the stat collector manually.")
-            return 1
+            return None
         if not stats_path.is_file():
             print("Stat collection completed, but stats file is still missing.")
-            return 1
+            return None
         print("Stat collection completed successfully.")
 
     try:
         import scarab_stats
     except ImportError as exc:
         print(f"Failed to import scarab_stats: {exc}")
-        return 1
+        return None
 
     try:
         importlib.reload(scarab_stats)
         from scarab_stats import stat_aggregator
     except ImportError as exc:
         print(f"Failed to access stat_aggregator: {exc}")
-        return 1
+        return None
 
     def load_experiment():
         agg = stat_aggregator()
@@ -1882,14 +1941,14 @@ def run_visualize(descriptor_name: str) -> int:
 
     aggregator, experiment = load_experiment()
     if not aggregator or not experiment:
-        return 1
+        return None
 
     try:
         workloads = sorted(experiment.get_workloads())
         configs = sorted(experiment.get_configurations())
     except Exception as exc:  # pragma: no cover - depends on user data
         print(f"Failed to inspect experiment data: {exc}")
-        return 1
+        return None
 
     expected_workloads, expected_configs = extract_descriptor_expectations(descriptor)
     missing_workloads = expected_workloads - set(workloads)
@@ -1907,13 +1966,13 @@ def run_visualize(descriptor_name: str) -> int:
         if collect_stats_for_visualization(descriptor_path, stats_path):
             aggregator, experiment = load_experiment()
             if not aggregator or not experiment:
-                return 1
+                return None
             try:
                 workloads = sorted(experiment.get_workloads())
                 configs = sorted(experiment.get_configurations())
             except Exception as exc:  # pragma: no cover - depends on user data
                 print(f"Failed to inspect experiment data: {exc}")
-                return 1
+                return None
 
             remaining_workloads = expected_workloads - set(workloads)
             remaining_configs = expected_configs - set(configs)
@@ -1927,7 +1986,7 @@ def run_visualize(descriptor_name: str) -> int:
         filtered_workloads = sorted(workloads_set & expected_workloads)
         if not filtered_workloads:
             print("None of the workloads specified in the descriptor are present in the stats file.")
-            return 1
+            return None
         extra_workloads = workloads_set - expected_workloads
         if extra_workloads:
             print(
@@ -1941,7 +2000,7 @@ def run_visualize(descriptor_name: str) -> int:
         filtered_configs = sorted(configs_set & expected_configs)
         if not filtered_configs:
             print("None of the configurations specified in the descriptor are present in the stats file.")
-            return 1
+            return None
         extra_configs = configs_set - expected_configs
         if extra_configs:
             print(
@@ -1952,14 +2011,155 @@ def run_visualize(descriptor_name: str) -> int:
 
     if not workloads:
         print("No workloads found in the stats file.")
-        return 1
+        return None
     if not configs:
         print("No configurations found in the stats file.")
-        return 1
+        return None
 
-    stats_to_plot = descriptor.get("visualize_counters") or ["IPC"]
+    return descriptor_path, descriptor, stats_path, aggregator, experiment, workloads, configs
+
+
+def resolve_visualize_settings(
+    descriptor: Dict[str, Any],
+    configs: List[str],
+) -> Tuple[List[object], str]:
+    visualize = descriptor.get("visualize")
+    if "visualize_counters" in descriptor or "visualize_baseline" in descriptor:
+        raise StepError(
+            "Legacy descriptor fields 'visualize_counters' and 'visualize_baseline' are no longer supported. "
+            "Use the 'visualize' object with 'baseline' and 'counters'."
+        )
+
+    if visualize is None:
+        raise StepError("Descriptor field 'visualize' is required for --visualize.")
+    if not isinstance(visualize, dict):
+        raise StepError("Descriptor field 'visualize' must be an object when provided.")
+    stats_to_plot: object = visualize.get("counters") or ["IPC"]
+    raw_baseline: object = visualize.get("baseline")
+
     if not isinstance(stats_to_plot, list) or not stats_to_plot:
-        print("Descriptor field 'visualize_counters' must be a non-empty list when provided.")
+        raise StepError("Descriptor field 'visualize.counters' must be a non-empty list when provided.")
+
+    baseline: Optional[str] = None
+    if isinstance(raw_baseline, str):
+        candidate = raw_baseline.strip()
+        if candidate:
+            if candidate in configs:
+                baseline = candidate
+            else:
+                print(
+                    f"Configured visualize baseline '{candidate}' is not present in the stats file; "
+                    "defaulting to the first available configuration."
+                )
+        else:
+            print("Descriptor field 'visualize.baseline' is empty; defaulting to the first configuration.")
+    elif raw_baseline is not None:
+        print(
+            "Descriptor field 'visualize.baseline' must be a string when provided; "
+            "defaulting to the first configuration."
+        )
+    if baseline is None:
+        baseline = configs[0]
+    return stats_to_plot, baseline
+
+
+def resolve_perf_analyze_settings(
+    descriptor: Dict[str, Any],
+    configs: List[str],
+) -> Dict[str, Any]:
+    raw_block = descriptor.get("perf_analyze")
+    if raw_block is None:
+        block: Dict[str, Any] = {}
+    elif isinstance(raw_block, dict):
+        block = raw_block
+    else:
+        raise StepError("Descriptor field 'perf_analyze' must be an object when provided.")
+
+    counters = block.get("counters") or ["IPC"]
+    if not isinstance(counters, list) or not counters:
+        raise StepError("Descriptor field 'perf_analyze.counters' must be a non-empty list when provided.")
+
+    raw_stat_groups = block.get("stat_groups")
+    stat_groups: List[str] = []
+    if raw_stat_groups is not None:
+        if not isinstance(raw_stat_groups, list):
+            raise StepError("Descriptor field 'perf_analyze.stat_groups' must be a list when provided.")
+        for entry in raw_stat_groups:
+            if not isinstance(entry, str):
+                raise StepError("Descriptor field 'perf_analyze.stat_groups' entries must be strings.")
+            name = entry.strip().lower()
+            if name:
+                stat_groups.append(name)
+
+    raw_compare_all_stats = block.get("compare_all_stats", False)
+    if not isinstance(raw_compare_all_stats, bool):
+        raise StepError("Descriptor field 'perf_analyze.compare_all_stats' must be a boolean.")
+    compare_all_stats = bool(raw_compare_all_stats)
+
+    raw_prompt_budget_tokens = block.get("prompt_budget_tokens", 12000)
+    if not isinstance(raw_prompt_budget_tokens, int):
+        raise StepError("Descriptor field 'perf_analyze.prompt_budget_tokens' must be an integer.")
+    prompt_budget_tokens = int(raw_prompt_budget_tokens)
+    if prompt_budget_tokens <= 0:
+        raise StepError("Descriptor field 'perf_analyze.prompt_budget_tokens' must be > 0.")
+
+    raw_threshold = block.get("threshold_pct", 2.0)
+    if not isinstance(raw_threshold, (int, float)):
+        raise StepError("Descriptor field 'perf_analyze.threshold_pct' must be a number.")
+    threshold_pct = float(raw_threshold)
+    if threshold_pct < 0:
+        raise StepError("Descriptor field 'perf_analyze.threshold_pct' must be >= 0.")
+
+    raw_baseline = block.get("baseline")
+    baseline: Optional[str] = None
+    if isinstance(raw_baseline, str):
+        candidate = raw_baseline.strip()
+        if candidate:
+            if candidate in configs:
+                baseline = candidate
+            else:
+                print(
+                    f"Configured perf_analyze baseline '{candidate}' is not present in the stats file; "
+                    "defaulting to the first available configuration."
+                )
+        else:
+            print("Descriptor field 'perf_analyze.baseline' is empty; defaulting to the first configuration.")
+    elif raw_baseline is not None:
+        print(
+            "Descriptor field 'perf_analyze.baseline' must be a string when provided; "
+            "defaulting to the first configuration."
+        )
+    if baseline is None:
+        baseline = configs[0]
+
+    analyzer_cli_cmd = block.get("analyzer_cli_cmd")
+    if analyzer_cli_cmd is None and "ai_assistant_cmd" in block:
+        analyzer_cli_cmd = block.get("ai_assistant_cmd")
+        print("Descriptor field 'perf_analyze.ai_assistant_cmd' is deprecated; use 'analyzer_cli_cmd'.")
+    if analyzer_cli_cmd is not None and not isinstance(analyzer_cli_cmd, str):
+        raise StepError("Descriptor field 'perf_analyze.analyzer_cli_cmd' must be a string when provided.")
+
+    return {
+        "baseline": baseline,
+        "counters": counters,
+        "stat_groups": stat_groups,
+        "compare_all_stats": compare_all_stats,
+        "prompt_budget_tokens": prompt_budget_tokens,
+        "threshold_pct": threshold_pct,
+        "analyzer_cli_cmd": analyzer_cli_cmd.strip() if isinstance(analyzer_cli_cmd, str) else "",
+    }
+
+
+def run_visualize(descriptor_name: str) -> int:
+    loaded = load_simulation_experiment(descriptor_name, action_label="Visualization")
+    if loaded is None:
+        return 1
+    _, descriptor, stats_path, aggregator, experiment, workloads, configs = loaded
+
+    try:
+        stats_to_plot, baseline = resolve_visualize_settings(descriptor, configs)
+    except StepError as exc:
+        print(exc)
         return 1
 
     def normalize_counter_entry(entry: object) -> Optional[Dict[str, object]]:
@@ -2014,30 +2214,8 @@ def run_visualize(descriptor_name: str) -> int:
         plot_requests.append(normalized)
 
     if not plot_requests:
-        print("No valid entries found in 'visualize_counters'.")
+        print("No valid entries found in 'visualize.counters'.")
         return 1
-
-    baseline: Optional[str] = None
-    raw_baseline = descriptor.get("visualize_baseline")
-    if isinstance(raw_baseline, str):
-        candidate = raw_baseline.strip()
-        if candidate:
-            if candidate in configs:
-                baseline = candidate
-            else:
-                print(
-                    f"Configured visualize_baseline '{candidate}' is not present in the stats file; "
-                    "defaulting to the first available configuration."
-                )
-        else:
-            print("Descriptor field 'visualize_baseline' is empty; defaulting to the first configuration.")
-    elif raw_baseline is not None:
-        print(
-            "Descriptor field 'visualize_baseline' must be a string when provided; "
-            "defaulting to the first configuration."
-        )
-    if baseline is None:
-        baseline = configs[0]
 
     def format_numeric(value: Optional[float], *, as_percent: bool = False) -> str:
         if value is None:
@@ -2255,6 +2433,881 @@ def run_visualize(descriptor_name: str) -> int:
     return 0
 
 
+def run_perf_analyze(descriptor_name: str) -> int:
+    loaded = load_simulation_experiment(descriptor_name, action_label="Performance analysis")
+    if loaded is None:
+        return 1
+    _, descriptor, stats_path, _, experiment, workloads, configs = loaded
+
+    try:
+        settings = resolve_perf_analyze_settings(descriptor, configs)
+    except StepError as exc:
+        print(exc)
+        return 1
+
+    baseline = settings["baseline"]
+    threshold_pct = settings["threshold_pct"]
+    requested_counters = [str(counter) for counter in settings["counters"] if counter is not None]
+    requested_stat_groups = [str(group) for group in settings.get("stat_groups", []) if str(group).strip()]
+    compare_all_stats = bool(settings.get("compare_all_stats"))
+    prompt_budget_tokens = int(settings.get("prompt_budget_tokens", 12000))
+    analyzer_cli_cmd = settings["analyzer_cli_cmd"]
+    if not requested_counters:
+        print("No counters requested for perf analysis.")
+        return 1
+
+    available_stats: Set[str] = set()
+    try:
+        available_stats = set(experiment.get_stats())
+    except Exception:
+        pass
+
+    def resolve_stat_name(stat_name: str) -> Tuple[str, bool]:
+        normalized = str(stat_name)
+        if not available_stats:
+            return normalized, False
+        if normalized in available_stats or normalized.endswith("_count") or normalized.endswith("_total_count"):
+            return normalized, False
+        candidate = f"{normalized}_count"
+        if candidate in available_stats:
+            return candidate, True
+        return normalized, False
+
+    valid_group_names = {
+        "bp",
+        "core",
+        "fetch",
+        "inst",
+        "l2l1pref",
+        "memory",
+        "power",
+        "pref",
+        "stream",
+    }
+    normalized_stat_groups: List[str] = []
+    invalid_groups: List[str] = []
+    for group in requested_stat_groups:
+        g = group.strip().lower()
+        if g in valid_group_names:
+            normalized_stat_groups.append(g)
+        elif g:
+            invalid_groups.append(g)
+    if invalid_groups:
+        raise StepError(
+            "Unknown perf_analyze.stat_groups values: "
+            + ", ".join(sorted(set(invalid_groups)))
+            + ". Valid groups: "
+            + ", ".join(sorted(valid_group_names))
+        )
+
+    allowed_stats_by_group: Optional[Set[str]] = None
+    group_stats_count: Dict[str, int] = {}
+    if normalized_stat_groups:
+        allowed_stats_by_group = set()
+        group_search_root = stats_path.parent / baseline
+        if not group_search_root.is_dir():
+            print(
+                f"stat_groups filtering requested, but baseline directory is missing: {group_search_root}. "
+                "Skipping group filtering."
+            )
+            allowed_stats_by_group = None
+        else:
+            print(
+                "Loading stat_groups filter from simulation stat CSVs: "
+                + ", ".join(normalized_stat_groups)
+            )
+            for group in normalized_stat_groups:
+                group_file = None
+                pattern = f"{group}.stat.0.csv"
+                for candidate in group_search_root.rglob(pattern):
+                    group_file = candidate
+                    break
+                if group_file is None:
+                    print(f"No '{pattern}' file found under {group_search_root}; group '{group}' will be empty.")
+                    group_stats_count[group] = 0
+                    continue
+                group_stats: Set[str] = set()
+                try:
+                    with group_file.open(encoding="utf-8", errors="ignore") as handle:
+                        for raw_line in handle:
+                            line = raw_line.strip()
+                            if not line:
+                                continue
+                            stat_name = line.split(",", 1)[0].strip()
+                            if not stat_name or stat_name.lower() == "stats":
+                                continue
+                            group_stats.add(stat_name)
+                except OSError as exc:
+                    print(f"Failed to read group stats file {group_file}: {exc}")
+                    group_stats_count[group] = 0
+                    continue
+                group_stats_count[group] = len(group_stats)
+                allowed_stats_by_group.update(group_stats)
+            print(
+                "Group filter loaded. Candidate stats from selected groups: "
+                f"{len(allowed_stats_by_group)}"
+            )
+
+    def pct_delta(cur: Optional[float], base: Optional[float]) -> Optional[float]:
+        if cur is None or base is None:
+            return None
+        if not isinstance(cur, (int, float)) or not isinstance(base, (int, float)):
+            return None
+        if math.isnan(cur) or math.isnan(base):
+            return None
+        if base == 0:
+            return None
+        return (cur / base - 1.0) * 100.0
+
+    def average(values: List[float]) -> Optional[float]:
+        if not values:
+            return None
+        return sum(values) / len(values)
+
+    resolved_counters: List[Tuple[str, str]] = []
+    for requested in requested_counters:
+        resolved, used_fallback = resolve_stat_name(requested)
+        if used_fallback and not compare_all_stats:
+            print(f"Using '{resolved}' for requested stat '{requested}'.")
+        if available_stats and resolved not in available_stats:
+            print(f"Skipping '{requested}': stat '{resolved}' not present in collected stats.")
+            continue
+        resolved_counters.append((requested, resolved))
+
+    if not resolved_counters:
+        print("None of the requested perf_analyze counters are present in the stats file.")
+        return 1
+
+    counters_for_comparison: List[Tuple[str, str]] = list(resolved_counters)
+    if compare_all_stats:
+        if not available_stats:
+            print("compare_all_stats requested, but available stat list is empty; falling back to configured counters.")
+        else:
+            all_stats_sorted = sorted(available_stats)
+            if allowed_stats_by_group is not None:
+                all_stats_sorted = [stat for stat in all_stats_sorted if stat in allowed_stats_by_group]
+            # Keep user-specified counters (trigger + explicit context) even if they are outside stat_groups.
+            user_counter_map = {resolved: requested for requested, resolved in resolved_counters}
+            for resolved, requested in user_counter_map.items():
+                if resolved not in all_stats_sorted:
+                    all_stats_sorted.append(resolved)
+            counters_for_comparison = []
+            for stat in all_stats_sorted:
+                counters_for_comparison.append((user_counter_map.get(stat, stat), stat))
+            print(
+                f"compare_all_stats enabled: comparing all {len(counters_for_comparison)} available stats "
+                "in addition to trigger-driven drift detection."
+            )
+
+    non_baseline_configs = [cfg for cfg in configs if cfg != baseline]
+    if not non_baseline_configs:
+        print("Only baseline configuration is present; nothing to analyze.")
+        return 0
+
+    scarab_path = descriptor.get("scarab_path")
+    scarab_repo: Optional[Path] = None
+    if isinstance(scarab_path, str) and scarab_path.strip():
+        candidate_repo = Path(os.path.expandvars(scarab_path)).expanduser()
+        if candidate_repo.is_dir():
+            scarab_repo = candidate_repo
+        else:
+            print(f"Configured scarab_path is not a directory: {candidate_repo}")
+
+    descriptor_configs = descriptor.get("configurations")
+    config_defs: Dict[str, Any] = descriptor_configs if isinstance(descriptor_configs, dict) else {}
+
+    def parse_binary_hash(binary_value: object) -> Optional[str]:
+        if not isinstance(binary_value, str):
+            return None
+        candidate = binary_value.strip()
+        match = re.fullmatch(r"scarab_([0-9a-fA-F]{7,40})", candidate)
+        if match:
+            return match.group(1)
+        return None
+
+    def resolve_current_repo_hash() -> Optional[str]:
+        if scarab_repo is None:
+            return None
+        try:
+            resolved = run_command(
+                ["git", "-C", str(scarab_repo), "rev-parse", "--short", "HEAD"],
+                capture=True,
+            )
+            if not resolved:
+                return None
+            return resolved.strip()
+        except StepError:
+            return None
+
+    current_repo_hash = resolve_current_repo_hash()
+
+    def resolve_config_binary(config_name: str) -> Dict[str, Any]:
+        config_def = config_defs.get(config_name) if isinstance(config_defs, dict) else None
+        binary_value = config_def.get("binary") if isinstance(config_def, dict) else None
+        resolved_hash = parse_binary_hash(binary_value)
+        source = "config.binary"
+        if isinstance(binary_value, str) and binary_value.strip() == "scarab_current":
+            resolved_hash = current_repo_hash
+            source = "scarab_current -> git HEAD"
+        elif resolved_hash is not None:
+            source = "hash embedded in config.binary"
+        return {
+            "config": config_name,
+            "binary": binary_value if isinstance(binary_value, str) else "",
+            "resolved_hash": resolved_hash or "",
+            "hash_source": source,
+        }
+
+    baseline_binary = resolve_config_binary(baseline)
+    binary_compare_by_config: Dict[str, Dict[str, Any]] = {}
+
+    def truncate_text_by_lines(
+        text: str,
+        *,
+        max_lines: int,
+        max_chars: int,
+    ) -> Tuple[str, bool]:
+        if not text:
+            return "", False
+        lines = text.splitlines()
+        truncated = False
+        if len(lines) > max_lines:
+            lines = lines[:max_lines]
+            truncated = True
+        clipped = "\n".join(lines)
+        if len(clipped) > max_chars:
+            clipped = clipped[:max_chars]
+            truncated = True
+        return clipped, truncated
+
+    for cfg in non_baseline_configs:
+        print(f"Preparing binary provenance for config '{cfg}'...")
+        target_binary = resolve_config_binary(cfg)
+        baseline_hash = baseline_binary.get("resolved_hash", "") or ""
+        target_hash = target_binary.get("resolved_hash", "") or ""
+        hashes_known = bool(baseline_hash and target_hash)
+        hashes_differ = bool(hashes_known and baseline_hash != target_hash)
+        compare_payload: Dict[str, Any] = {
+            "baseline_binary": baseline_binary.get("binary", ""),
+            "baseline_hash": baseline_hash,
+            "baseline_hash_source": baseline_binary.get("hash_source", ""),
+            "target_binary": target_binary.get("binary", ""),
+            "target_hash": target_hash,
+            "target_hash_source": target_binary.get("hash_source", ""),
+            "hashes_known": hashes_known,
+            "hashes_differ": hashes_differ,
+            "git_diff_stat": "",
+            "git_diff_name_only": [],
+            "git_log_oneline": [],
+            "git_diff_patch_excerpt": "",
+            "git_diff_patch_truncated": False,
+            "git_diff_error": "",
+        }
+
+        if hashes_differ and scarab_repo is not None:
+            print(
+                f"Collecting Scarab git diff context for '{cfg}' "
+                f"({baseline_hash}..{target_hash})..."
+            )
+            try:
+                diff_stat = run_command(
+                    [
+                        "git",
+                        "-C",
+                        str(scarab_repo),
+                        "diff",
+                        "--stat",
+                        f"{baseline_hash}..{target_hash}",
+                    ],
+                    capture=True,
+                ) or ""
+                compare_payload["git_diff_stat"] = diff_stat.strip()
+            except StepError as exc:
+                compare_payload["git_diff_error"] = str(exc)
+
+            try:
+                diff_names = run_command(
+                    [
+                        "git",
+                        "-C",
+                        str(scarab_repo),
+                        "diff",
+                        "--name-only",
+                        f"{baseline_hash}..{target_hash}",
+                    ],
+                    capture=True,
+                ) or ""
+                files = [line.strip() for line in diff_names.splitlines() if line.strip()]
+                compare_payload["git_diff_name_only"] = files[:50]
+            except StepError as exc:
+                if not compare_payload["git_diff_error"]:
+                    compare_payload["git_diff_error"] = str(exc)
+
+            try:
+                log_text = run_command(
+                    [
+                        "git",
+                        "-C",
+                        str(scarab_repo),
+                        "log",
+                        "--oneline",
+                        "--no-merges",
+                        f"{baseline_hash}..{target_hash}",
+                    ],
+                    capture=True,
+                ) or ""
+                commits = [line.strip() for line in log_text.splitlines() if line.strip()]
+                compare_payload["git_log_oneline"] = commits[:30]
+            except StepError as exc:
+                if not compare_payload["git_diff_error"]:
+                    compare_payload["git_diff_error"] = str(exc)
+
+            try:
+                # Provide a bounded, no-color patch excerpt for AI analysis.
+                print(f"Collecting patch excerpt for '{cfg}' (can take time on large diffs)...")
+                raw_patch = run_command(
+                    [
+                        "git",
+                        "-C",
+                        str(scarab_repo),
+                        "diff",
+                        "--no-color",
+                        "--unified=1",
+                        f"{baseline_hash}..{target_hash}",
+                    ],
+                    capture=True,
+                ) or ""
+                patch_excerpt, is_truncated = truncate_text_by_lines(
+                    raw_patch,
+                    max_lines=500,
+                    max_chars=120000,
+                )
+                compare_payload["git_diff_patch_excerpt"] = patch_excerpt
+                compare_payload["git_diff_patch_truncated"] = is_truncated
+                print(
+                    f"Patch excerpt captured for '{cfg}' "
+                    f"({len(patch_excerpt.splitlines())} lines, truncated={is_truncated})."
+                )
+            except StepError as exc:
+                if not compare_payload["git_diff_error"]:
+                    compare_payload["git_diff_error"] = str(exc)
+
+        binary_compare_by_config[cfg] = compare_payload
+
+    trigger_counter = resolved_counters[0][0]
+    trigger_resolved_counter = resolved_counters[0][1]
+    aggregate_delta_by_config: Dict[str, Dict[str, Optional[float]]] = {
+        cfg: {} for cfg in non_baseline_configs
+    }
+    trigger_workload_delta_by_config: Dict[str, Dict[str, Optional[float]]] = {
+        cfg: {} for cfg in non_baseline_configs
+    }
+    skipped_non_numeric_stats: List[str] = []
+    skipped_failed_stats: List[str] = []
+    trigger_counter_processed = False
+    total_stats_to_compare = len(counters_for_comparison)
+    print(f"Comparing stats: {total_stats_to_compare} counters across {len(non_baseline_configs)} config(s)...")
+    progress_interval = max(1, total_stats_to_compare // 20)  # about every 5%
+    compare_start_ts = time.time()
+    last_progress_ts = compare_start_ts
+
+    # Fast-path caches to avoid repeated heavy dataframe filtering in retrieve_stats().
+    fast_path_ready = False
+    stats_to_row_index: Dict[str, int] = {}
+    weighted_pairs_by_cfg_wl: Dict[Tuple[str, str], List[Tuple[int, float]]] = {}
+    row_values_cache: Dict[int, List[float]] = {}
+    experiment_df = getattr(experiment, "data", None)
+    if experiment_df is not None:
+        try:
+            simpoint_columns = list(experiment_df.columns[3:])
+            for row_idx, stat_name in enumerate(experiment_df["stats"].tolist()):
+                key = str(stat_name)
+                if key not in stats_to_row_index:
+                    stats_to_row_index[key] = row_idx
+
+            weight_row_idx = stats_to_row_index.get("Weight")
+            if weight_row_idx is not None:
+                raw_weights = experiment_df.iloc[weight_row_idx, 3:].tolist()
+                weights: List[float] = []
+                for raw in raw_weights:
+                    try:
+                        weights.append(float(raw))
+                    except (TypeError, ValueError):
+                        weights.append(float("nan"))
+
+                column_indices_by_cfg_wl: Dict[Tuple[str, str], List[int]] = {}
+                for col_idx, col_name in enumerate(simpoint_columns):
+                    parts = str(col_name).split(" ", 2)
+                    if len(parts) < 3:
+                        continue
+                    cfg_name = parts[0]
+                    workload_name = parts[1]
+                    column_indices_by_cfg_wl.setdefault((cfg_name, workload_name), []).append(col_idx)
+
+                relevant_cfgs = [baseline] + [cfg for cfg in non_baseline_configs if cfg != baseline]
+                for cfg_name in relevant_cfgs:
+                    for workload_name in workloads:
+                        idxs = column_indices_by_cfg_wl.get((cfg_name, workload_name), [])
+                        pairs: List[Tuple[int, float]] = []
+                        for idx in idxs:
+                            w = weights[idx]
+                            if math.isnan(w):
+                                continue
+                            pairs.append((idx, w))
+                        weighted_pairs_by_cfg_wl[(cfg_name, workload_name)] = pairs
+                fast_path_ready = True
+                print(
+                    "Using optimized aggregation cache path "
+                    f"(stat rows={len(stats_to_row_index)}, simpoint cols={len(simpoint_columns)})."
+                )
+        except Exception as exc:
+            print(f"Falling back to default stat path: {exc}")
+            fast_path_ready = False
+
+    def get_row_values_cached(row_idx: int) -> Optional[List[float]]:
+        cached = row_values_cache.get(row_idx)
+        if cached is not None:
+            return cached
+        if experiment_df is None:
+            return None
+        try:
+            raw_vals = experiment_df.iloc[row_idx, 3:].tolist()
+        except Exception:
+            return None
+        vals: List[float] = []
+        numeric_seen = False
+        for raw in raw_vals:
+            try:
+                val = float(raw)
+            except (TypeError, ValueError):
+                val = float("nan")
+            if not math.isnan(val):
+                numeric_seen = True
+            vals.append(val)
+        if not numeric_seen:
+            return None
+        row_values_cache[row_idx] = vals
+        return vals
+
+    def weighted_value_for(row_vals: List[float], cfg_name: str, workload_name: str) -> Optional[float]:
+        pairs = weighted_pairs_by_cfg_wl.get((cfg_name, workload_name), [])
+        if not pairs:
+            return None
+        total = 0.0
+        used = False
+        for col_idx, weight in pairs:
+            if col_idx < 0 or col_idx >= len(row_vals):
+                continue
+            val = row_vals[col_idx]
+            if math.isnan(val):
+                continue
+            total += val * weight
+            used = True
+        return total if used else None
+
+    for index, (requested, resolved) in enumerate(counters_for_comparison, start=1):
+        if index == 1 or index == total_stats_to_compare or index % progress_interval == 0:
+            percent = (index / total_stats_to_compare) * 100 if total_stats_to_compare else 100.0
+            now = time.time()
+            elapsed_sec = now - compare_start_ts
+            delta_sec = now - last_progress_ts
+            elapsed_min = int(elapsed_sec // 60)
+            elapsed_rem = elapsed_sec - elapsed_min * 60
+            if index > 0 and elapsed_sec > 0:
+                est_total_sec = elapsed_sec * (total_stats_to_compare / index)
+                eta_sec = max(0.0, est_total_sec - elapsed_sec)
+                eta_min = int(eta_sec // 60)
+                eta_rem = eta_sec - eta_min * 60
+                eta_text = f"{eta_min:02d}:{eta_rem:04.1f}"
+            else:
+                eta_text = "N/A"
+            print(
+                f"Stat compare progress: {index}/{total_stats_to_compare} "
+                f"({percent:.1f}%) - current stat '{requested}' | "
+                f"elapsed {elapsed_min:02d}:{elapsed_rem:04.1f} | "
+                f"+{delta_sec:.1f}s since last update | ETA {eta_text}"
+            )
+            last_progress_ts = now
+        baseline_values: Dict[str, Optional[float]] = {}
+        cfg_values: Dict[str, Dict[str, Optional[float]]] = {cfg: {} for cfg in non_baseline_configs}
+
+        if fast_path_ready:
+            row_idx = stats_to_row_index.get(resolved)
+            if row_idx is None:
+                skipped_failed_stats.append(requested)
+                continue
+            row_vals = get_row_values_cached(row_idx)
+            if row_vals is None:
+                skipped_non_numeric_stats.append(requested)
+                continue
+            for workload in workloads:
+                baseline_values[workload] = weighted_value_for(row_vals, baseline, workload)
+                for cfg in non_baseline_configs:
+                    cfg_values[cfg][workload] = weighted_value_for(row_vals, cfg, workload)
+        else:
+            try:
+                data = experiment.retrieve_stats(configs, [resolved], workloads)
+            except ValueError:
+                skipped_non_numeric_stats.append(requested)
+                continue
+            except Exception:
+                skipped_failed_stats.append(requested)
+                continue
+            if data is None:
+                skipped_failed_stats.append(requested)
+                continue
+            for workload in workloads:
+                baseline_values[workload] = data.get(f"{baseline} {workload} {resolved}")
+                for cfg in non_baseline_configs:
+                    cfg_values[cfg][workload] = data.get(f"{cfg} {workload} {resolved}")
+
+        if resolved == trigger_resolved_counter:
+            trigger_counter_processed = True
+        for cfg in non_baseline_configs:
+            deltas: List[float] = []
+            for workload in workloads:
+                base_val = baseline_values.get(workload)
+                cfg_val = cfg_values[cfg].get(workload)
+                delta = pct_delta(cfg_val, base_val)
+                if resolved == trigger_resolved_counter:
+                    trigger_workload_delta_by_config[cfg][workload] = delta
+                if delta is not None:
+                    deltas.append(delta)
+            aggregate_delta_by_config[cfg][requested] = average(deltas)
+
+    if skipped_non_numeric_stats:
+        print(
+            "Skipped non-numeric stats during comparison: "
+            f"{len(skipped_non_numeric_stats)} "
+            f"(examples: {', '.join(skipped_non_numeric_stats[:5])})"
+        )
+    if skipped_failed_stats:
+        print(
+            "Skipped stats that could not be retrieved: "
+            f"{len(skipped_failed_stats)} "
+            f"(examples: {', '.join(skipped_failed_stats[:5])})"
+        )
+    if not trigger_counter_processed:
+        print(
+            f"Trigger counter '{trigger_counter}' could not be evaluated. "
+            "Ensure perf_analyze.counters[0] is a numeric stat in collected_stats.csv."
+        )
+        return 1
+
+    drift_configs: List[str] = []
+    config_summary: List[Dict[str, Any]] = []
+    for cfg in non_baseline_configs:
+        trigger_avg_delta = aggregate_delta_by_config[cfg].get(trigger_counter)
+        trigger_abs_max = max(
+            (abs(delta) for delta in trigger_workload_delta_by_config[cfg].values() if delta is not None),
+            default=0.0,
+        )
+        has_drift = bool(
+            (trigger_avg_delta is not None and abs(trigger_avg_delta) >= threshold_pct)
+            or trigger_abs_max >= threshold_pct
+        )
+        if has_drift:
+            drift_configs.append(cfg)
+        config_summary.append(
+            {
+                "config": cfg,
+                "trigger_counter": trigger_counter,
+                "avg_delta_pct": trigger_avg_delta,
+                "max_workload_abs_delta_pct": trigger_abs_max,
+                "drift_detected": has_drift,
+            }
+        )
+
+    output_dir = stats_path.parent
+    summary_path = output_dir / "perf_diff_summary.json"
+    report_path = output_dir / "perf_drift_report.md"
+    prompt_path = output_dir / "perf_drift_prompt.md"
+    ai_report_path = output_dir / "perf_ai_report.md"
+
+    summary_payload: Dict[str, Any] = {
+        "stats_file": str(stats_path),
+        "scarab_repo": str(scarab_repo) if scarab_repo else "",
+        "baseline": baseline,
+        "threshold_pct": threshold_pct,
+        "trigger_counter": trigger_counter,
+        "trigger_counter_resolved": trigger_resolved_counter,
+        "stat_groups": normalized_stat_groups,
+        "stat_group_candidate_counts": group_stats_count,
+        "compare_all_stats": compare_all_stats,
+        "workloads": workloads,
+        "configs": configs,
+        "configured_counters": [requested for requested, _ in resolved_counters],
+        "compared_counters": [requested for requested, _ in counters_for_comparison],
+        "skipped_non_numeric_stats": skipped_non_numeric_stats,
+        "skipped_failed_stats": skipped_failed_stats,
+        "config_summary": config_summary,
+        "aggregate_delta_by_config": aggregate_delta_by_config,
+        "trigger_workload_delta_by_config": trigger_workload_delta_by_config,
+        "drift_configs": drift_configs,
+        "binary_compare_by_config": binary_compare_by_config,
+    }
+    summary_path.write_text(json.dumps(summary_payload, indent=2), encoding="utf-8")
+
+    report_lines: List[str] = []
+    report_lines.append("# Performance Drift Summary")
+    report_lines.append("")
+    report_lines.append(f"- Baseline: `{baseline}`")
+    report_lines.append(f"- Trigger counter: `{trigger_counter}`")
+    report_lines.append(f"- Drift threshold (abs %): `{threshold_pct}`")
+    report_lines.append(f"- Stats source: `{stats_path}`")
+    if scarab_repo:
+        report_lines.append(f"- Scarab repo: `{scarab_repo}`")
+    report_lines.append("")
+    report_lines.append("| Configuration | Avg delta (%) | Max workload abs delta (%) | Drift |")
+    report_lines.append("| --- | --- | --- | --- |")
+    for row in config_summary:
+        avg_val = row["avg_delta_pct"]
+        avg_text = "N/A" if avg_val is None else f"{avg_val:.3f}"
+        report_lines.append(
+            f"| {row['config']} | {avg_text} | {row['max_workload_abs_delta_pct']:.3f} | "
+            f"{'yes' if row['drift_detected'] else 'no'} |"
+        )
+
+    for cfg in drift_configs:
+        report_lines.append("")
+        report_lines.append(f"## Drift details: `{cfg}`")
+        binary_info = binary_compare_by_config.get(cfg, {})
+        report_lines.append("")
+        report_lines.append(
+            "- Binary compare: "
+            f"baseline=`{binary_info.get('baseline_binary', '')}` ({binary_info.get('baseline_hash') or 'unknown'}), "
+            f"target=`{binary_info.get('target_binary', '')}` ({binary_info.get('target_hash') or 'unknown'})"
+        )
+        if binary_info.get("hashes_differ"):
+            changed_files = binary_info.get("git_diff_name_only") or []
+            if changed_files:
+                report_lines.append("- Scarab files changed between hashes (top 12):")
+                for path in changed_files[:12]:
+                    report_lines.append(f"  - {path}")
+            diff_stat_text = str(binary_info.get("git_diff_stat", "")).strip()
+            if diff_stat_text:
+                report_lines.append("- Git diff --stat:")
+                report_lines.append("```")
+                report_lines.extend(diff_stat_text.splitlines()[:20])
+                report_lines.append("```")
+            patch_excerpt = str(binary_info.get("git_diff_patch_excerpt", "")).strip()
+            if patch_excerpt:
+                report_lines.append("- Git diff patch excerpt (for code-level analysis):")
+                report_lines.append("```diff")
+                report_lines.extend(patch_excerpt.splitlines()[:120])
+                report_lines.append("```")
+                if binary_info.get("git_diff_patch_truncated"):
+                    report_lines.append("- Patch excerpt truncated for report size limits.")
+        elif not binary_info.get("hashes_known"):
+            report_lines.append("- Binary compare: commit hashes unavailable for at least one side.")
+
+        top_workloads = sorted(
+            (
+                (workload, delta)
+                for workload, delta in trigger_workload_delta_by_config[cfg].items()
+                if delta is not None
+            ),
+            key=lambda item: abs(item[1]),
+            reverse=True,
+        )[:8]
+        if top_workloads:
+            report_lines.append("")
+            report_lines.append(f"Top workload deltas on `{trigger_counter}`:")
+            for workload, delta in top_workloads:
+                report_lines.append(f"- {workload}: {delta:.3f}%")
+        top_counters = sorted(
+            (
+                (counter, delta)
+                for counter, delta in aggregate_delta_by_config[cfg].items()
+                if delta is not None
+            ),
+            key=lambda item: abs(item[1]),
+            reverse=True,
+        )[:8]
+        if top_counters:
+            report_lines.append("")
+            report_lines.append("Top average counter deltas:")
+            for counter, delta in top_counters:
+                report_lines.append(f"- {counter}: {delta:.3f}%")
+
+    if not drift_configs:
+        report_lines.append("")
+        report_lines.append("No significant drift detected based on the configured threshold.")
+
+    report_path.write_text("\n".join(report_lines) + "\n", encoding="utf-8")
+
+    def estimate_tokens(text: str) -> int:
+        # Practical approximation for mixed natural language + code.
+        return max(1, (len(text) + 3) // 4)
+
+    class PromptBuilder:
+        def __init__(self, token_budget: int):
+            self.token_budget = token_budget
+            self.parts: List[str] = []
+            self.used_tokens = 0
+            self.dropped_sections: List[str] = []
+            self.truncated_sections: List[str] = []
+
+        def add(self, text: str, *, label: str, required: bool = False) -> bool:
+            if not text:
+                return True
+            tokens = estimate_tokens(text)
+            if self.used_tokens + tokens <= self.token_budget:
+                self.parts.append(text)
+                self.used_tokens += tokens
+                return True
+            if required:
+                remaining = max(self.token_budget - self.used_tokens, 0)
+                if remaining <= 0:
+                    self.dropped_sections.append(label)
+                    return False
+                approx_chars = max(remaining * 4, 256)
+                clipped = text[:approx_chars]
+                if clipped and not clipped.endswith("\n"):
+                    clipped += "\n"
+                clipped += f"\n[TRUNCATED {label} due to prompt budget]\n"
+                clipped_tokens = estimate_tokens(clipped)
+                if self.used_tokens + clipped_tokens <= self.token_budget:
+                    self.parts.append(clipped)
+                    self.used_tokens += clipped_tokens
+                    self.truncated_sections.append(label)
+                    return True
+                self.dropped_sections.append(label)
+                return False
+            self.dropped_sections.append(label)
+            return False
+
+        def render(self) -> str:
+            return "\n".join(self.parts).rstrip() + "\n"
+
+    prompt_builder = PromptBuilder(prompt_budget_tokens)
+    header_text = (
+        "You are analyzing performance drift from Scarab simulation stats.\n"
+        "Use the provided summary and produce a concise root-cause hypothesis report.\n"
+        "Focus on likely microarchitectural bottlenecks and tie claims to changed counters.\n"
+        "If binary hashes differ, use the Scarab git diff and changed files to explain plausible causes.\n"
+        f"Summary JSON: {summary_path}\n"
+    )
+    prompt_builder.add(header_text, label="header", required=True)
+
+    summary_text = "JSON payload:\n" + json.dumps(summary_payload, indent=2) + "\n"
+    prompt_builder.add(summary_text, label="summary_json", required=True)
+
+    if drift_configs:
+        prompt_builder.add(
+            "\nGit diff excerpts by drifting configuration:\n",
+            label="diff_section_header",
+            required=False,
+        )
+        for cfg in drift_configs:
+            info_by_cfg = binary_compare_by_config.get(cfg, {})
+            if not info_by_cfg.get("hashes_differ"):
+                continue
+            excerpt = str(info_by_cfg.get("git_diff_patch_excerpt", "")).strip()
+            if not excerpt:
+                continue
+            diff_block = (
+                f"\n### {cfg} ({info_by_cfg.get('baseline_hash') or 'unknown'}.."
+                f"{info_by_cfg.get('target_hash') or 'unknown'})\n"
+                "```diff\n"
+                f"{excerpt}\n"
+                "```\n"
+            )
+            if info_by_cfg.get("git_diff_patch_truncated"):
+                diff_block += "NOTE: diff excerpt truncated for prompt size limits.\n"
+            prompt_builder.add(diff_block, label=f"diff_{cfg}", required=False)
+
+    prompt_budget_info = {
+        "prompt_budget_tokens": prompt_budget_tokens,
+        "estimated_prompt_tokens": prompt_builder.used_tokens,
+        "prompt_sections_dropped": prompt_builder.dropped_sections,
+        "prompt_sections_truncated": prompt_builder.truncated_sections,
+    }
+    summary_payload["prompt_budget"] = prompt_budget_info
+    summary_path.write_text(json.dumps(summary_payload, indent=2), encoding="utf-8")
+
+    prompt_text = prompt_builder.render()
+    print("Writing analyzer prompt file...")
+    prompt_path.write_text(prompt_text, encoding="utf-8")
+    prompt_budget_info["prompt_chars"] = len(prompt_text)
+    prompt_budget_info["prompt_lines"] = len(prompt_text.splitlines())
+    summary_path.write_text(json.dumps(summary_payload, indent=2), encoding="utf-8")
+
+    print(f"Wrote summary JSON: {summary_path}")
+    print(f"Wrote deterministic report: {report_path}")
+    print(f"Wrote analyzer prompt: {prompt_path}")
+    print(
+        "Prompt usage estimate: "
+        f"{prompt_budget_info['estimated_prompt_tokens']} / {prompt_budget_tokens} tokens "
+        f"(approx), {prompt_budget_info['prompt_chars']} chars."
+    )
+    if prompt_budget_info["prompt_sections_dropped"]:
+        print(
+            "Prompt sections dropped due to budget: "
+            + ", ".join(prompt_budget_info["prompt_sections_dropped"][:8])
+        )
+    if prompt_budget_info["prompt_sections_truncated"]:
+        print(
+            "Prompt sections truncated due to budget: "
+            + ", ".join(prompt_budget_info["prompt_sections_truncated"][:8])
+        )
+
+    if drift_configs and analyzer_cli_cmd:
+        cmd_template = analyzer_cli_cmd
+        has_prompt_placeholder = "{prompt_file}" in cmd_template
+        cmd_text = (
+            cmd_template.replace("{prompt_file}", str(prompt_path))
+            .replace("{summary_file}", str(summary_path))
+            .replace("{report_file}", str(ai_report_path))
+        )
+        try:
+            cmd = shlex.split(cmd_text)
+        except ValueError as exc:
+            print(f"Failed to parse perf_analyze.analyzer_cli_cmd: {exc}")
+            return 1
+        if not cmd:
+            print("Configured analyzer_cli_cmd is empty after parsing; skipping AI analysis.")
+            return 0
+        stdin_payload: Optional[str] = None
+        # Common ergonomic default: "codex" should work in non-interactive mode.
+        if cmd[0] == "codex" and len(cmd) == 1:
+            cmd = ["codex", "exec", "-"]
+            stdin_payload = prompt_path.read_text(encoding="utf-8")
+        elif cmd[0] == "codex" and len(cmd) >= 2 and cmd[1] in {"exec", "e"}:
+            if "-" in cmd:
+                stdin_payload = prompt_path.read_text(encoding="utf-8")
+            elif not has_prompt_placeholder:
+                cmd.append(str(prompt_path))
+        elif not has_prompt_placeholder:
+            cmd.append(str(prompt_path))
+        print(f"Running analyzer CLI: {' '.join(cmd)}")
+        completed = subprocess.run(
+            cmd,
+            text=True,
+            capture_output=True,
+            input=stdin_payload,
+        )
+        if completed.returncode != 0:
+            print(f"Analyzer CLI failed with exit code {completed.returncode}; skipping AI report.")
+            if completed.stderr:
+                print(completed.stderr.strip())
+        else:
+            ai_text = (completed.stdout or "").strip()
+            if ai_text:
+                ai_report_path.write_text(ai_text + "\n", encoding="utf-8")
+                print(f"Wrote AI report: {ai_report_path}")
+            elif ai_report_path.is_file():
+                print(f"Analyzer CLI completed and wrote report file: {ai_report_path}")
+            else:
+                print("Analyzer CLI completed without stdout output; no AI report file created.")
+    elif drift_configs:
+        print("Drift detected but no perf_analyze.analyzer_cli_cmd configured; skipped AI analysis.")
+    else:
+        print("No drift detected; skipped AI analysis.")
+
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="sci",
@@ -2310,6 +3363,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Plot IPC and speedup for collected stats in json/<DESCRIPTOR>.json.",
     )
     parser.add_argument(
+        "--perf-analyze",
+        dest="perf_analyze",
+        metavar="DESCRIPTOR",
+        help="Analyze performance drift from collected stats in json/<DESCRIPTOR>.json.",
+    )
+    parser.add_argument(
         "--kill",
         metavar="DESCRIPTOR",
         help="Kill active simulations for json/<DESCRIPTOR>.json.",
@@ -2347,6 +3406,7 @@ def main() -> int:
         bool(args.trace),
         bool(args.sim),
         bool(args.visualize),
+        bool(args.perf_analyze),
         bool(args.kill),
         bool(args.status),
         bool(args.clean),
@@ -2362,6 +3422,7 @@ def main() -> int:
         args.trace,
         args.sim,
         args.visualize,
+        args.perf_analyze,
         args.kill,
         args.status,
         args.clean,
@@ -2448,6 +3509,8 @@ def main() -> int:
             return 1
     if args.visualize:
         return run_visualize(args.visualize)
+    if args.perf_analyze:
+        return run_perf_analyze(args.perf_analyze)
     if args.kill:
         try:
             handle_descriptor_action(args.kill, "kill", dbg_override=args.debug_level)

@@ -63,21 +63,43 @@
       "binary": "scarab_current"
     }
   },
-  "_visualize_counters":"List of PMU/stat names to plot when running ./sci --visualize <descriptor>.",
-  "visualize_counters":[
-    "IPC",
-    ["BTB_CORRECT", "BTB_INCORRECT_BUT_TARGET_CORRECT", "BTB_INCORRECT"],
-    {
-      "type":"stacked",
-      "name":"icache_hit_miss",
-      "title":"Icache Hit/Miss Breakdown",
-      "y_label":"Events",
-      "stats":[
-        "ICACHE_HIT",
-        "ICACHE_MISS"
-      ]
-    }
-  ],
-  "_visualize_baseline":"Optional configuration name to use as the speedup baseline when running ./sci --visualize.",
-  "visualize_baseline":"icache_32k"
+  "_visualize":"Visualization settings for ./sci --visualize. Configure baseline and counters.",
+  "visualize":{
+    "baseline":"icache_32k",
+    "counters":[
+      "IPC",
+      ["BTB_CORRECT", "BTB_INCORRECT_BUT_TARGET_CORRECT", "BTB_INCORRECT"],
+      {
+        "type":"stacked",
+        "name":"icache_hit_miss",
+        "title":"Icache Hit/Miss Breakdown",
+        "y_label":"Events",
+        "stats":[
+          "ICACHE_HIT",
+          "ICACHE_MISS"
+        ]
+      }
+    ]
+  },
+  "_perf_analyze":"Performance drift analysis settings for ./sci --perf-analyze. It diffs stats and also compares baseline-vs-target Scarab binary hashes; when hashes differ it runs git diff/log in scarab_path and includes that context in reports and AI prompt. analyzer_cli_cmd examples: codex (auto-runs as non-interactive codex exec -), codex exec -, or gemini -p \"@{prompt_file}\". Supported placeholders: {prompt_file}, {summary_file}, {report_file}.",
+  "perf_analyze":{
+    "baseline":"icache_32k",
+    "counters":[
+      "IPC",
+      "ICACHE_MISS"
+    ],
+    "_stat_groups":"Optional list of Scarab stat groups to compare: bp, core, fetch, inst, l2l1pref, memory, power, pref, stream.",
+    "stat_groups":[
+      "bp",
+      "fetch",
+      "core"
+    ],
+    "_compare_all_stats":"When true, compare all stats in collected_stats.csv that match stat_groups (or all stats if stat_groups is empty). Drift trigger still uses counters[0].",
+    "compare_all_stats":false,
+    "_prompt_budget_tokens":"Approximate max tokens allowed for analyzer prompt assembly.",
+    "prompt_budget_tokens":12000,
+    "threshold_pct":2.0,
+    "_analyzer_cli_cmd":"CLI command for LLM-based analysis. Examples: codex, codex exec -, gemini -p \"@{prompt_file}\"",
+    "analyzer_cli_cmd":"codex"
+  }
 }

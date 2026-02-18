@@ -8,7 +8,7 @@ scarab-infra is a set of tools that automate the execution of Scarab simulations
    ```
    ./sci --init
    ```
-   This installs Docker when possible, configures socket permissions, installs Miniconda if needed, creates/updates the `scarabinfra` conda environment, validates activation, ensures you have an SSH key, and optionally fetches SimPoint traces, Slurm, and ghcr.io credentials.
+   This installs Docker when possible, configures socket permissions, installs Miniconda if needed, creates/updates the `scarabinfra` conda environment, validates activation, ensures you have an SSH key, and optionally fetches SimPoint traces, Slurm, ghcr.io credentials, and AI CLIs (Codex/Gemini).
 
 2. **Prepare (or update) your descriptor**
    ```
@@ -51,9 +51,17 @@ You only need additional steps if you want to inspect workloads, collect traces,
 ```
 ./sci --visualize <descriptor>
 ```
-Generates bar charts (value and speedup) for each counter listed in the descriptor’s `visualize_counters` field and saves them next to `collected_stats.csv` under `<root_dir>/simulations/<descriptor>/`.
+Generates bar charts (value and speedup) for each counter listed in `visualize.counters` and saves them next to `collected_stats.csv` under `<root_dir>/simulations/<descriptor>/`.
 
-Each entry in `visualize_counters` can be either:
+Use the descriptor structure:
+```json
+"visualize": {
+  "baseline": "baseline",
+  "counters": ["IPC"]
+}
+```
+
+Each entry in `visualize.counters` can be either:
 - a single counter name (e.g. `"IPC"`) to produce the existing bar and speedup plots, or
 - a list of multiple counters (e.g. `["BTB_OFF_PATH_MISS_count", "BTB_OFF_PATH_HIT_count"]`) which will emit a stacked plot (`*_stacked.png`) combining those counters across workloads/configs.
 
@@ -69,7 +77,37 @@ For additional control you may instead supply objects such as:
 ```
 The `name` (optional) governs the output filename stem, while `title` and `y_label` adjust plot annotations.
 
-Set `visualize_baseline` in the descriptor to force the speedup plots to use a specific configuration as their reference (defaults to the first configuration present in the stats file).
+Set `visualize.baseline` to force the speedup plots to use a specific configuration as their reference (defaults to the first configuration present in the stats file).
+
+### Analyze performance drift
+```
+./sci --perf-analyze <descriptor>
+```
+Diffs collected stats against a baseline configuration, writes a deterministic drift report, and optionally invokes an analyzer CLI (for example Codex or Gemini) for root-cause hypotheses.
+
+Use:
+```json
+"perf_analyze": {
+  "baseline": "baseline",
+  "counters": ["IPC", "ICACHE_MISS", "BRANCH_MISPRED"],
+  "stat_groups": ["bp", "fetch", "core"],
+  "compare_all_stats": false,
+  "prompt_budget_tokens": 12000,
+  "threshold_pct": 2.0,
+  "analyzer_cli_cmd": "codex"
+}
+```
+
+Notes:
+- `perf_analyze.counters[0]` is used as the trigger counter for drift detection.
+- `stat_groups` optionally restricts compared stats to selected Scarab groups: `bp`, `core`, `fetch`, `inst`, `l2l1pref`, `memory`, `power`, `pref`, `stream`.
+- Set `compare_all_stats: true` to compare every stat present in `collected_stats.csv`; `counters[0]` remains the drift trigger.
+- `prompt_budget_tokens` limits prompt size (approximate token budgeting) before invoking the analyzer CLI.
+- `threshold_pct` is an absolute percent-delta threshold.
+- `analyzer_cli_cmd` supports `{prompt_file}`, `{summary_file}`, and `{report_file}` placeholders. If `{prompt_file}` is omitted, the prompt path is appended as the last argument.
+- Example commands: `codex` (auto-converted to non-interactive `codex exec -`), `codex exec -`, `gemini -p "@{prompt_file}"`.
+- If compared configurations use different Scarab binary hashes, `--perf-analyze` runs `git diff` in `scarab_path` and includes changed files/commit summaries in the report and AI prompt.
+- Outputs are written beside `collected_stats.csv`: `perf_diff_summary.json`, `perf_drift_report.md`, `perf_drift_prompt.md`, and optionally `perf_ai_report.md`.
 
 ### List workloads and simulation modes
 ```
