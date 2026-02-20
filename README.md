@@ -92,6 +92,8 @@ Use:
   "counters": ["IPC", "ICACHE_MISS", "BRANCH_MISPRED"],
   "stat_groups": ["bp", "fetch", "core"],
   "compare_all_stats": false,
+  "drift_top_workloads": 5,
+  "drift_top_simpoints": 5,
   "prompt_budget_tokens": 12000,
   "threshold_pct": 2.0,
   "analyzer_cli_cmd": "codex"
@@ -102,6 +104,8 @@ Notes:
 - `perf_analyze.counters[0]` is used as the trigger counter for drift detection.
 - `stat_groups` optionally restricts compared stats to selected Scarab groups: `bp`, `core`, `fetch`, `inst`, `l2l1pref`, `memory`, `power`, `pref`, `stream`.
 - Set `compare_all_stats: true` to compare every stat present in `collected_stats.csv`; `counters[0]` remains the drift trigger.
+- `drift_top_workloads` controls how many highest-drift workloads (by trigger counter abs delta) are expanded in the report/prompt.
+- `drift_top_simpoints` controls how many highest-impact simpoints per selected workload are expanded.
 - `prompt_budget_tokens` limits prompt size (approximate token budgeting) before invoking the analyzer CLI.
 - `threshold_pct` is an absolute percent-delta threshold.
 - `analyzer_cli_cmd` supports `{prompt_file}`, `{summary_file}`, and `{report_file}` placeholders. If `{prompt_file}` is omitted, the prompt path is appended as the last argument.

@@ -2208,6 +2208,20 @@ def resolve_perf_analyze_settings(
         raise StepError("Descriptor field 'perf_analyze.compare_all_stats' must be a boolean.")
     compare_all_stats = bool(raw_compare_all_stats)
 
+    raw_drift_top_workloads = block.get("drift_top_workloads", 5)
+    if not isinstance(raw_drift_top_workloads, int):
+        raise StepError("Descriptor field 'perf_analyze.drift_top_workloads' must be an integer.")
+    drift_top_workloads = int(raw_drift_top_workloads)
+    if drift_top_workloads < 0:
+        raise StepError("Descriptor field 'perf_analyze.drift_top_workloads' must be >= 0.")
+
+    raw_drift_top_simpoints = block.get("drift_top_simpoints", 5)
+    if not isinstance(raw_drift_top_simpoints, int):
+        raise StepError("Descriptor field 'perf_analyze.drift_top_simpoints' must be an integer.")
+    drift_top_simpoints = int(raw_drift_top_simpoints)
+    if drift_top_simpoints < 0:
+        raise StepError("Descriptor field 'perf_analyze.drift_top_simpoints' must be >= 0.")
+
     raw_prompt_budget_tokens = block.get("prompt_budget_tokens", 12000)
     if not isinstance(raw_prompt_budget_tokens, int):
         raise StepError("Descriptor field 'perf_analyze.prompt_budget_tokens' must be an integer.")
@@ -2256,6 +2270,8 @@ def resolve_perf_analyze_settings(
         "counters": counters,
         "stat_groups": stat_groups,
         "compare_all_stats": compare_all_stats,
+        "drift_top_workloads": drift_top_workloads,
+        "drift_top_simpoints": drift_top_simpoints,
         "prompt_budget_tokens": prompt_budget_tokens,
         "threshold_pct": threshold_pct,
         "analyzer_cli_cmd": analyzer_cli_cmd.strip() if isinstance(analyzer_cli_cmd, str) else "",
@@ -2562,6 +2578,8 @@ def run_perf_analyze(descriptor_name: str) -> int:
     requested_counters = [str(counter) for counter in settings["counters"] if counter is not None]
     requested_stat_groups = [str(group) for group in settings.get("stat_groups", []) if str(group).strip()]
     compare_all_stats = bool(settings.get("compare_all_stats"))
+    drift_top_workloads = int(settings.get("drift_top_workloads", 5))
+    drift_top_simpoints = int(settings.get("drift_top_simpoints", 5))
     prompt_budget_tokens = int(settings.get("prompt_budget_tokens", 12000))
     analyzer_cli_cmd = settings["analyzer_cli_cmd"]
     if not requested_counters:
@@ -2927,6 +2945,9 @@ def run_perf_analyze(descriptor_name: str) -> int:
     fast_path_ready = False
     stats_to_row_index: Dict[str, int] = {}
     weighted_pairs_by_cfg_wl: Dict[Tuple[str, str], List[Tuple[int, float]]] = {}
+    simpoint_col_idx_by_cfg_wl_sp: Dict[Tuple[str, str, str], int] = {}
+    simpoint_names_by_cfg_wl: Dict[Tuple[str, str], Set[str]] = {}
+    weights_by_col_idx: List[float] = []
     row_values_cache: Dict[int, List[float]] = {}
     experiment_df = getattr(experiment, "data", None)
     if experiment_df is not None:
@@ -2946,6 +2967,7 @@ def run_perf_analyze(descriptor_name: str) -> int:
                         weights.append(float(raw))
                     except (TypeError, ValueError):
                         weights.append(float("nan"))
+                weights_by_col_idx = weights
 
                 column_indices_by_cfg_wl: Dict[Tuple[str, str], List[int]] = {}
                 for col_idx, col_name in enumerate(simpoint_columns):
@@ -2954,7 +2976,10 @@ def run_perf_analyze(descriptor_name: str) -> int:
                         continue
                     cfg_name = parts[0]
                     workload_name = parts[1]
+                    simpoint_name = parts[2]
                     column_indices_by_cfg_wl.setdefault((cfg_name, workload_name), []).append(col_idx)
+                    simpoint_col_idx_by_cfg_wl_sp[(cfg_name, workload_name, simpoint_name)] = col_idx
+                    simpoint_names_by_cfg_wl.setdefault((cfg_name, workload_name), set()).add(simpoint_name)
 
                 relevant_cfgs = [baseline] + [cfg for cfg in non_baseline_configs if cfg != baseline]
                 for cfg_name in relevant_cfgs:
@@ -3130,6 +3155,80 @@ def run_perf_analyze(descriptor_name: str) -> int:
             }
         )
 
+    trigger_hotspots_by_config: Dict[str, Dict[str, Any]] = {}
+    if drift_top_workloads > 0 and drift_top_simpoints > 0:
+        trigger_row_vals: Optional[List[float]] = None
+        if fast_path_ready:
+            trigger_row_idx = stats_to_row_index.get(trigger_resolved_counter)
+            if trigger_row_idx is not None:
+                trigger_row_vals = get_row_values_cached(trigger_row_idx)
+
+        if trigger_row_vals is not None:
+            for cfg in non_baseline_configs:
+                ranked_workloads = sorted(
+                    (
+                        (workload, delta)
+                        for workload, delta in trigger_workload_delta_by_config[cfg].items()
+                        if delta is not None
+                    ),
+                    key=lambda item: abs(item[1]),
+                    reverse=True,
+                )[:drift_top_workloads]
+
+                workload_entries: List[Dict[str, Any]] = []
+                for workload, wl_delta in ranked_workloads:
+                    baseline_sps = simpoint_names_by_cfg_wl.get((baseline, workload), set())
+                    config_sps = simpoint_names_by_cfg_wl.get((cfg, workload), set())
+                    shared_sps = sorted(baseline_sps & config_sps)
+                    simpoint_entries: List[Dict[str, Any]] = []
+                    for simpoint in shared_sps:
+                        baseline_idx = simpoint_col_idx_by_cfg_wl_sp.get((baseline, workload, simpoint))
+                        config_idx = simpoint_col_idx_by_cfg_wl_sp.get((cfg, workload, simpoint))
+                        if baseline_idx is None or config_idx is None:
+                            continue
+                        if baseline_idx >= len(trigger_row_vals) or config_idx >= len(trigger_row_vals):
+                            continue
+                        base_val = trigger_row_vals[baseline_idx]
+                        cfg_val = trigger_row_vals[config_idx]
+                        if math.isnan(base_val) or math.isnan(cfg_val):
+                            continue
+                        sp_delta_pct = pct_delta(cfg_val, base_val)
+                        if sp_delta_pct is None:
+                            continue
+                        base_weight = (
+                            weights_by_col_idx[baseline_idx]
+                            if baseline_idx < len(weights_by_col_idx)
+                            else float("nan")
+                        )
+                        impact_score = abs(sp_delta_pct) * base_weight if not math.isnan(base_weight) else None
+                        simpoint_entries.append(
+                            {
+                                "simpoint": simpoint,
+                                "baseline_value": base_val,
+                                "config_value": cfg_val,
+                                "delta_pct": sp_delta_pct,
+                                "baseline_weight": None if math.isnan(base_weight) else base_weight,
+                                "impact_score": impact_score,
+                            }
+                        )
+                    simpoint_entries.sort(
+                        key=lambda item: abs(item["impact_score"]) if item["impact_score"] is not None else 0.0,
+                        reverse=True,
+                    )
+                    workload_entries.append(
+                        {
+                            "workload": workload,
+                            "workload_delta_pct": wl_delta,
+                            "simpoints": simpoint_entries[:drift_top_simpoints],
+                            "shared_simpoint_count": len(shared_sps),
+                        }
+                    )
+                trigger_hotspots_by_config[cfg] = {
+                    "top_workloads_limit": drift_top_workloads,
+                    "top_simpoints_limit": drift_top_simpoints,
+                    "workloads": workload_entries,
+                }
+
     output_dir = stats_path.parent
     summary_path = output_dir / "perf_diff_summary.json"
     report_path = output_dir / "perf_drift_report.md"
@@ -3146,6 +3245,8 @@ def run_perf_analyze(descriptor_name: str) -> int:
         "stat_groups": normalized_stat_groups,
         "stat_group_candidate_counts": group_stats_count,
         "compare_all_stats": compare_all_stats,
+        "drift_top_workloads": drift_top_workloads,
+        "drift_top_simpoints": drift_top_simpoints,
         "workloads": workloads,
         "configs": configs,
         "configured_counters": [requested for requested, _ in resolved_counters],
@@ -3155,6 +3256,7 @@ def run_perf_analyze(descriptor_name: str) -> int:
         "config_summary": config_summary,
         "aggregate_delta_by_config": aggregate_delta_by_config,
         "trigger_workload_delta_by_config": trigger_workload_delta_by_config,
+        "trigger_hotspots_by_config": trigger_hotspots_by_config,
         "drift_configs": drift_configs,
         "binary_compare_by_config": binary_compare_by_config,
     }
@@ -3213,20 +3315,49 @@ def run_perf_analyze(descriptor_name: str) -> int:
         elif not binary_info.get("hashes_known"):
             report_lines.append("- Binary compare: commit hashes unavailable for at least one side.")
 
-        top_workloads = sorted(
-            (
-                (workload, delta)
-                for workload, delta in trigger_workload_delta_by_config[cfg].items()
-                if delta is not None
-            ),
-            key=lambda item: abs(item[1]),
-            reverse=True,
-        )[:8]
+        top_workloads = trigger_hotspots_by_config.get(cfg, {}).get("workloads", [])
         if top_workloads:
             report_lines.append("")
             report_lines.append(f"Top workload deltas on `{trigger_counter}`:")
-            for workload, delta in top_workloads:
-                report_lines.append(f"- {workload}: {delta:.3f}%")
+            for entry in top_workloads:
+                workload = str(entry.get("workload", ""))
+                delta = entry.get("workload_delta_pct")
+                if workload and isinstance(delta, (int, float)):
+                    report_lines.append(f"- {workload}: {delta:.3f}%")
+                simpoints = entry.get("simpoints")
+                if isinstance(simpoints, list) and simpoints:
+                    for sp in simpoints:
+                        sp_name = str(sp.get("simpoint", ""))
+                        sp_delta = sp.get("delta_pct")
+                        sp_weight = sp.get("baseline_weight")
+                        sp_impact = sp.get("impact_score")
+                        if not sp_name or not isinstance(sp_delta, (int, float)):
+                            continue
+                        weight_text = (
+                            f"{sp_weight:.4f}" if isinstance(sp_weight, (int, float)) else "N/A"
+                        )
+                        impact_text = (
+                            f"{sp_impact:.3f}" if isinstance(sp_impact, (int, float)) else "N/A"
+                        )
+                        report_lines.append(
+                            f"  - simpoint {sp_name}: delta={sp_delta:.3f}%, "
+                            f"baseline_weight={weight_text}, impact={impact_text}"
+                        )
+        else:
+            fallback_workloads = sorted(
+                (
+                    (workload, delta)
+                    for workload, delta in trigger_workload_delta_by_config[cfg].items()
+                    if delta is not None
+                ),
+                key=lambda item: abs(item[1]),
+                reverse=True,
+            )[:8]
+            if fallback_workloads:
+                report_lines.append("")
+                report_lines.append(f"Top workload deltas on `{trigger_counter}`:")
+                for workload, delta in fallback_workloads:
+                    report_lines.append(f"- {workload}: {delta:.3f}%")
         top_counters = sorted(
             (
                 (counter, delta)
@@ -3297,10 +3428,44 @@ def run_perf_analyze(descriptor_name: str) -> int:
         "You are analyzing performance drift from Scarab simulation stats.\n"
         "Use the provided summary and produce a concise root-cause hypothesis report.\n"
         "Focus on likely microarchitectural bottlenecks and tie claims to changed counters.\n"
+        "Prioritize configs/workloads/simpoints with the largest trigger-counter drift.\n"
         "If binary hashes differ, use the Scarab git diff and changed files to explain plausible causes.\n"
         f"Summary JSON: {summary_path}\n"
     )
     prompt_builder.add(header_text, label="header", required=True)
+
+    if trigger_hotspots_by_config:
+        hotspot_lines: List[str] = []
+        hotspot_lines.append("Trigger-counter hotspot focus:")
+        for cfg in drift_configs:
+            cfg_hotspots = trigger_hotspots_by_config.get(cfg, {})
+            workloads_section = cfg_hotspots.get("workloads")
+            if not isinstance(workloads_section, list) or not workloads_section:
+                continue
+            hotspot_lines.append(f"- Config `{cfg}`:")
+            for workload_entry in workloads_section[:drift_top_workloads]:
+                wl_name = str(workload_entry.get("workload", ""))
+                wl_delta = workload_entry.get("workload_delta_pct")
+                if not wl_name or not isinstance(wl_delta, (int, float)):
+                    continue
+                hotspot_lines.append(f"  - Workload `{wl_name}`: {wl_delta:.3f}%")
+                simpoints = workload_entry.get("simpoints")
+                if not isinstance(simpoints, list):
+                    continue
+                for sp in simpoints[:drift_top_simpoints]:
+                    sp_name = str(sp.get("simpoint", ""))
+                    sp_delta = sp.get("delta_pct")
+                    sp_impact = sp.get("impact_score")
+                    if not sp_name or not isinstance(sp_delta, (int, float)):
+                        continue
+                    if isinstance(sp_impact, (int, float)):
+                        hotspot_lines.append(
+                            f"    - simpoint `{sp_name}`: {sp_delta:.3f}% (impact {sp_impact:.3f})"
+                        )
+                    else:
+                        hotspot_lines.append(f"    - simpoint `{sp_name}`: {sp_delta:.3f}%")
+        if len(hotspot_lines) > 1:
+            prompt_builder.add("\n".join(hotspot_lines) + "\n", label="hotspots", required=False)
 
     summary_text = "JSON payload:\n" + json.dumps(summary_payload, indent=2) + "\n"
     prompt_builder.add(summary_text, label="summary_json", required=True)
