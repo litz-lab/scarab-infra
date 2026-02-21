@@ -1229,15 +1229,43 @@ def print_simulation_status_summary(
     os.system(f"ls -R {root_directory} > /dev/null")
 
     try:
-        log_files = os.listdir(root_logfile_directory)
+        all_log_files = os.listdir(root_logfile_directory)
     except Exception:
         print("Log file directory does not exist")
         print("The current experiment does not seem to have been run yet")
         return
 
-    if len(log_files) > len(all_jobs) + log_file_count_buffer:
+    if len(all_log_files) > len(all_jobs) + log_file_count_buffer:
         print("More log files than total runs. Maybe same experiment name was run multiple times?")
-        print("Any errors from a previous run with the same experiment name will be re-reported now")
+
+    # Keep only the newest wrapper log for each simulation scenario.
+    latest_log_by_run = {}
+    for file in all_log_files:
+        log_path = os.path.join(root_logfile_directory, file)
+        try:
+            with open(log_path, "r") as f:
+                first_line = f.readline().strip()
+        except OSError:
+            continue
+
+        run_key = None
+        if first_line.startswith("Running "):
+            first_parts = first_line.split(" ")
+            if len(first_parts) >= 4:
+                run_key = (first_parts[1], first_parts[2], first_parts[3])
+        if run_key is None:
+            run_key = ("__unparsed__", file)
+
+        try:
+            mtime = os.path.getmtime(log_path)
+        except OSError:
+            continue
+
+        prev = latest_log_by_run.get(run_key)
+        if prev is None or mtime > prev[0]:
+            latest_log_by_run[run_key] = (mtime, file)
+
+    log_files = [entry[1] for entry in latest_log_by_run.values()]
 
     error_runs = set()
     skipped = 0
@@ -1316,6 +1344,20 @@ def print_simulation_status_summary(
                 error_runs.add(log_path)
                 continue
 
+            workload_parts = workload_path.split("/")
+            sim_dir = Path(descriptor_data["root_dir"]) / "simulations" / descriptor_data["experiment"] / config
+            sim_dir = sim_dir.joinpath(*workload_parts, cluster_id)
+            has_csv = False
+            try:
+                has_csv = any(x.endswith(".csv") for x in os.listdir(sim_dir))
+            except OSError:
+                has_csv = False
+
+            # If slurm cancelled wrapper execution but results were already produced, treat as completed.
+            if "cancelled" in contents_after_docker.lower() and has_csv:
+                completed[config] += 1
+                continue
+
             if all_nodes:
                 for node in all_nodes:
                     if f"{node}: error:" in contents_after_docker and not " Unable to unlink domain socket":
@@ -1331,10 +1373,7 @@ def print_simulation_status_summary(
                 error = 1
 
             if "Completed Simulation" in contents_after_docker and not error:
-                workload_parts = workload_path.split("/")
-                sim_dir = Path(descriptor_data["root_dir"]) / "simulations" / descriptor_data["experiment"] / config
-                sim_dir = sim_dir.joinpath(*workload_parts, cluster_id)
-                if any(list(map(lambda x: x.endswith(".csv"), os.listdir(sim_dir)))):
+                if has_csv:
                     completed[config] += 1
                     continue
                 err("Stat files not generated, despite being completed with no errors.", 1)
@@ -1384,7 +1423,7 @@ def print_simulation_status_summary(
     if error_runs:
         error_list = sorted(error_runs)
         print(f"\033[31mErroneous Jobs: {len(error_list)}\033[0m")
-        print(f"\033[31mErrors found in {len(error_list)}/{len(log_files)} log files.")
+        print(f"\033[31mErrors found in {len(error_list)}/{len(log_files)} latest log files.")
         print("First 5 error runs:\n", "\n".join(error_list[:5]), "\033[0m", sep='')
     else:
         print(f"\033[92mNo errors found in log files\033[0m")
