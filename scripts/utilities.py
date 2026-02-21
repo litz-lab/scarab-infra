@@ -207,6 +207,8 @@ def validate_simulation(workloads_data, simulations, dbg_lvl = 2):
 import os
 import fcntl
 import stat
+import errno
+import time
 from contextlib import contextmanager
 
 @contextmanager
@@ -216,18 +218,36 @@ def file_lock(lock_path):
     Ensures only one process at a time holds the lock.
     """
     os.makedirs(os.path.dirname(lock_path), exist_ok=True)
-    fd = os.open(lock_path, os.O_CREAT | os.O_RDWR)
+    fd = None
+    for _ in range(50):
+        try:
+            fd = os.open(lock_path, os.O_CREAT | os.O_RDWR)
+            break
+        except OSError as e:
+            if e.errno == errno.EACCES:
+                # Another process may have created this file with restrictive
+                # permissions and has not yet relaxed them.
+                time.sleep(0.1)
+                continue
+            raise
+    if fd is None:
+        raise PermissionError(f"Timed out opening lock file: {lock_path}")
     try:
         # Ensure other users can use the same lock file.
-        os.fchmod(
-            fd,
-            stat.S_IRUSR
-            | stat.S_IWUSR
-            | stat.S_IRGRP
-            | stat.S_IWGRP
-            | stat.S_IROTH
-            | stat.S_IWOTH,
-        )
+        try:
+            os.fchmod(
+                fd,
+                stat.S_IRUSR
+                | stat.S_IWUSR
+                | stat.S_IRGRP
+                | stat.S_IWGRP
+                | stat.S_IROTH
+                | stat.S_IWOTH,
+            )
+        except OSError as e:
+            # If this process does not own the file, chmod may be denied.
+            if e.errno not in (errno.EPERM, errno.EACCES):
+                raise
         fcntl.flock(fd, fcntl.LOCK_EX)  # blocks until lock acquired
         yield
     finally:
