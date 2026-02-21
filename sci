@@ -1508,6 +1508,21 @@ def run_build_scarab(descriptor_name: str) -> int:
     info(f"Mode: make {build_mode}")
     info(f"Scarab path: {scarab_path}")
 
+    configurations = descriptor.get("configurations") or {}
+    scarab_binaries: List[str] = []
+    if isinstance(configurations, dict):
+        for config in configurations.values():
+            if not isinstance(config, dict):
+                continue
+            binary = config.get("binary")
+            if binary:
+                binary_name = str(binary)
+                if binary_name not in scarab_binaries:
+                    scarab_binaries.append(binary_name)
+
+    if not scarab_binaries:
+        scarab_binaries = ["scarab_current"]
+
     try:
         infra_utils.prepare_simulation(
             user,
@@ -1519,7 +1534,7 @@ def run_build_scarab(descriptor_name: str) -> int:
             docker_prefix_list,
             githash,
             str(REPO_ROOT),
-            ["scarab_current"],
+            scarab_binaries,
             interactive_shell=True,
             dbg_lvl=2,
             stream_build=True,
