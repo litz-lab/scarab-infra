@@ -310,10 +310,13 @@ def kill_jobs(user, job_name, docker_prefix_list, dbg_lvl = 2):
                     subprocess.check_call(["scancel", "-u", user, str(id)])
                 except subprocess.CalledProcessError as e:
                     err(f"Couldn't cancel job with id {id}. Return code: {e.returncode}", dbg_lvl)
+            return True
         else:
             print("Operation canceled.")
+            return False
     else:
         print("No job found.")
+        return True
 
 def clean_containers(user, job_name, docker_prefix_list, dbg_lvl = 2):
     if not docker_prefix_list:

@@ -331,7 +331,15 @@ def run_simulation_command(descriptor_path, action, dbg_lvl=2, infra_dir=None):
             if workload_manager == "manual":
                 local_runner.kill_jobs(user, "simulation", experiment_name, docker_image_list, infra_dir, dbg_lvl)
             else:
-                slurm_runner.kill_jobs(user, experiment_name, docker_image_list, dbg_lvl)
+                should_clean = slurm_runner.kill_jobs(user, experiment_name, docker_image_list, dbg_lvl)
+                if not should_clean:
+                    return 0
+                slurm_runner.clean_containers(user, experiment_name, docker_image_list, dbg_lvl)
+                descriptor_root = Path(descriptor_data["root_dir"])
+                experiment_dir = descriptor_root / "simulations" / experiment_name
+                remove_tmp_run_scripts(Path(infra_dir), experiment_name, user, dbg_lvl)
+                remove_tmp_run_scripts(experiment_dir, experiment_name, user, dbg_lvl)
+            remove_docker_containers(docker_image_list, experiment_name, user, dbg_lvl)
             return 0
 
         if action == "info":
@@ -377,7 +385,8 @@ def run_simulation_command(descriptor_path, action, dbg_lvl=2, infra_dir=None):
             print("- Container names are deterministic for the same experiment/workload/config/user, so reruns reuse the same names.")
             print("- Most failures are cleaned by traps now, but hard failures can still leave orphans (for example: SIGKILL, node crash/reboot, or unreachable node during cleanup).")
             print("- Existing containers with reused names cause docker name-conflict errors and can produce misleading status logs.")
-            print(f"Run './sci --kill {experiment_name}' and './sci --clean {experiment_name}', then retry './sci --sim {experiment_name}'.")
+            print(f"Run './sci --kill {experiment_name}', then retry './sci --sim {experiment_name}'.")
+            print(f"If conflicts remain (for example, containers stranded on failed/rebooted nodes), run './sci --clean {experiment_name}'.")
             return 1
 
         if workload_manager == "manual":
