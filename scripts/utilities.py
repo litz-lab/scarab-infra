@@ -1198,6 +1198,8 @@ def print_simulation_status_summary(
         pending[conf] += 1
 
     not_in_experiment = []
+    oom_killed = []
+    oom_killed_sps = 0
     for file in log_files:
         log_path = os.path.join(root_logfile_directory, file)
         with open(log_path, 'r') as f:
@@ -1254,12 +1256,21 @@ def print_simulation_status_summary(
                 error_runs.add(log_path)
                 continue
 
+            prep_err = 0
             if all_nodes:
                 for node in all_nodes:
-                    if f"{node}: error:" in contents_after_docker and not " Unable to unlink domain socket":
+                    if f"{node}: error:" in contents_after_docker:
                         error_runs.add(log_path)
                         prep_failed[config] += 1
-                        continue
+                        prep_err = 1
+
+                        if "oom_kill" in contents_after_docker:
+                            oom_killed_sps += 1
+                            if config not in oom_killed:
+                                oom_killed.append(config)
+
+            if prep_err:
+                continue
 
             error = 0
             if 'Segmentation fault' in contents_after_docker:
@@ -1326,6 +1337,12 @@ def print_simulation_status_summary(
         print("First 5 error runs:\n", "\n".join(error_list[:5]), "\033[0m", sep='')
     else:
         print(f"\033[92mNo errors found in log files\033[0m")
+
+    if oom_killed_sps > 0:
+        print()
+        print(f"\033[31mOOM Killed Jobs: {oom_killed_sps}\033[0m")
+        print("To fix: Please increase --mem in the slurm_options field in the experiment descriptor file for each config listed below.")
+        print("OOM Killed Configs:\n", "\n".join(oom_killed), "\033[0m", sep='')
 
 def remove_docker_containers(docker_prefix_list, job_name, user, dbg_lvl):
     try:
