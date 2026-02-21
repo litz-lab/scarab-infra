@@ -984,6 +984,11 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
             f.write(f"echo \"Running {config_key} {workload_home} {cluster_id}\"\n")
             f.write(f"echo \"Script name: {filename}\"\n")
             f.write("echo \"Running on $(uname -n)\"\n")
+            f.write(f"CONTAINER_NAME={docker_container_name}\n")
+            f.write("cleanup_container() {\n")
+            f.write("    docker rm -f \"$CONTAINER_NAME\" >/dev/null 2>&1 || true\n")
+            f.write("}\n")
+            f.write("trap cleanup_container EXIT INT TERM HUP\n")
             f.write(f"cd {infra_dir}\n")
             f.write(f"python -m scripts.prepare_docker_image --docker-prefix {docker_prefix} --githash {githash} \n")
             f.write(f"cd -\n")
@@ -995,27 +1000,27 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
             -e APP_GROUPNAME={docker_prefix} \
             -e APPNAME={workload} \
             -dit \
-            --name {docker_container_name} \
+            --name $CONTAINER_NAME \
             --mount type=bind,source={traces_dir},target=/simpoint_traces,readonly=true \
             --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
             {docker_prefix}:{githash} \
             /bin/bash\n")
-            f.write(f"docker cp {infra_dir}/scripts/utilities.sh {docker_container_name}:/usr/local/bin\n")
-            f.write(f"docker cp {infra_dir}/common/scripts/root_entrypoint.sh {docker_container_name}:/usr/local/bin\n")
-            f.write(f"docker cp {infra_dir}/common/scripts/user_entrypoint.sh {docker_container_name}:/usr/local/bin\n")
+            f.write(f"docker cp {infra_dir}/scripts/utilities.sh $CONTAINER_NAME:/usr/local/bin\n")
+            f.write(f"docker cp {infra_dir}/common/scripts/root_entrypoint.sh $CONTAINER_NAME:/usr/local/bin\n")
+            f.write(f"docker cp {infra_dir}/common/scripts/user_entrypoint.sh $CONTAINER_NAME:/usr/local/bin\n")
             if os.path.exists(f"{infra_dir}/workloads/{docker_prefix}/workload_root_entrypoint.sh"):
-                f.write(f"docker cp {infra_dir}/workloads/{docker_prefix}/workload_root_entrypoint.sh {docker_container_name}:/usr/local/bin\n")
+                f.write(f"docker cp {infra_dir}/workloads/{docker_prefix}/workload_root_entrypoint.sh $CONTAINER_NAME:/usr/local/bin\n")
             if os.path.exists(f"{infra_dir}/workloads/{docker_prefix}/workload_user_entrypoint.sh"):
-                f.write(f"docker cp {infra_dir}/workloads/{docker_prefix}/workload_user_entrypoint.sh {docker_container_name}:/usr/local/bin\n")
+                f.write(f"docker cp {infra_dir}/workloads/{docker_prefix}/workload_user_entrypoint.sh $CONTAINER_NAME:/usr/local/bin\n")
             if scarab_mode == "memtrace":
-                f.write(f"docker cp {infra_dir}/common/scripts/run_memtrace_single_simpoint.sh {docker_container_name}:/usr/local/bin\n")
+                f.write(f"docker cp {infra_dir}/common/scripts/run_memtrace_single_simpoint.sh $CONTAINER_NAME:/usr/local/bin\n")
             elif scarab_mode == "pt":
-                f.write(f"docker cp {infra_dir}/common/scripts/run_pt_single_simpoint.sh {docker_container_name}:/usr/local/bin\n")
+                f.write(f"docker cp {infra_dir}/common/scripts/run_pt_single_simpoint.sh $CONTAINER_NAME:/usr/local/bin\n")
             elif scarab_mode == "exec":
-                f.write(f"docker cp {infra_dir}/common/scripts/run_exec_single_simpoint.sh {docker_container_name}:/usr/local/bin\n")
-            f.write(f"docker exec --privileged {docker_container_name} /bin/bash -c '/usr/local/bin/root_entrypoint.sh'\n")
-            f.write(f"docker exec --user={user} {docker_container_name} /bin/bash -c \"source /usr/local/bin/user_entrypoint.sh && {scarab_cmd}\" || echo \"Scarab error detected\"\n")
-            f.write(f"docker rm -f {docker_container_name}\n")
+                f.write(f"docker cp {infra_dir}/common/scripts/run_exec_single_simpoint.sh $CONTAINER_NAME:/usr/local/bin\n")
+            f.write("docker exec --privileged $CONTAINER_NAME /bin/bash -c '/usr/local/bin/root_entrypoint.sh'\n")
+            f.write(f"docker exec --user={user} $CONTAINER_NAME /bin/bash -c \"source /usr/local/bin/user_entrypoint.sh && {scarab_cmd}\" || echo \"Scarab error detected\"\n")
+            f.write("cleanup_container\n")
             f.write("echo \"Completed Simulation\"\n")
             f.write(f"sync {docker_home}/simulations/{experiment_name}/logs")
     except Exception as e:
@@ -1049,6 +1054,11 @@ def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_contai
             f.write("#!/bin/bash\n")
             f.write(f"echo \"Tracing {workload}\"\n")
             f.write("echo \"Running on $(uname -n)\"\n")
+            f.write(f"CONTAINER_NAME={docker_container_name}\n")
+            f.write("cleanup_container() {\n")
+            f.write("    docker rm -f \"$CONTAINER_NAME\" >/dev/null 2>&1 || true\n")
+            f.write("}\n")
+            f.write("trap cleanup_container EXIT INT TERM HUP\n")
             command = f"docker run --privileged \
                     -e user_id={local_uid} \
                     -e group_id={local_gid} \
@@ -1060,29 +1070,29 @@ def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_contai
                 for env in env_vars:
                     command = command + f"-e {env} "
             command = command + f"-dit \
-                    --name {docker_container_name} \
+                    --name $CONTAINER_NAME \
                     --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
                     --mount type=bind,source={application_dir},target=/tmp_home/application,readonly=false \
                     {image_name}:{githash} \
                     /bin/bash\n"
             f.write(f"{command}")
-            f.write(f"docker cp {infra_dir}/scripts/utilities.sh {docker_container_name}:/usr/local/bin\n")
-            f.write(f"docker cp {infra_dir}/common/scripts/root_entrypoint.sh {docker_container_name}:/usr/local/bin\n")
-            f.write(f"docker cp {infra_dir}/common/scripts/user_entrypoint.sh {docker_container_name}:/usr/local/bin\n")
+            f.write(f"docker cp {infra_dir}/scripts/utilities.sh $CONTAINER_NAME:/usr/local/bin\n")
+            f.write(f"docker cp {infra_dir}/common/scripts/root_entrypoint.sh $CONTAINER_NAME:/usr/local/bin\n")
+            f.write(f"docker cp {infra_dir}/common/scripts/user_entrypoint.sh $CONTAINER_NAME:/usr/local/bin\n")
             if os.path.exists(f"{infra_dir}/workloads/{image_name}/workload_root_entrypoint.sh"):
-                f.write(f"docker cp {infra_dir}/workloads/{image_name}/workload_root_entrypoint.sh {docker_container_name}:/usr/local/bin\n")
+                f.write(f"docker cp {infra_dir}/workloads/{image_name}/workload_root_entrypoint.sh $CONTAINER_NAME:/usr/local/bin\n")
             if os.path.exists(f"{infra_dir}/workloads/{image_name}/workload_user_entrypoint.sh"):
-                f.write(f"docker cp {infra_dir}/workloads/{image_name}/workload_user_entrypoint.sh {docker_container_name}:/usr/local/bin\n")
-            f.write(f"docker cp {infra_dir}/common/scripts/run_clustering.sh {docker_container_name}:/usr/local/bin\n")
-            f.write(f"docker cp {infra_dir}/common/scripts/run_simpoint_trace.py {docker_container_name}:/usr/local/bin\n")
-            f.write(f"docker cp {infra_dir}/common/scripts/minimize_trace.sh {docker_container_name}:/usr/local/bin\n")
-            f.write(f"docker cp {infra_dir}/common/scripts/replace_oversized_simpoints.py {docker_container_name}:/usr/local/bin\n")
-            f.write(f"docker cp {infra_dir}/common/scripts/run_trace_post_processing.sh {docker_container_name}:/usr/local/bin\n")
-            f.write(f"docker cp {infra_dir}/common/scripts/gather_fp_pieces.py {docker_container_name}:/usr/local/bin\n")
-            f.write(f"docker exec --privileged {docker_container_name} /bin/bash -c '/usr/local/bin/root_entrypoint.sh'\n")
-            f.write(f"docker exec --privileged {docker_container_name} /bin/bash -c \"echo 0 | sudo tee /proc/sys/kernel/randomize_va_space\"\n")
-            f.write(f"docker exec --privileged --user={user} --workdir=/home/{user} {docker_container_name} /bin/bash -c \"source /usr/local/bin/user_entrypoint.sh && {trace_cmd}\"\n")
-            f.write(f"docker rm -f {docker_container_name}\n")
+                f.write(f"docker cp {infra_dir}/workloads/{image_name}/workload_user_entrypoint.sh $CONTAINER_NAME:/usr/local/bin\n")
+            f.write(f"docker cp {infra_dir}/common/scripts/run_clustering.sh $CONTAINER_NAME:/usr/local/bin\n")
+            f.write(f"docker cp {infra_dir}/common/scripts/run_simpoint_trace.py $CONTAINER_NAME:/usr/local/bin\n")
+            f.write(f"docker cp {infra_dir}/common/scripts/minimize_trace.sh $CONTAINER_NAME:/usr/local/bin\n")
+            f.write(f"docker cp {infra_dir}/common/scripts/replace_oversized_simpoints.py $CONTAINER_NAME:/usr/local/bin\n")
+            f.write(f"docker cp {infra_dir}/common/scripts/run_trace_post_processing.sh $CONTAINER_NAME:/usr/local/bin\n")
+            f.write(f"docker cp {infra_dir}/common/scripts/gather_fp_pieces.py $CONTAINER_NAME:/usr/local/bin\n")
+            f.write("docker exec --privileged $CONTAINER_NAME /bin/bash -c '/usr/local/bin/root_entrypoint.sh'\n")
+            f.write("docker exec --privileged $CONTAINER_NAME /bin/bash -c \"echo 0 | sudo tee /proc/sys/kernel/randomize_va_space\"\n")
+            f.write(f"docker exec --privileged --user={user} --workdir=/home/{user} $CONTAINER_NAME /bin/bash -c \"source /usr/local/bin/user_entrypoint.sh && {trace_cmd}\"\n")
+            f.write("cleanup_container\n")
     except Exception as e:
         raise e
 

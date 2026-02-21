@@ -7,6 +7,7 @@ import subprocess
 import argparse
 import os
 import sys
+import re
 from pathlib import Path
 import docker
 
@@ -22,7 +23,8 @@ from .utilities import (
     get_image_name,
     validate_simulation,
     is_container_running,
-    count_interactive_shells
+    count_interactive_shells,
+    run_on_node,
 )
 from . import slurm_runner, local_runner
 
@@ -237,6 +239,66 @@ def open_interactive_shell(user, descriptor_data, workloads_data, infra_dir, dbg
         raise e
 
 
+def find_conflicting_containers(workload_manager, docker_prefix_list, experiment_name, user, dbg_lvl=2):
+    if not docker_prefix_list:
+        return {}
+
+    patterns = [
+        re.compile(fr"^{re.escape(docker_prefix)}_.*_{re.escape(experiment_name)}.*_.*_{re.escape(user)}$")
+        for docker_prefix in docker_prefix_list
+    ]
+    conflicts = {}
+
+    def matching_containers(container_names):
+        return [name for name in container_names if any(pattern.match(name) for pattern in patterns)]
+
+    if workload_manager == "manual":
+        try:
+            result = subprocess.run(
+                ["docker", "ps", "-a", "--format", "{{.Names}}"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+        except Exception as exc:
+            warn(f"Unable to list local docker containers for preflight check: {exc}", dbg_lvl)
+            return conflicts
+
+        names = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+        local_conflicts = matching_containers(names)
+        if local_conflicts:
+            conflicts["local"] = local_conflicts
+        return conflicts
+
+    node_entries = slurm_runner.list_cluster_nodes(dbg_lvl)
+    if not node_entries:
+        return conflicts
+
+    for node, state in node_entries:
+        normalized_state = state.lower()
+        if any(token in normalized_state for token in ("down", "drain", "fail", "maint", "unk")):
+            continue
+
+        try:
+            result = run_on_node(
+                ["docker", "ps", "-a", "--format", "{{.Names}}"],
+                node=node,
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+        except Exception as exc:
+            warn(f"Unable to list docker containers on {node} for preflight check: {exc}", dbg_lvl)
+            continue
+
+        names = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+        node_conflicts = matching_containers(names)
+        if node_conflicts:
+            conflicts[node] = node_conflicts
+
+    return conflicts
+
+
 def run_simulation_command(descriptor_path, action, dbg_lvl=2, infra_dir=None):
     if infra_dir is None:
         infra_dir = subprocess.check_output(["pwd"]).decode("utf-8").split("\n")[0]
@@ -298,6 +360,25 @@ def run_simulation_command(descriptor_path, action, dbg_lvl=2, infra_dir=None):
             return 0
 
         # default: run simulation
+        conflicts = find_conflicting_containers(
+            workload_manager,
+            docker_image_list,
+            experiment_name,
+            user,
+            dbg_lvl,
+        )
+        if conflicts:
+            print(f"Found existing containers for experiment '{experiment_name}'. Refusing to launch simulations.")
+            for location, containers in sorted(conflicts.items()):
+                preview = ", ".join(containers[:3])
+                suffix = " ..." if len(containers) > 3 else ""
+                print(f"- {location}: {len(containers)} container(s) ({preview}{suffix})")
+            print("Why this happens:")
+            print("- Container names are deterministic for the same experiment/workload/config/user, so reruns reuse the same names.")
+            print("- Most failures are cleaned by traps now, but hard failures can still leave orphans (for example: SIGKILL, node crash/reboot, or unreachable node during cleanup).")
+            print("- Existing containers with reused names cause docker name-conflict errors and can produce misleading status logs.")
+            print(f"Run './sci --kill {experiment_name}' and './sci --clean {experiment_name}', then retry './sci --sim {experiment_name}'.")
+            return 1
 
         if workload_manager == "manual":
             local_runner.run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_path, dbg_lvl)
