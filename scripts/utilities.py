@@ -94,7 +94,16 @@ def write_json_descriptor(filename, descriptor_data, dbg_lvl = 1):
 
 def run_on_node(cmd, node=None, **kwargs):
     if node != None:
-        cmd = ["srun", f"--nodelist={node}"] + cmd
+        # Use fast-fail scheduling for management commands so they do not
+        # block behind busy-node resource allocation.
+        cmd = [
+            "srun",
+            f"--nodelist={node}",
+            "--nodes=1",
+            "--ntasks=1",
+            "--cpus-per-task=1",
+            "--immediate=5",
+        ] + cmd
     return subprocess.run(cmd, **kwargs)
 
 def validate_simulation(workloads_data, simulations, dbg_lvl = 2):
@@ -984,6 +993,11 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
             f.write(f"echo \"Running {config_key} {workload_home} {cluster_id}\"\n")
             f.write(f"echo \"Script name: {filename}\"\n")
             f.write("echo \"Running on $(uname -n)\"\n")
+            f.write(f"CONTAINER_NAME={docker_container_name}\n")
+            f.write("cleanup_container() {\n")
+            f.write("    docker rm -f \"$CONTAINER_NAME\" >/dev/null 2>&1 || true\n")
+            f.write("}\n")
+            f.write("trap cleanup_container EXIT INT TERM HUP\n")
             f.write(f"cd {infra_dir}\n")
             f.write(f"python -m scripts.prepare_docker_image --docker-prefix {docker_prefix} --githash {githash} \n")
             f.write(f"cd -\n")
@@ -995,27 +1009,27 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
             -e APP_GROUPNAME={docker_prefix} \
             -e APPNAME={workload} \
             -dit \
-            --name {docker_container_name} \
+            --name $CONTAINER_NAME \
             --mount type=bind,source={traces_dir},target=/simpoint_traces,readonly=true \
             --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
             {docker_prefix}:{githash} \
             /bin/bash\n")
-            f.write(f"docker cp {infra_dir}/scripts/utilities.sh {docker_container_name}:/usr/local/bin\n")
-            f.write(f"docker cp {infra_dir}/common/scripts/root_entrypoint.sh {docker_container_name}:/usr/local/bin\n")
-            f.write(f"docker cp {infra_dir}/common/scripts/user_entrypoint.sh {docker_container_name}:/usr/local/bin\n")
+            f.write(f"docker cp {infra_dir}/scripts/utilities.sh $CONTAINER_NAME:/usr/local/bin\n")
+            f.write(f"docker cp {infra_dir}/common/scripts/root_entrypoint.sh $CONTAINER_NAME:/usr/local/bin\n")
+            f.write(f"docker cp {infra_dir}/common/scripts/user_entrypoint.sh $CONTAINER_NAME:/usr/local/bin\n")
             if os.path.exists(f"{infra_dir}/workloads/{docker_prefix}/workload_root_entrypoint.sh"):
-                f.write(f"docker cp {infra_dir}/workloads/{docker_prefix}/workload_root_entrypoint.sh {docker_container_name}:/usr/local/bin\n")
+                f.write(f"docker cp {infra_dir}/workloads/{docker_prefix}/workload_root_entrypoint.sh $CONTAINER_NAME:/usr/local/bin\n")
             if os.path.exists(f"{infra_dir}/workloads/{docker_prefix}/workload_user_entrypoint.sh"):
-                f.write(f"docker cp {infra_dir}/workloads/{docker_prefix}/workload_user_entrypoint.sh {docker_container_name}:/usr/local/bin\n")
+                f.write(f"docker cp {infra_dir}/workloads/{docker_prefix}/workload_user_entrypoint.sh $CONTAINER_NAME:/usr/local/bin\n")
             if scarab_mode == "memtrace":
-                f.write(f"docker cp {infra_dir}/common/scripts/run_memtrace_single_simpoint.sh {docker_container_name}:/usr/local/bin\n")
+                f.write(f"docker cp {infra_dir}/common/scripts/run_memtrace_single_simpoint.sh $CONTAINER_NAME:/usr/local/bin\n")
             elif scarab_mode == "pt":
-                f.write(f"docker cp {infra_dir}/common/scripts/run_pt_single_simpoint.sh {docker_container_name}:/usr/local/bin\n")
+                f.write(f"docker cp {infra_dir}/common/scripts/run_pt_single_simpoint.sh $CONTAINER_NAME:/usr/local/bin\n")
             elif scarab_mode == "exec":
-                f.write(f"docker cp {infra_dir}/common/scripts/run_exec_single_simpoint.sh {docker_container_name}:/usr/local/bin\n")
-            f.write(f"docker exec --privileged {docker_container_name} /bin/bash -c '/usr/local/bin/root_entrypoint.sh'\n")
-            f.write(f"docker exec --user={user} {docker_container_name} /bin/bash -c \"source /usr/local/bin/user_entrypoint.sh && {scarab_cmd}\" || echo \"Scarab error detected\"\n")
-            f.write(f"docker rm -f {docker_container_name}\n")
+                f.write(f"docker cp {infra_dir}/common/scripts/run_exec_single_simpoint.sh $CONTAINER_NAME:/usr/local/bin\n")
+            f.write("docker exec --privileged $CONTAINER_NAME /bin/bash -c '/usr/local/bin/root_entrypoint.sh'\n")
+            f.write(f"docker exec --user={user} $CONTAINER_NAME /bin/bash -c \"source /usr/local/bin/user_entrypoint.sh && {scarab_cmd}\" || echo \"Scarab error detected\"\n")
+            f.write("cleanup_container\n")
             f.write("echo \"Completed Simulation\"\n")
             f.write(f"sync {docker_home}/simulations/{experiment_name}/logs")
     except Exception as e:
@@ -1049,6 +1063,11 @@ def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_contai
             f.write("#!/bin/bash\n")
             f.write(f"echo \"Tracing {workload}\"\n")
             f.write("echo \"Running on $(uname -n)\"\n")
+            f.write(f"CONTAINER_NAME={docker_container_name}\n")
+            f.write("cleanup_container() {\n")
+            f.write("    docker rm -f \"$CONTAINER_NAME\" >/dev/null 2>&1 || true\n")
+            f.write("}\n")
+            f.write("trap cleanup_container EXIT INT TERM HUP\n")
             command = f"docker run --privileged \
                     -e user_id={local_uid} \
                     -e group_id={local_gid} \
@@ -1060,29 +1079,29 @@ def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_contai
                 for env in env_vars:
                     command = command + f"-e {env} "
             command = command + f"-dit \
-                    --name {docker_container_name} \
+                    --name $CONTAINER_NAME \
                     --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
                     --mount type=bind,source={application_dir},target=/tmp_home/application,readonly=false \
                     {image_name}:{githash} \
                     /bin/bash\n"
             f.write(f"{command}")
-            f.write(f"docker cp {infra_dir}/scripts/utilities.sh {docker_container_name}:/usr/local/bin\n")
-            f.write(f"docker cp {infra_dir}/common/scripts/root_entrypoint.sh {docker_container_name}:/usr/local/bin\n")
-            f.write(f"docker cp {infra_dir}/common/scripts/user_entrypoint.sh {docker_container_name}:/usr/local/bin\n")
+            f.write(f"docker cp {infra_dir}/scripts/utilities.sh $CONTAINER_NAME:/usr/local/bin\n")
+            f.write(f"docker cp {infra_dir}/common/scripts/root_entrypoint.sh $CONTAINER_NAME:/usr/local/bin\n")
+            f.write(f"docker cp {infra_dir}/common/scripts/user_entrypoint.sh $CONTAINER_NAME:/usr/local/bin\n")
             if os.path.exists(f"{infra_dir}/workloads/{image_name}/workload_root_entrypoint.sh"):
-                f.write(f"docker cp {infra_dir}/workloads/{image_name}/workload_root_entrypoint.sh {docker_container_name}:/usr/local/bin\n")
+                f.write(f"docker cp {infra_dir}/workloads/{image_name}/workload_root_entrypoint.sh $CONTAINER_NAME:/usr/local/bin\n")
             if os.path.exists(f"{infra_dir}/workloads/{image_name}/workload_user_entrypoint.sh"):
-                f.write(f"docker cp {infra_dir}/workloads/{image_name}/workload_user_entrypoint.sh {docker_container_name}:/usr/local/bin\n")
-            f.write(f"docker cp {infra_dir}/common/scripts/run_clustering.sh {docker_container_name}:/usr/local/bin\n")
-            f.write(f"docker cp {infra_dir}/common/scripts/run_simpoint_trace.py {docker_container_name}:/usr/local/bin\n")
-            f.write(f"docker cp {infra_dir}/common/scripts/minimize_trace.sh {docker_container_name}:/usr/local/bin\n")
-            f.write(f"docker cp {infra_dir}/common/scripts/replace_oversized_simpoints.py {docker_container_name}:/usr/local/bin\n")
-            f.write(f"docker cp {infra_dir}/common/scripts/run_trace_post_processing.sh {docker_container_name}:/usr/local/bin\n")
-            f.write(f"docker cp {infra_dir}/common/scripts/gather_fp_pieces.py {docker_container_name}:/usr/local/bin\n")
-            f.write(f"docker exec --privileged {docker_container_name} /bin/bash -c '/usr/local/bin/root_entrypoint.sh'\n")
-            f.write(f"docker exec --privileged {docker_container_name} /bin/bash -c \"echo 0 | sudo tee /proc/sys/kernel/randomize_va_space\"\n")
-            f.write(f"docker exec --privileged --user={user} --workdir=/home/{user} {docker_container_name} /bin/bash -c \"source /usr/local/bin/user_entrypoint.sh && {trace_cmd}\"\n")
-            f.write(f"docker rm -f {docker_container_name}\n")
+                f.write(f"docker cp {infra_dir}/workloads/{image_name}/workload_user_entrypoint.sh $CONTAINER_NAME:/usr/local/bin\n")
+            f.write(f"docker cp {infra_dir}/common/scripts/run_clustering.sh $CONTAINER_NAME:/usr/local/bin\n")
+            f.write(f"docker cp {infra_dir}/common/scripts/run_simpoint_trace.py $CONTAINER_NAME:/usr/local/bin\n")
+            f.write(f"docker cp {infra_dir}/common/scripts/minimize_trace.sh $CONTAINER_NAME:/usr/local/bin\n")
+            f.write(f"docker cp {infra_dir}/common/scripts/replace_oversized_simpoints.py $CONTAINER_NAME:/usr/local/bin\n")
+            f.write(f"docker cp {infra_dir}/common/scripts/run_trace_post_processing.sh $CONTAINER_NAME:/usr/local/bin\n")
+            f.write(f"docker cp {infra_dir}/common/scripts/gather_fp_pieces.py $CONTAINER_NAME:/usr/local/bin\n")
+            f.write("docker exec --privileged $CONTAINER_NAME /bin/bash -c '/usr/local/bin/root_entrypoint.sh'\n")
+            f.write("docker exec --privileged $CONTAINER_NAME /bin/bash -c \"echo 0 | sudo tee /proc/sys/kernel/randomize_va_space\"\n")
+            f.write(f"docker exec --privileged --user={user} --workdir=/home/{user} $CONTAINER_NAME /bin/bash -c \"source /usr/local/bin/user_entrypoint.sh && {trace_cmd}\"\n")
+            f.write("cleanup_container\n")
     except Exception as e:
         raise e
 
@@ -1219,15 +1238,43 @@ def print_simulation_status_summary(
     os.system(f"ls -R {root_directory} > /dev/null")
 
     try:
-        log_files = os.listdir(root_logfile_directory)
+        all_log_files = os.listdir(root_logfile_directory)
     except Exception:
         print("Log file directory does not exist")
         print("The current experiment does not seem to have been run yet")
         return
 
-    if len(log_files) > len(all_jobs) + log_file_count_buffer:
+    if len(all_log_files) > len(all_jobs) + log_file_count_buffer:
         print("More log files than total runs. Maybe same experiment name was run multiple times?")
-        print("Any errors from a previous run with the same experiment name will be re-reported now")
+
+    # Keep only the newest wrapper log for each simulation scenario.
+    latest_log_by_run = {}
+    for file in all_log_files:
+        log_path = os.path.join(root_logfile_directory, file)
+        try:
+            with open(log_path, "r") as f:
+                first_line = f.readline().strip()
+        except OSError:
+            continue
+
+        run_key = None
+        if first_line.startswith("Running "):
+            first_parts = first_line.split(" ")
+            if len(first_parts) >= 4:
+                run_key = (first_parts[1], first_parts[2], first_parts[3])
+        if run_key is None:
+            run_key = ("__unparsed__", file)
+
+        try:
+            mtime = os.path.getmtime(log_path)
+        except OSError:
+            continue
+
+        prev = latest_log_by_run.get(run_key)
+        if prev is None or mtime > prev[0]:
+            latest_log_by_run[run_key] = (mtime, file)
+
+    log_files = [entry[1] for entry in latest_log_by_run.values()]
 
     error_runs = set()
     skipped = 0
@@ -1306,6 +1353,20 @@ def print_simulation_status_summary(
                 error_runs.add(log_path)
                 continue
 
+            workload_parts = workload_path.split("/")
+            sim_dir = Path(descriptor_data["root_dir"]) / "simulations" / descriptor_data["experiment"] / config
+            sim_dir = sim_dir.joinpath(*workload_parts, cluster_id)
+            has_csv = False
+            try:
+                has_csv = any(x.endswith(".csv") for x in os.listdir(sim_dir))
+            except OSError:
+                has_csv = False
+
+            # If slurm cancelled wrapper execution but results were already produced, treat as completed.
+            if "cancelled" in contents_after_docker.lower() and has_csv:
+                completed[config] += 1
+                continue
+
             if all_nodes:
                 for node in all_nodes:
                     if f"{node}: error:" in contents_after_docker and not " Unable to unlink domain socket":
@@ -1321,10 +1382,7 @@ def print_simulation_status_summary(
                 error = 1
 
             if "Completed Simulation" in contents_after_docker and not error:
-                workload_parts = workload_path.split("/")
-                sim_dir = Path(descriptor_data["root_dir"]) / "simulations" / descriptor_data["experiment"] / config
-                sim_dir = sim_dir.joinpath(*workload_parts, cluster_id)
-                if any(list(map(lambda x: x.endswith(".csv"), os.listdir(sim_dir)))):
+                if has_csv:
                     completed[config] += 1
                     continue
                 err("Stat files not generated, despite being completed with no errors.", 1)
@@ -1374,7 +1432,7 @@ def print_simulation_status_summary(
     if error_runs:
         error_list = sorted(error_runs)
         print(f"\033[31mErroneous Jobs: {len(error_list)}\033[0m")
-        print(f"\033[31mErrors found in {len(error_list)}/{len(log_files)} log files.")
+        print(f"\033[31mErrors found in {len(error_list)}/{len(log_files)} latest log files.")
         print("First 5 error runs:\n", "\n".join(error_list[:5]), "\033[0m", sep='')
     else:
         print(f"\033[92mNo errors found in log files\033[0m")
