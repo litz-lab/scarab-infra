@@ -312,10 +312,13 @@ def kill_jobs(user, job_name, docker_prefix_list, dbg_lvl = 2):
                     subprocess.check_call(["scancel", "-u", user, str(id)])
                 except subprocess.CalledProcessError as e:
                     err(f"Couldn't cancel job with id {id}. Return code: {e.returncode}", dbg_lvl)
+            return True
         else:
             print("Operation canceled.")
+            return False
     else:
         print("No job found.")
+        return True
 
 def clean_containers(user, job_name, docker_prefix_list, dbg_lvl = 2):
     if not docker_prefix_list:
@@ -350,7 +353,11 @@ def clean_containers(user, job_name, docker_prefix_list, dbg_lvl = 2):
                 capture_output=True,
                 text=True,
                 check=True,
+                timeout=30,
             )
+        except subprocess.TimeoutExpired as exc:
+            warn(f"Timed out while listing containers on {node}: {exc}", dbg_lvl)
+            continue
         except subprocess.CalledProcessError as exc:
             warn(f"Failed to list containers on {node}: {exc}", dbg_lvl)
             continue
@@ -370,9 +377,11 @@ def clean_containers(user, job_name, docker_prefix_list, dbg_lvl = 2):
 
         for container in matching:
             try:
-                run_on_node(["docker", "rm", "-f", container], node=node, check=True)
+                run_on_node(["docker", "rm", "-f", container], node=node, check=True, timeout=30)
                 print(f"Removed container {container} on {node}")
                 removed_any = True
+            except subprocess.TimeoutExpired as exc:
+                err(f"Timed out removing container {container} on {node}: {exc}", dbg_lvl)
             except subprocess.CalledProcessError as exc:
                 err(f"Failed to remove container {container} on {node}: {exc}", dbg_lvl)
             except Exception as exc:
@@ -393,7 +402,11 @@ def clean_tmp_run_scripts(nodes, job_name, user, dbg_lvl = 2):
                 capture_output=True,
                 text=True,
                 check=False,
+                timeout=30,
             )
+        except subprocess.TimeoutExpired as exc:
+            warn(f"Timed out while listing temporary scripts on {node}: {exc}", dbg_lvl)
+            continue
         except Exception as exc:
             warn(f"Failed to list temporary scripts on {node}: {exc}", dbg_lvl)
             continue
@@ -410,8 +423,10 @@ def clean_tmp_run_scripts(nodes, job_name, user, dbg_lvl = 2):
             continue
         for script in files:
             try:
-                run_on_node(["rm", "-f", script], node=node, check=True)
+                run_on_node(["rm", "-f", script], node=node, check=True, timeout=30)
                 print(f"Removed {script} on {node}")
+            except subprocess.TimeoutExpired as exc:
+                err(f"Timed out removing {script} on {node}: {exc}", dbg_lvl)
             except subprocess.CalledProcessError as exc:
                 err(f"Failed to remove {script} on {node}: {exc}", dbg_lvl)
             except Exception as exc:
