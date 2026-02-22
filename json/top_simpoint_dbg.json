@@ -32,7 +32,9 @@
   "configurations": {
       "this_pr": {
         "params": "--bp_mech tage64k",
-        "binary": "scarab_current"
+        "binary": "scarab_current",
+        "_slurm_options": "These options are provided to all slurm commands (ignored for manual runner). An empty string can be used if you do not wish to set any slurm options. Default behaviour is depenent on your slurm cluster configuration. The only option by the infrastructure is -c 1 (use 1 core) to all simpoint jobs. Options can be found here: https://slurm.schedmd.com/sbatch.html",
+        "slurm_options": "--mem 4G"
       }
   }
 }
