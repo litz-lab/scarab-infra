@@ -17,7 +17,7 @@
   "traces_dir":"/home/$USER/traces",
   "_top_simpoint":"Run only top 3 simpoints stored in 'workloads_top_simp.json' instead of the entire simpoints in 'workloads_db.json'",
   "top_simpoint":true,
-  "_simulations":"A list of [suite, subsuite, workload, simpoint's cluster #, simulation type, warmup]. Available suite, subsuite, workloads, and each workload's available cluster_id and simulation_type are found in workloads/workloads_db.json. It runs all the simpoints if cluster_id is null and simulation type is one of 'exec', 'memtrace', 'pt'. When only 'suite' or 'suite'+'subsuite' is given and the rest are null, it launches simulations for all the workloads, all the simpoints if available, and in prioritized_mode (simulation type) in workloads/workloads_db.json. warmup can be null or smaller than the warmup of the trace available in workloads/workloads_db.json",
+  "_simulations":"A list of [suite, subsuite, workload, simpoint's cluster #, simulation type, warmup]. Available suite, subsuite, workloads, and each workload's available cluster_id and simulation_type are found in workloads/workloads_db.json. It runs all the simpoints if cluster_id is null and simulation type is one of 'exec', 'memtrace', 'pt'. When only 'suite' or 'suite'+'subsuite' is given and the rest are null, it launches simulations for all the workloads, all the simpoints if available, and in prioritized_mode (simulation type) in workloads/workloads_db.json. warmup can be null or smaller than the warmup of the trace available in workloads/workloads_db.json. The slurm_options field is used to provide arguments to all slurm commands (ignored for manual runner). An empty string can be used if you do not wish to set any slurm options. Default behaviour is depenent on your slurm cluster configuration. The only option set by the infrastructure is -c 1 (use 1 core) for all simpoint jobs. Options can be found here: https://slurm.schedmd.com/sbatch.html",
   "simulations":[
     {
       "suite":"datacenter",
@@ -56,11 +56,13 @@
   "configurations":{
     "icache_32k": {
       "params": "--icache_size 32768",
-      "binary": "scarab_current"
+      "binary": "scarab_current",
+      "slurm_options": "--mem 4G"
     },
     "icache_64k": {
       "params": "--icache_size 65536",
-      "binary": "scarab_current"
+      "binary": "scarab_current",
+      "slurm_options": "--mem 4G"
     }
   },
   "_visualize":"Visualization settings for ./sci --visualize. Configure baseline and counters.",

@@ -32,11 +32,13 @@ from .utilities import (
 # Check if the docker image exists on available slurm nodes
 # Inputs: list of available slurm nodes
 # Output: list of nodes where the docker image is ready
-def check_docker_image(nodes, docker_prefix, githash, dbg_lvl = 1):
+def check_docker_image(nodes, docker_prefix, githash, slurm_options="", dbg_lvl = 1):
     try:
         available_nodes = []
         for node in nodes:
             # Check if the image exists
+            # NOTE: This is deprecated, but if it is recycled, we need to incorporate slurm_options.
+            # subprocess fails when there are extra spaces in the commands. Be careful when slurm_options=""
             image = subprocess.check_output(["srun", f"--nodelist={node}", "docker", "images", "-q", f"{docker_prefix}:{githash}"])
             info(f"{image}", dbg_lvl)
             if image == [] or image == b'':
@@ -166,7 +168,7 @@ def check_available_nodes(dbg_lvl = 1):
             all_nodes.append(node)
 
             # Index -1 is STATE. Skip if not partially available
-            if line[-1] == 'drain':
+            if line[-1] != 'idle' and line[-1] != 'mixed':
                 info(f"{node} is not available. It is '{line[-1]}'", dbg_lvl)
                 continue
 
@@ -210,8 +212,8 @@ def list_cluster_nodes(dbg_lvl = 1):
     return nodes
 
 # Get command to sbatch scarab runs. 1 core each, exclude nodes where container isn't running
-def generate_sbatch_command(experiment_dir):
-    return f"sbatch -c 1 -o {experiment_dir}/logs/job_%j.out "
+def generate_sbatch_command(experiment_dir, slurm_options=""):
+    return f"sbatch -c 1{slurm_options} -o {experiment_dir}/logs/job_%j.out "
 #return f"sbatch -c 1 --ntasks-per-core=2 --oversubscribe -o {experiment_dir}/logs/job_%j.out "
 
 # Print info of docker/slurm nodes and running experiment
@@ -449,7 +451,6 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                 run_single_workload.submitted = 0   # initialize once
 
             info(f"Using docker image with name {docker_prefix}:{githash}", dbg_lvl)
-            sbatch_cmd = generate_sbatch_command(experiment_dir)
             trace_warmup = None
             trace_type = ""
             trace_file = None
@@ -486,6 +487,8 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
             for config_key in configs:
                 config = configs[config_key]["params"]
                 binary_name = configs[config_key]["binary"]
+                slurm_options = configs[config_key].get("slurm_options", "")
+                sbatch_cmd = generate_sbatch_command(experiment_dir, slurm_options=slurm_options)
                 if config == "":
                     config = None
 
@@ -517,7 +520,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                                                  docker_prefix, docker_container_name, traces_dir,
                                                  docker_home, githash, config_key, config, sim_mode, binary_name,
                                                  seg_size, architecture, cluster_id, warmup, trace_warmup, trace_type,
-                                                 trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir)
+                                                 trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir, slurm=True)
                     tmp_files.append(filename)
 
                     result = subprocess.run(["touch", f"{experiment_dir}/logs/job_%j.out"], capture_output=True, text=True, check=True)
@@ -528,6 +531,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                 print("\rSubmitting jobs: "+str(run_single_workload.submitted), end=' ', flush=True)
             return slurm_ids
         except Exception as e:
+            print(f"Error running workload {workload}: {e}")
             raise e
 
     tmp_files = []
@@ -656,9 +660,9 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
 
     tmp_files = []
 
-    def run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd, trace_type, drio_args, clustering_k, application_dir):
+    def run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd, trace_type, drio_args, clustering_k, application_dir, slurm_options):
         try:
-            sbatch_cmd = generate_sbatch_command(trace_dir)
+            sbatch_cmd = generate_sbatch_command(trace_dir, slurm_options=slurm_options)
 
             if trace_type == "cluster_then_trace":
                 simpoint_mode = "cluster_then_trace"
@@ -674,7 +678,7 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
             write_trace_docker_command_to_file(user, local_uid, local_gid, docker_container_name, githash,
                                                workload, image_name, trace_name, traces_dir, docker_home,
                                                env_vars, binary_cmd, client_bincmd, simpoint_mode, drio_args,
-                                               clustering_k, filename, infra_dir, application_dir)
+                                               clustering_k, filename, infra_dir, application_dir, slurm=True)
             tmp_files.append(filename)
 
             os.system(sbatch_cmd + filename)
@@ -724,9 +728,10 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
             trace_type = config["trace_type"]
             drio_args = config["dynamorio_args"]
             clustering_k = config["clustering_k"]
+            slurm_options = config.get("slurm_options", "")
 
             run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd,
-                             trace_type, drio_args, clustering_k, application_dir)
+                             trace_type, drio_args, clustering_k, application_dir, slurm_options)
 
         # Clean up temp files
         for tmp in tmp_files:

@@ -855,14 +855,14 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
 
         raise e
 
-def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_name, image_tag_list, slurm_ids = None, dont_collect = False):
+def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_name, image_tag_list, slurm_ids = None, dont_collect = False, slurm_options=""):
     experiment_dir = f"{root_dir}/simulations/{experiment_name}"
     # clean up docker images only when no container is running on top of the image (the other user may be using it)
     # ignore the exception to ignore the rmi failure due to existing containers
     images = ' '.join(image_tag_list)
     clean_cmd = f"scripts/docker_cleaner.py --images {images}"
     if slurm_ids:
-        sbatch_cmd = f"sbatch --dependency=afterany:{','.join(slurm_ids)} -o {experiment_dir}/logs/stat_collection_job_%j.out "
+        sbatch_cmd = f"sbatch{slurm_options} --nodelist=bohr3 --dependency=afterany:{','.join(slurm_ids)} -o {experiment_dir}/logs/stat_collection_job_%j.out "
         clean_cmd = sbatch_cmd + clean_cmd
     print(clean_cmd)
     os.system(clean_cmd)
@@ -928,7 +928,7 @@ def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_n
         # afterok will not run if jobs fail. afterany used with stat_collector's error checking
         log_path = os.path.join(experiment_dir, "logs", "stat_collection_job_%j.out")
         sbatch_cmd = (
-            f"sbatch --dependency=afterany:{','.join(slurm_ids)} "
+            f"sbatch{slurm_options} --dependency=afterany:{','.join(slurm_ids)} "
             f"-o {shlex.quote(log_path)} --wrap={shlex.quote(collect_stats_cmd)}"
         )
         collect_stats_cmd = sbatch_cmd
@@ -983,7 +983,7 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
                                  docker_prefix, docker_container_name, traces_dir,
                                  docker_home, githash, config_key, config, scarab_mode, scarab_binary,
                                  seg_size, architecture, cluster_id, warmup, trace_warmup, trace_type,
-                                 trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir):
+                                 trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir, slurm=False):
     try:
         scarab_cmd = generate_single_scarab_run_command(user, workload_home, experiment_name, config_key, config,
                                                         scarab_mode, seg_size, architecture, scarab_binary, cluster_id,
@@ -1001,19 +1001,38 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
             f.write(f"cd {infra_dir}\n")
             f.write(f"python -m scripts.prepare_docker_image --docker-prefix {docker_prefix} --githash {githash} \n")
             f.write(f"cd -\n")
-            f.write(f"docker run \
-            -e user_id={local_uid} \
-            -e group_id={local_gid} \
-            -e username={user} \
-            -e HOME=/home/{user} \
-            -e APP_GROUPNAME={docker_prefix} \
-            -e APPNAME={workload} \
-            -dit \
-            --name $CONTAINER_NAME \
-            --mount type=bind,source={traces_dir},target=/simpoint_traces,readonly=true \
-            --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
-            {docker_prefix}:{githash} \
-            /bin/bash\n")
+            if slurm:
+                f.write("SLURM_CGROUP=$(cat /proc/self/cgroup | cut -d: -f3 | head -n 1)\n")
+                f.write("echo $SLURM_CGROUP\n")
+                f.write(f"docker run \
+                --cgroup-parent $SLURM_CGROUP \
+                --cgroupns=host \
+                -e user_id={local_uid} \
+                -e group_id={local_gid} \
+                -e username={user} \
+                -e HOME=/home/{user} \
+                -e APP_GROUPNAME={docker_prefix} \
+                -e APPNAME={workload} \
+                -dit \
+                --name $CONTAINER_NAME \
+                --mount type=bind,source={traces_dir},target=/simpoint_traces,readonly=true \
+                --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
+                {docker_prefix}:{githash} \
+                /bin/bash\n")
+            else:
+                f.write(f"docker run \
+                -e user_id={local_uid} \
+                -e group_id={local_gid} \
+                -e username={user} \
+                -e HOME=/home/{user} \
+                -e APP_GROUPNAME={docker_prefix} \
+                -e APPNAME={workload} \
+                -dit \
+                --name $CONTAINER_NAME \
+                --mount type=bind,source={traces_dir},target=/simpoint_traces,readonly=true \
+                --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
+                {docker_prefix}:{githash} \
+                /bin/bash\n")
             f.write(f"docker cp {infra_dir}/scripts/utilities.sh $CONTAINER_NAME:/usr/local/bin\n")
             f.write(f"docker cp {infra_dir}/common/scripts/root_entrypoint.sh $CONTAINER_NAME:/usr/local/bin\n")
             f.write(f"docker cp {infra_dir}/common/scripts/user_entrypoint.sh $CONTAINER_NAME:/usr/local/bin\n")
@@ -1055,7 +1074,7 @@ def generate_single_trace_run_command(user, workload, image_name, trace_name, bi
 def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_container_name, githash,
                                        workload, image_name, trace_name, traces_dir, docker_home,
                                        env_vars, binary_cmd, client_bincmd, simpoint_mode, drio_args,
-                                       clustering_k, filename, infra_dir, application_dir):
+                                       clustering_k, filename, infra_dir, application_dir, slurm = False):
     try:
         trace_cmd = generate_single_trace_run_command(user, workload, image_name, trace_name, binary_cmd, client_bincmd,
                                                       simpoint_mode, drio_args, clustering_k)
@@ -1075,6 +1094,13 @@ def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_contai
                     -e HOME=/home/{user} \
                     -e APP_GROUPNAME={image_name} \
                     -e APPNAME={workload} "
+
+            if slurm:
+                f.write("SLURM_CGROUP=$(cat /proc/self/cgroup | cut -d: -f3 | head -n 1)\n")
+                f.write("echo $SLURM_CGROUP\n")
+                command += "--cgroup-parent $SLURM_CGROUP \
+                            --cgroupns=host "
+
             if env_vars:
                 for env in env_vars:
                     command = command + f"-e {env} "
@@ -1297,6 +1323,8 @@ def print_simulation_status_summary(
         pending[conf] += 1
 
     not_in_experiment = []
+    oom_killed = []
+    oom_killed_sps = 0
     for file in log_files:
         log_path = os.path.join(root_logfile_directory, file)
         with open(log_path, 'r') as f:
@@ -1353,6 +1381,9 @@ def print_simulation_status_summary(
                 error_runs.add(log_path)
                 continue
 
+<<<<<<< HEAD
+            prep_err = 0
+=======
             workload_parts = workload_path.split("/")
             sim_dir = Path(descriptor_data["root_dir"]) / "simulations" / descriptor_data["experiment"] / config
             sim_dir = sim_dir.joinpath(*workload_parts, cluster_id)
@@ -1367,12 +1398,21 @@ def print_simulation_status_summary(
                 completed[config] += 1
                 continue
 
+>>>>>>> main
             if all_nodes:
                 for node in all_nodes:
-                    if f"{node}: error:" in contents_after_docker and not " Unable to unlink domain socket":
+                    if f"{node}: error:" in contents_after_docker:
                         error_runs.add(log_path)
                         prep_failed[config] += 1
-                        continue
+                        prep_err = 1
+
+                        if "oom_kill" in contents_after_docker:
+                            oom_killed_sps += 1
+                            if config not in oom_killed:
+                                oom_killed.append(config)
+
+            if prep_err:
+                continue
 
             error = 0
             if 'Segmentation fault' in contents_after_docker:
@@ -1436,6 +1476,12 @@ def print_simulation_status_summary(
         print("First 5 error runs:\n", "\n".join(error_list[:5]), "\033[0m", sep='')
     else:
         print(f"\033[92mNo errors found in log files\033[0m")
+
+    if oom_killed_sps > 0:
+        print()
+        print(f"\033[31mOOM Killed Jobs: {oom_killed_sps}\033[0m")
+        print("To fix: Please increase --mem in the slurm_options field in the experiment descriptor file for each config listed below.")
+        print("OOM Killed Configs:\n", "\n".join(oom_killed), "\033[0m", sep='')
 
 def remove_docker_containers(docker_prefix_list, job_name, user, dbg_lvl):
     try:
