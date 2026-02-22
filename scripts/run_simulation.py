@@ -286,7 +286,11 @@ def find_conflicting_containers(workload_manager, docker_prefix_list, experiment
                 capture_output=True,
                 text=True,
                 check=True,
+                timeout=30,
             )
+        except subprocess.TimeoutExpired as exc:
+            warn(f"Timed out while listing docker containers on {node} for preflight check: {exc}", dbg_lvl)
+            continue
         except Exception as exc:
             warn(f"Unable to list docker containers on {node} for preflight check: {exc}", dbg_lvl)
             continue
