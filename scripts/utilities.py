@@ -94,7 +94,16 @@ def write_json_descriptor(filename, descriptor_data, dbg_lvl = 1):
 
 def run_on_node(cmd, node=None, **kwargs):
     if node != None:
-        cmd = ["srun", f"--nodelist={node}"] + cmd
+        # Use fast-fail scheduling for management commands so they do not
+        # block behind busy-node resource allocation.
+        cmd = [
+            "srun",
+            f"--nodelist={node}",
+            "--nodes=1",
+            "--ntasks=1",
+            "--cpus-per-task=1",
+            "--immediate=5",
+        ] + cmd
     return subprocess.run(cmd, **kwargs)
 
 def validate_simulation(workloads_data, simulations, dbg_lvl = 2):
