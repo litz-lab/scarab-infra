@@ -1381,9 +1381,7 @@ def print_simulation_status_summary(
                 error_runs.add(log_path)
                 continue
 
-<<<<<<< HEAD
             prep_err = 0
-=======
             workload_parts = workload_path.split("/")
             sim_dir = Path(descriptor_data["root_dir"]) / "simulations" / descriptor_data["experiment"] / config
             sim_dir = sim_dir.joinpath(*workload_parts, cluster_id)
@@ -1398,7 +1396,6 @@ def print_simulation_status_summary(
                 completed[config] += 1
                 continue
 
->>>>>>> main
             if all_nodes:
                 for node in all_nodes:
                     if f"{node}: error:" in contents_after_docker:
