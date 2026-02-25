@@ -270,6 +270,25 @@ def read_descriptor(descriptor_name: str):
     data = infra_utils.read_descriptor_from_json(str(path))
     if data is None:
         raise StepError(f"Failed to read descriptor {path}")
+    if data.get("descriptor_type") == "simulation":
+        exp_path = REPO_ROOT / "json" / "exp.json"
+        exp_data = infra_utils.read_descriptor_from_json(str(exp_path))
+        if exp_data is None:
+            raise StepError(f"Failed to read reference descriptor {exp_path}")
+        exp_keys = set(exp_data.keys())
+        actual_keys = set(data.keys())
+        missing_keys = sorted(exp_keys - actual_keys)
+        extra_keys = sorted(actual_keys - exp_keys)
+        if missing_keys or extra_keys:
+            details: List[str] = []
+            if missing_keys:
+                details.append(f"missing keys: {', '.join(missing_keys)}")
+            if extra_keys:
+                details.append(f"extra keys: {', '.join(extra_keys)}")
+            raise StepError(
+                "Descriptor JSON format is out of date. "
+                f"Top-level keys must exactly match json/exp.json ({'; '.join(details)})."
+            )
     return path, data
 
 
@@ -1454,12 +1473,7 @@ def prebuilt_image_present() -> Tuple[bool, str]:
 
 def run_build_scarab(descriptor_name: str) -> int:
     infra_utils = load_infra_utilities()
-    descriptor_path = REPO_ROOT / "json" / f"{descriptor_name}.json"
-    if not descriptor_path.is_file():
-        raise StepError(f"Descriptor not found at {descriptor_path}")
-    descriptor = infra_utils.read_descriptor_from_json(str(descriptor_path))
-    if descriptor is None:
-        raise StepError(f"Failed to read descriptor {descriptor_path}")
+    descriptor_path, descriptor = read_descriptor(descriptor_name)
     if descriptor.get("descriptor_type") != "simulation":
         raise StepError("`--build` currently supports simulation descriptors only.")
 

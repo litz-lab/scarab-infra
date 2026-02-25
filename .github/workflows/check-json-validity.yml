@@ -21,5 +21,38 @@ jobs:
           jq empty ./json/trace.json
           jq empty ./json/perf.json
           jq empty ./json/top_simpoint.json
+          jq empty ./json/top_simpoint_dbg.json
           jq empty ./workloads/workloads_db.json
           jq empty ./workloads/workloads_top_simp.json
+
+      - name: Validate simulation descriptor key parity
+        run: |
+          python3 - <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          exp_path = Path("./json/exp.json")
+          target_paths = [
+              Path("./json/top_simpoint.json"),
+              Path("./json/top_simpoint_dbg.json"),
+          ]
+
+          exp_keys = set(json.loads(exp_path.read_text(encoding="utf-8")).keys())
+          failed = False
+
+          for target in target_paths:
+              keys = set(json.loads(target.read_text(encoding="utf-8")).keys())
+              missing = sorted(exp_keys - keys)
+              extra = sorted(keys - exp_keys)
+              if missing or extra:
+                  failed = True
+                  print(f"{target} is not up-to-date with {exp_path}")
+                  if missing:
+                      print("  missing keys:", ", ".join(missing))
+                  if extra:
+                      print("  extra keys:", ", ".join(extra))
+
+          if failed:
+              sys.exit(1)
+          PY
