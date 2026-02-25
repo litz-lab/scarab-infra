@@ -43,7 +43,7 @@
       "IPC"
     ]
   },
-  "_perf_analyze":"Performance drift analysis settings for ./sci --perf-analyze. It diffs stats and also compares baseline-vs-target Scarab binary hashes; when hashes differ it runs git diff/log in scarab_path and includes that context in reports and AI prompt. analyzer_cli_cmd examples: codex (auto-runs as non-interactive codex exec -), codex exec -, or gemini -p \"@{prompt_file}\". Supported placeholders: {prompt_file}, {summary_file}, {report_file}.",
+  "_perf_analyze":"Performance drift analysis settings for ./sci --perf-analyze. It diffs stats and also compares baseline-vs-target Scarab binary hashes; when hashes differ it runs git diff/log in scarab_path and includes that context in reports and AI prompt. analyzer_cli_cmd examples: codex (auto-runs as non-interactive codex exec -), codex exec -, gemini -p \"@{prompt_file}\", or claude (auto-runs as non-interactive claude -p via stdin). Supported placeholders: {prompt_file}, {summary_file}, {report_file}.",
   "perf_analyze":{
     "baseline":"this_pr",
     "counters":[
@@ -64,7 +64,7 @@
     "_prompt_budget_tokens":"Approximate max tokens allowed for analyzer prompt assembly.",
     "prompt_budget_tokens":12000,
     "threshold_pct":2.0,
-    "_analyzer_cli_cmd":"CLI command for LLM-based analysis. Examples: codex, codex exec -, gemini -p \"@{prompt_file}\"",
+    "_analyzer_cli_cmd":"CLI command for LLM-based analysis. Examples: codex, codex exec -, gemini -p \"@{prompt_file}\", claude",
     "analyzer_cli_cmd":"codex"
   }
 }
