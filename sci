@@ -35,6 +35,7 @@ OPTIONAL_TITLES = {
     "(Optional) ghcr.io login to pull pre-built images from GitHub Container Registry (recommended)",
     "(Optional) Install Codex CLI",
     "(Optional) Install Gemini CLI",
+    "(Optional) Install Claude CLI",
 }
 
 COOKIES_CACHE_PATH = Path.home() / ".cache" / "gdown" / "cookies.txt"
@@ -1913,6 +1914,65 @@ def maybe_install_gemini_cli(_: argparse.Namespace) -> Tuple[bool, str]:
     return True, f"{install_msg} Added GEMINI_API_KEY to {bashrc_path}."
 
 
+def maybe_install_claude_cli(_: argparse.Namespace) -> Tuple[bool, str]:
+    if shutil.which("claude"):
+        install_msg = "Claude CLI already installed."
+    else:
+        print(
+            "Claude CLI can be used as an alternate analyzer command in descriptor "
+            "`perf_analyze.analyzer_cli_cmd`."
+        )
+        if not confirm(
+            "Install Claude CLI (optional)?",
+            default=False,
+        ):
+            return True, "Skipped Claude CLI installation."
+        npm = shutil.which("npm")
+        if not npm:
+            return False, "npm not found. Install Node.js/npm, then run: npm install -g @anthropic-ai/claude-code"
+        try:
+            run_command([npm, "install", "-g", "@anthropic-ai/claude-code"])
+        except StepError as exc:
+            return False, str(exc)
+        if not shutil.which("claude"):
+            return False, "Claude CLI install command completed, but `claude` is not on PATH."
+        install_msg = "Installed Claude CLI."
+
+    print(
+        "Claude auth setup (official references):\n"
+        "- Claude Code docs: https://docs.anthropic.com/en/docs/claude-code/overview\n"
+        "- Anthropic API keys: https://console.anthropic.com/settings/keys\n"
+        "For API key mode, use `ANTHROPIC_API_KEY`."
+    )
+    # If already authenticated, skip key prompt.
+    if (os.environ.get("ANTHROPIC_API_KEY") or "").strip():
+        return True, f"{install_msg} Claude auth already configured (ANTHROPIC_API_KEY present)."
+    if command_succeeds(["claude", "auth", "status"], timeout_sec=10):
+        return True, f"{install_msg} Claude auth already configured."
+    if command_succeeds(["claude", "login", "status"], timeout_sec=10):
+        return True, f"{install_msg} Claude auth already configured."
+
+    if not confirm(
+        "Configure Claude auth now by writing ANTHROPIC_API_KEY to ~/.bashrc (optional)?",
+        default=True,
+    ):
+        return True, f"{install_msg} Skipped Claude auth setup."
+
+    api_key = (os.environ.get("ANTHROPIC_API_KEY") or "").strip()
+    if not api_key:
+        api_key = getpass.getpass("Enter ANTHROPIC_API_KEY (input hidden): ").strip()
+    if not api_key:
+        return False, "ANTHROPIC_API_KEY not provided; Claude auth setup skipped."
+
+    os.environ["ANTHROPIC_API_KEY"] = api_key
+    try:
+        bashrc_path = upsert_shell_export("ANTHROPIC_API_KEY", api_key)
+    except OSError as exc:
+        return False, f"Failed to update ~/.bashrc with ANTHROPIC_API_KEY: {exc}"
+
+    return True, f"{install_msg} Added ANTHROPIC_API_KEY to {bashrc_path}."
+
+
 def run_init(args: argparse.Namespace) -> int:
     if sys.stdin.isatty():
         print_heading("Prepare Google Drive cookies.txt")
@@ -1944,6 +2004,7 @@ def run_init(args: argparse.Namespace) -> int:
         ("(Optional) ghcr.io login to pull pre-built images from GitHub Container Registry (recommended)", maybe_docker_login),
         ("(Optional) Install Codex CLI", maybe_install_codex_cli),
         ("(Optional) Install Gemini CLI", maybe_install_gemini_cli),
+        ("(Optional) Install Claude CLI", maybe_install_claude_cli),
     ]
     summary: List[Tuple[str, bool, str]] = []
     for title, func in steps:
@@ -1985,6 +2046,7 @@ def run_ci_init(args: argparse.Namespace) -> int:
         ("(Optional) ghcr.io login to pull pre-built images from GitHub Container Registry (recommended)", maybe_docker_login),
         ("(Optional) Install Codex CLI", maybe_install_codex_cli),
         ("(Optional) Install Gemini CLI", maybe_install_gemini_cli),
+        ("(Optional) Install Claude CLI", maybe_install_claude_cli),
     ]
     summary: List[Tuple[str, bool, str]] = []
     for title, func in steps:
@@ -3560,7 +3622,7 @@ def run_perf_analyze(descriptor_name: str) -> int:
             print("Configured analyzer_cli_cmd is empty after parsing; skipping AI analysis.")
             return 0
         stdin_payload: Optional[str] = None
-        # Common ergonomic default: "codex" should work in non-interactive mode.
+        # Common ergonomic defaults: "codex" and "claude" should work in non-interactive mode.
         if cmd[0] == "codex" and len(cmd) == 1:
             cmd = ["codex", "exec", "-"]
             stdin_payload = prompt_path.read_text(encoding="utf-8")
@@ -3569,6 +3631,12 @@ def run_perf_analyze(descriptor_name: str) -> int:
                 stdin_payload = prompt_path.read_text(encoding="utf-8")
             elif not has_prompt_placeholder:
                 cmd.append(str(prompt_path))
+        elif cmd[0] == "claude" and len(cmd) == 1:
+            cmd = ["claude", "-p"]
+            stdin_payload = prompt_path.read_text(encoding="utf-8")
+        elif cmd[0] == "claude" and len(cmd) >= 2 and cmd[1] == "-p":
+            if not has_prompt_placeholder:
+                stdin_payload = prompt_path.read_text(encoding="utf-8")
         elif not has_prompt_placeholder:
             cmd.append(str(prompt_path))
         print(f"Running analyzer CLI: {' '.join(cmd)}")
