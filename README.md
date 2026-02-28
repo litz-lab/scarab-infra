@@ -8,7 +8,7 @@ scarab-infra is a set of tools that automate the execution of Scarab simulations
    ```
    ./sci --init
    ```
-   This installs Docker when possible, configures socket permissions, installs Miniconda if needed, creates/updates the `scarabinfra` conda environment, validates activation, ensures you have an SSH key, and optionally fetches SimPoint traces, Slurm, ghcr.io credentials, and AI CLIs (Codex/Gemini/Claude).
+  This installs Docker when possible, configures socket permissions, installs Miniconda if needed, creates/updates the `scarabinfra` conda environment, validates activation, ensures you have an SSH key, and optionally fetches SimPoint traces, Slurm, ghcr.io credentials, and verifies AI CLI auth status (Codex/Gemini/Claude).
 
 2. **Prepare (or update) your descriptor**
    ```
@@ -110,6 +110,11 @@ Notes:
 - `threshold_pct` is an absolute percent-delta threshold.
 - `analyzer_cli_cmd` supports `{prompt_file}`, `{summary_file}`, and `{report_file}` placeholders. If `{prompt_file}` is omitted, the prompt path is appended as the last argument.
 - Example commands: `codex` (auto-converted to non-interactive `codex exec -`), `codex exec -`, `gemini -p "@{prompt_file}"`, `claude` (auto-converted to non-interactive `claude -p` and prompt content over stdin).
+- During `./sci --init`, Codex/Gemini/Claude checks are non-interactive: init only verifies whether each CLI is installed and logged in, then prints manual login instructions when needed.
+- Account-login commands:
+  - Codex: `codex login` then `codex login status`
+  - Gemini: `gemini`, then `/auth`, then `gemini auth status`
+  - Claude: `claude login` (or `claude` then `/login`), then `claude auth status`
 - If compared configurations use different Scarab binary hashes, `--perf-analyze` runs `git diff` in `scarab_path` and includes changed files/commit summaries in the report and AI prompt.
 - Outputs are written beside `collected_stats.csv`: `perf_diff_summary.json`, `perf_drift_report.md`, `perf_drift_prompt.md`, and optionally `perf_ai_report.md`.
 
