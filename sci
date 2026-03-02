@@ -33,9 +33,9 @@ MINICONDA_URL = "https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86
 OPTIONAL_TITLES = {
     "(Optional) Slurm installation",
     "(Optional) ghcr.io login to pull pre-built images from GitHub Container Registry (recommended)",
-    "(Optional) Install Codex CLI",
-    "(Optional) Install Gemini CLI",
-    "(Optional) Install Claude CLI",
+    "(Optional) Verify Codex CLI auth",
+    "(Optional) Verify Gemini CLI auth",
+    "(Optional) Verify Claude CLI auth",
 }
 
 COOKIES_CACHE_PATH = Path.home() / ".cache" / "gdown" / "cookies.txt"
@@ -1754,25 +1754,6 @@ def maybe_docker_login(_: argparse.Namespace) -> Tuple[bool, str]:
     return True, "Authenticated with ghcr.io."
 
 
-def upsert_shell_export(var_name: str, value: str) -> Path:
-    bashrc_path = Path.home() / ".bashrc"
-    export_line = f'export {var_name}="{value}"'
-    existing = ""
-    if bashrc_path.exists():
-        try:
-            existing = bashrc_path.read_text(encoding="utf-8")
-        except OSError:
-            existing = ""
-    pattern = re.compile(rf"^\s*export\s+{re.escape(var_name)}=.*$", re.MULTILINE)
-    if pattern.search(existing):
-        updated = pattern.sub(export_line, existing)
-    else:
-        separator = "" if not existing.endswith("\n") else ""
-        updated = f"{existing}{separator}\n{export_line}\n" if existing else f"{export_line}\n"
-    bashrc_path.write_text(updated, encoding="utf-8")
-    return bashrc_path
-
-
 def command_succeeds(cmd: List[str], *, timeout_sec: int = 10) -> bool:
     try:
         completed = subprocess.run(
@@ -1787,190 +1768,97 @@ def command_succeeds(cmd: List[str], *, timeout_sec: int = 10) -> bool:
     return completed.returncode == 0
 
 
-def maybe_install_codex_cli(_: argparse.Namespace) -> Tuple[bool, str]:
-    if shutil.which("codex"):
-        install_msg = "Codex CLI already installed."
-    else:
-        print(
-            "Codex CLI enables AI-assisted local analysis from commands like "
-            "`./sci --perf-analyze <descriptor>`."
-        )
-        if not confirm(
-            "Install Codex CLI (optional)?",
-            default=False,
-        ):
-            return True, "Skipped Codex CLI installation."
-        npm = shutil.which("npm")
-        if not npm:
-            return False, "npm not found. Install Node.js/npm, then run: npm install -g @openai/codex"
-        try:
-            run_command([npm, "install", "-g", "@openai/codex"])
-        except StepError as exc:
-            return False, str(exc)
-        if not shutil.which("codex"):
-            return False, "Codex CLI install command completed, but `codex` is not on PATH."
-        install_msg = "Installed Codex CLI."
+def auth_is_configured(
+    status_cmds: List[List[str]],
+    *,
+    timeout_sec: int = 10,
+) -> bool:
+    for cmd in status_cmds:
+        if command_succeeds(cmd, timeout_sec=timeout_sec):
+            return True
+    return False
 
-    print(
-        "Codex auth setup (official references):\n"
-        "- OpenAI API keys: https://platform.openai.com/api-keys\n"
-        "- Codex CLI login help: run `codex login --help`\n"
-        "If you use API-key auth, the shell variable is `OPENAI_API_KEY`."
-    )
-    # If already authenticated, skip key prompt.
-    if command_succeeds(["codex", "login", "status"], timeout_sec=10):
-        return True, f"{install_msg} Codex auth already configured."
 
-    if not confirm(
-        "Configure Codex auth now by writing OPENAI_API_KEY to ~/.bashrc (optional)?",
-        default=True,
+def gemini_auth_likely_configured() -> bool:
+    if auth_is_configured(
+        [["gemini", "auth", "status"], ["gemini", "login", "status"]],
+        timeout_sec=3,
     ):
-        return True, f"{install_msg} Skipped Codex auth setup."
+        return True
 
-    api_key = (os.environ.get("OPENAI_API_KEY") or "").strip()
-    if not api_key:
-        api_key = getpass.getpass("Enter OPENAI_API_KEY (input hidden): ").strip()
-    if not api_key:
-        return False, "OPENAI_API_KEY not provided; Codex auth setup skipped."
-
-    os.environ["OPENAI_API_KEY"] = api_key
-    try:
-        bashrc_path = upsert_shell_export("OPENAI_API_KEY", api_key)
-    except OSError as exc:
-        return False, f"Failed to update ~/.bashrc with OPENAI_API_KEY: {exc}"
-
-    # Try to seed Codex's own credential store too (best effort).
-    try:
-        subprocess.run(
-            ["codex", "login", "--with-api-key"],
-            input=f"{api_key}\n",
-            text=True,
-            check=False,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-    except Exception:
-        pass
-
-    return True, f"{install_msg} Added OPENAI_API_KEY to {bashrc_path}."
-
-
-def maybe_install_gemini_cli(_: argparse.Namespace) -> Tuple[bool, str]:
-    if shutil.which("gemini"):
-        install_msg = "Gemini CLI already installed."
-    else:
-        print(
-            "Gemini CLI can be used as an alternate analyzer command in descriptor "
-            "`perf_analyze.analyzer_cli_cmd`."
-        )
-        if not confirm(
-            "Install Gemini CLI (optional)?",
-            default=False,
-        ):
-            return True, "Skipped Gemini CLI installation."
-        npm = shutil.which("npm")
-        if not npm:
-            return False, "npm not found. Install Node.js/npm, then run: npm install -g @google/gemini-cli"
+    # Some Gemini CLI builds can hang on status commands; fall back to local auth artifacts.
+    creds_path = Path.home() / ".gemini" / "oauth_creds.json"
+    if creds_path.is_file():
         try:
-            run_command([npm, "install", "-g", "@google/gemini-cli"])
-        except StepError as exc:
-            return False, str(exc)
-        if not shutil.which("gemini"):
-            return False, "Gemini CLI install command completed, but `gemini` is not on PATH."
-        install_msg = "Installed Gemini CLI."
-
-    print(
-        "Gemini auth setup (official references):\n"
-        "- Gemini CLI auth docs: https://google-gemini.github.io/gemini-cli/docs/get-started/authentication.html\n"
-        "- Gemini API key docs: https://ai.google.dev/gemini-api/docs/api-key\n"
-        "For Gemini API key mode, use `GEMINI_API_KEY`."
-    )
-    # If already authenticated, skip key prompt.
-    if (os.environ.get("GEMINI_API_KEY") or "").strip():
-        return True, f"{install_msg} Gemini auth already configured (GEMINI_API_KEY present)."
-    if command_succeeds(["gemini", "auth", "status"], timeout_sec=10):
-        return True, f"{install_msg} Gemini auth already configured."
-    if command_succeeds(["gemini", "login", "status"], timeout_sec=10):
-        return True, f"{install_msg} Gemini auth already configured."
-
-    if not confirm(
-        "Configure Gemini auth now by writing GEMINI_API_KEY to ~/.bashrc (optional)?",
-        default=True,
-    ):
-        return True, f"{install_msg} Skipped Gemini auth setup."
-
-    api_key = (os.environ.get("GEMINI_API_KEY") or "").strip()
-    if not api_key:
-        api_key = getpass.getpass("Enter GEMINI_API_KEY (input hidden): ").strip()
-    if not api_key:
-        return False, "GEMINI_API_KEY not provided; Gemini auth setup skipped."
-
-    os.environ["GEMINI_API_KEY"] = api_key
-    try:
-        bashrc_path = upsert_shell_export("GEMINI_API_KEY", api_key)
-    except OSError as exc:
-        return False, f"Failed to update ~/.bashrc with GEMINI_API_KEY: {exc}"
-
-    return True, f"{install_msg} Added GEMINI_API_KEY to {bashrc_path}."
-
-
-def maybe_install_claude_cli(_: argparse.Namespace) -> Tuple[bool, str]:
-    if shutil.which("claude"):
-        install_msg = "Claude CLI already installed."
-    else:
-        print(
-            "Claude CLI can be used as an alternate analyzer command in descriptor "
-            "`perf_analyze.analyzer_cli_cmd`."
-        )
-        if not confirm(
-            "Install Claude CLI (optional)?",
-            default=False,
+            creds = json.loads(creds_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            creds = None
+        if isinstance(creds, dict) and any(
+            key in creds for key in ("refresh_token", "access_token", "token")
         ):
-            return True, "Skipped Claude CLI installation."
-        npm = shutil.which("npm")
-        if not npm:
-            return False, "npm not found. Install Node.js/npm, then run: npm install -g @anthropic-ai/claude-code"
+            return True
+
+    accounts_path = Path.home() / ".gemini" / "google_accounts.json"
+    if accounts_path.is_file():
         try:
-            run_command([npm, "install", "-g", "@anthropic-ai/claude-code"])
-        except StepError as exc:
-            return False, str(exc)
-        if not shutil.which("claude"):
-            return False, "Claude CLI install command completed, but `claude` is not on PATH."
-        install_msg = "Installed Claude CLI."
+            accounts = json.loads(accounts_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            accounts = None
+        if isinstance(accounts, list) and len(accounts) > 0:
+            return True
+    return False
 
-    print(
-        "Claude auth setup (official references):\n"
-        "- Claude Code docs: https://docs.anthropic.com/en/docs/claude-code/overview\n"
-        "- Anthropic API keys: https://console.anthropic.com/settings/keys\n"
-        "For API key mode, use `ANTHROPIC_API_KEY`."
-    )
-    # If already authenticated, skip key prompt.
-    if (os.environ.get("ANTHROPIC_API_KEY") or "").strip():
-        return True, f"{install_msg} Claude auth already configured (ANTHROPIC_API_KEY present)."
-    if command_succeeds(["claude", "auth", "status"], timeout_sec=10):
-        return True, f"{install_msg} Claude auth already configured."
-    if command_succeeds(["claude", "login", "status"], timeout_sec=10):
-        return True, f"{install_msg} Claude auth already configured."
 
-    if not confirm(
-        "Configure Claude auth now by writing ANTHROPIC_API_KEY to ~/.bashrc (optional)?",
-        default=True,
+def maybe_check_codex_cli_auth(_: argparse.Namespace) -> Tuple[bool, str]:
+    if shutil.which("codex") is None:
+        return True, (
+            "Codex CLI not installed. Install with `npm install -g @openai/codex`; "
+            "then run `codex login` and verify with `codex login status`."
+        )
+
+    if auth_is_configured(
+        [["codex", "login", "status"], ["codex", "auth", "status"]],
     ):
-        return True, f"{install_msg} Skipped Claude auth setup."
+        return True, "Codex CLI is installed and auth is configured."
 
-    api_key = (os.environ.get("ANTHROPIC_API_KEY") or "").strip()
-    if not api_key:
-        api_key = getpass.getpass("Enter ANTHROPIC_API_KEY (input hidden): ").strip()
-    if not api_key:
-        return False, "ANTHROPIC_API_KEY not provided; Claude auth setup skipped."
+    return True, (
+        "Codex CLI is installed but not logged in. "
+        "Run `codex login` and verify with `codex login status`."
+    )
 
-    os.environ["ANTHROPIC_API_KEY"] = api_key
-    try:
-        bashrc_path = upsert_shell_export("ANTHROPIC_API_KEY", api_key)
-    except OSError as exc:
-        return False, f"Failed to update ~/.bashrc with ANTHROPIC_API_KEY: {exc}"
 
-    return True, f"{install_msg} Added ANTHROPIC_API_KEY to {bashrc_path}."
+def maybe_check_gemini_cli_auth(_: argparse.Namespace) -> Tuple[bool, str]:
+    if shutil.which("gemini") is None:
+        return True, (
+            "Gemini CLI not installed. Install with `npm install -g @google/gemini-cli`; "
+            "then run `gemini`, `/auth`, and verify with `gemini auth status`."
+        )
+
+    if gemini_auth_likely_configured():
+        return True, "Gemini CLI is installed and auth is configured."
+
+    return True, (
+        "Gemini CLI is installed but not logged in. "
+        "Run `gemini`, then `/auth`, and verify with `gemini auth status`."
+    )
+
+
+def maybe_check_claude_cli_auth(_: argparse.Namespace) -> Tuple[bool, str]:
+    if shutil.which("claude") is None:
+        return True, (
+            "Claude CLI not installed. Install with `npm install -g @anthropic-ai/claude-code`; "
+            "then run `claude login` and verify with `claude auth status`."
+        )
+
+    if auth_is_configured(
+        [["claude", "auth", "status"], ["claude", "login", "status"]],
+    ):
+        return True, "Claude CLI is installed and auth is configured."
+
+    return True, (
+        "Claude CLI is installed but not logged in. "
+        "Run `claude login` and verify with `claude auth status`."
+    )
 
 
 def run_init(args: argparse.Namespace) -> int:
@@ -2002,9 +1890,9 @@ def run_init(args: argparse.Namespace) -> int:
         ("Download simpoint traces", ensure_traces),
         ("(Optional) Slurm installation", maybe_install_slurm),
         ("(Optional) ghcr.io login to pull pre-built images from GitHub Container Registry (recommended)", maybe_docker_login),
-        ("(Optional) Install Codex CLI", maybe_install_codex_cli),
-        ("(Optional) Install Gemini CLI", maybe_install_gemini_cli),
-        ("(Optional) Install Claude CLI", maybe_install_claude_cli),
+        ("(Optional) Verify Codex CLI auth", maybe_check_codex_cli_auth),
+        ("(Optional) Verify Gemini CLI auth", maybe_check_gemini_cli_auth),
+        ("(Optional) Verify Claude CLI auth", maybe_check_claude_cli_auth),
     ]
     summary: List[Tuple[str, bool, str]] = []
     for title, func in steps:
@@ -2044,9 +1932,9 @@ def run_ci_init(args: argparse.Namespace) -> int:
         ("Download CI simpoint trace", ensure_ci_trace),
         ("(Optional) Slurm installation", maybe_install_slurm),
         ("(Optional) ghcr.io login to pull pre-built images from GitHub Container Registry (recommended)", maybe_docker_login),
-        ("(Optional) Install Codex CLI", maybe_install_codex_cli),
-        ("(Optional) Install Gemini CLI", maybe_install_gemini_cli),
-        ("(Optional) Install Claude CLI", maybe_install_claude_cli),
+        ("(Optional) Verify Codex CLI auth", maybe_check_codex_cli_auth),
+        ("(Optional) Verify Gemini CLI auth", maybe_check_gemini_cli_auth),
+        ("(Optional) Verify Claude CLI auth", maybe_check_claude_cli_auth),
     ]
     summary: List[Tuple[str, bool, str]] = []
     for title, func in steps:

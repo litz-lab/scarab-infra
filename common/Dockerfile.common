@@ -28,6 +28,7 @@ RUN apt update && DEBIAN_FRONTEND=noninteractive apt install -y \
 
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
 RUN apt install -y nodejs
+RUN npm install -g @anthropic-ai/claude-code
 
 # Copy workflow simpoint/no_simpoint script
 COPY ./scripts/utilities.sh /usr/local/bin/utilities.sh
