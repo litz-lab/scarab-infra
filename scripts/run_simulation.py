@@ -9,6 +9,7 @@ import os
 import sys
 import re
 from pathlib import Path
+from typing import Dict, List, Set, Tuple
 import docker
 
 from .utilities import (
@@ -241,38 +242,83 @@ def open_interactive_shell(user, descriptor_data, workloads_data, infra_dir, dbg
 
 def find_conflicting_containers(workload_manager, docker_prefix_list, experiment_name, user, dbg_lvl=2):
     if not docker_prefix_list:
-        return {}
+        return {}, {}
 
     patterns = [
         re.compile(fr"^{re.escape(docker_prefix)}_.*_{re.escape(experiment_name)}.*_.*_{re.escape(user)}$")
         for docker_prefix in docker_prefix_list
     ]
-    conflicts = {}
+    active_job_names: Set[str] = set()
+    stale_conflicts: Dict[str, List[str]] = {}
+    active_conflicts: Dict[str, List[str]] = {}
 
-    def matching_containers(container_names):
-        return [name for name in container_names if any(pattern.match(name) for pattern in patterns)]
+    if workload_manager == "slurm":
+        try:
+            queued_or_running = slurm_runner.check_slurm_task_queued_or_running(
+                docker_prefix_list,
+                experiment_name,
+                user,
+                dbg_lvl,
+            )
+            for jobs in queued_or_running.values():
+                active_job_names.update(jobs)
+        except Exception as exc:
+            warn(f"Unable to query slurm queue for preflight orphan check: {exc}", dbg_lvl)
+
+    def split_matching_containers(container_rows: List[str], assume_running=False) -> Tuple[List[str], List[str]]:
+        active: List[str] = []
+        stale: List[str] = []
+        for row in container_rows:
+            line = row.strip()
+            if not line:
+                continue
+            if "\t" in line:
+                name, state = line.split("\t", 1)
+            else:
+                parts = line.split(maxsplit=1)
+                name = parts[0]
+                state = parts[1] if len(parts) > 1 else ""
+
+            if not any(pattern.match(name) for pattern in patterns):
+                continue
+
+            state_is_running = assume_running or state.strip().lower() == "running"
+            if workload_manager == "slurm":
+                # Consider a container active only when it matches an active slurm job name.
+                if name in active_job_names:
+                    active.append(name)
+                else:
+                    stale.append(name)
+            else:
+                # For local/manual mode, running containers are considered active.
+                if state_is_running:
+                    active.append(name)
+                else:
+                    stale.append(name)
+        return active, stale
 
     if workload_manager == "manual":
         try:
             result = subprocess.run(
-                ["docker", "ps", "-a", "--format", "{{.Names}}"],
+                ["docker", "ps", "-a", "--format", "{{.Names}}\t{{.State}}"],
                 capture_output=True,
                 text=True,
                 check=True,
             )
         except Exception as exc:
             warn(f"Unable to list local docker containers for preflight check: {exc}", dbg_lvl)
-            return conflicts
+            return stale_conflicts, active_conflicts
 
-        names = [line.strip() for line in result.stdout.splitlines() if line.strip()]
-        local_conflicts = matching_containers(names)
-        if local_conflicts:
-            conflicts["local"] = local_conflicts
-        return conflicts
+        active_local, stale_local = split_matching_containers(result.stdout.splitlines())
+        if active_local:
+            active_conflicts["local"] = active_local
+        if stale_local:
+            stale_conflicts["local"] = stale_local
+        return stale_conflicts, active_conflicts
 
     node_entries = slurm_runner.list_cluster_nodes(dbg_lvl)
     if not node_entries:
-        return conflicts
+        return stale_conflicts, active_conflicts
 
     for node, state in node_entries:
         normalized_state = state.lower()
@@ -281,7 +327,7 @@ def find_conflicting_containers(workload_manager, docker_prefix_list, experiment
 
         try:
             result = run_on_node(
-                ["docker", "ps", "-a", "--format", "{{.Names}}"],
+                ["docker", "ps", "-a", "--format", "{{.Names}}\t{{.State}}"],
                 node=node,
                 capture_output=True,
                 text=True,
@@ -295,12 +341,13 @@ def find_conflicting_containers(workload_manager, docker_prefix_list, experiment
             warn(f"Unable to list docker containers on {node} for preflight check: {exc}", dbg_lvl)
             continue
 
-        names = [line.strip() for line in result.stdout.splitlines() if line.strip()]
-        node_conflicts = matching_containers(names)
-        if node_conflicts:
-            conflicts[node] = node_conflicts
+        active_node, stale_node = split_matching_containers(result.stdout.splitlines())
+        if active_node:
+            active_conflicts[node] = active_node
+        if stale_node:
+            stale_conflicts[node] = stale_node
 
-    return conflicts
+    return stale_conflicts, active_conflicts
 
 
 def run_simulation_command(descriptor_path, action, dbg_lvl=2, infra_dir=None):
@@ -372,16 +419,16 @@ def run_simulation_command(descriptor_path, action, dbg_lvl=2, infra_dir=None):
             return 0
 
         # default: run simulation
-        conflicts = find_conflicting_containers(
+        stale_conflicts, active_conflicts = find_conflicting_containers(
             workload_manager,
             docker_image_list,
             experiment_name,
             user,
             dbg_lvl,
         )
-        if conflicts:
-            print(f"Found existing containers for experiment '{experiment_name}'. Refusing to launch simulations.")
-            for location, containers in sorted(conflicts.items()):
+        if stale_conflicts:
+            print(f"Found existing stale containers for experiment '{experiment_name}'. Refusing to launch simulations.")
+            for location, containers in sorted(stale_conflicts.items()):
                 preview = ", ".join(containers[:3])
                 suffix = " ..." if len(containers) > 3 else ""
                 print(f"- {location}: {len(containers)} container(s) ({preview}{suffix})")
@@ -392,6 +439,12 @@ def run_simulation_command(descriptor_path, action, dbg_lvl=2, infra_dir=None):
             print(f"Run './sci --kill {experiment_name}', then retry './sci --sim {experiment_name}'.")
             print(f"If conflicts remain (for example, containers stranded on failed/rebooted nodes), run './sci --clean {experiment_name}'.")
             return 1
+        if active_conflicts:
+            total_active = sum(len(containers) for containers in active_conflicts.values())
+            print(
+                f"Detected {total_active} active container(s) for experiment '{experiment_name}'. "
+                "Continuing; active jobs will be skipped."
+            )
 
         if workload_manager == "manual":
             local_runner.run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_path, dbg_lvl)
