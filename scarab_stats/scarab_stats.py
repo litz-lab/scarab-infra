@@ -879,16 +879,40 @@ class stat_aggregator:
         if not tasks:
             raise RuntimeError("Descriptor expands to zero simulation runs; nothing to collect.")
         # ---------------------------------------------------------------------
-        # Step 4: Parse the first simpoint to establish:
-        #   - `known_stats`: the canonical stat row order for the entire CSV
-        #   - `groups0`: a per-stat group id (used for distribution postprocessing)
+        # Step 4: Build a canonical stat schema for the entire CSV.
+        #
+        # We must union stats across all tasks (not just the first one), otherwise
+        # stats present only in later configs/simpoints are dropped from the output CSV.
+        # This can happen when different binaries emit different counters.
+        #
+        # `known_stats`: canonical stat row order for the CSV (first-seen stable order)
+        # `groups0`: per-stat group id (used for distribution postprocessing)
         # ---------------------------------------------------------------------
 
 
-        # Read first simpoint to determine stat order + groups
         config0, suite0, subsuite0, workload0, cid0 = tasks[0]
         sim_dir0 = f"{simulations_path}{experiment_name}/{config0}/{suite0}/{subsuite0}/{workload0}/{cid0}/"
-        known_stats, vals0, groups0 = self.load_simpoint(sim_dir0, return_stats_and_data=True)
+        task_sim_dirs = [
+            f"{simulations_path}{experiment_name}/{conf}/{suite}/{subsuite}/{workload}/{cid}/"
+            for (conf, suite, subsuite, workload, cid) in tasks
+        ]
+
+        known_stats = []
+        known_stats_set = set()
+        groups_by_stat = {}
+        for sim_dir in task_sim_dirs:
+            stats_i, _, groups_i = self.load_simpoint(sim_dir, return_stats_and_data=True)
+            for stat_name, group_id in zip(stats_i, groups_i):
+                if stat_name in known_stats_set:
+                    continue
+                known_stats_set.add(stat_name)
+                known_stats.append(stat_name)
+                groups_by_stat[stat_name] = int(group_id)
+
+        if not known_stats:
+            raise RuntimeError("No stats found while collecting simpoints; cannot build experiment CSV.")
+
+        groups0 = [groups_by_stat[stat_name] for stat_name in known_stats]
 
         n_stats = len(known_stats)
         n_cols = len(tasks)
@@ -933,14 +957,16 @@ class stat_aggregator:
         else:
             values = np.full((n_stats, n_cols), nan, dtype=np.float64)
 
-        values[:, 0] = vals0
-        # Build a stat-name -> row-index mapping for O(1) placement while parsing each simpoint.
-
-
         stat_to_row = {s: i for i, s in enumerate(known_stats)}
-
-        # Build per-component schemas from simpoint0 to accelerate subsequent simpoint parsing
+        # Build per-component schemas from simpoint0 to accelerate subsequent simpoint parsing.
         component_schemas = self._build_component_csv_schemas(sim_dir0, stat_to_row)
+        self.load_simpoint_into(
+            sim_dir0,
+            stat_to_row,
+            values[:, 0],
+            schema_cache=component_schemas,
+            clear_column=False,
+        )
         # ---------------------------------------------------------------------
         # Step 6: Prepare metadata rows (written after the stat rows).
         #
@@ -970,7 +996,7 @@ class stat_aggregator:
         sim_dirs[0] = sim_dir0
 
         for j, (conf, suite, subsuite, workload, cid) in enumerate(tasks[1:], start=1):
-            sim_dirs[j] = f"{simulations_path}{experiment_name}/{conf}/{suite}/{subsuite}/{workload}/{cid}/"
+            sim_dirs[j] = task_sim_dirs[j]
 
             w, s = self.get_simpoint_info(
                 cid,
@@ -1875,7 +1901,7 @@ class stat_aggregator:
         workload_locations = np.arange(num_workloads) * ((bar_width * len(configs) + bar_spacing * (len(configs) - 1)) + workload_spacing)
 
         fig, ax = plt.subplots(figsize=(6 + num_workloads, 8))
-        fig.subplots_adjust(right=0.78)  # leave room for legends anchored outside the axes
+        fig.subplots_adjust(right=0.78, bottom=0.24)  # leave room for legends + rotated workload labels
 
         hatches = ['/', '\\', '.', '-', '+', 'x', 'o', 'O', '*']
         patch_hatches = []
@@ -1887,7 +1913,7 @@ class stat_aggregator:
 
             offsets = np.array([0.0] * len(workloads))
             hatch = hatches[x_offset % len(hatches)]
-            patch_hatch = mpatches.Patch(facecolor='beige', hatch=hatch, edgecolor="darkgrey", label=config)
+            patch_hatch = mpatches.Patch(facecolor='beige', hatch=hatch, edgecolor="black", label=config)
             patch_hatches.append(patch_hatch)
 
             for i, stat in enumerate(stats):
@@ -1899,7 +1925,7 @@ class stat_aggregator:
                 if x_offset > len(hatches):
                     print("WARN: Too many configs for unique configuration labels")
                 b = ax.bar(workload_locations + x_offset*(bar_width + bar_spacing), data, [bar_width] * num_workloads,
-                        bottom=offsets, edgecolor="darkgrey", color = color, hatch=hatch)
+                        bottom=offsets, edgecolor="black", color = color, hatch=hatch)
 
                 if x_offset == 0: b.set_label(f"{stat}")
 
@@ -1908,7 +1934,7 @@ class stat_aggregator:
         plt.title(title)
         plt.ylabel(y_label)
         plt.xlabel("Workloads")
-        plt.xticks(workload_locations, workloads)
+        plt.xticks(workload_locations, workloads, rotation=30, ha="right")
         legend_1 = plt.legend(loc='center left', bbox_to_anchor=(1,0.8))
         legend_2 = plt.legend(handles=patch_hatches, bbox_to_anchor=(1,0.4))
         fig.add_artist(legend_1)
@@ -1941,7 +1967,7 @@ class stat_aggregator:
         workload_locations = np.arange(num_workloads) * ((bar_width * len(configs) + bar_spacing * (len(configs) - 1)) + workload_spacing)
 
         fig, ax = plt.subplots(figsize=(6 + num_workloads, 8))
-        fig.subplots_adjust(right=0.78)  # leave room for legends anchored outside the axes
+        fig.subplots_adjust(right=0.78, bottom=0.24)  # leave room for legends + rotated workload labels
 
         hatches = ['/', '\\', '.', '-', '+', 'x', 'o', 'O', '*']
         patch_hatches = []
@@ -1954,7 +1980,7 @@ class stat_aggregator:
             offsets = np.array([0.0] * len(workloads))
             totals = {wl: sum([all_data[f"{config} {wl} {stat}"] for stat in stats]) for wl in workloads}
             hatch = hatches[x_offset % len(hatches)]
-            patch_hatch = mpatches.Patch(facecolor='beige', hatch=hatch, edgecolor="darkgrey", label=config)
+            patch_hatch = mpatches.Patch(facecolor='beige', hatch=hatch, edgecolor="black", label=config)
             patch_hatches.append(patch_hatch)
 
             for i, stat in enumerate(stats):
@@ -1966,7 +1992,7 @@ class stat_aggregator:
                 if x_offset > len(hatches):
                     print("WARN: Too many configs for unique configuration labels")
                 b = ax.bar(workload_locations + x_offset*(bar_width + bar_spacing), data, [bar_width] * num_workloads,
-                        bottom=offsets, edgecolor="darkgrey", color = color, hatch=hatch)
+                        bottom=offsets, edgecolor="black", color = color, hatch=hatch)
 
                 if x_offset == 0: b.set_label(f"{stat}")
 
@@ -1975,7 +2001,7 @@ class stat_aggregator:
         plt.title(title)
         plt.ylabel("Fraction of total")
         plt.xlabel("Workloads")
-        plt.xticks(workload_locations, workloads)
+        plt.xticks(workload_locations, workloads, rotation=30, ha="right")
         legend_1 = plt.legend(loc='center left', bbox_to_anchor=(1,0.8))
         legend_2 = plt.legend(handles=patch_hatches, bbox_to_anchor=(1,0.4))
         fig.add_artist(legend_1)
