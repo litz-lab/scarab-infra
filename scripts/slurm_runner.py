@@ -213,6 +213,10 @@ def list_cluster_nodes(dbg_lvl = 1):
 
 # Get command to sbatch scarab runs. 1 core each, exclude nodes where container isn't running
 def generate_sbatch_command(experiment_dir, slurm_options=""):
+    # Prepend space if options provided. Can't always include because arguments need to be single space separated
+    if slurm_options != "":
+        slurm_options = " " + slurm_options
+
     return f"sbatch -c 1{slurm_options} -o {experiment_dir}/logs/job_%j.out "
 #return f"sbatch -c 1 --ntasks-per-core=2 --oversubscribe -o {experiment_dir}/logs/job_%j.out "
 
