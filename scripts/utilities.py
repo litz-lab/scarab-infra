@@ -8,6 +8,7 @@ import subprocess
 import re
 import shlex
 import shutil
+from collections import deque
 from pathlib import Path
 import importlib
 import sys
@@ -1471,6 +1472,19 @@ def print_simulation_status_summary(
         print(f"\033[31mErroneous Jobs: {len(error_list)}\033[0m")
         print(f"\033[31mErrors found in {len(error_list)}/{len(log_files)} latest log files.")
         print("First 5 error runs:\n", "\n".join(error_list[:5]), "\033[0m", sep='')
+        first_error_log = error_list[0]
+        print()
+        print(f"\033[94mTail of the first error ({first_error_log}):")
+        try:
+            with open(first_error_log, "r", errors="replace") as first_error_log_file:
+                tail_lines = list(deque(first_error_log_file, maxlen=20))
+            if tail_lines:
+                print("".join(tail_lines).rstrip("\n"))
+            else:
+                print("<empty log file>")
+        except OSError as exc:
+            print(f"<unable to read log file: {exc}>")
+        print("\033[0m", end="")
     else:
         print(f"\033[92mNo errors found in log files\033[0m")
 
