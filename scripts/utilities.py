@@ -195,6 +195,8 @@ def validate_simulation(workloads_data, simulations, dbg_lvl = 2):
                     exit(1)
 
             if cluster_id != None:
+                if subsuite == None:
+                    subsuite = subsuite_
                 if "simpoints" not in workloads_data[suite][subsuite][workload].keys():
                     err(f"Simpoints are not available for workload {workload}. Choose 'null' for cluster id.", dbg_lvl)
                     exit(1)
@@ -348,7 +350,7 @@ def build_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_pre
                     f"{docker_container_name}",
                     "/bin/bash",
                     "-c",
-                    f"cd /scarab/src && make clean && make {scarab_build}"
+                    f"cd /scarab/src && make clean && make -j20 {scarab_build}"
             ]
 
         if stream_build:

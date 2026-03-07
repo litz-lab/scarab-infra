@@ -602,7 +602,11 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                     if sim_mode_ == None:
                         sim_mode_ = workloads_data[suite][subsuite][workload_]["simulation"]["prioritized_mode"]
                     if sim_warmup == None:  # Use the whole warmup available in the trace if not specified
-                        sim_warmup = workloads_data[suite][subsuite][workload_]["simulation"][sim_mode_]["warmup"]
+                        try:
+                            sim_warmup = workloads_data[suite][subsuite][workload_]["simulation"][sim_mode_]["warmup"]
+                        except KeyError as e:
+                            print("ERR:", suite, subsuite, workload_)
+                            raise e
                     slurm_ids += run_single_workload(suite, subsuite, workload_, exp_cluster_id, sim_mode_, sim_warmup)
             elif workload != None and subsuite == None:
                 found = False
