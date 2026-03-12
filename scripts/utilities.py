@@ -382,7 +382,10 @@ def _scarab_repo_clean(scarab_path: str) -> bool:
         )
     except subprocess.CalledProcessError:
         return False
-    return status_output.strip() == ""
+    dirty = [
+        line for line in status_output.splitlines() if line and not line.startswith("??")
+    ]
+    return len(dirty) == 0
 
 
 def _current_git_ref(scarab_path: str) -> str:
@@ -509,12 +512,13 @@ def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, git
     force_rebuild = False
     rebuild_reasons = []
     try:
-        dirty = bool(
-            subprocess.check_output(
-                ["git", "status", "--porcelain"],
-                cwd=scarab_path,
-                text=True,
-            ).strip()
+        status_output = subprocess.check_output(
+            ["git", "status", "--porcelain"],
+            cwd=scarab_path,
+            text=True,
+        )
+        dirty = any(
+            line for line in status_output.splitlines() if line and not line.startswith("??")
         )
         if dirty:
             info("Scarab repo has uncommitted changes; rebuilding.", dbg_lvl)
