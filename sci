@@ -226,6 +226,11 @@ def collect_stats_for_visualization(descriptor_path: Path, stats_path: Path) -> 
             return False
         tmp_dir = str(tmp_path)
     env["TMPDIR"] = tmp_dir
+    existing_pythonpath = env.get("PYTHONPATH")
+    if existing_pythonpath:
+        env["PYTHONPATH"] = os.pathsep.join([str(REPO_ROOT), existing_pythonpath])
+    else:
+        env["PYTHONPATH"] = str(REPO_ROOT)
 
     cmd = python_cmd + [
         str(stat_script),
