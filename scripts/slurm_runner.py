@@ -12,7 +12,7 @@ from pathlib import Path
 
 # Per-simpoint memory scheduling constants
 DEFAULT_MEM_MB = 8192    # fallback when no base_memory_mb data exists in workloads_db
-MEM_HEADROOM_FACTOR = 1.1   # 10% headroom on top of measured base memory
+MEM_HEADROOM_FACTOR = 1.2   # 20% headroom on top of measured base memory
 from .utilities import (
         err,
         warn,
