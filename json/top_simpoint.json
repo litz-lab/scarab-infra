@@ -25,7 +25,7 @@
       "workload":"perlbench_r",
       "cluster_id":109678,
       "simulation_type":"memtrace",
-      "warmup":null
+      "warmup":10000000
     }
   ],
   "_configurations": "scarab configurations to sweep. The slurm_options field is used to provide arguments to all slurm commands (ignored for manual runner). An empty string can be used if you do not wish to set any slurm options. Default behaviour is depenent on your slurm cluster configuration. The only option set by the infrastructure is -c 1 (use 1 core) for all simpoint jobs. Options can be found here: https://slurm.schedmd.com/sbatch.html",
