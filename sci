@@ -2702,32 +2702,19 @@ def run_visualize(descriptor_name: str) -> int:
 
             MEMORY_DELTA_THRESHOLD_PCT = 20.0
 
-            # Aggregate per workload-name (average across cluster_ids)
-            wl_cfg_samples: Dict[str, Dict[str, List[float]]] = {}
-            for key, config_rss in memory_stats_raw.items():
-                wl_name = key.rsplit("/", 1)[0] if "/" in key else key
-                for cfg, rss_mb in config_rss.items():
-                    wl_cfg_samples.setdefault(wl_name, {}).setdefault(cfg, []).append(rss_mb)
-
-            wl_cfg_avg: Dict[str, Dict[str, float]] = {
-                wl: {cfg: sum(vals) / len(vals) for cfg, vals in cfg_map.items()}
-                for wl, cfg_map in wl_cfg_samples.items()
-            }
-
             non_baseline_cfgs = [cfg for cfg in configs if cfg != baseline]
-            mem_headers = ["Workload", f"{baseline} (MB)"]
+            mem_headers = ["Workload/Simpoint", f"{baseline} (MB)"]
             mem_headers.extend(f"{cfg} (MB)" for cfg in non_baseline_cfgs)
             mem_headers.extend(f"{cfg} delta vs {baseline} (%)" for cfg in non_baseline_cfgs)
 
             mem_rows = []
             flagged = []
-            for wl in workloads:
-                entry = wl_cfg_avg.get(wl, {})
-                base_val = entry.get(baseline)
-                row = [wl, format_numeric(base_val)]
+            for key, config_rss in sorted(memory_stats_raw.items()):
+                base_val = config_rss.get(baseline)
+                row = [key, format_numeric(base_val)]
                 cfg_vals: Dict[str, Optional[float]] = {}
                 for cfg in non_baseline_cfgs:
-                    val = entry.get(cfg)
+                    val = config_rss.get(cfg)
                     cfg_vals[cfg] = val
                     row.append(format_numeric(val))
                 for cfg in non_baseline_cfgs:
@@ -2736,7 +2723,7 @@ def run_visualize(descriptor_name: str) -> int:
                         delta_pct = (val / base_val - 1.0) * 100.0
                         row.append(format_numeric(delta_pct, as_percent=True))
                         if delta_pct > MEMORY_DELTA_THRESHOLD_PCT:
-                            flagged.append((wl, cfg, delta_pct))
+                            flagged.append((key, cfg, delta_pct))
                     else:
                         row.append("N/A")
                 mem_rows.append(row)
