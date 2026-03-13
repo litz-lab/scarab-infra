@@ -2372,12 +2372,18 @@ def run_collect_mem(descriptor_name: str) -> int:
             simpoints = workloads_db[suite][subsuite][workload].get("simpoints", [])
         except KeyError:
             continue
-        for sp in simpoints:
-            if str(sp["cluster_id"]) == cluster_id_str:
-                sp["base_memory_mb"] = round(base_mb)
-                updated_count += 1
-                updated_subsuites.add((suite, subsuite))
-                break
+        if cluster_id_str == "0":
+            # pt-mode workload — no simpoints list; store at workload level
+            workloads_db[suite][subsuite][workload]["base_memory_mb"] = round(base_mb)
+            updated_count += 1
+            updated_subsuites.add((suite, subsuite))
+        else:
+            for sp in simpoints:
+                if str(sp["cluster_id"]) == cluster_id_str:
+                    sp["base_memory_mb"] = round(base_mb)
+                    updated_count += 1
+                    updated_subsuites.add((suite, subsuite))
+                    break
 
     if scarab_githash:
         for suite, subsuite in updated_subsuites:

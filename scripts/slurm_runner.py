@@ -525,13 +525,21 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
 
                     # Compute per-simpoint memory request from workloads_db base_memory_mb
                     base_memory_mb = None
-                    if "simpoints" in workloads_data[suite][subsuite][workload]:
-                        for sp in workloads_data[suite][subsuite][workload]["simpoints"]:
-                            if str(sp["cluster_id"]) == str(cluster_id):
-                                base_memory_mb = sp.get("base_memory_mb")
-                                break
+                    try:
+                        wl_entry = memory_db[suite][subsuite][workload]
+                        if str(cluster_id) == "0":
+                            # pt-mode workload — base_memory_mb stored at workload level
+                            base_memory_mb = wl_entry.get("base_memory_mb")
+                        else:
+                            for sp in wl_entry["simpoints"]:
+                                if str(sp["cluster_id"]) == str(cluster_id):
+                                    base_memory_mb = sp.get("base_memory_mb")
+                                    break
+                    except (KeyError, TypeError):
+                        pass
                     if base_memory_mb is not None:
                         mem_mb = int(base_memory_mb * MEM_HEADROOM_FACTOR) + overhead_mb
+                        fallback_mb = None
                     else:
                         fallback_mb = (descriptor_data.get("mem") or {}).get("fallback_mb") or DEFAULT_MEM_MB
                         mem_mb = fallback_mb + overhead_mb
@@ -548,6 +556,9 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                     if check_can_skip(descriptor_data, config_key, suite, subsuite, workload, cluster_id, filename, sim_mode, user, slurm_queue=running_sims, dbg_lvl=dbg_lvl):
                         info(f"Skipping {workload} with config {config_key} and cluster id {cluster_id}", dbg_lvl)
                         continue
+
+                    if fallback_mb is not None:
+                        print(f"WARN: no base_memory_mb for {suite}/{subsuite}/{workload} cluster={cluster_id} config={config_key}, using fallback={fallback_mb}MB + overhead={overhead_mb}MB = {mem_mb}MB")
 
                     workload_home = f"{suite}/{subsuite}/{workload}"
                     write_docker_command_to_file(user, local_uid, local_gid, workload, workload_home, experiment_name,
@@ -603,6 +614,15 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
         except RuntimeError as e:
             # This error prints a message. Now stop execution
             return
+
+        # Load workloads_db.json for base_memory_mb lookups.
+        # When top_simpoint=true, workloads_data comes from workloads_top_simp.json which lacks
+        # base_memory_mb; always read from the full DB instead.
+        try:
+            with open(Path(infra_dir) / "workloads" / "workloads_db.json") as _fh:
+                memory_db = json.load(_fh)
+        except Exception:
+            memory_db = workloads_data
 
         print("Submitting jobs...")
         # Iterate over each workload and config combo
