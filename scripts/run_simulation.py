@@ -434,7 +434,7 @@ def run_simulation_command(descriptor_path, action, dbg_lvl=2, infra_dir=None):
                 print(f"- {location}: {len(containers)} container(s) ({preview}{suffix})")
             print("Why this happens:")
             print("- Container names are deterministic for the same experiment/workload/config/user, so reruns reuse the same names.")
-            print("- Most failures are cleaned by traps now, but hard failures can still leave orphans (for example: SIGKILL, node crash/reboot, or unreachable node during cleanup).")
+            print("- Most failures are cleaned by traps or Docker's --rm flag, but hard failures can still leave orphans (for example: node crash/reboot, or unreachable node during cleanup).")
             print("- Existing containers with reused names cause docker name-conflict errors and can produce misleading status logs.")
             print(f"Run './sci --kill {experiment_name}', then retry './sci --sim {experiment_name}'.")
             print(f"If conflicts remain (for example, containers stranded on failed/rebooted nodes), run './sci --clean {experiment_name}'.")
