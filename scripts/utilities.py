@@ -1183,13 +1183,13 @@ def get_image_name(workloads_data, simulation):
         return workloads_data[suite][subsuite][workload]["simulation"][sim_mode]["image_name"]
 
     if subsuite != None:
-        workload = next(iter(workloads_data[suite][subsuite]))
+        workload = next(k for k in workloads_data[suite][subsuite] if isinstance(workloads_data[suite][subsuite][k], dict))
         predef_sim_mode = workloads_data[suite][subsuite][workload]["simulation"]["prioritized_mode"]
         if sim_mode == None:
             sim_mode = predef_sim_mode
     else:
         subsuite = next(iter(workloads_data[suite]))
-        workload = next(iter(workloads_data[suite][subsuite]))
+        workload = next(k for k in workloads_data[suite][subsuite] if isinstance(workloads_data[suite][subsuite][k], dict))
         predef_sim_mode = workloads_data[suite][subsuite][workload]["simulation"]["prioritized_mode"]
         if sim_mode == None:
             sim_mode = predef_sim_mode

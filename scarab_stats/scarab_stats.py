@@ -2415,7 +2415,7 @@ class stat_aggregator:
             sim_mode = workloads_data[suite][subsuite][workload]["simulation"]["prioritized_mode"]
             simpoints = utilities.get_simpoints(workloads_data[suite][subsuite][workload], sim_mode)
             return list(simpoints.keys())
-        except KeyError:
+        except (KeyError, TypeError):
             if top_simpoint_only:
                 print(f"ERROR: Could not find workload {workload} in workloads_top_simp.json")
             else:
