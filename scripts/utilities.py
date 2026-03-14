@@ -136,6 +136,8 @@ def validate_simulation(workloads_data, simulations, dbg_lvl = 2):
             if subsuite == None:
                 for subsuite_ in workloads_data[suite].keys():
                     for workload_ in workloads_data[suite][subsuite_].keys():
+                        if not isinstance(workloads_data[suite][subsuite_][workload_], dict):
+                            continue
                         predef_mode = workloads_data[suite][subsuite_][workload_]["simulation"]["prioritized_mode"]
                         sim_mode_ = sim_mode
                         if sim_mode_ == None:
@@ -149,6 +151,8 @@ def validate_simulation(workloads_data, simulations, dbg_lvl = 2):
 
             else:
                 for workload_ in workloads_data[suite][subsuite].keys():
+                    if not isinstance(workloads_data[suite][subsuite][workload_], dict):
+                        continue
                     predef_mode = workloads_data[suite][subsuite][workload_]["simulation"]["prioritized_mode"]
                     sim_mode_ = sim_mode
                     if sim_mode_ == None:
@@ -1228,6 +1232,8 @@ def get_simulation_jobs(descriptor_data, workloads_data, docker_prefix, user, db
         if workload == None and subsuite == None:
             for subsuite_ in workloads_data[suite].keys():
                 for workload_ in workloads_data[suite][subsuite_].keys():
+                    if not isinstance(workloads_data[suite][subsuite_][workload_], dict):
+                        continue
                     sim_mode_ = sim_mode
                     if sim_mode_ == None:
                         sim_mode_ = workloads_data[suite][subsuite_][workload_]["simulation"]["prioritized_mode"]
@@ -1239,6 +1245,8 @@ def get_simulation_jobs(descriptor_data, workloads_data, docker_prefix, user, db
                     ]
         elif workload == None and subsuite != None:
             for workload_ in workloads_data[suite][subsuite].keys():
+                if not isinstance(workloads_data[suite][subsuite][workload_], dict):
+                    continue
                 sim_mode_ = sim_mode
                 if sim_mode_ == None:
                     sim_mode_ = workloads_data[suite][subsuite][workload_]["simulation"]["prioritized_mode"]
@@ -1632,6 +1640,8 @@ def get_image_list(simulations, workloads_data):
             if subsuite == None:
                 for subsuite_ in workloads_data[suite].keys():
                     for workload_ in workloads_data[suite][subsuite_].keys():
+                        if not isinstance(workloads_data[suite][subsuite_][workload_], dict):
+                            continue
                         predef_mode = workloads_data[suite][subsuite_][workload_]["simulation"]["prioritized_mode"]
                         sim_mode_ = sim_mode
                         if sim_mode_ == None:
@@ -1640,6 +1650,8 @@ def get_image_list(simulations, workloads_data):
                             image_list.append(workloads_data[suite][subsuite_][workload_]["simulation"][sim_mode_]["image_name"])
             else:
                 for workload_ in workloads_data[suite][subsuite].keys():
+                    if not isinstance(workloads_data[suite][subsuite][workload_], dict):
+                        continue
                     predef_mode = workloads_data[suite][subsuite][workload_]["simulation"]["prioritized_mode"]
                     sim_mode_ = sim_mode
                     if sim_mode_ == None:

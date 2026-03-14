@@ -641,6 +641,8 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
             if workload == None and subsuite == None:
                 for subsuite_ in workloads_data[suite].keys():
                     for workload_ in workloads_data[suite][subsuite_].keys():
+                        if not isinstance(workloads_data[suite][subsuite_][workload_], dict):
+                            continue
                         sim_mode_ = sim_mode
                         if sim_mode_ == None:
                             sim_mode_ = workloads_data[suite][subsuite_][workload_]["simulation"]["prioritized_mode"]
@@ -649,6 +651,8 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                         slurm_ids += run_single_workload(suite, subsuite_, workload_, exp_cluster_id, sim_mode_, sim_warmup)
             elif workload == None and subsuite != None:
                 for workload_ in workloads_data[suite][subsuite].keys():
+                    if not isinstance(workloads_data[suite][subsuite][workload_], dict):
+                        continue
                     sim_mode_ = sim_mode
                     if sim_mode_ == None:
                         sim_mode_ = workloads_data[suite][subsuite][workload_]["simulation"]["prioritized_mode"]
