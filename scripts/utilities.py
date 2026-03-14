@@ -410,6 +410,100 @@ def _current_git_ref(scarab_path: str) -> str:
     return branch_name if branch_name else commit_hash
 
 
+def _stash_ref_for_message(scarab_path: str, message: str) -> Optional[str]:
+    try:
+        stash_list = subprocess.check_output(
+            ["git", "stash", "list", "--format=%gd\t%gs"],
+            cwd=scarab_path,
+            text=True,
+        )
+    except subprocess.CalledProcessError:
+        return None
+
+    for line in stash_list.splitlines():
+        ref, _, subject = line.partition("\t")
+        if subject == message:
+            return ref.strip() or None
+    return None
+
+
+@contextmanager
+def _temporary_scarab_checkout(scarab_path: str, target_ref: str, dbg_lvl: int):
+    original_ref = _current_git_ref(scarab_path)
+    stash_ref = None
+    stash_message = f"sci-temp-scarab-build-{os.getpid()}-{int(time.time())}"
+
+    if not _scarab_repo_clean(scarab_path):
+        warn(
+            "Scarab repo has uncommitted changes; stashing them temporarily to build a hash-pinned binary.",
+            dbg_lvl,
+        )
+        try:
+            subprocess.run(
+                ["git", "stash", "push", "--include-untracked", "-m", stash_message],
+                cwd=scarab_path,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+        except subprocess.CalledProcessError as exc:
+            err(
+                f"Failed to stash local scarab changes before checkout: {exc.stderr or exc.stdout or exc}",
+                dbg_lvl,
+            )
+            raise RuntimeError("Unable to stash local scarab changes") from exc
+        stash_ref = _stash_ref_for_message(scarab_path, stash_message)
+
+    try:
+        subprocess.run(
+            ["git", "checkout", target_ref],
+            cwd=scarab_path,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        yield
+    finally:
+        checkout_error = None
+        try:
+            subprocess.run(
+                ["git", "checkout", original_ref],
+                cwd=scarab_path,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+        except subprocess.CalledProcessError as exc:
+            checkout_error = exc
+
+        if stash_ref:
+            try:
+                subprocess.run(
+                    ["git", "stash", "pop", stash_ref],
+                    cwd=scarab_path,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+            except subprocess.CalledProcessError as exc:
+                err(
+                    "Failed to restore stashed scarab changes after building a hash-pinned binary. "
+                    f"Your changes remain in {stash_ref}.",
+                    dbg_lvl,
+                )
+                raise RuntimeError(
+                    f"Unable to restore stashed scarab changes automatically; recover them with `git stash pop {stash_ref}`"
+                ) from exc
+
+        if checkout_error is not None:
+            err(
+                f"Failed to restore scarab repository to {original_ref}: "
+                f"{checkout_error.stderr or checkout_error.stdout or checkout_error}",
+                dbg_lvl,
+            )
+            raise RuntimeError(f"Unable to restore scarab repo to {original_ref}") from checkout_error
+
+
 def _cache_bin_name(bin_name: str, build_mode: str) -> str:
     if bin_name.endswith((".opt", ".dbg")):
         return bin_name
@@ -446,63 +540,40 @@ def _build_missing_scarab_version(
     infra_dir: str,
     dbg_lvl: int,
 ) -> None:
-    if not _scarab_repo_clean(scarab_path):
-        err(
-            f"Cannot auto-build missing scarab binary '{bin_name}' because the scarab repository has uncommitted changes. "
-            "Commit or stash them before rerunning.",
-            dbg_lvl,
-        )
-        _prompt_kill_processes_and_exit(dbg_lvl)
-
-    original_ref = _current_git_ref(scarab_path)
     build_mode = scarab_build if scarab_build else "opt"
     warn(
         f"Missing {bin_name}; checking out {target_hash} to build ({build_mode}) and cache it.",
         dbg_lvl,
     )
     try:
-        subprocess.run(
-            ["git", "checkout", target_hash],
-            cwd=scarab_path,
-            check=True,
-            capture_output=True,
-            text=True,
-        )
+        with _temporary_scarab_checkout(scarab_path, target_hash, dbg_lvl):
+            build_scarab_binary(
+                user,
+                scarab_path,
+                build_mode,
+                docker_home,
+                docker_prefix,
+                githash,
+                infra_dir,
+                dbg_lvl=dbg_lvl,
+                stream_build=True,
+            )
+            built_bin = Path(scarab_path) / "src" / "build" / build_mode / "scarab"
+            if not built_bin.is_file():
+                raise RuntimeError(f"Expected scarab binary at {built_bin} after build.")
+            cache_name = _cache_bin_name(bin_name, build_mode)
+            dest = Path(infra_dir) / "scarab_builds" / cache_name
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(built_bin, dest)
+            info(f"Cached new scarab binary at {dest}", dbg_lvl)
     except subprocess.CalledProcessError as exc:
         err(
             f"Failed to checkout {target_hash} in scarab repository: {exc.stderr or exc.stdout or exc}",
             dbg_lvl,
         )
         raise RuntimeError(f"Unable to checkout {target_hash} in scarab repo") from exc
-
-    try:
-        build_scarab_binary(
-            user,
-            scarab_path,
-            build_mode,
-            docker_home,
-            docker_prefix,
-            githash,
-            infra_dir,
-            dbg_lvl=dbg_lvl,
-            stream_build=True,
-        )
-        built_bin = Path(scarab_path) / "src" / "build" / build_mode / "scarab"
-        if not built_bin.is_file():
-            raise RuntimeError(f"Expected scarab binary at {built_bin} after build.")
-        cache_name = _cache_bin_name(bin_name, build_mode)
-        dest = Path(infra_dir) / "scarab_builds" / cache_name
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(built_bin, dest)
-        info(f"Cached new scarab binary at {dest}", dbg_lvl)
-    finally:
-        subprocess.run(
-            ["git", "checkout", original_ref],
-            cwd=scarab_path,
-            check=True,
-            capture_output=True,
-            text=True,
-        )
+    except Exception:
+        raise
 
 # Wrapper function that handles rebuilding scarab if needed, and caching
 def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, githash, scarab_githash, scarab_build, stream_build=False, dbg_lvl=1):
@@ -778,8 +849,20 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
             )
             note(f"Scarab version {target_hash} built successfully!", dbg_lvl)
 
-        # (Re)build the scarab binary first
-        rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, githash, scarab_githash, scarab_build, stream_build=stream_build, dbg_lvl=dbg_lvl)
+        if "scarab_current" in scarab_binaries:
+            # Only rebuild/current-state validate when the descriptor actually uses scarab_current.
+            rebuild_scarab(
+                infra_dir,
+                scarab_path,
+                user,
+                docker_home,
+                docker_prefix,
+                githash,
+                scarab_githash,
+                scarab_build,
+                stream_build=stream_build,
+                dbg_lvl=dbg_lvl,
+            )
 
         # Copy architectural params to scarab/src
         arch_params = f"{scarab_path}/src/PARAMS.{architecture}"
