@@ -2036,14 +2036,7 @@ def load_simulation_experiment(
     missing_configs = expected_configs - set(configs)
 
     if (missing_workloads or missing_configs) and (expected_workloads or expected_configs):
-        if missing_workloads:
-            print(
-                f"Stats file missing workloads defined in descriptor: {', '.join(sorted(missing_workloads))}"
-            )
-        if missing_configs:
-            print(
-                f"Stats file missing configurations defined in descriptor: {', '.join(sorted(missing_configs))}"
-            )
+        print("Stats file is missing descriptor entries; attempting refresh via stat_collector.py...")
         if collect_stats_for_visualization(descriptor_path, stats_path):
             aggregator, experiment = load_experiment()
             if not aggregator or not experiment:
@@ -2058,7 +2051,19 @@ def load_simulation_experiment(
             remaining_workloads = expected_workloads - set(workloads)
             remaining_configs = expected_configs - set(configs)
             if remaining_workloads or remaining_configs:
+                if remaining_workloads:
+                    print(
+                        "Stats file missing workloads defined in descriptor after refresh: "
+                        + ", ".join(sorted(remaining_workloads))
+                    )
+                if remaining_configs:
+                    print(
+                        "Stats file missing configurations defined in descriptor after refresh: "
+                        + ", ".join(sorted(remaining_configs))
+                    )
                 print("Refreshed stats still missing descriptor entries; continuing with available data.")
+            else:
+                print("Stats refresh resolved the descriptor mismatch.")
         else:
             print("Unable to refresh stats automatically; continuing with existing data.")
 
