@@ -226,6 +226,11 @@ def collect_stats_for_visualization(descriptor_path: Path, stats_path: Path) -> 
             return False
         tmp_dir = str(tmp_path)
     env["TMPDIR"] = tmp_dir
+    existing_pythonpath = env.get("PYTHONPATH")
+    if existing_pythonpath:
+        env["PYTHONPATH"] = os.pathsep.join([str(REPO_ROOT), existing_pythonpath])
+    else:
+        env["PYTHONPATH"] = str(REPO_ROOT)
 
     cmd = python_cmd + [
         str(stat_script),
@@ -2242,6 +2247,172 @@ def resolve_perf_analyze_settings(
     }
 
 
+def run_collect_mem(descriptor_name: str) -> int:
+    """Harvest Slurm MaxRSS for a completed experiment and update workloads_db.json."""
+    try:
+        descriptor_path, descriptor = read_descriptor(descriptor_name)
+    except StepError as exc:
+        print(exc)
+        return 1
+
+    if descriptor.get("descriptor_type") != "simulation":
+        print("--collect-mem only supports simulation descriptors.")
+        return 1
+
+    root_dir = descriptor.get("root_dir")
+    experiment_name = descriptor.get("experiment")
+    if not root_dir or not experiment_name:
+        print("Descriptor must include 'root_dir' and 'experiment'.")
+        return 1
+
+    infra_utils = load_infra_utilities()
+    logs_dir = infra_utils.get_experiment_logs_dir(descriptor)
+    experiment_dir = logs_dir.parent
+    if not logs_dir.is_dir():
+        print(f"No logs directory found at {logs_dir}. Run the simulation first.")
+        return 1
+
+    # Deduplicate by highest job_id (latest run supersedes OOM-killed partial measurements).
+    latest_entries = list(infra_utils.iter_latest_job_logs(logs_dir))
+    if not latest_entries:
+        print("No parseable job logs found.")
+        return 1
+
+    # Build job_id → (suite, subsuite, workload, cluster_id_str, config) mapping for sacct lookup.
+    latest_job: Dict[int, Tuple[str, str, str, str, str]] = {
+        job_id_int: (suite, subsuite, workload, cluster_id_str, config)
+        for job_id_int, _log_path, config, suite, subsuite, workload, cluster_id_str in latest_entries
+    }
+    job_ids = [str(jid) for jid in latest_job]
+    try:
+        result = subprocess.run(
+            ["sacct", "-j", ",".join(job_ids),
+             "--format=JobID,MaxRSS", "--noheader", "--parsable2"],
+            capture_output=True, text=True, check=True,
+        )
+    except FileNotFoundError:
+        print("sacct not found. Is Slurm installed and in PATH?")
+        return 1
+    except subprocess.CalledProcessError as exc:
+        print(f"sacct failed: {exc}")
+        return 1
+
+    def parse_rss_mb(rss_str: str) -> Optional[float]:
+        rss_str = rss_str.strip()
+        if not rss_str or rss_str in {"0", "0K"}:
+            return None
+        try:
+            if rss_str.endswith("K"):
+                return float(rss_str[:-1]) / 1024.0
+            if rss_str.endswith("M"):
+                return float(rss_str[:-1])
+            if rss_str.endswith("G"):
+                return float(rss_str[:-1]) * 1024.0
+            return float(rss_str) / 1024.0  # assume KB
+        except ValueError:
+            return None
+
+    # sacct returns one row per job step (e.g. "12345", "12345.batch", "12345.extern").
+    # MaxRSS is only populated on the .batch step; the allocation record shows 0.
+    # Strip the step suffix and take the max across all steps for each base job ID.
+    sacct_rss: Dict[int, float] = {}
+    for line in result.stdout.splitlines():
+        parts = line.strip().split("|")
+        if len(parts) < 2:
+            continue
+        try:
+            jid = int(parts[0].strip().split(".")[0])
+        except ValueError:
+            continue
+        rss_mb = parse_rss_mb(parts[1])
+        if rss_mb is not None and rss_mb > sacct_rss.get(jid, 0.0):
+            sacct_rss[jid] = rss_mb
+
+    # (suite, subsuite, workload, cluster_id_str) -> {config -> max_rss_mb}
+    measurements: Dict[Tuple[str, str, str, str], Dict[str, float]] = {}
+    for job_id_int, (suite, subsuite, workload, cluster_id_str, config) in latest_job.items():
+        rss_mb = sacct_rss.get(job_id_int)
+        if rss_mb is None:
+            continue
+        measurements.setdefault((suite, subsuite, workload, cluster_id_str), {})[config] = rss_mb
+
+    if not measurements:
+        print("No MaxRSS data returned by sacct for the submitted jobs.")
+        return 1
+
+    configs = descriptor.get("configurations") or {}
+    visualize = descriptor.get("visualize") or {}
+    mem_settings = descriptor.get("mem") or {}
+    baseline = (
+        mem_settings.get("collection_baseline")
+        or visualize.get("baseline")
+        or (next(iter(configs)) if configs else None)
+    )
+
+    with WORKLOADS_DB_PATH.open(encoding="utf-8") as fh:
+        workloads_db: Dict[str, Any] = json.load(fh)
+
+    scarab_path = descriptor.get("scarab_path")
+    scarab_githash: Optional[str] = None
+    if scarab_path:
+        try:
+            scarab_githash = subprocess.check_output(
+                ["git", "rev-parse", "--short", "HEAD"], cwd=scarab_path,
+            ).decode().strip()
+        except Exception:
+            pass
+
+    updated_subsuites: Set[Tuple[str, str]] = set()
+    updated_count = 0
+    for (suite, subsuite, workload, cluster_id_str), config_rss in measurements.items():
+        base_mb = config_rss.get(baseline) if baseline else None
+        if base_mb is None:
+            base_mb = min(config_rss.values())
+        try:
+            simpoints = workloads_db[suite][subsuite][workload].get("simpoints", [])
+        except KeyError:
+            continue
+        if cluster_id_str == "0":
+            # pt-mode workload — no simpoints list; store at workload level
+            workloads_db[suite][subsuite][workload]["base_memory_mb"] = round(base_mb)
+            updated_count += 1
+            updated_subsuites.add((suite, subsuite))
+        else:
+            for sp in simpoints:
+                if str(sp["cluster_id"]) == cluster_id_str:
+                    sp["base_memory_mb"] = round(base_mb)
+                    updated_count += 1
+                    updated_subsuites.add((suite, subsuite))
+                    break
+
+    if scarab_githash:
+        for suite, subsuite in updated_subsuites:
+            workloads_db[suite][subsuite]["_scarab_sim_githash"] = scarab_githash
+
+    with WORKLOADS_DB_PATH.open("w", encoding="utf-8") as fh:
+        json.dump(workloads_db, fh, indent=2, separators=(',', ':'))
+        fh.write("\n")
+
+    print(
+        f"Updated {updated_count} simpoint(s) across "
+        f"{len(updated_subsuites)} subsuite(s) in {WORKLOADS_DB_PATH}."
+    )
+    if scarab_githash:
+        print(f"Recorded _scarab_sim_githash={scarab_githash} for updated subsuites.")
+
+    # Write per-config memory to experiment dir for --visualize
+    memory_stats: Dict[str, Any] = {
+        f"{suite}/{subsuite}/{workload}/{cluster_id}": config_rss
+        for (suite, subsuite, workload, cluster_id), config_rss in measurements.items()
+    }
+    memory_stats_path = experiment_dir / "memory_stats.json"
+    with memory_stats_path.open("w", encoding="utf-8") as fh:
+        json.dump(memory_stats, fh, indent=2, separators=(',', ':'))
+        fh.write("\n")
+    print(f"Per-config memory data written to {memory_stats_path}.")
+    return 0
+
+
 def run_visualize(descriptor_name: str) -> int:
     loaded = load_simulation_experiment(descriptor_name, action_label="Visualization")
     if loaded is None:
@@ -2521,6 +2692,58 @@ def run_visualize(descriptor_name: str) -> int:
             )
         except Exception as exc:  # pragma: no cover - matplotlib backend dependent
             print(f"Failed to generate plots for '{stat_name}': {exc}")
+
+    # Memory delta table — printed if --collect-mem has been run for this experiment
+    memory_stats_path = stats_path.parent / "memory_stats.json"
+    if memory_stats_path.is_file():
+        try:
+            with memory_stats_path.open(encoding="utf-8") as fh:
+                memory_stats_raw: Dict[str, Any] = json.load(fh)
+
+            MEMORY_DELTA_THRESHOLD_PCT = 20.0
+
+            non_baseline_cfgs = [cfg for cfg in configs if cfg != baseline]
+            mem_headers = ["Workload/Simpoint", f"{baseline} (MB)"]
+            mem_headers.extend(f"{cfg} (MB)" for cfg in non_baseline_cfgs)
+            mem_headers.extend(f"{cfg} delta vs {baseline} (%)" for cfg in non_baseline_cfgs)
+
+            mem_rows = []
+            flagged = []
+            for key, config_rss in sorted(memory_stats_raw.items()):
+                base_val = config_rss.get(baseline)
+                row = [key, format_numeric(base_val)]
+                cfg_vals: Dict[str, Optional[float]] = {}
+                for cfg in non_baseline_cfgs:
+                    val = config_rss.get(cfg)
+                    cfg_vals[cfg] = val
+                    row.append(format_numeric(val))
+                for cfg in non_baseline_cfgs:
+                    val = cfg_vals.get(cfg)
+                    if val is not None and base_val is not None and base_val > 0:
+                        delta_pct = (val / base_val - 1.0) * 100.0
+                        row.append(format_numeric(delta_pct, as_percent=True))
+                        if delta_pct > MEMORY_DELTA_THRESHOLD_PCT:
+                            flagged.append((key, cfg, delta_pct))
+                    else:
+                        row.append("N/A")
+                mem_rows.append(row)
+
+            dividers = ["---"] * len(mem_headers)
+            mem_table = [
+                "| " + " | ".join(mem_headers) + " |",
+                "| " + " | ".join(dividers) + " |",
+            ] + ["| " + " | ".join(r) + " |" for r in mem_rows]
+
+            print("\nMarkdown table for Memory Usage (MB):")
+            for line in mem_table:
+                print(line)
+
+            if flagged:
+                print(f"\n\033[31mMemory increase > {MEMORY_DELTA_THRESHOLD_PCT:.0f}% detected:\033[0m")
+                for wl, cfg, delta_pct in flagged:
+                    print(f"  {wl} / {cfg}: +{delta_pct:.1f}%")
+        except Exception as exc:
+            print(f"Skipping memory table: {exc}")
 
     return 0
 
@@ -3610,6 +3833,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Plot IPC and speedup for collected stats in json/<DESCRIPTOR>.json.",
     )
     parser.add_argument(
+        "--collect-mem",
+        dest="collect_mem",
+        metavar="DESCRIPTOR",
+        help="Harvest Slurm MaxRSS from completed jobs and update per-simpoint base_memory_mb in workloads_db.json.",
+    )
+    parser.add_argument(
         "--perf-analyze",
         dest="perf_analyze",
         metavar="DESCRIPTOR",
@@ -3653,6 +3882,7 @@ def main() -> int:
         bool(args.trace),
         bool(args.sim),
         bool(args.visualize),
+        bool(args.collect_mem),
         bool(args.perf_analyze),
         bool(args.kill),
         bool(args.status),
@@ -3669,6 +3899,7 @@ def main() -> int:
         args.trace,
         args.sim,
         args.visualize,
+        args.collect_mem,
         args.perf_analyze,
         args.kill,
         args.status,
@@ -3756,6 +3987,8 @@ def main() -> int:
             return 1
     if args.visualize:
         return run_visualize(args.visualize)
+    if args.collect_mem:
+        return run_collect_mem(args.collect_mem)
     if args.perf_analyze:
         return run_perf_analyze(args.perf_analyze)
     if args.kill:

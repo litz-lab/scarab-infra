@@ -12,7 +12,7 @@ from collections import deque
 from pathlib import Path
 import importlib
 import sys
-from typing import Optional
+from typing import Dict, Iterator, Optional, Tuple
 
 try:
     import docker
@@ -136,6 +136,8 @@ def validate_simulation(workloads_data, simulations, dbg_lvl = 2):
             if subsuite == None:
                 for subsuite_ in workloads_data[suite].keys():
                     for workload_ in workloads_data[suite][subsuite_].keys():
+                        if not isinstance(workloads_data[suite][subsuite_][workload_], dict):
+                            continue
                         predef_mode = workloads_data[suite][subsuite_][workload_]["simulation"]["prioritized_mode"]
                         sim_mode_ = sim_mode
                         if sim_mode_ == None:
@@ -149,6 +151,8 @@ def validate_simulation(workloads_data, simulations, dbg_lvl = 2):
 
             else:
                 for workload_ in workloads_data[suite][subsuite].keys():
+                    if not isinstance(workloads_data[suite][subsuite][workload_], dict):
+                        continue
                     predef_mode = workloads_data[suite][subsuite][workload_]["simulation"]["prioritized_mode"]
                     sim_mode_ = sim_mode
                     if sim_mode_ == None:
@@ -926,7 +930,24 @@ def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_n
     else:
         stat_runner_parts = [python_executable, stat_script]
 
-    collect_parts = ["env", f"TMPDIR={tmp_dir}"] + stat_runner_parts + ["-d", descriptor_abs, "-o", stats_output, "--postprocess", "--skip-incomplete"]
+    repo_pythonpath_entries = [project_root]
+    existing_pythonpath = os.environ.get("PYTHONPATH")
+    if existing_pythonpath:
+        repo_pythonpath_entries.append(existing_pythonpath)
+    repo_pythonpath = os.pathsep.join(repo_pythonpath_entries)
+
+    collect_parts = [
+        "env",
+        f"TMPDIR={tmp_dir}",
+        f"PYTHONPATH={repo_pythonpath}",
+    ] + stat_runner_parts + [
+        "-d",
+        descriptor_abs,
+        "-o",
+        stats_output,
+        "--postprocess",
+        "--skip-incomplete",
+    ]
     collect_stats_cmd = shlex.join(collect_parts)
 
     if slurm_ids:
@@ -1211,6 +1232,8 @@ def get_simulation_jobs(descriptor_data, workloads_data, docker_prefix, user, db
         if workload == None and subsuite == None:
             for subsuite_ in workloads_data[suite].keys():
                 for workload_ in workloads_data[suite][subsuite_].keys():
+                    if not isinstance(workloads_data[suite][subsuite_][workload_], dict):
+                        continue
                     sim_mode_ = sim_mode
                     if sim_mode_ == None:
                         sim_mode_ = workloads_data[suite][subsuite_][workload_]["simulation"]["prioritized_mode"]
@@ -1222,6 +1245,8 @@ def get_simulation_jobs(descriptor_data, workloads_data, docker_prefix, user, db
                     ]
         elif workload == None and subsuite != None:
             for workload_ in workloads_data[suite][subsuite].keys():
+                if not isinstance(workloads_data[suite][subsuite][workload_], dict):
+                    continue
                 sim_mode_ = sim_mode
                 if sim_mode_ == None:
                     sim_mode_ = workloads_data[suite][subsuite][workload_]["simulation"]["prioritized_mode"]
@@ -1243,6 +1268,72 @@ def get_simulation_jobs(descriptor_data, workloads_data, docker_prefix, user, db
             ]
 
     return set(all_jobs)
+
+def parse_job_log_header(first_line: str) -> Optional[Tuple[str, str, str, str, str]]:
+    """Parse the first line of a Slurm job log.
+
+    Expected format: ``Running {config} {suite}/{subsuite}/{workload} {cluster_id}``
+
+    Returns ``(config, suite, subsuite, workload, cluster_id_str)`` or ``None`` if
+    the line does not match the expected format.
+    """
+    parts = first_line.split(" ")
+    if len(parts) < 4 or parts[0] != "Running":
+        return None
+    config = parts[1]
+    workload_path = parts[2]
+    cluster_id_str = parts[3]
+    path_parts = workload_path.split("/")
+    if len(path_parts) != 3:
+        return None
+    suite, subsuite, workload = path_parts
+    return (config, suite, subsuite, workload, cluster_id_str)
+
+
+def get_experiment_logs_dir(descriptor_data: dict) -> Path:
+    """Return the ``logs/`` directory path for the experiment described by *descriptor_data*."""
+    return (
+        Path(descriptor_data["root_dir"])
+        / "simulations"
+        / descriptor_data["experiment"]
+        / "logs"
+    )
+
+
+def iter_latest_job_logs(
+    logs_dir: Path,
+) -> Iterator[Tuple[int, Path, str, str, str, str, str]]:
+    """Yield the latest job log for each (config, suite, subsuite, workload, cluster_id) key.
+
+    Scans ``logs_dir`` for ``job_*.out`` files.  When multiple logs exist for the
+    same simulation key (re-runs produce higher Slurm job IDs), only the one with
+    the highest job ID is yielded — it supersedes OOM-killed or otherwise incomplete
+    earlier runs.
+
+    Yields ``(job_id_int, log_path, config, suite, subsuite, workload, cluster_id_str)``.
+    Files that cannot be parsed are silently skipped.
+    """
+    latest: Dict[Tuple[str, str, str, str, str], Tuple[int, Path]] = {}
+    for log_path in logs_dir.glob("job_*.out"):
+        try:
+            job_id_int = int(log_path.stem.split("_")[1])
+        except (IndexError, ValueError):
+            continue
+        try:
+            with log_path.open(encoding="utf-8", errors="replace") as fh:
+                first_line = fh.readline().strip()
+        except OSError:
+            continue
+        parsed = parse_job_log_header(first_line)
+        if parsed is None:
+            continue
+        config, suite, subsuite, workload, cluster_id_str = parsed
+        key = (config, suite, subsuite, workload, cluster_id_str)
+        if job_id_int > latest.get(key, (-1, log_path))[0]:
+            latest[key] = (job_id_int, log_path)
+    for (config, suite, subsuite, workload, cluster_id_str), (job_id_int, log_path) in latest.items():
+        yield (job_id_int, log_path, config, suite, subsuite, workload, cluster_id_str)
+
 
 def print_simulation_status_summary(
     descriptor_data,
@@ -1278,34 +1369,37 @@ def print_simulation_status_summary(
     if len(all_log_files) > len(all_jobs) + log_file_count_buffer:
         print("More log files than total runs. Maybe same experiment name was run multiple times?")
 
-    # Keep only the newest wrapper log for each simulation scenario.
-    latest_log_by_run = {}
-    for file in all_log_files:
-        log_path = os.path.join(root_logfile_directory, file)
+    # Single pass: build latest parseable logs (for status processing) and count all
+    # unique log entries including unparseable ones (for log_count_offset assertions).
+    _parseable: dict = {}   # (config, suite, subsuite, workload, cid) → (job_id, Path)
+    _unparseable: set = set()   # unique filenames for unparseable logs
+    for _lp in Path(root_logfile_directory).glob("job_*.out"):
         try:
-            with open(log_path, "r") as f:
-                first_line = f.readline().strip()
+            _jid = int(_lp.stem.split("_")[1])
+        except (IndexError, ValueError):
+            # e.g. the literal "job_%j.out" placeholder touched before sbatch submission
+            _unparseable.add(_lp.name)
+            continue
+        try:
+            with _lp.open(encoding="utf-8", errors="replace") as _fh:
+                _first = _fh.readline().strip()
         except OSError:
             continue
+        _parsed = parse_job_log_header(_first)
+        if _parsed is not None:
+            _key = _parsed  # (config, suite, subsuite, workload, cid)
+            if _jid > _parseable.get(_key, (-1, None))[0]:
+                _parseable[_key] = (_jid, _lp)
+        else:
+            _unparseable.add(_lp.name)
 
-        run_key = None
-        if first_line.startswith("Running "):
-            first_parts = first_line.split(" ")
-            if len(first_parts) >= 4:
-                run_key = (first_parts[1], first_parts[2], first_parts[3])
-        if run_key is None:
-            run_key = ("__unparsed__", file)
-
-        try:
-            mtime = os.path.getmtime(log_path)
-        except OSError:
-            continue
-
-        prev = latest_log_by_run.get(run_key)
-        if prev is None or mtime > prev[0]:
-            latest_log_by_run[run_key] = (mtime, file)
-
-    log_files = [entry[1] for entry in latest_log_by_run.values()]
+    latest_logs = [
+        (_jid, _lp, config, suite, subsuite, workload, cid)
+        for (config, suite, subsuite, workload, cid), (_jid, _lp) in _parseable.items()
+    ]
+    # total_log_count mirrors the old len(log_files) which included unparseable entries;
+    # log_count_offset and strict_log_count are calibrated against this value.
+    total_log_count = len(latest_logs) + len(_unparseable)
 
     error_runs = set()
     skipped = 0
@@ -1330,18 +1424,14 @@ def print_simulation_status_summary(
     not_in_experiment = []
     oom_killed = []
     oom_killed_sps = 0
-    for file in log_files:
-        log_path = os.path.join(root_logfile_directory, file)
+    for _job_id, log_path, config, suite, subsuite, workload, cluster_id in latest_logs:
+        workload_path = f"{suite}/{subsuite}/{workload}"
         with open(log_path, 'r') as f:
             contents = f.read()
             contents_after_docker = contents
             if len(contents.split("\n")) < 2:
                 continue
 
-            first_line = contents.split("\n")[0]
-            config = first_line.split(" ")[1]
-            cluster_id = first_line.split(" ")[3]
-            workload_path = first_line.split(" ")[2]
             scarab_logfile_path = os.path.join(
                 root_directory,
                 config,
@@ -1369,7 +1459,7 @@ def print_simulation_status_summary(
             if "BEGIN prepare_docker_image" in contents:
                 if "FAILED prepare_docker_image" in contents:
                     prep_failed[config] += 1
-                    error_runs.add(log_path)
+                    error_runs.add(str(log_path))
                     print("Docker image preparation failed, Simulation is not running (Error message in log file)")
                     continue
 
@@ -1377,13 +1467,13 @@ def print_simulation_status_summary(
                     contents_after_docker = contents.split("END prepare_docker_image\n")[1]
                 else:
                     prep_failed[config] += 1
-                    error_runs.add(log_path)
+                    error_runs.add(str(log_path))
                     print("Docker image preparation failed, Simulation is not running (Image prep never completed; no failure message)")
                     continue
             else:
                 print("Docker image preparation failed (Image prep never started)")
                 prep_failed[config] += 1
-                error_runs.add(log_path)
+                error_runs.add(str(log_path))
                 continue
 
             prep_err = 0
@@ -1404,7 +1494,7 @@ def print_simulation_status_summary(
             if all_nodes:
                 for node in all_nodes:
                     if f"{node}: error:" in contents_after_docker:
-                        error_runs.add(log_path)
+                        error_runs.add(str(log_path))
                         prep_failed[config] += 1
                         prep_err = 1
 
@@ -1463,7 +1553,7 @@ def print_simulation_status_summary(
         data["Non-existant"].append(total_per_conf - total_found)
 
     if len(not_in_experiment) == 0:
-        expected_log_count = len(log_files) - log_count_offset
+        expected_log_count = total_log_count - log_count_offset
         if strict_log_count:
             assert calculated_logfile_count == expected_log_count, "ERR: Assert Failed: Log file count doesn't match number of accounted jobs"
         elif calculated_logfile_count != expected_log_count:
@@ -1474,7 +1564,7 @@ def print_simulation_status_summary(
     if error_runs:
         error_list = sorted(error_runs)
         print(f"\033[31mErroneous Jobs: {len(error_list)}\033[0m")
-        print(f"\033[31mErrors found in {len(error_list)}/{len(log_files)} latest log files.")
+        print(f"\033[31mErrors found in {len(error_list)}/{len(latest_logs)} latest log files.")
         print("First 5 error runs:\n", "\n".join(error_list[:5]), "\033[0m", sep='')
         first_error_log = error_list[0]
         print()
@@ -1495,7 +1585,8 @@ def print_simulation_status_summary(
     if oom_killed_sps > 0:
         print()
         print(f"\033[31mOOM Killed Jobs: {oom_killed_sps}\033[0m")
-        print("To fix: Please increase --mem in the slurm_options field in the experiment descriptor file for each config listed below.")
+        print("To fix: Run './sci --collect-mem <descriptor>' after jobs complete to record per-simpoint memory measurements. The infra will use these to schedule future runs with appropriate --mem limits.")
+        print("If jobs haven't run yet, set 'memory_overhead_mb' in the config entry within the descriptor to add a fixed overhead on top of the auto-scheduled base memory.")
         print("OOM Killed Configs:\n", "\n".join(oom_killed), "\033[0m", sep='')
 
 def remove_docker_containers(docker_prefix_list, job_name, user, dbg_lvl):
@@ -1549,6 +1640,8 @@ def get_image_list(simulations, workloads_data):
             if subsuite == None:
                 for subsuite_ in workloads_data[suite].keys():
                     for workload_ in workloads_data[suite][subsuite_].keys():
+                        if not isinstance(workloads_data[suite][subsuite_][workload_], dict):
+                            continue
                         predef_mode = workloads_data[suite][subsuite_][workload_]["simulation"]["prioritized_mode"]
                         sim_mode_ = sim_mode
                         if sim_mode_ == None:
@@ -1557,6 +1650,8 @@ def get_image_list(simulations, workloads_data):
                             image_list.append(workloads_data[suite][subsuite_][workload_]["simulation"][sim_mode_]["image_name"])
             else:
                 for workload_ in workloads_data[suite][subsuite].keys():
+                    if not isinstance(workloads_data[suite][subsuite][workload_], dict):
+                        continue
                     predef_mode = workloads_data[suite][subsuite][workload_]["simulation"]["prioritized_mode"]
                     sim_mode_ = sim_mode
                     if sim_mode_ == None:
