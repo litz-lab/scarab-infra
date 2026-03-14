@@ -894,7 +894,7 @@
   },
   "datacenter":{
     "datacenter":{
-      "_scarab_sim_githash":"ee729e9",
+      "_scarab_sim_githash":"4da25da0",
       "clang":{
         "simulation":{
           "prioritized_mode":"memtrace",
@@ -924,7 +924,7 @@
             "weight":0.0192795,
             "drive_id":"1whpf7MaP-Y53j1i6aklHYEVo7usfK2nY",
             "size_bytes":31105756,
-            "base_memory_mb":null
+            "base_memory_mb":1973
           },
           {
             "cluster_id":812,
@@ -932,7 +932,7 @@
             "weight":0.142406,
             "drive_id":"1ou30a046kxNYA80Vk7ll9T_mO3RkT-a0",
             "size_bytes":61205638,
-            "base_memory_mb":3576
+            "base_memory_mb":1967
           },
           {
             "cluster_id":1358,
@@ -940,7 +940,7 @@
             "weight":0.041337,
             "drive_id":"1AZRYgH_rvJcZBFhSYkr9KLBH36nuI5wK",
             "size_bytes":47556353,
-            "base_memory_mb":null
+            "base_memory_mb":2074
           },
           {
             "cluster_id":1778,
@@ -948,7 +948,7 @@
             "weight":0.0293618,
             "drive_id":"1oxl_BJ1-CBKKH_dxSHbujKePQ68F7HtC",
             "size_bytes":79050129,
-            "base_memory_mb":null
+            "base_memory_mb":5153
           },
           {
             "cluster_id":828,
@@ -956,7 +956,7 @@
             "weight":0.0209859,
             "drive_id":"1jg_epgYlUivz0hBEFdpwuz76tr6xm7Qt",
             "size_bytes":25503071,
-            "base_memory_mb":null
+            "base_memory_mb":2774
           },
           {
             "cluster_id":2213,
@@ -964,7 +964,7 @@
             "weight":0.003435,
             "drive_id":"1VnlLV94EmIVdgNf5VHJ2Tva0OnV1-4im",
             "size_bytes":25063815,
-            "base_memory_mb":null
+            "base_memory_mb":1058
           },
           {
             "cluster_id":1726,
@@ -972,7 +972,7 @@
             "weight":0.0278595,
             "drive_id":"1jWlC6p8cH56GunK5LOqV2Kte7yhK4Jnl",
             "size_bytes":25130918,
-            "base_memory_mb":null
+            "base_memory_mb":1480
           },
           {
             "cluster_id":2054,
@@ -980,7 +980,7 @@
             "weight":0.0158624,
             "drive_id":"1YW6Bntnd3kwfq82SDOvaGOvgPWbHZIoE",
             "size_bytes":15310852,
-            "base_memory_mb":null
+            "base_memory_mb":1540
           },
           {
             "cluster_id":1903,
@@ -988,7 +988,7 @@
             "weight":0.00684999,
             "drive_id":"1Lq1_oOZDm7Wbu6acVtx2LDBHyYvKecuW",
             "size_bytes":20882153,
-            "base_memory_mb":null
+            "base_memory_mb":974
           },
           {
             "cluster_id":509,
@@ -996,7 +996,7 @@
             "weight":0.0569851,
             "drive_id":"1-3w0PErjQZ6qdBfm_ZigH4hf3ZvuSLan",
             "size_bytes":30050584,
-            "base_memory_mb":null
+            "base_memory_mb":1881
           },
           {
             "cluster_id":1751,
@@ -1004,7 +1004,7 @@
             "weight":0.0042904,
             "drive_id":"1-8byJ09aTU-lTOSbM0J13SYoWoU1Te1t",
             "size_bytes":16698573,
-            "base_memory_mb":null
+            "base_memory_mb":1562
           },
           {
             "cluster_id":62,
@@ -1012,7 +1012,7 @@
             "weight":0.017188,
             "drive_id":"1ONBo1W5DyZprlt7gy3AaSEfFTmPpEUnJ",
             "size_bytes":48787427,
-            "base_memory_mb":null
+            "base_memory_mb":1581
           },
           {
             "cluster_id":2151,
@@ -1020,7 +1020,7 @@
             "weight":0.0178037,
             "drive_id":"1mULv0BKMc3OxehxLIfO8QP21vVXiagor",
             "size_bytes":26048257,
-            "base_memory_mb":null
+            "base_memory_mb":2224
           },
           {
             "cluster_id":239,
@@ -1028,7 +1028,7 @@
             "weight":0.0419996,
             "drive_id":"17h-_nkKRMIhIYA2VHJXFaDidLfcCQ-kK",
             "size_bytes":42670822,
-            "base_memory_mb":null
+            "base_memory_mb":1635
           },
           {
             "cluster_id":1893,
@@ -1036,7 +1036,7 @@
             "weight":0.018838,
             "drive_id":"1UzudQRjUdnB_Ow3kD-6obzrN2YW_Ijls",
             "size_bytes":16268496,
-            "base_memory_mb":null
+            "base_memory_mb":910
           },
           {
             "cluster_id":1305,
@@ -1044,7 +1044,7 @@
             "weight":0.0474163,
             "drive_id":"1vA4ln1fxod_2lYG2NWdiRNAdub-CNPqc",
             "size_bytes":52800055,
-            "base_memory_mb":null
+            "base_memory_mb":2158
           },
           {
             "cluster_id":1673,
@@ -1052,7 +1052,7 @@
             "weight":0.0145797,
             "drive_id":"1r-5tzlMquFBYJ-gFiJ6Hv2i6PLLi8m9u",
             "size_bytes":35569350,
-            "base_memory_mb":null
+            "base_memory_mb":1206
           },
           {
             "cluster_id":492,
@@ -1060,7 +1060,7 @@
             "weight":0.0193129,
             "drive_id":"1H0dceSUap7fP8KYqmim6gRtvbKZl1w74",
             "size_bytes":26714142,
-            "base_memory_mb":null
+            "base_memory_mb":1673
           },
           {
             "cluster_id":2249,
@@ -1068,7 +1068,7 @@
             "weight":0.138357,
             "drive_id":"1PdjBkLzIo8nt8gvP3yGFQnH-oJza76-d",
             "size_bytes":52250802,
-            "base_memory_mb":3834
+            "base_memory_mb":2520
           },
           {
             "cluster_id":264,
@@ -1076,7 +1076,7 @@
             "weight":0.00757737,
             "drive_id":"1aWrLYrUkokLPDH1LHY5CbLrNICd9Uxl1",
             "size_bytes":49338491,
-            "base_memory_mb":null
+            "base_memory_mb":2064
           },
           {
             "cluster_id":2123,
@@ -1084,7 +1084,7 @@
             "weight":0.0111312,
             "drive_id":"19UlbTf9X8a9kROFIdQHuTgE_aGcZvEuq",
             "size_bytes":13066017,
-            "base_memory_mb":null
+            "base_memory_mb":2210
           },
           {
             "cluster_id":116,
@@ -1092,7 +1092,7 @@
             "weight":0.0117037,
             "drive_id":"1hs1EBu1T4lohZFjzdlfKfWU_KVmgGxWm",
             "size_bytes":46718285,
-            "base_memory_mb":null
+            "base_memory_mb":1947
           },
           {
             "cluster_id":1159,
@@ -1100,7 +1100,7 @@
             "weight":0.00772639,
             "drive_id":"11peAeyXpsTsjsnp_AOnnOGsfV70LVPlf",
             "size_bytes":25951515,
-            "base_memory_mb":null
+            "base_memory_mb":1972
           },
           {
             "cluster_id":1270,
@@ -1108,7 +1108,7 @@
             "weight":0.111884,
             "drive_id":"1nwjLATBzRK8SvrY8BJPcVxeLaIzA9K1Y",
             "size_bytes":42968337,
-            "base_memory_mb":4519
+            "base_memory_mb":2949
           },
           {
             "cluster_id":2165,
@@ -1116,7 +1116,7 @@
             "weight":0.0119928,
             "drive_id":"1ujqV_yEWlAoCs-eXClzjGD7m7PmdKHrI",
             "size_bytes":26051820,
-            "base_memory_mb":null
+            "base_memory_mb":1278
           },
           {
             "cluster_id":1152,
@@ -1124,7 +1124,7 @@
             "weight":0.072869,
             "drive_id":"1KAltSG6DQCH03sRnipnhjm_7y7PId1kn",
             "size_bytes":26501019,
-            "base_memory_mb":null
+            "base_memory_mb":1466
           },
           {
             "cluster_id":792,
@@ -1132,7 +1132,7 @@
             "weight":0.0336048,
             "drive_id":"1CBTAEIFjgandguYgUVS73ZyPX-IdnGlT",
             "size_bytes":54768240,
-            "base_memory_mb":null
+            "base_memory_mb":1485
           },
           {
             "cluster_id":1979,
@@ -1140,7 +1140,7 @@
             "weight":0.0219422,
             "drive_id":"1Y_QtCf4ewd0Mxv0D8LyC9sNu1tYGAusZ",
             "size_bytes":21591058,
-            "base_memory_mb":null
+            "base_memory_mb":1612
           },
           {
             "cluster_id":2185,
@@ -1148,7 +1148,7 @@
             "weight":0.0254211,
             "drive_id":"1kgR97p4bs6e62H9dSR07O9o1-P7jYt07",
             "size_bytes":20978968,
-            "base_memory_mb":null
+            "base_memory_mb":2823
           }
         ],
         "performance":{
@@ -1189,7 +1189,7 @@
             "weight":0.0688914,
             "drive_id":"1ags0GGTMPDTgp02cBCd9f2uk7K3ZiIgm",
             "size_bytes":59489391,
-            "base_memory_mb":null
+            "base_memory_mb":2180
           },
           {
             "cluster_id":2298,
@@ -1197,7 +1197,7 @@
             "weight":0.00476039,
             "drive_id":"1JSrW8l9BgOq1Anp4cAP7D0Q1pHjGpeg1",
             "size_bytes":29139106,
-            "base_memory_mb":null
+            "base_memory_mb":1076
           },
           {
             "cluster_id":2235,
@@ -1205,7 +1205,7 @@
             "weight":0.0217863,
             "drive_id":"1nghaWIG647u7q1ELnzdnP8ynqNX9ho8v",
             "size_bytes":35953115,
-            "base_memory_mb":null
+            "base_memory_mb":1595
           },
           {
             "cluster_id":562,
@@ -1213,7 +1213,7 @@
             "weight":0.0448596,
             "drive_id":"14GUlyyd5zXiY6miaEDmRH95DXEXvEtTx",
             "size_bytes":50811099,
-            "base_memory_mb":null
+            "base_memory_mb":1970
           },
           {
             "cluster_id":2322,
@@ -1221,7 +1221,7 @@
             "weight":0.0219116,
             "drive_id":"1GqJBKsdHy-nsLtsbZ5v_wp8a9-vRKH6U",
             "size_bytes":46502597,
-            "base_memory_mb":null
+            "base_memory_mb":1596
           },
           {
             "cluster_id":533,
@@ -1229,7 +1229,7 @@
             "weight":0.023442,
             "drive_id":"1G2KT1N7p63KSFCwJVvG4zyrZZFETWM5J",
             "size_bytes":42545401,
-            "base_memory_mb":null
+            "base_memory_mb":2443
           },
           {
             "cluster_id":655,
@@ -1237,7 +1237,7 @@
             "weight":0.040145,
             "drive_id":"1BQyIvxZqWtRMZQ1YVcHJeIlXci4Q2bzM",
             "size_bytes":40200459,
-            "base_memory_mb":null
+            "base_memory_mb":1309
           },
           {
             "cluster_id":414,
@@ -1245,7 +1245,7 @@
             "weight":0.0619735,
             "drive_id":"1EcDFdeQZvtupaY69XNzwvjZCcqPSppUo",
             "size_bytes":58463765,
-            "base_memory_mb":null
+            "base_memory_mb":2552
           },
           {
             "cluster_id":253,
@@ -1253,7 +1253,7 @@
             "weight":0.0440695,
             "drive_id":"1tR6l74QegujiTFJ5dey8nWMlksIDUMtN",
             "size_bytes":55527446,
-            "base_memory_mb":null
+            "base_memory_mb":1849
           },
           {
             "cluster_id":853,
@@ -1261,7 +1261,7 @@
             "weight":0.0382069,
             "drive_id":"1ILoQF4qwZiH9HgHVDFzdl0w8xyKtwyqY",
             "size_bytes":35335964,
-            "base_memory_mb":null
+            "base_memory_mb":2007
           },
           {
             "cluster_id":907,
@@ -1269,7 +1269,7 @@
             "weight":0.0782983,
             "drive_id":"1nXyFxio1I5tDQWTZHyDkc8KRuYFbwglD",
             "size_bytes":46334644,
-            "base_memory_mb":4868
+            "base_memory_mb":2325
           },
           {
             "cluster_id":1114,
@@ -1277,7 +1277,7 @@
             "weight":0.00493655,
             "drive_id":"1bzVq7i9wz3n-9nSIx83WWr3Q6KMx7xfO",
             "size_bytes":61290049,
-            "base_memory_mb":null
+            "base_memory_mb":2769
           },
           {
             "cluster_id":939,
@@ -1285,7 +1285,7 @@
             "weight":0.312516,
             "drive_id":"1nmi8bgvgvyXiG2TquPseq5u4zF5-06tY",
             "size_bytes":63919024,
-            "base_memory_mb":5534
+            "base_memory_mb":2675
           },
           {
             "cluster_id":2606,
@@ -1293,7 +1293,7 @@
             "weight":0.00481717,
             "drive_id":"1071pfyF3dJtxz7z1gj4qFl0HU9-IHzKH",
             "size_bytes":42605179,
-            "base_memory_mb":null
+            "base_memory_mb":2793
           },
           {
             "cluster_id":2837,
@@ -1301,7 +1301,7 @@
             "weight":0.0452283,
             "drive_id":"12ebUGF7AqvNa-IZkFuWE5KjOYoV-2yGk",
             "size_bytes":63804682,
-            "base_memory_mb":null
+            "base_memory_mb":1817
           },
           {
             "cluster_id":1793,
@@ -1309,7 +1309,7 @@
             "weight":0.0443213,
             "drive_id":"18BlzjnWNyd9c5X7QWHL32s1Lw_jT0H1c",
             "size_bytes":39786181,
-            "base_memory_mb":null
+            "base_memory_mb":1857
           },
           {
             "cluster_id":1046,
@@ -1317,7 +1317,7 @@
             "weight":0.0253286,
             "drive_id":"14ILWP4cMQwTwQHvSLM0vTRsiPeXD8a6X",
             "size_bytes":48755349,
-            "base_memory_mb":null
+            "base_memory_mb":1588
           },
           {
             "cluster_id":554,
@@ -1325,7 +1325,7 @@
             "weight":0.0136878,
             "drive_id":"1STx_t1G2ddK0zAHbqK1Be1nTkQOM12go",
             "size_bytes":36242965,
-            "base_memory_mb":null
+            "base_memory_mb":1649
           },
           {
             "cluster_id":1970,
@@ -1333,7 +1333,7 @@
             "weight":0.100819,
             "drive_id":"1qkGmOObM_g8lg6aRRUFavHrz6mFs9H19",
             "size_bytes":281677302,
-            "base_memory_mb":39499
+            "base_memory_mb":39163
           }
         ],
         "performance":{
@@ -1367,7 +1367,7 @@
             "weight":0.40608,
             "drive_id":"1hoi4Sx62Q4WofnWw1TvFmG0KHlQVDQmj",
             "size_bytes":85501495,
-            "base_memory_mb":4534
+            "base_memory_mb":3053
           },
           {
             "cluster_id":1010,
@@ -1375,7 +1375,7 @@
             "weight":0.00380665,
             "drive_id":"1vR9zJ_ULZvt9TUBZVyQV-otvg5BWW96U",
             "size_bytes":86263451,
-            "base_memory_mb":null
+            "base_memory_mb":3054
           },
           {
             "cluster_id":1362,
@@ -1383,7 +1383,7 @@
             "weight":0.391956,
             "drive_id":"17I0E5t1181oFhgM7KQWKCPWM5-msip3B",
             "size_bytes":85874786,
-            "base_memory_mb":4850
+            "base_memory_mb":2968
           },
           {
             "cluster_id":5198,
@@ -1391,7 +1391,7 @@
             "weight":0.198157,
             "drive_id":"1EzC9rdU-qoFOnc_s5OY2FjCMfjS8Npsl",
             "size_bytes":85243215,
-            "base_memory_mb":4542
+            "base_memory_mb":3021
           }
         ]
       },
@@ -1427,7 +1427,7 @@
             "weight":0.0114004,
             "drive_id":"1qfJqHYWEMWT2fwNNxHuhLW24jG7CVaRD",
             "size_bytes":122358362,
-            "base_memory_mb":4031
+            "base_memory_mb":2247
           },
           {
             "cluster_id":1172,
@@ -1435,7 +1435,7 @@
             "weight":0.9886,
             "drive_id":"1JAL9nJBRvRDpJvRiTtjrzM-l5joA6DoN",
             "size_bytes":131550914,
-            "base_memory_mb":4104
+            "base_memory_mb":2317
           }
         ],
         "performance":{
@@ -1483,7 +1483,7 @@
             "weight":0.136866,
             "drive_id":"1xRwUiufBHwlyoSKVOpGbzGRmODpF5omy",
             "size_bytes":81645164,
-            "base_memory_mb":null
+            "base_memory_mb":1756
           },
           {
             "cluster_id":5297,
@@ -1491,7 +1491,7 @@
             "weight":0.151823,
             "drive_id":"1J1IpEtTR9AYrzEzxZqmduSK5hXerjxnJ",
             "size_bytes":81637119,
-            "base_memory_mb":3373
+            "base_memory_mb":1799
           },
           {
             "cluster_id":5168,
@@ -1499,7 +1499,7 @@
             "weight":0.163489,
             "drive_id":"1rZ0vMTCh_o8jmr97E3RTwrhNPgZImzg8",
             "size_bytes":81660145,
-            "base_memory_mb":3258
+            "base_memory_mb":1830
           },
           {
             "cluster_id":2807,
@@ -1507,7 +1507,7 @@
             "weight":0.165524,
             "drive_id":"1pYSFbTIEw0zpqxK_W4myABCswquDu474",
             "size_bytes":81611504,
-            "base_memory_mb":3413
+            "base_memory_mb":1749
           },
           {
             "cluster_id":2215,
@@ -1515,7 +1515,7 @@
             "weight":0.0861533,
             "drive_id":"1tprbgRRqJHUn5fX6fk8okrKXMZD40Tn6",
             "size_bytes":81617878,
-            "base_memory_mb":null
+            "base_memory_mb":1802
           },
           {
             "cluster_id":1490,
@@ -1523,7 +1523,7 @@
             "weight":0.145715,
             "drive_id":"1W03XIj-ti1A8PnAiDOBFx-94Hakcao7o",
             "size_bytes":81626352,
-            "base_memory_mb":null
+            "base_memory_mb":1826
           },
           {
             "cluster_id":3954,
@@ -1531,7 +1531,7 @@
             "weight":0.0829318,
             "drive_id":"1T9QwHt79qcP0q3zs4KWkt30CBBL4ab7h",
             "size_bytes":81613229,
-            "base_memory_mb":null
+            "base_memory_mb":1836
           },
           {
             "cluster_id":2031,
@@ -1539,7 +1539,7 @@
             "weight":0.067498,
             "drive_id":"1OWEaXmHuqcKyR1RA8SShodxccBCPTfBP",
             "size_bytes":81610128,
-            "base_memory_mb":null
+            "base_memory_mb":1752
           }
         ],
         "performance":{
@@ -1584,7 +1584,7 @@
             "weight":0.0303057,
             "drive_id":"1Jmi5rw2PDFMkfnyJ2jL9JALxosfoYfoT",
             "size_bytes":59860932,
-            "base_memory_mb":null
+            "base_memory_mb":8044
           },
           {
             "cluster_id":24078,
@@ -1592,7 +1592,7 @@
             "weight":0.082645,
             "drive_id":"14O3Thrd96yASgZK5BO2jsY4WFNTxPSXz",
             "size_bytes":59769190,
-            "base_memory_mb":8739
+            "base_memory_mb":7908
           },
           {
             "cluster_id":1937,
@@ -1600,7 +1600,7 @@
             "weight":0.0047999,
             "drive_id":"1gLwoNzUDjyMexOvomvR1JiK9J3iaRfA9",
             "size_bytes":57741968,
-            "base_memory_mb":null
+            "base_memory_mb":7724
           },
           {
             "cluster_id":11681,
@@ -1608,7 +1608,7 @@
             "weight":0.00459564,
             "drive_id":"1rSf3v-km484OuVaMjED0lCg26Cuc1lEg",
             "size_bytes":60336371,
-            "base_memory_mb":null
+            "base_memory_mb":8053
           },
           {
             "cluster_id":239,
@@ -1616,7 +1616,7 @@
             "weight":0.0245867,
             "drive_id":"1DUK1rId6R1okSl5PL-siGc4KfcLzZhnz",
             "size_bytes":6437161,
-            "base_memory_mb":null
+            "base_memory_mb":1096
           },
           {
             "cluster_id":2335,
@@ -1624,7 +1624,7 @@
             "weight":0.0105445,
             "drive_id":"1ZXfjfwtWXGCPURIB0L-XvS62nzvf57AL",
             "size_bytes":58870956,
-            "base_memory_mb":null
+            "base_memory_mb":7952
           },
           {
             "cluster_id":3082,
@@ -1632,7 +1632,7 @@
             "weight":0.0226208,
             "drive_id":"1dn11F7fMj7kV1Omnh260Y53suve6rzWg",
             "size_bytes":59797145,
-            "base_memory_mb":null
+            "base_memory_mb":8185
           },
           {
             "cluster_id":25088,
@@ -1640,7 +1640,7 @@
             "weight":0.0240505,
             "drive_id":"1-LwnZihDh-QT7GGdDlELKmMuhD7gXqvV",
             "size_bytes":59790772,
-            "base_memory_mb":null
+            "base_memory_mb":8043
           },
           {
             "cluster_id":2239,
@@ -1648,7 +1648,7 @@
             "weight":0.0187145,
             "drive_id":"1JSYWr2r7dBgBcy2NpfCti7TrGE0l2cLk",
             "size_bytes":59054126,
-            "base_memory_mb":null
+            "base_memory_mb":7975
           },
           {
             "cluster_id":27989,
@@ -1656,7 +1656,7 @@
             "weight":0.0139657,
             "drive_id":"1rf7db1trmapoy4ULzZiW4hBeL-uLUj20",
             "size_bytes":59838272,
-            "base_memory_mb":null
+            "base_memory_mb":7977
           },
           {
             "cluster_id":23604,
@@ -1664,7 +1664,7 @@
             "weight":0.00402165,
             "drive_id":"1_CNMwAFIngLJuqFcpCSlTy1HL5ekRhGb",
             "size_bytes":59459802,
-            "base_memory_mb":null
+            "base_memory_mb":7901
           },
           {
             "cluster_id":38254,
@@ -1672,7 +1672,7 @@
             "weight":0.0253526,
             "drive_id":"13EMjuBkELSNDGaDkfgLQm6C5WS4Kar7E",
             "size_bytes":59657149,
-            "base_memory_mb":null
+            "base_memory_mb":7894
           },
           {
             "cluster_id":5542,
@@ -1680,7 +1680,7 @@
             "weight":0.026093,
             "drive_id":"1fbUu1xW9_jjhcsqMh8g0jZ2xYdJZivqb",
             "size_bytes":59853802,
-            "base_memory_mb":null
+            "base_memory_mb":8063
           },
           {
             "cluster_id":17860,
@@ -1688,7 +1688,7 @@
             "weight":0.029693,
             "drive_id":"1fHhUPgs2o3-9raUzzAvoDa1ZIhbYwRfh",
             "size_bytes":59861667,
-            "base_memory_mb":null
+            "base_memory_mb":8020
           },
           {
             "cluster_id":30390,
@@ -1696,7 +1696,7 @@
             "weight":0.0106466,
             "drive_id":"1kxoKEG8OzO_WAL6rv9N1L3swGSWkt_FX",
             "size_bytes":59100584,
-            "base_memory_mb":null
+            "base_memory_mb":7833
           },
           {
             "cluster_id":1198,
@@ -1704,7 +1704,7 @@
             "weight":0.0114636,
             "drive_id":"1Q0gy36WfkKJ8NFWG4oTNF5-NYKxwh7ye",
             "size_bytes":60349502,
-            "base_memory_mb":null
+            "base_memory_mb":8276
           },
           {
             "cluster_id":23110,
@@ -1712,7 +1712,7 @@
             "weight":0.0416672,
             "drive_id":"1c2NZ4ZWSyHpc_c2qYMOXnuSxmfmn1BNd",
             "size_bytes":59695512,
-            "base_memory_mb":null
+            "base_memory_mb":8001
           },
           {
             "cluster_id":17710,
@@ -1720,7 +1720,7 @@
             "weight":0.0232591,
             "drive_id":"1apGpEOpGRH--KazAYL0QijTLg5Fuajyt",
             "size_bytes":59800950,
-            "base_memory_mb":null
+            "base_memory_mb":7909
           },
           {
             "cluster_id":10138,
@@ -1728,7 +1728,7 @@
             "weight":0.0139401,
             "drive_id":"1Hc2rK1UnLv7wzDsx0x4duIasJntg5f_l",
             "size_bytes":59854636,
-            "base_memory_mb":null
+            "base_memory_mb":8052
           },
           {
             "cluster_id":20946,
@@ -1736,7 +1736,7 @@
             "weight":0.0352333,
             "drive_id":"1H9juWNItgXegfj0xhIZyef64anCfueHj",
             "size_bytes":59809882,
-            "base_memory_mb":null
+            "base_memory_mb":8107
           },
           {
             "cluster_id":5142,
@@ -1744,7 +1744,7 @@
             "weight":0.0315568,
             "drive_id":"1VIDwc9-dLDJZvFwoaPQeerdb6XR6O2iA",
             "size_bytes":59867770,
-            "base_memory_mb":null
+            "base_memory_mb":8142
           },
           {
             "cluster_id":3572,
@@ -1752,7 +1752,7 @@
             "weight":0.0294121,
             "drive_id":"1XmUXb9-hIEGJy7kMpRDuYrFTsaSagSLV",
             "size_bytes":59875967,
-            "base_memory_mb":null
+            "base_memory_mb":8146
           },
           {
             "cluster_id":24023,
@@ -1760,7 +1760,7 @@
             "weight":0.0292334,
             "drive_id":"1sWdgjzcqp42Lf5BpoZdjtsR3uMvySr2l",
             "size_bytes":59734347,
-            "base_memory_mb":null
+            "base_memory_mb":7923
           },
           {
             "cluster_id":9080,
@@ -1768,7 +1768,7 @@
             "weight":0.028927,
             "drive_id":"1LMW3z9-XUrgiCNxXcrItUmK7z23-_rwH",
             "size_bytes":59414592,
-            "base_memory_mb":null
+            "base_memory_mb":7987
           },
           {
             "cluster_id":1127,
@@ -1776,7 +1776,7 @@
             "weight":0.0130721,
             "drive_id":"16GOD0_KCvIQ9VbMHye_Hgd81VgVU5MiN",
             "size_bytes":60255725,
-            "base_memory_mb":null
+            "base_memory_mb":8071
           },
           {
             "cluster_id":32023,
@@ -1784,7 +1784,7 @@
             "weight":0.00411055,
             "drive_id":"1S8CtStDDZVD8CTWOxJ03wY-8PumM7kaH",
             "size_bytes":59872912,
-            "base_memory_mb":null
+            "base_memory_mb":7920
           },
           {
             "cluster_id":37923,
@@ -1792,7 +1792,7 @@
             "weight":0.0442969,
             "drive_id":"1Kwt4YsGC6kpG0o5EghJ8xJLcVfGyg5oH",
             "size_bytes":59851658,
-            "base_memory_mb":null
+            "base_memory_mb":8039
           },
           {
             "cluster_id":20854,
@@ -1800,7 +1800,7 @@
             "weight":0.0425097,
             "drive_id":"13RUxqCrlrcPbhLKunPB9R-R1VAEYg4DB",
             "size_bytes":59735966,
-            "base_memory_mb":null
+            "base_memory_mb":8023
           },
           {
             "cluster_id":22427,
@@ -1808,7 +1808,7 @@
             "weight":0.0296164,
             "drive_id":"1YRdF6pGUdMAo2kmnMs1bBmVMNDANYx3b",
             "size_bytes":59683964,
-            "base_memory_mb":null
+            "base_memory_mb":8030
           },
           {
             "cluster_id":1734,
@@ -1816,7 +1816,7 @@
             "weight":0.012587,
             "drive_id":"1TtxtWJR4iNd-PMhH4Bn8MpnimAFO3cxJ",
             "size_bytes":60254338,
-            "base_memory_mb":null
+            "base_memory_mb":8185
           },
           {
             "cluster_id":23006,
@@ -1824,7 +1824,7 @@
             "weight":0.0152933,
             "drive_id":"1REcVYqc-GLqZ_cpkJa7l_1nqJnY6nWxO",
             "size_bytes":59774137,
-            "base_memory_mb":null
+            "base_memory_mb":8056
           },
           {
             "cluster_id":39251,
@@ -1832,7 +1832,7 @@
             "weight":0.0355397,
             "drive_id":"1BUP9u4_Y0zqdfvmXGnxCPQ49QDEBRoXM",
             "size_bytes":59805809,
-            "base_memory_mb":null
+            "base_memory_mb":8016
           },
           {
             "cluster_id":23256,
@@ -1840,7 +1840,7 @@
             "weight":0.0783302,
             "drive_id":"1GWwt3zLjbnDfroVFZaEON-g9ySUTYF-D",
             "size_bytes":59777715,
-            "base_memory_mb":8890
+            "base_memory_mb":7818
           },
           {
             "cluster_id":7670,
@@ -1848,7 +1848,7 @@
             "weight":0.0406715,
             "drive_id":"1wu9r-ZRS5Mjo5-lOSNexnmsbXBbViBBF",
             "size_bytes":59887276,
-            "base_memory_mb":null
+            "base_memory_mb":7987
           },
           {
             "cluster_id":32215,
@@ -1856,7 +1856,7 @@
             "weight":0.0168252,
             "drive_id":"1EhbTsfO_Aqp4ELEvy5sDkGtZMWgk_x0t",
             "size_bytes":59884710,
-            "base_memory_mb":null
+            "base_memory_mb":7930
           },
           {
             "cluster_id":31568,
@@ -1864,7 +1864,7 @@
             "weight":0.0898193,
             "drive_id":"1v63YIT-szJFYmqip-XZPeerWQ5t1-fo5",
             "size_bytes":59792746,
-            "base_memory_mb":8830
+            "base_memory_mb":8038
           }
         ]
       },
@@ -1893,7 +1893,7 @@
             "weight":0.00641002,
             "drive_id":"1p497iK-8fmDG8wOPKZvVHDR9JUagXRA3",
             "size_bytes":22146768,
-            "base_memory_mb":null
+            "base_memory_mb":1686
           },
           {
             "cluster_id":2470,
@@ -1901,7 +1901,7 @@
             "weight":0.0205471,
             "drive_id":"1tDhvIHat9hZpOI1mlsL65HtRHHoRipLZ",
             "size_bytes":24222673,
-            "base_memory_mb":null
+            "base_memory_mb":1462
           },
           {
             "cluster_id":11,
@@ -1909,7 +1909,7 @@
             "weight":0.00451178,
             "drive_id":"1FsfXrD94Lq8WxBTJJgyNFfWY5WFSAXG6",
             "size_bytes":67921964,
-            "base_memory_mb":null
+            "base_memory_mb":2690
           },
           {
             "cluster_id":463,
@@ -1917,7 +1917,7 @@
             "weight":0.045836,
             "drive_id":"1vqUUE4HVn1pCTQUDFf-U-rQlKkQcuQxn",
             "size_bytes":27786721,
-            "base_memory_mb":1991
+            "base_memory_mb":1680
           },
           {
             "cluster_id":2593,
@@ -1925,7 +1925,7 @@
             "weight":0.00395137,
             "drive_id":"1Yha7Gz5ZPxaEFYpBUTPyzwqFq7vKOKOL",
             "size_bytes":24072240,
-            "base_memory_mb":null
+            "base_memory_mb":2241
           },
           {
             "cluster_id":452,
@@ -1933,7 +1933,7 @@
             "weight":0.0392503,
             "drive_id":"1UT_DPytqhK2ixmgLgVkLLmkuaWFyTDbV",
             "size_bytes":27936031,
-            "base_memory_mb":null
+            "base_memory_mb":1614
           },
           {
             "cluster_id":3311,
@@ -1941,7 +1941,7 @@
             "weight":0.759178,
             "drive_id":"1qlMQ7WFBRul9_j0X5eU0oXX9stP0F0II",
             "size_bytes":113334131,
-            "base_memory_mb":21838
+            "base_memory_mb":21704
           },
           {
             "cluster_id":2021,
@@ -1949,7 +1949,7 @@
             "weight":0.00276466,
             "drive_id":"1y7plWweVBSXFp6BiOA6gB_r4vGcVcaXT",
             "size_bytes":28551914,
-            "base_memory_mb":null
+            "base_memory_mb":1752
           },
           {
             "cluster_id":2625,
@@ -1957,7 +1957,7 @@
             "weight":0.00895644,
             "drive_id":"1J0zlnv48sNVySXj95ShkWvsX2m498SvT",
             "size_bytes":25677640,
-            "base_memory_mb":null
+            "base_memory_mb":1040
           },
           {
             "cluster_id":2735,
@@ -1965,7 +1965,7 @@
             "weight":0.00298548,
             "drive_id":"1cCupBWmZlNk1eKzkzrg2ObaJw4h4oYH_",
             "size_bytes":33594140,
-            "base_memory_mb":null
+            "base_memory_mb":1024
           },
           {
             "cluster_id":2770,
@@ -1973,7 +1973,7 @@
             "weight":0.00272205,
             "drive_id":"18Ls5JGq4iKzRGO1AMzMT0XyfPCDNALyK",
             "size_bytes":39396084,
-            "base_memory_mb":null
+            "base_memory_mb":763
           },
           {
             "cluster_id":247,
@@ -1981,7 +1981,7 @@
             "weight":0.102887,
             "drive_id":"1zJoBRXPo0v4pnTFvwDhztR45mMkEJP_2",
             "size_bytes":28683978,
-            "base_memory_mb":2631
+            "base_memory_mb":2390
           }
         ],
         "performance":{
@@ -2014,7 +2014,7 @@
             "warmup":49999999
           }
         },
-        "base_memory_mb":14924
+        "base_memory_mb":10448
       },
       "drupal":{
         "simulation":{
@@ -2030,7 +2030,7 @@
             "warmup":49999999
           }
         },
-        "base_memory_mb":17242
+        "base_memory_mb":10614
       },
       "finagle-chirper":{
         "simulation":{
@@ -2046,7 +2046,7 @@
             "warmup":49999999
           }
         },
-        "base_memory_mb":19882
+        "base_memory_mb":11857
       },
       "finagle-http":{
         "simulation":{
@@ -2062,7 +2062,7 @@
             "warmup":49999999
           }
         },
-        "base_memory_mb":17927
+        "base_memory_mb":11380
       },
       "kafka":{
         "trace":{
@@ -2081,7 +2081,7 @@
             "warmup":49999999
           }
         },
-        "base_memory_mb":15524
+        "base_memory_mb":11157
       },
       "mediawiki":{
         "simulation":{
@@ -2097,7 +2097,7 @@
             "warmup":49999999
           }
         },
-        "base_memory_mb":21871
+        "base_memory_mb":14800
       },
       "python":{
         "simulation":{
@@ -2107,7 +2107,7 @@
             "warmup":49999999
           }
         },
-        "base_memory_mb":18610
+        "base_memory_mb":12759
       },
       "tomcat":{
         "trace":{
@@ -2126,7 +2126,7 @@
             "warmup":49999999
           }
         },
-        "base_memory_mb":20780
+        "base_memory_mb":13172
       },
       "wordpress":{
         "simulation":{
@@ -2142,7 +2142,7 @@
             "warmup":49999999
           }
         },
-        "base_memory_mb":19900
+        "base_memory_mb":12879
       }
     }
   },
