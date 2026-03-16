@@ -2,7 +2,7 @@
   "_descriptor_type":"A type of descriptor. One of 'simulation', 'trace', and 'perf'.",
   "descriptor_type":"simulation",
   "_architecture": "A name of the available architectures (PARAMS.<architecture>) found in scarab repository, which defines the machine parameters of the default configuration.",
-  "architecture": "sunny_cove",
+  "architecture": "golden_cove",
   "_experiment": "The name of the experiment. scarab-infra will create a new folder named containing all files needed to execute the simulation in the <ROOT_DIR>/simulations/<experiment> directory. The folder will also contain all generated simulation statistics/outputs.",
   "experiment": "github_top_simpoint_workflow_dbg",
   "_workload_manager": "manual: run each exp scenario with all the simpoints at a time, slurm: Slurm schedules simulations based on its policy",
