@@ -1123,6 +1123,7 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
                 -e APP_GROUPNAME={docker_prefix} \
                 -e APPNAME={workload} \
                 -dit \
+                --rm \
                 --name $CONTAINER_NAME \
                 --mount type=bind,source={traces_dir},target=/simpoint_traces,readonly=true \
                 --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
@@ -1137,6 +1138,7 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
                 -e APP_GROUPNAME={docker_prefix} \
                 -e APPNAME={workload} \
                 -dit \
+                --rm \
                 --name $CONTAINER_NAME \
                 --mount type=bind,source={traces_dir},target=/simpoint_traces,readonly=true \
                 --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
