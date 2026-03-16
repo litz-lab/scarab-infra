@@ -2619,7 +2619,11 @@ def run_visualize(descriptor_name: str) -> int:
     def safe_filename(stem: str) -> str:
         return "".join(c if c.isalnum() or c in {"-", "_"} else "_" for c in stem)
 
+    plots_dir = stats_path.parent / "plots"
+    plots_dir.mkdir(parents=True, exist_ok=True)
+
     print(f"Using stats file: {stats_path}")
+    print(f"Plots output dir: {plots_dir}")
     print(f"Workloads: {len(workloads)}; Configurations: {len(configs)}; Speedup baseline: {baseline}")
 
     available_stats = set()
@@ -2677,7 +2681,7 @@ def run_visualize(descriptor_name: str) -> int:
 
         if plot_type == "stacked" and len(stats_list) > 1:
             stem_safe = safe_filename(str(custom_stem))
-            stacked_output = stats_path.with_name(f"{stem_safe}_stacked.png")
+            stacked_output = plots_dir / f"{stem_safe}_stacked.png"
             title = str(request.get("title", ""))  # type: ignore[call-arg]
             y_label = str(request.get("y_label", "Value"))  # type: ignore[call-arg]
             print(f"Plotting stacked {stats_list} → {stacked_output.name}")
@@ -2699,8 +2703,8 @@ def run_visualize(descriptor_name: str) -> int:
         stat_label = stats_list[0]
         stat_safe = safe_filename(stat_label)
         baseline_safe = safe_filename(baseline)
-        ipc_output = stats_path.with_name(f"{stat_safe}_absolute.png")
-        speedup_output = stats_path.with_name(f"{stat_safe}_speedup_vs_{baseline_safe}.png")
+        ipc_output = plots_dir / f"{stat_safe}_absolute.png"
+        speedup_output = plots_dir / f"{stat_safe}_speedup_vs_{baseline_safe}.png"
 
         print(f"Plotting '{stat_label}' → {ipc_output.name}, {speedup_output.name}")
 
@@ -2784,6 +2788,44 @@ def run_visualize(descriptor_name: str) -> int:
             print(f"Skipping memory table: {exc}")
 
     return 0
+
+
+def run_cfg_analyze(descriptor_name: str) -> int:
+    """Aggregate per-simpoint cfg_data.json files into weighted CFGs."""
+    try:
+        descriptor_path, descriptor = read_descriptor(descriptor_name)
+    except StepError as exc:
+        print(exc)
+        return 1
+
+    if descriptor.get("descriptor_type") != "simulation":
+        print("--cfg only supports simulation descriptors.")
+        return 1
+
+    root_dir = descriptor.get("root_dir")
+    experiment_name = descriptor.get("experiment")
+    if not root_dir or not experiment_name:
+        print("Descriptor must include 'root_dir' and 'experiment'.")
+        return 1
+
+    output_dir = Path(root_dir) / "simulations" / experiment_name / "cfg_analysis"
+
+    cfg_settings = descriptor.get("cfg_analysis", {})
+    emit_dot    = bool(cfg_settings.get("dot",          False))
+    top_n       = int(cfg_settings.get("top_n",         50))
+    focus       = str(cfg_settings.get("focus",         "hot"))
+    region_depth = int(cfg_settings.get("region_depth", 1))
+
+    try:
+        cfg_mod = import_repo_module("scripts.cfg_analyzer")
+    except StepError as exc:
+        print(exc)
+        return 1
+
+    infra_root = descriptor_path.parent.parent
+    return cfg_mod.run(descriptor_path, infra_root, output_dir, emit_dot=emit_dot,
+                       top_n=top_n, focus=focus, region_depth=region_depth)
+
 
 
 def run_perf_analyze(descriptor_name: str) -> int:
@@ -3887,6 +3929,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="Analyze performance drift from collected stats in json/<DESCRIPTOR>.json.",
     )
     parser.add_argument(
+        "--cfg",
+        metavar="DESCRIPTOR",
+        help="Aggregate per-simpoint CFG data into weighted CFGs for json/<DESCRIPTOR>.json. "
+             "Visualization options (dot, focus, top_n, region_depth) are read from the "
+             "'cfg_analysis' key in the descriptor JSON.",
+    )
+    parser.add_argument(
         "--kill",
         metavar="DESCRIPTOR",
         help="Kill active simulations for json/<DESCRIPTOR>.json.",
@@ -3926,6 +3975,7 @@ def main() -> int:
         bool(args.visualize),
         bool(args.collect_mem),
         bool(args.perf_analyze),
+        bool(args.cfg),
         bool(args.kill),
         bool(args.status),
         bool(args.clean),
@@ -3943,6 +3993,7 @@ def main() -> int:
         args.visualize,
         args.collect_mem,
         args.perf_analyze,
+        args.cfg,
         args.kill,
         args.status,
         args.clean,
@@ -4033,6 +4084,8 @@ def main() -> int:
         return run_collect_mem(args.collect_mem)
     if args.perf_analyze:
         return run_perf_analyze(args.perf_analyze)
+    if args.cfg:
+        return run_cfg_analyze(args.cfg)
     if args.kill:
         try:
             handle_descriptor_action(args.kill, "kill", dbg_override=args.debug_level)
