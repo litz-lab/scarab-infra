@@ -28,9 +28,9 @@
       "trace_type":"trace_then_cluster",
       "dynamorio_args":null,
       "clustering_k":null,
-      "slurm_options": "--mem 4G"
+      "slurm_options":""
     },
-   {
+    {
       "workload":"random_benchmark",
       "image_name":"dcperf",
       "suite":"dcperf",
@@ -41,7 +41,7 @@
       "trace_type":"trace_then_cluster",
       "dynamorio_args":null,
       "clustering_k":null,
-      "slurm_options": "--mem 4G"
+      "slurm_options":""
     }
   ]
 }

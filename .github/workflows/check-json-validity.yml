@@ -25,6 +25,36 @@ jobs:
           jq empty ./workloads/workloads_db.json
           jq empty ./workloads/workloads_top_simp.json
 
+      - name: Validate JSON formatting (no spaces after colons or commas)
+        run: |
+          python3 - <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          paths = [
+              Path("./json/exp.json"),
+              Path("./json/trace.json"),
+              Path("./json/perf.json"),
+              Path("./json/top_simpoint.json"),
+              Path("./json/top_simpoint_dbg.json"),
+              Path("./workloads/workloads_db.json"),
+              Path("./workloads/workloads_top_simp.json"),
+          ]
+
+          failed = False
+          for path in paths:
+              text = path.read_text(encoding="utf-8")
+              canonical = json.dumps(json.loads(text), indent=2, separators=(',', ':')) + "\n"
+              if text != canonical:
+                  failed = True
+                  print(f"{path}: not in canonical format (indent=2, no spaces after ':' or ',')")
+                  print("  To fix: python3 -c \"import json,pathlib; p=pathlib.Path('{path}'); p.write_text(json.dumps(json.loads(p.read_text()),indent=2,separators=(',',':'))+'\\n')\"")
+
+          if failed:
+              sys.exit(1)
+          PY
+
       - name: Validate simulation descriptor key parity
         run: |
           python3 - <<'PY'
