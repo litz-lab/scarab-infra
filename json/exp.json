@@ -52,17 +52,19 @@
       "warmup":null
     }
   ],
-  "_configurations":"scarab configurations to sweep. The slurm_options field is used to provide arguments to all slurm commands (ignored for manual runner). An empty string can be used if you do not wish to set any slurm options. Default behaviour is depenent on your slurm cluster configuration. The only option set by the infrastructure is -c 1 (use 1 core) for all simpoint jobs. Options can be found here: https://slurm.schedmd.com/sbatch.html",
+  "_configurations":"scarab configurations to sweep. slurm_options passes extra arguments to sbatch (ignored for manual runner); '--mem' is no longer needed here as memory is scheduled per-simpoint automatically. memory_overhead_mb (optional, default 0) adds a fixed MB overhead on top of the per-simpoint base memory for configs that allocate extra Scarab structures. Options: https://slurm.schedmd.com/sbatch.html",
   "configurations":{
-    "icache_32k": {
-      "params": "--icache_size 32768",
-      "binary": "scarab_current",
-      "slurm_options": "--mem 4G"
+    "icache_32k":{
+      "params":"--icache_size 32768",
+      "binary":"scarab_current",
+      "slurm_options":"",
+      "memory_overhead_mb":0
     },
-    "icache_64k": {
-      "params": "--icache_size 65536",
-      "binary": "scarab_current",
-      "slurm_options": "--mem 4G"
+    "icache_64k":{
+      "params":"--icache_size 65536",
+      "binary":"scarab_current",
+      "slurm_options":"",
+      "memory_overhead_mb":0
     }
   },
   "_visualize":"Visualization settings for ./sci --visualize. Configure baseline and counters.",
@@ -70,7 +72,11 @@
     "baseline":"icache_32k",
     "counters":[
       "IPC",
-      ["BTB_CORRECT", "BTB_INCORRECT_BUT_TARGET_CORRECT", "BTB_INCORRECT"],
+      [
+        "BTB_CORRECT",
+        "BTB_INCORRECT_BUT_TARGET_CORRECT",
+        "BTB_INCORRECT"
+      ],
       {
         "type":"stacked",
         "name":"icache_hit_miss",
@@ -82,6 +88,11 @@
         ]
       }
     ]
+  },
+  "_mem":"Memory scheduling and collection settings for Slurm jobs. collection_baseline specifies which config's MaxRSS is recorded as base_memory_mb by ./sci --collect-mem (defaults to visualize.baseline). fallback_mb is the --mem limit used for simpoints that have no measured base_memory_mb yet; set it conservatively high to avoid OOM kills on the first run.",
+  "mem":{
+    "collection_baseline":null,
+    "fallback_mb":16384
   },
   "_perf_analyze":"Performance drift analysis settings for ./sci --perf-analyze. It diffs stats and also compares baseline-vs-target Scarab binary hashes; when hashes differ it runs git diff/log in scarab_path and includes that context in reports and AI prompt. analyzer_cli_cmd examples: codex (auto-runs as non-interactive codex exec -), codex exec -, gemini -p \"@{prompt_file}\", or claude (auto-runs as non-interactive claude -p via stdin). Supported placeholders: {prompt_file}, {summary_file}, {report_file}.",
   "perf_analyze":{

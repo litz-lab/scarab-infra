@@ -100,6 +100,19 @@ def verify_descriptor(descriptor_data, workloads_data, open_shell = False, dbg_l
 def open_interactive_shell(user, descriptor_data, workloads_data, infra_dir, dbg_lvl = 1):
     experiment_name = descriptor_data["experiment"]
     scarab_path = descriptor_data["scarab_path"]
+    scarab_binaries: List[str] = []
+    configurations = descriptor_data.get("configurations") or {}
+    if isinstance(configurations, dict):
+        for config in configurations.values():
+            if not isinstance(config, dict):
+                continue
+            binary = config.get("binary")
+            if binary:
+                binary_name = str(binary)
+                if binary_name not in scarab_binaries:
+                    scarab_binaries.append(binary_name)
+    if not scarab_binaries:
+        scarab_binaries = ["scarab_current"]
     try:
         # Get user for commands
         user = subprocess.check_output("whoami").decode('utf-8')[:-1]
@@ -161,7 +174,7 @@ def open_interactive_shell(user, descriptor_data, workloads_data, infra_dir, dbg
                                                 docker_prefix_list,
                                                 githash,
                                                 infra_dir,
-                                                ["scarab_current"],
+                                                scarab_binaries,
                                                 interactive_shell=True,
                                                 dbg_lvl=dbg_lvl)
         except Exception as exc:
