@@ -9,6 +9,10 @@ import re
 import traceback
 import json
 from pathlib import Path
+
+# Per-simpoint memory scheduling constants
+DEFAULT_MEM_MB = 8192    # fallback when no base_memory_mb data exists in workloads_db
+MEM_HEADROOM_FACTOR = 1.2   # 20% headroom on top of measured base memory
 from .utilities import (
         err,
         warn,
@@ -212,10 +216,21 @@ def list_cluster_nodes(dbg_lvl = 1):
     return nodes
 
 # Get command to sbatch scarab runs. 1 core each, exclude nodes where container isn't running
-def generate_sbatch_command(experiment_dir, slurm_options=""):
-    # Prepend space if options provided. Can't always include because arguments need to be single space separated
-    if slurm_options != "":
+# mem_mb: when provided, sets --mem explicitly; any --mem present in slurm_options is stripped
+#         (deprecated) and a warning is emitted. When None, slurm_options is passed through
+#         unchanged (used for trace jobs where memory is not auto-managed).
+def generate_sbatch_command(experiment_dir, slurm_options="", mem_mb=None):
+    if mem_mb is not None:
+        cleaned = re.sub(r'--mem\s+\S+', '', slurm_options or '').strip()
+        if cleaned != (slurm_options or '').strip():
+            warn(f"'--mem' in slurm_options is deprecated; memory is now scheduled "
+                 f"per-simpoint by the infra (computed value: {mem_mb}M). "
+                 f"Remove '--mem' from slurm_options to suppress this warning.", dbg_lvl=2)
+        slurm_options = (" " + cleaned if cleaned else "") + f" --mem {mem_mb}M"
+    elif slurm_options:
         slurm_options = " " + slurm_options
+    else:
+        slurm_options = ""
 
     return f"sbatch -c 1{slurm_options} -o {experiment_dir}/logs/job_%j.out "
 #return f"sbatch -c 1 --ntasks-per-core=2 --oversubscribe -o {experiment_dir}/logs/job_%j.out "
@@ -491,8 +506,8 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
             for config_key in configs:
                 config = configs[config_key]["params"]
                 binary_name = configs[config_key]["binary"]
-                slurm_options = configs[config_key].get("slurm_options", "")
-                sbatch_cmd = generate_sbatch_command(experiment_dir, slurm_options=slurm_options)
+                slurm_options = configs[config_key].get("slurm_options") or ""
+                overhead_mb = configs[config_key].get("memory_overhead_mb") or 0
                 if config == "":
                     config = None
 
@@ -508,6 +523,29 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
 
                     # TODO: Rewrite with sbatch arrays
 
+                    # Compute per-simpoint memory request from workloads_db base_memory_mb
+                    base_memory_mb = None
+                    try:
+                        wl_entry = memory_db[suite][subsuite][workload]
+                        if str(cluster_id) == "0":
+                            # pt-mode workload — base_memory_mb stored at workload level
+                            base_memory_mb = wl_entry.get("base_memory_mb")
+                        else:
+                            for sp in wl_entry["simpoints"]:
+                                if str(sp["cluster_id"]) == str(cluster_id):
+                                    base_memory_mb = sp.get("base_memory_mb")
+                                    break
+                    except (KeyError, TypeError):
+                        pass
+                    if base_memory_mb is not None:
+                        mem_mb = int(base_memory_mb * MEM_HEADROOM_FACTOR) + overhead_mb
+                        fallback_mb = None
+                    else:
+                        fallback_mb = (descriptor_data.get("mem") or {}).get("fallback_mb") or DEFAULT_MEM_MB
+                        mem_mb = fallback_mb + overhead_mb
+
+                    sbatch_cmd = generate_sbatch_command(experiment_dir, slurm_options=slurm_options, mem_mb=mem_mb)
+
                     # Create temp file with run command and run it
                     filename = f"{docker_container_name}_tmp_run.sh"
                     slurm_running_sims = check_slurm_task_queued_or_running(docker_prefix_list, experiment_name, user, dbg_lvl)
@@ -518,6 +556,9 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                     if check_can_skip(descriptor_data, config_key, suite, subsuite, workload, cluster_id, filename, sim_mode, user, slurm_queue=running_sims, dbg_lvl=dbg_lvl):
                         info(f"Skipping {workload} with config {config_key} and cluster id {cluster_id}", dbg_lvl)
                         continue
+
+                    if fallback_mb is not None:
+                        print(f"WARN: no base_memory_mb for {suite}/{subsuite}/{workload} cluster={cluster_id} config={config_key}, using fallback={fallback_mb}MB + overhead={overhead_mb}MB = {mem_mb}MB")
 
                     workload_home = f"{suite}/{subsuite}/{workload}"
                     write_docker_command_to_file(user, local_uid, local_gid, workload, workload_home, experiment_name,
@@ -530,7 +571,8 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                     result = subprocess.run(["touch", f"{experiment_dir}/logs/job_%j.out"], capture_output=True, text=True, check=True)
                     info(f"Running sbatch command '{sbatch_cmd + filename}'", dbg_lvl)
                     result = subprocess.run((sbatch_cmd + filename).split(" "), capture_output=True, text=True)
-                    slurm_ids.append(result.stdout.split(" ")[-1].strip())
+                    job_id = result.stdout.split(" ")[-1].strip()
+                    slurm_ids.append(job_id)
                     run_single_workload.submitted += 1
                 print("\rSubmitting jobs: "+str(run_single_workload.submitted), end=' ', flush=True)
             return slurm_ids
@@ -573,6 +615,15 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
             # This error prints a message. Now stop execution
             return
 
+        # Load workloads_db.json for base_memory_mb lookups.
+        # When top_simpoint=true, workloads_data comes from workloads_top_simp.json which lacks
+        # base_memory_mb; always read from the full DB instead.
+        try:
+            with open(Path(infra_dir) / "workloads" / "workloads_db.json") as _fh:
+                memory_db = json.load(_fh)
+        except Exception:
+            memory_db = workloads_data
+
         print("Submitting jobs...")
         # Iterate over each workload and config combo
         tmp_files = []
@@ -590,6 +641,8 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
             if workload == None and subsuite == None:
                 for subsuite_ in workloads_data[suite].keys():
                     for workload_ in workloads_data[suite][subsuite_].keys():
+                        if not isinstance(workloads_data[suite][subsuite_][workload_], dict):
+                            continue
                         sim_mode_ = sim_mode
                         if sim_mode_ == None:
                             sim_mode_ = workloads_data[suite][subsuite_][workload_]["simulation"]["prioritized_mode"]
@@ -598,6 +651,8 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                         slurm_ids += run_single_workload(suite, subsuite_, workload_, exp_cluster_id, sim_mode_, sim_warmup)
             elif workload == None and subsuite != None:
                 for workload_ in workloads_data[suite][subsuite].keys():
+                    if not isinstance(workloads_data[suite][subsuite][workload_], dict):
+                        continue
                     sim_mode_ = sim_mode
                     if sim_mode_ == None:
                         sim_mode_ = workloads_data[suite][subsuite][workload_]["simulation"]["prioritized_mode"]
