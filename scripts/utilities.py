@@ -1281,6 +1281,62 @@ def get_image_name(workloads_data, simulation):
 
     return workloads_data[suite][subsuite][workload]["simulation"][sim_mode]["image_name"]
 
+def expand_simulation_workloads(simulations: list, workloads_data: dict) -> list:
+    """Expand simulation entries with null workload/subsuite into concrete
+    (suite, subsuite, workload) tuples, following the same rules as the
+    simulation runner.  Skips non-dict entries (metadata keys).
+
+    Returns a deduplicated list of (suite, subsuite, workload) tuples in
+    descriptor order.
+    """
+    seen = set()
+    targets = []
+
+    for sim in simulations:
+        suite    = sim.get("suite")
+        subsuite = sim.get("subsuite")
+        workload = sim.get("workload")
+
+        if suite is None:
+            continue
+
+        if workload is None and subsuite is None:
+            for ss, ss_data in workloads_data.get(suite, {}).items():
+                if not isinstance(ss_data, dict):
+                    continue
+                for wl, wl_data in ss_data.items():
+                    if not isinstance(wl_data, dict):
+                        continue
+                    key = (suite, ss, wl)
+                    if key not in seen:
+                        seen.add(key)
+                        targets.append(key)
+        elif workload is None:
+            for wl, wl_data in workloads_data.get(suite, {}).get(subsuite, {}).items():
+                if not isinstance(wl_data, dict):
+                    continue
+                key = (suite, subsuite, wl)
+                if key not in seen:
+                    seen.add(key)
+                    targets.append(key)
+        elif subsuite is None:
+            # workload given but no subsuite — search all subsuites (mirrors slurm_runner)
+            for ss, ss_data in workloads_data.get(suite, {}).items():
+                if isinstance(ss_data, dict) and workload in ss_data:
+                    key = (suite, ss, workload)
+                    if key not in seen:
+                        seen.add(key)
+                        targets.append(key)
+                    break
+        else:
+            key = (suite, subsuite, workload)
+            if key not in seen:
+                seen.add(key)
+                targets.append(key)
+
+    return targets
+
+
 def get_simulation_jobs(descriptor_data, workloads_data, docker_prefix, user, dbg_lvl = 1):
     experiment_name = descriptor_data["experiment"]
     configs = descriptor_data["configurations"]

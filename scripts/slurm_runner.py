@@ -30,7 +30,8 @@ from .utilities import (
         image_exist,
         check_can_skip,
         print_simulation_status_summary,
-        run_on_node
+        run_on_node,
+        expand_simulation_workloads
         )
 
 # Check if the docker image exists on available slurm nodes
@@ -637,49 +638,12 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
 
             slurm_ids = []
 
-            # Run all the workloads within suite
-            if workload == None and subsuite == None:
-                for subsuite_ in workloads_data[suite].keys():
-                    for workload_ in workloads_data[suite][subsuite_].keys():
-                        if not isinstance(workloads_data[suite][subsuite_][workload_], dict):
-                            continue
-                        sim_mode_ = sim_mode
-                        if sim_mode_ == None:
-                            sim_mode_ = workloads_data[suite][subsuite_][workload_]["simulation"]["prioritized_mode"]
-                        if sim_warmup == None:  # Use the whole warmup available in the trace if not specified
-                            sim_warmup = workloads_data[suite][subsuite_][workload_]["simulation"][sim_mode_]["warmup"]
-                        slurm_ids += run_single_workload(suite, subsuite_, workload_, exp_cluster_id, sim_mode_, sim_warmup)
-            elif workload == None and subsuite != None:
-                for workload_ in workloads_data[suite][subsuite].keys():
-                    if not isinstance(workloads_data[suite][subsuite][workload_], dict):
-                        continue
-                    sim_mode_ = sim_mode
-                    if sim_mode_ == None:
-                        sim_mode_ = workloads_data[suite][subsuite][workload_]["simulation"]["prioritized_mode"]
-                    if sim_warmup == None:  # Use the whole warmup available in the trace if not specified
-                        sim_warmup = workloads_data[suite][subsuite][workload_]["simulation"][sim_mode_]["warmup"]
-                    slurm_ids += run_single_workload(suite, subsuite, workload_, exp_cluster_id, sim_mode_, sim_warmup)
-            elif workload != None and subsuite == None:
-                found = False
-                for subsuite_ in workloads_data[suite].keys():
-                    if not workload in workloads_data[suite][subsuite_].keys():
-                        continue
-                    found = True
-                    _subsuite = subsuite_
-                assert found, f"Workload {workload} could not be found for any subsuite of {suite}. Check descriptor validation code"
-                sim_mode_ = sim_mode
-                if sim_mode_ == None:
-                    sim_mode_ = workloads_data[suite][_subsuite][workload]["simulation"]["prioritized_mode"]
-                if sim_warmup == None:  # Use the whole warmup available in the trace if not specified
-                    sim_warmup = workloads_data[suite][_subsuite][workload]["simulation"][sim_mode_]["warmup"]
-                slurm_ids += run_single_workload(suite, _subsuite, workload, exp_cluster_id, sim_mode_, sim_warmup)
-            else:
-                sim_mode_ = sim_mode
-                if sim_mode_ == None:
-                    sim_mode_ = workloads_data[suite][subsuite][workload]["simulation"]["prioritized_mode"]
-                if sim_warmup == None:  # Use the whole warmup available in the trace if not specified
-                    sim_warmup = workloads_data[suite][subsuite][workload]["simulation"][sim_mode_]["warmup"]
-                slurm_ids += run_single_workload(suite, subsuite, workload, exp_cluster_id, sim_mode_, sim_warmup)
+            for suite_, subsuite_, workload_ in expand_simulation_workloads([simulation], workloads_data):
+                sim_mode_ = sim_mode if sim_mode is not None else \
+                    workloads_data[suite_][subsuite_][workload_]["simulation"]["prioritized_mode"]
+                warmup_ = sim_warmup if sim_warmup is not None else \
+                    workloads_data[suite_][subsuite_][workload_]["simulation"][sim_mode_]["warmup"]
+                slurm_ids += run_single_workload(suite_, subsuite_, workload_, exp_cluster_id, sim_mode_, warmup_)
         print("\nSubmitted all jobs")
         # Clean up temp files
         for tmp in tmp_files:

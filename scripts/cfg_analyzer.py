@@ -27,6 +27,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from .utilities import expand_simulation_workloads
+
 
 # ---------------------------------------------------------------------------
 # Pipeline stage definitions (order = display order)
@@ -541,19 +543,9 @@ def run(descriptor_path: Path, infra_root: Path, output_dir: Path,
         print("[cfg] No configuration has '--debug_cfg 1' in its params.")
         return 1
 
-    targets: list[tuple[str, str, str]] = []
-    for sim in desc.get("simulations", []):
-        suite    = sim.get("suite")
-        subsuite = sim.get("subsuite")
-        wl       = sim.get("workload")
-        if wl is None:
-            for wl_name, wl_data in workloads_db.items():
-                if isinstance(wl_data, dict) and wl_data.get("suite") == suite:
-                    if not filter_workload or wl_name == filter_workload:
-                        targets.append((suite, subsuite, wl_name))
-        else:
-            if not filter_workload or wl == filter_workload:
-                targets.append((suite, subsuite, wl))
+    all_targets = expand_simulation_workloads(desc.get("simulations", []), workloads_db)
+    targets = [(suite, subsuite, wl) for suite, subsuite, wl in all_targets
+               if not filter_workload or wl == filter_workload]
 
     if not targets:
         print("[cfg] No workloads to process.")
