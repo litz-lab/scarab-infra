@@ -466,8 +466,11 @@ def process_workload(root_dir: Path, experiment: str, config: str,
         weight = get_simpoint_weight(workloads_db, suite, subsuite,
                                      workload, cluster_id)
         if weight is None:
-            print(f"  [warn] No weight for {workload} cluster {cluster_id}, skipping")
-            continue
+            if cluster_id == 0:
+                weight = 1.0  # PT-trace whole-execution run — no simpoints, weight = 1
+            else:
+                print(f"  [warn] No weight for {workload} cluster {cluster_id}, skipping")
+                continue
         weighted.append((cluster_id, weight, path))
 
     if not weighted:
@@ -493,10 +496,12 @@ def process_workload(root_dir: Path, experiment: str, config: str,
         print(f"  DOT ({focus}, top {top_n} seeds, depth {region_depth}) → {dot_out}")
         try:
             subprocess.run(["dot", "-Tsvg", str(dot_out), "-o", str(svg_out)],
-                           check=True, capture_output=True)
+                           check=True, capture_output=True, timeout=60)
             print(f"  SVG → {svg_out}")
         except FileNotFoundError:
             print(f"  [warn] 'dot' not found — install graphviz to auto-generate SVG")
+        except subprocess.TimeoutExpired:
+            print(f"  [warn] dot timed out on {dot_out.name} (graph too large) — .dot written, SVG skipped")
         except subprocess.CalledProcessError as exc:
             print(f"  [warn] dot conversion failed: {exc.stderr.decode().strip()}")
 
