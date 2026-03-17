@@ -1,0 +1,95 @@
+name: End-to-End Simulation CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  e2e-simulation:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout scarab-infra
+        uses: actions/checkout@v4
+
+      - name: Checkout scarab
+        uses: actions/checkout@v4
+        with:
+          repository: litz-lab/scarab
+          path: scarab
+
+      - name: Allow Git in container
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE/scarab"
+
+      - name: Generate CI descriptor
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          workspace = os.environ["GITHUB_WORKSPACE"]
+          with open("json/top_simpoint.json") as f:
+              d = json.load(f)
+          d["root_dir"] = workspace + "/"
+          d["scarab_path"] = workspace + "/scarab"
+          d["traces_dir"] = workspace + "/traces_top_simpoint"
+          Path("json/top_simpoint_infra_ci.json").write_text(
+              json.dumps(d, indent=2, separators=(',', ':')) + "\n"
+          )
+          PY
+
+      - name: Initialize environment
+        env:
+          trace_home: ${{ github.workspace }}/traces_top_simpoint
+        run: ./sci --ci-init
+
+      - name: Locate scarabinfra conda env
+        run: |
+          python3 - <<'PY' > env_path.txt
+          import pathlib
+          from importlib.machinery import SourceFileLoader
+          import importlib.util
+
+          script_path = pathlib.Path("sci").resolve()
+          loader = SourceFileLoader("scarab_sci", str(script_path))
+          spec = importlib.util.spec_from_loader("scarab_sci", loader)
+          module = importlib.util.module_from_spec(spec)
+          loader.exec_module(module)
+          env_path, _ = module.resolve_conda_env_path()
+          print(f"SCARABINFRA_ENV={env_path}")
+          PY
+          cat env_path.txt >> "$GITHUB_ENV"
+          rm env_path.txt
+
+      - name: Build Scarab
+        env:
+          trace_home: ${{ github.workspace }}/traces_top_simpoint
+        run: ./sci --build-scarab top_simpoint_infra_ci
+
+      - name: Run simulation
+        env:
+          trace_home: ${{ github.workspace }}/traces_top_simpoint
+        run: ./sci --sim top_simpoint_infra_ci
+
+      - name: Verify simulation status
+        env:
+          trace_home: ${{ github.workspace }}/traces_top_simpoint
+        run: |
+          status_output=$(./sci --status top_simpoint_infra_ci)
+          echo "$status_output"
+          status_line=$(printf '%s\n' "$status_output" | awk -F'|' '/^this_pr[[:space:]]*\|/ {print; exit}')
+          if [ -z "$status_line" ]; then
+            echo "Missing status line for this_pr"
+            exit 1
+          fi
+          completed=$(printf '%s\n' "$status_line" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/,"",$2); print $2}')
+          if [ "$completed" != "1" ]; then
+            echo "Expected 1 completed simulation for this_pr, got '$completed'"
+            exit 1
+          fi
