@@ -305,6 +305,7 @@ _SCHEMA_BUILD = {
 _SCHEMA_VISUALIZE    = {**_SCHEMA_SIM_BASE, "simulations": True, "configurations": True}
 _SCHEMA_PERF_ANALYZE = {**_SCHEMA_SIM_BASE, "simulations": True, "configurations": True}
 _SCHEMA_COLLECT_MEM  = {**_SCHEMA_SIM_BASE, "configurations": True}
+_SCHEMA_CFG          = _SCHEMA_SIM_BASE
 
 
 def read_descriptor(descriptor_name: str):
@@ -2806,6 +2807,11 @@ def run_cfg_analyze(descriptor_name: str) -> int:
     experiment_name = descriptor.get("experiment")
     if not root_dir or not experiment_name:
         print("Descriptor must include 'root_dir' and 'experiment'.")
+        return 1
+
+    missing = _check_descriptor_fields(descriptor, _SCHEMA_CFG)
+    if missing:
+        print(f"Descriptor missing required fields: {', '.join(missing)}")
         return 1
 
     output_dir = Path(root_dir) / "simulations" / experiment_name / "cfg_analysis"
