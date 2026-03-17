@@ -305,7 +305,6 @@ _SCHEMA_BUILD = {
 _SCHEMA_VISUALIZE    = {**_SCHEMA_SIM_BASE, "simulations": True, "configurations": True}
 _SCHEMA_PERF_ANALYZE = {**_SCHEMA_SIM_BASE, "simulations": True, "configurations": True}
 _SCHEMA_COLLECT_MEM  = {**_SCHEMA_SIM_BASE, "configurations": True}
-_SCHEMA_CFG          = _SCHEMA_SIM_BASE
 
 
 def read_descriptor(descriptor_name: str):
