@@ -217,7 +217,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                         "simulations",
                         experiment_name,
                         "logs",
-                        f"local_job_{log_index}.out",
+                        f"job_{log_index}.out",
                     )
                     log_index += 1
                     log_handle = open(log_path, "w")
