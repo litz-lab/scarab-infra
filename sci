@@ -268,6 +268,45 @@ def import_repo_module(module: str):
         raise StepError(f"Unable to import module '{module}'") from exc
 
 
+def _check_descriptor_fields(data: dict, schema: dict, path: str = "") -> list:
+    """Return dotted paths of required fields missing from `data`."""
+    missing = []
+    for key, req in schema.items():
+        full = f"{path}.{key}" if path else key
+        if key not in data:
+            missing.append(full)
+        elif isinstance(req, dict):
+            if not isinstance(data[key], dict):
+                missing.append(f"{full} (expected dict)")
+            else:
+                missing.extend(_check_descriptor_fields(data[key], req, full))
+    return missing
+
+
+_SCHEMA_SIM_BASE = {
+    "descriptor_type": True,
+    "root_dir": True,
+    "experiment": True,
+}
+_SCHEMA_RUN = {
+    **_SCHEMA_SIM_BASE,
+    "architecture": True,
+    "workload_manager": True,
+    "simulations": True,
+    "configurations": True,
+    "scarab_path": True,
+}
+_SCHEMA_BUILD = {
+    **_SCHEMA_SIM_BASE,
+    "architecture": True,
+    "simulations": True,
+    "scarab_path": True,
+}
+_SCHEMA_VISUALIZE    = {**_SCHEMA_SIM_BASE, "simulations": True, "configurations": True}
+_SCHEMA_PERF_ANALYZE = {**_SCHEMA_SIM_BASE, "simulations": True, "configurations": True}
+_SCHEMA_COLLECT_MEM  = {**_SCHEMA_SIM_BASE, "configurations": True}
+
+
 def read_descriptor(descriptor_name: str):
     infra_utils = load_infra_utilities()
     path = REPO_ROOT / "json" / f"{descriptor_name}.json"
@@ -276,25 +315,6 @@ def read_descriptor(descriptor_name: str):
     data = infra_utils.read_descriptor_from_json(str(path))
     if data is None:
         raise StepError(f"Failed to read descriptor {path}")
-    if data.get("descriptor_type") == "simulation":
-        exp_path = REPO_ROOT / "json" / "exp.json"
-        exp_data = infra_utils.read_descriptor_from_json(str(exp_path))
-        if exp_data is None:
-            raise StepError(f"Failed to read reference descriptor {exp_path}")
-        exp_keys = set(exp_data.keys())
-        actual_keys = set(data.keys())
-        missing_keys = sorted(exp_keys - actual_keys)
-        extra_keys = sorted(actual_keys - exp_keys)
-        if missing_keys or extra_keys:
-            details: List[str] = []
-            if missing_keys:
-                details.append(f"missing keys: {', '.join(missing_keys)}")
-            if extra_keys:
-                details.append(f"extra keys: {', '.join(extra_keys)}")
-            raise StepError(
-                "Descriptor JSON format is out of date. "
-                f"Top-level keys must exactly match json/exp.json ({'; '.join(details)})."
-            )
     return path, data
 
 
@@ -362,6 +382,10 @@ def reexec_in_conda_env() -> None:
 
 def handle_descriptor_action(descriptor_name: str, action: str, dbg_override: Optional[int] = None) -> None:
     path, descriptor = read_descriptor(descriptor_name)
+    if descriptor.get("descriptor_type") == "simulation":
+        missing = _check_descriptor_fields(descriptor, _SCHEMA_RUN)
+        if missing:
+            raise StepError(f"Descriptor missing required fields: {', '.join(missing)}")
     dtype = descriptor.get("descriptor_type")
     infra_dir = str(REPO_ROOT)
 
@@ -1482,6 +1506,9 @@ def run_build_scarab(descriptor_name: str) -> int:
     descriptor_path, descriptor = read_descriptor(descriptor_name)
     if descriptor.get("descriptor_type") != "simulation":
         raise StepError("`--build` currently supports simulation descriptors only.")
+    missing = _check_descriptor_fields(descriptor, _SCHEMA_BUILD)
+    if missing:
+        raise StepError(f"Descriptor missing required fields: {', '.join(missing)}")
 
     scarab_path = descriptor.get("scarab_path")
     if not scarab_path:
@@ -2264,11 +2291,13 @@ def run_collect_mem(descriptor_name: str) -> int:
         print("--collect-mem only supports simulation descriptors.")
         return 1
 
+    missing = _check_descriptor_fields(descriptor, _SCHEMA_COLLECT_MEM)
+    if missing:
+        print(f"Descriptor missing required fields: {', '.join(missing)}")
+        return 1
+
     root_dir = descriptor.get("root_dir")
     experiment_name = descriptor.get("experiment")
-    if not root_dir or not experiment_name:
-        print("Descriptor must include 'root_dir' and 'experiment'.")
-        return 1
 
     infra_utils = load_infra_utilities()
     logs_dir = infra_utils.get_experiment_logs_dir(descriptor)
@@ -2423,6 +2452,10 @@ def run_visualize(descriptor_name: str) -> int:
     if loaded is None:
         return 1
     _, descriptor, stats_path, aggregator, experiment, workloads, configs = loaded
+    missing = _check_descriptor_fields(descriptor, _SCHEMA_VISUALIZE)
+    if missing:
+        print(f"Descriptor missing required fields: {', '.join(missing)}")
+        return 1
 
     try:
         stats_to_plot, baseline = resolve_visualize_settings(descriptor, configs)
@@ -2758,6 +2791,10 @@ def run_perf_analyze(descriptor_name: str) -> int:
     if loaded is None:
         return 1
     _, descriptor, stats_path, _, experiment, workloads, configs = loaded
+    missing = _check_descriptor_fields(descriptor, _SCHEMA_PERF_ANALYZE)
+    if missing:
+        print(f"Descriptor missing required fields: {', '.join(missing)}")
+        return 1
 
     try:
         settings = resolve_perf_analyze_settings(descriptor, configs)
