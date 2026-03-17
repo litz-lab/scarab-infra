@@ -73,10 +73,10 @@
     "_analyzer_cli_cmd":"CLI command for LLM-based analysis. Examples: codex, codex exec -, gemini -p \"@{prompt_file}\", claude",
     "analyzer_cli_cmd":"codex"
   },
-  "_cfg_analysis":"CFG analysis settings for ./sci --cfg. dot: emit Graphviz .dot/.svg files. focus: bottleneck stage \u2014 hot (frequency) or F/D/M/RS/EX/ROB (per pipeline stage). top_n: number of top nodes to include in .dot output. region_depth: hops around seed nodes in .dot graph.",
+  "_cfg_analysis":"CFG analysis settings for ./sci --cfg. dot: emit Graphviz .dot/.svg files. focus: hot (frequency), exec (avg execution cost x freq), redirect (avg predecessor BTB-miss/mispred recovery cost x freq, requires cfg_predict_BBL), icache (avg icache miss latency = decode_cycle - fetch_cycle for first inst of BBL, x freq). top_n: number of top nodes to include in .dot output. region_depth: hops around seed nodes in .dot graph.",
   "cfg_analysis":{
     "dot":true,
-    "focus":"F",
+    "focus":"icache",
     "top_n":30,
     "region_depth":2
   }

@@ -5,20 +5,17 @@ Usage
 -----
   python scripts/cfg_analyzer.py --descriptor json/cfg.json \\
       [--config cfg] [--workload mongodb] [--output-dir .]  \\
-      [--dot] [--top-n 30] [--focus F] [--region-depth 1]
+      [--dot] [--top-n 30] [--focus hot] [--region-depth 1]
 
 Focus modes
 -----------
-  hot : top-N nodes by execution frequency (default)
-  F   : frequency × fetch%    — I-cache / fetch latency (incl. miss) pressure
-  D   : frequency × decode%   — decode bandwidth pressure
-  M   : frequency × map%      — rename/map pressure
-  RS  : frequency × RS-wait%  — scheduler / issue stalls
-  EX  : frequency × exec%     — execution latency pressure
-  ROB : frequency × ROB-wait% — head-of-ROB / commit stalls
-
-For each seed node the --region-depth hops of predecessors and successors are
-included in the DOT graph, giving architects the local control-flow context.
+  hot     : top-N nodes by execution frequency (default)
+  exec    : frequency × avg execution cost (inter-BBL retire-cycle interval)
+  redirect: frequency × avg redirect cost (inter-BBL predict-cycle interval;
+            captures predecessor BTB-miss / misprediction-recovery delay)
+            requires cfg_predict_BBL
+  icache  : frequency × avg icache miss latency (decode_cycle - fetch_cycle,
+            first instruction of BBL) — always available
 """
 
 import argparse
@@ -31,26 +28,24 @@ from .utilities import expand_simulation_workloads
 
 
 # ---------------------------------------------------------------------------
-# Pipeline stage definitions (order = display order)
+# BBL-level interval definitions
 # ---------------------------------------------------------------------------
 
-STAGE_KEYS   = ["fetch_cycles", "decode_cycles", "map_cycles",
-                "issue_cycles", "exec_cycles",   "rob_cycles"]
-STAGE_LABELS = ["F",    "D",    "M",   "RS",    "EX",    "ROB"]
-STAGE_LONG   = ["Fetch","Decode","Map","RS-wait","Exec",  "ROB-wait"]
-# Cycle stamp deltas that produce each stage's cycle count (from cfg.cc ACCUM_STAGE)
-STAGE_DELTA  = ["decode_cyc-fetch_cyc",  "map_cyc-decode_cyc",  "issue_cyc-map_cyc",
-                "sched_cyc-issue_cyc",   "done_cyc-sched_cyc",  "retire_cyc-done_cyc"]
-STAGE_COLORS = ["#4488ff","#44ccff","#44bb44","#ffcc44","#ff8844","#9966cc"]
-# Text color for each stage background
-STAGE_TEXT   = ["white","black","black","black","white","white"]
+INTERVAL_LABELS = ["exec",     "redirect", "icache"]
+INTERVAL_COLORS = ["#ff8844", "#4488ff",  "#44bb44"]
+INTERVAL_TEXT   = ["white",   "white",    "black"]
 
-FOCUS_CHOICES = ["hot"] + STAGE_LABELS   # hot, F, D, M, RS, EX, ROB
-_SCORE_KEY = {"hot": "frequency"}
-_SCORE_KEY.update({label: f"{label}_score" for label in STAGE_LABELS})
+FOCUS_CHOICES = ["hot", "exec", "redirect", "icache"]
+_SCORE_KEY = {"hot":      "frequency",
+              "exec":     "exec_score",
+              "redirect": "redirect_score",
+              "icache":   "icache_score"}
 
 # Fields accumulated with weights during aggregation
-_LATENCY_FIELDS = ("uop_count", "inst_count") + tuple(STAGE_KEYS)
+_LATENCY_FIELDS = ("uop_count", "inst_count",
+                   "exec_cycle_sum",
+                   "pred_count", "redirect_cycle_sum",
+                   "icache_cycle_sum")
 
 
 # ---------------------------------------------------------------------------
@@ -166,17 +161,20 @@ def aggregate_cfg(simpoint_files: list[tuple[int, float, Path]]) -> dict:
             edges[key]["weighted_count"] += e["count"] * weight
             edges[key]["simpoint_count"] += 1
 
-    # --- derived per-uop averages ---
+    # --- derived BBL-level averages ---
+    # retire_delta_sum has (count - 1) terms per simpoint; using weighted_count
+    # as denominator gives a negligibly small underestimate, acceptable for
+    # large counts.
     total_node_wcount = sum(n["weighted_count"] for n in nodes.values())
     for n in nodes.values():
         n["frequency"] = (n["weighted_count"] / total_node_wcount
                           if total_node_wcount > 0 else 0.0)
-        uops = n["uop_count"]
-        for f in STAGE_KEYS:
-            n[f"avg_{f}_per_uop"] = n[f] / uops if uops > 0 else 0.0
-        n["avg_total_cycles_per_uop"] = (
-            sum(n[f] for f in STAGE_KEYS) / uops if uops > 0 else 0.0
-        )
+        wcount = n["weighted_count"]
+        n["avg_inst_per_exec"]   = n["inst_count"]         / wcount if wcount > 0 else 0.0
+        n["avg_exec_cycles"]     = n["exec_cycle_sum"]     / wcount if wcount > 0 else 0.0
+        pcount = n["pred_count"]
+        n["avg_redirect_cycles"] = n["redirect_cycle_sum"] / pcount if pcount > 0 else 0.0
+        n["avg_icache_cycles"]   = n["icache_cycle_sum"]   / wcount if wcount > 0 else 0.0
 
     for e in edges.values():
         src = nodes.get(e["from_pc"])
@@ -184,12 +182,6 @@ def aggregate_cfg(simpoint_files: list[tuple[int, float, Path]]) -> dict:
         e["bias"] = e["weighted_count"] / src_wcount if src_wcount > 0 else 0.0
 
     # --- dominant-predecessor CF type ---
-    # For each node, find the incoming edge with the highest weighted_count.
-    # Its cf_type tells the architect what prediction mechanism gates this BB:
-    #   CBR  → conditional branch predictor
-    #   IBR/ICALL → indirect branch predictor
-    #   RET  → return address stack
-    #   CALL/BR → unconditional (no prediction pressure)
     in_edges: dict[str, list] = {}
     for e in edges.values():
         in_edges.setdefault(e["to_pc"], []).append(e)
@@ -212,7 +204,7 @@ def aggregate_cfg(simpoint_files: list[tuple[int, float, Path]]) -> dict:
     for idx, pc in enumerate(sorted(nodes.keys(), key=lambda p: int(p, 16))):
         nodes[pc]["bbl_id"] = idx
 
-    # --- bottleneck scores and dominant stage ---
+    # --- bottleneck scores ---
     _compute_scores(nodes)
 
     return {
@@ -228,34 +220,40 @@ def aggregate_cfg(simpoint_files: list[tuple[int, float, Path]]) -> dict:
 
 
 def _compute_scores(nodes: dict) -> None:
-    """
-    Add per-node per-stage bottleneck scores and dominant-stage annotation.
-
-    Each stage score = frequency × stage_fraction, so a hot node that spends
-    80% of its time in fetch scores much higher for F than a cold node that is
-    100% fetch-bound.
-    """
+    """Add per-node bottleneck scores: score = frequency × avg_<cost>_cycles."""
     for n in nodes.values():
-        total = n.get("avg_total_cycles_per_uop", 0.0)
-        avgs  = [n.get(f"avg_{k}_per_uop", 0.0) for k in STAGE_KEYS]
-        fracs = [a / total for a in avgs] if total > 0 else [0.0] * len(STAGE_KEYS)
-
-        n["stage_fracs"] = fracs
-        for label, frac in zip(STAGE_LABELS, fracs):
-            n[f"{label}_score"] = n["frequency"] * frac
-
-        dom_idx = fracs.index(max(fracs)) if any(fracs) else 0
-        n["dominant_stage"] = STAGE_LABELS[dom_idx]
-        n["dominant_color"] = STAGE_COLORS[dom_idx]
+        n["exec_score"]     = n["frequency"] * n.get("avg_exec_cycles",     0.0)
+        n["redirect_score"] = n["frequency"] * n.get("avg_redirect_cycles", 0.0)
+        n["icache_score"]   = n["frequency"] * n.get("avg_icache_cycles",   0.0)
 
 
 # ---------------------------------------------------------------------------
 # Seed selection and region extraction
 # ---------------------------------------------------------------------------
 
-def select_seeds(nodes: dict, focus: str, top_n: int) -> list[str]:
-    """Return the top-N node start_pcs ranked by the chosen focus score."""
+def _effective_focus(nodes: dict, focus: str) -> tuple[str, str | None]:
+    """
+    Return (effective_focus, fallback_reason).
+
+    If all scores for the requested focus are zero (e.g. because the
+    corresponding scarab API is not yet wired up), fall back to 'hot' and
+    return a human-readable reason string.  Otherwise return (focus, None).
+    """
+    if focus == "hot":
+        return focus, None
     key = _SCORE_KEY.get(focus, "frequency")
+    if all(n.get(key, 0.0) == 0.0 for n in nodes.values()):
+        return "hot", (
+            f"focus='{focus}' has no data (all scores are 0) — "
+            f"falling back to 'hot'"
+        )
+    return focus, None
+
+
+def select_seeds(nodes: dict, focus: str, top_n: int) -> list[str]:
+    """Return the top-N node start_pcs ranked by the chosen (effective) focus score."""
+    eff_focus, _ = _effective_focus(nodes, focus)
+    key = _SCORE_KEY.get(eff_focus, "frequency")
     ranked = sorted(nodes.values(), key=lambda n: n.get(key, 0.0), reverse=True)
     return [n["start_pc"] for n in ranked[:top_n]]
 
@@ -266,9 +264,8 @@ def extract_region(nodes: dict, edges: dict,
     Return (region_nodes, region_edges, seed_set) where region includes
     seed nodes plus up to `depth` hops of predecessors and successors.
     """
-    # Build adjacency
-    fwd: dict[str, list[str]] = {}   # from_pc -> [to_pc]
-    bwd: dict[str, list[str]] = {}   # to_pc   -> [from_pc]
+    fwd: dict[str, list[str]] = {}
+    bwd: dict[str, list[str]] = {}
     for e in edges.values():
         fwd.setdefault(e["from_pc"], []).append(e["to_pc"])
         bwd.setdefault(e["to_pc"],   []).append(e["from_pc"])
@@ -295,69 +292,64 @@ def extract_region(nodes: dict, edges: dict,
 # ---------------------------------------------------------------------------
 
 def print_summary_table(nodes: dict, focus: str, top_n: int) -> None:
-    key    = _SCORE_KEY.get(focus, "frequency")
+    eff_focus, fallback_reason = _effective_focus(nodes, focus)
+    key    = _SCORE_KEY.get(eff_focus, "frequency")
     ranked = sorted(nodes.values(),
                     key=lambda n: n.get(key, 0.0), reverse=True)[:top_n]
 
-    # Score formula description for the header
-    ind = "               "  # indent for continuation lines
-    if focus == "hot":
-        score_label   = "score(=freq)"
-        score_formula = (
-            f"score = freq\n"
-            f"{ind}      = Σ(count×w) / Σ_all_nodes(count×w)"
-        )
-    else:
-        idx           = STAGE_LABELS.index(focus)
-        delta         = STAGE_DELTA[idx]
-        score_label   = f"score(={focus}%×freq)"
-        score_formula = (
-            f"score = {focus}% × freq\n"
-            f"{ind}      = [avg_{focus}_cy/uop / avg_total_cy/uop] × freq\n"
-            f"{ind}where:\n"
-            f"{ind}  avg_{focus}_cy/uop    = Σ({delta})×w / Σ uop_count×w\n"
-            f"{ind}  avg_total_cy/uop = Σ(retire_cyc - fetch_cyc)×w / Σ uop_count×w\n"
-            f"{ind}  freq             = Σ(count×w) / Σ_all_nodes(count×w)"
-        )
+    ind = "               "
+    _score_formulas = {
+        "hot":      ("score(=freq)",
+                     f"score = freq\n{ind}      = Σ(count×w) / Σ_all_nodes(count×w)"),
+        "exec":     ("score(=exec×freq)",
+                     f"score = avg_exec_cycles × freq\n"
+                     f"{ind}      = [Σ(exec_cycle_sum×w) / Σ(count×w)] × freq"),
+        "redirect": ("score(=redirect×freq)",
+                     f"score = avg_redirect_cycles × freq\n"
+                     f"{ind}      = [Σ(redirect_cycle_sum×w) / Σ(pred_count×w)] × freq"),
+        "icache":   ("score(=icache×freq)",
+                     f"score = avg_icache_cycles × freq\n"
+                     f"{ind}      = [Σ(icache_cycle_sum×w) / Σ(count×w)] × freq\n"
+                     f"{ind}where icache_cycles = decode_cycle - fetch_cycle (first inst of BBL)"),
+    }
+    score_label, score_formula = _score_formulas.get(eff_focus, _score_formulas["hot"])
 
-    col_w = 5  # fits "ROB%" + padding
-    # Mark the active focus stage column with brackets in the header
-    stage_hdr = " ".join(
-        f"[{lbl+'%'}]" if lbl == focus else f"{lbl+'%':>{col_w}}"
-        for lbl in STAGE_LABELS
-    )
-    header = (f"{'Rank':>4}  {'BBL#':>6}  {'start_pc':>18}  {'pred_cf':>14}  {'bias':>5}  {'frac':>5}  "
-              f"{'exit_cf':>8}  {'freq':>7}  {score_label:>16}  {'cy/uop':>6}  "
-              f"{stage_hdr}  dominant")
-    print(f"\n  Focus: {focus.upper()}  —  {score_formula}  (top {len(ranked)} of {len(nodes)} nodes)")
+    has_redirect = any(n.get("pred_count", 0) > 0 for n in nodes.values())
+
+    header = (f"{'Rank':>4}  {'BBL#':>6}  {'start_pc':>18}  {'pred_cf':>14}  "
+              f"{'bias':>5}  {'frac':>5}  {'exit_cf':>8}  {'freq':>7}  "
+              f"{score_label:>22}  {'exec_cy':>8}  "
+              f"{'redirect_cy':>11}  {'icache_cy':>9}  {'inst/exec':>9}")
+    focus_hdr = eff_focus.upper()
+    if fallback_reason:
+        focus_hdr += f" (requested: {focus.upper()})"
+    print(f"\n  Focus: {focus_hdr}  —  {score_formula}  (top {len(ranked)} of {len(nodes)} nodes)")
+    if fallback_reason:
+        print(f"  [warn] {fallback_reason}")
     print("  " + header)
     print("  " + "─" * len(header))
 
     for i, n in enumerate(ranked, 1):
-        fracs = n.get("stage_fracs", [0.0] * len(STAGE_KEYS))
-        score = n.get(key, 0.0)
-        # Format stage % values; bracket the active focus column
-        pct_vals = [f"{f * 100:.0f}%" for f in fracs]
-        pcts = " ".join(
-            f"[{v:>3}]" if STAGE_LABELS[j] == focus else f"{v:>{col_w}}"
-            for j, v in enumerate(pct_vals)
-        )
-        dom   = n.get("dominant_stage", "?")
-        total = n.get("avg_total_cycles_per_uop", 0.0)
-        bias  = n.get("pred_bias", 1.0)
-        frac  = n.get("pred_frac", 1.0)
-        pred_cf = n.get("pred_cf_type", "?")
+        score        = n.get(key, 0.0)
+        exec_cy      = n.get("avg_exec_cycles",     0.0)
+        redirect_cy  = n.get("avg_redirect_cycles", 0.0)
+        icache_cy    = n.get("avg_icache_cycles",   0.0)
+        inst_exec    = n.get("avg_inst_per_exec",   0.0)
+        bias         = n.get("pred_bias", 1.0)
+        frac         = n.get("pred_frac", 1.0)
+        pred_cf      = n.get("pred_cf_type", "?")
         if n.get("is_self_loop"):
             pred_cf += "[loop]"
+        redirect_str = f"{redirect_cy:>10.1f}" if has_redirect else f"{'N/A':>10}"
         print(f"  {i:>4}  {n.get('bbl_id', '?'):>6}  {n['start_pc']:>18}  {pred_cf:>14}  "
               f"{bias:>5.2f}  {frac:>5.2f}  {n['cf_type']:>8}  "
-              f"{n['frequency']:>7.4f}  {score:>16.6f}  {total:>6.2f}  "
-              f"{pcts}  {dom}")
+              f"{n['frequency']:>7.4f}  {score:>22.4f}  "
+              f"{exec_cy:>8.1f}  {redirect_str}  {icache_cy:>9.1f}  {inst_exec:>9.2f}")
     print()
 
 
 # ---------------------------------------------------------------------------
-# DOT export — HTML-label nodes colored by pipeline stage breakdown
+# DOT export — HTML-label nodes colored by BBL-level interval stats
 # ---------------------------------------------------------------------------
 
 def export_dot(cfg: dict, out_path: Path,
@@ -366,10 +358,11 @@ def export_dot(cfg: dict, out_path: Path,
     nodes = cfg["nodes"]
     edges = cfg["edges"]
 
-    seeds                            = select_seeds(nodes, focus, top_n)
+    eff_focus, _ = _effective_focus(nodes, focus)
+    seeds = select_seeds(nodes, eff_focus, top_n)
     region_nodes, region_edges, seed_set = extract_region(nodes, edges, seeds, region_depth)
 
-    ncols = len(STAGE_LABELS)
+    has_redirect = any(n.get("pred_count", 0) > 0 for n in nodes.values())
 
     with open(out_path, "w") as f:
         f.write("digraph CFG {\n")
@@ -380,48 +373,44 @@ def export_dot(cfg: dict, out_path: Path,
         # --- nodes ---
         for pc, n in sorted(region_nodes.items(),
                              key=lambda x: -x[1].get("frequency", 0.0)):
-            is_seed     = pc in seed_set
-            border_w    = 3 if is_seed else 1
-            dom_color   = n.get("dominant_color", "#888888")
-            total       = n.get("avg_total_cycles_per_uop", 0.0)
-            insts_exec  = (n.get("inst_count", 0.0) /
-                           max(n.get("weighted_count", 1.0), 1.0))
-            fracs = n.get("stage_fracs", [0.0] * ncols)
-            avgs  = [n.get(f"avg_{k}_per_uop", 0.0) for k in STAGE_KEYS]
+            is_seed   = pc in seed_set
+            border_w  = 3 if is_seed else 1
 
-            # Stage breakdown cells
-            cells = "".join(
-                f'<TD BGCOLOR="{STAGE_COLORS[i]}">'
-                f'<FONT COLOR="{STAGE_TEXT[i]}">'
-                f'<B>{STAGE_LABELS[i]}</B><BR/>'
-                f'{avgs[i]:.2f}<BR/>'
-                f'{fracs[i]*100:.0f}%'
-                f'</FONT></TD>'
-                for i in range(ncols)
-            )
+            exec_cy     = n.get("avg_exec_cycles",     0.0)
+            redirect_cy = n.get("avg_redirect_cycles", 0.0)
+            icache_cy   = n.get("avg_icache_cycles",   0.0)
 
-            pred_cf = n.get("pred_cf_type", "ENTRY")
-            exit_cf = n.get("cf_type", "?")
+            interval_cells = []
+            for i, (label, color, text, val, avail) in enumerate(zip(
+                INTERVAL_LABELS, INTERVAL_COLORS, INTERVAL_TEXT,
+                [exec_cy, redirect_cy, icache_cy],
+                [True, has_redirect, True],
+            )):
+                val_str = f"{val:.1f} cy" if avail else "N/A"
+                interval_cells.append(
+                    f'<TD BGCOLOR="{color}">'
+                    f'<FONT COLOR="{text}"><B>{label}</B><BR/>{val_str}</FONT>'
+                    f'</TD>'
+                )
+            cells = "".join(interval_cells)
+            ncols = len(INTERVAL_LABELS)
+
+            pred_cf   = n.get("pred_cf_type", "ENTRY")
+            exit_cf   = n.get("cf_type", "?")
+            inst_exec = n.get("avg_inst_per_exec", 0.0)
             label = (
-                f'<<TABLE BORDER="{border_w}" CELLBORDER="1" '
-                f'CELLSPACING="0" COLOR="{dom_color}">'
-                # row 1: address and frequency
+                f'<<TABLE BORDER="{border_w}" CELLBORDER="1" CELLSPACING="0">'
                 f'<TR><TD COLSPAN="{ncols}" BGCOLOR="#f4f4f4">'
                 f'<B>{n["start_pc"]}</B>&#160;&#160;'
                 f'freq={n["frequency"]:.4f}</TD></TR>'
-                # row 2: pred_cf (gate into this BB) and exit_cf (how we leave)
                 f'<TR><TD COLSPAN="{ncols}" BGCOLOR="#e8e8e8">'
                 f'&#x2192; <B>{pred_cf}</B>&#160;&#160;'
                 f'<FONT COLOR="#666666">exit: {exit_cf}</FONT></TD></TR>'
-                # row 3: per-stage colored cells
                 f'<TR>{cells}</TR>'
-                # row 4: summary
                 f'<TR><TD COLSPAN="{ncols}" BGCOLOR="#f4f4f4">'
-                f'{total:.2f} cy/uop&#160;|&#160;'
-                f'{insts_exec:.1f} inst/exec</TD></TR>'
+                f'{inst_exec:.1f} inst/exec</TD></TR>'
                 f'</TABLE>>'
             )
-
             f.write(f"  {_node_id(pc)} [label={label}];\n")
 
         f.write("\n")
@@ -432,14 +421,12 @@ def export_dot(cfg: dict, out_path: Path,
         )
         for e in sorted(region_edges.values(),
                         key=lambda e: -e.get("weighted_count", 0.0)):
-            src = _node_id(e["from_pc"])
-            dst = _node_id(e["to_pc"])
-            bias   = e.get("bias", 0.0)
-            # edge thickness proportional to relative frequency
-            pw = max(1, round(e["weighted_count"] / max_wcount * 5))
-            # highlight unpredictable branches (bias near 0.5) in red
-            color  = "#cc2222" if 0.3 < bias < 0.7 else "#333333"
-            label  = f'{e["cf_type"]}\\nbias={bias:.2f}'
+            src  = _node_id(e["from_pc"])
+            dst  = _node_id(e["to_pc"])
+            bias = e.get("bias", 0.0)
+            pw   = max(1, round(e["weighted_count"] / max_wcount * 5))
+            color = "#cc2222" if 0.3 < bias < 0.7 else "#333333"
+            label = f'{e["cf_type"]}\\nbias={bias:.2f}'
             f.write(f'  {src} -> {dst} '
                     f'[label="{label}" penwidth={pw} color="{color}"];\n')
 
@@ -480,7 +467,7 @@ def process_workload(root_dir: Path, experiment: str, config: str,
     cfg = aggregate_cfg(weighted)
     cfg["metadata"].update(experiment=experiment, config=config, workload=workload)
 
-    stem    = f"aggregated_cfg_{config}_{workload}"
+    stem     = f"aggregated_cfg_{config}_{workload}"
     json_out = output_dir / f"{stem}.json"
     with open(json_out, "w") as f:
         json.dump(cfg, f, indent=2)
@@ -580,24 +567,22 @@ def run(descriptor_path: Path, infra_root: Path, output_dir: Path,
     print(f"""
   Output files
   ────────────
-  aggregated_cfg_<config>_<workload>.json   — weighted CFG with per-stage latencies
-  aggregated_cfg_<config>_<workload>.dot    — Graphviz source (only when cfg_analysis.dot=true)
-  aggregated_cfg_<config>_<workload>.svg    — rendered graph  (only when cfg_analysis.dot=true)
+  aggregated_cfg_<config>_<workload>.json   — weighted CFG with BBL-level interval stats
+  aggregated_cfg_<config>_<workload>.dot    — Graphviz source (only when --dot)
+  aggregated_cfg_<config>_<workload>.svg    — rendered graph  (only when --dot)
 
   Focus modes  (cfg_analysis.focus in descriptor JSON)
   ─────────────────────────────────────────────────────
-  hot      rank by execution frequency
-  F        rank by fetch%  × freq  (icache miss pressure, incl. miss latency)
-  D        rank by decode% × freq
-  M        rank by map%    × freq
-  RS       rank by RS-wait% × freq (scheduler stalls)
-  EX       rank by exec%   × freq  (execution latency)
-  ROB      rank by ROB-wait% × freq (head-of-ROB / commit stalls)
+  hot       rank by execution frequency
+  exec      rank by avg execution cost (retire-cycle interval) × freq
+  redirect  rank by avg redirect cost (predict-cycle interval;
+            predecessor BTB-miss / misprediction-recovery) × freq  (requires cfg_predict_BBL)
+  icache    rank by avg icache miss latency (decode_cycle - fetch_cycle, first inst) × freq
 
   Configuration (set in json/<descriptor>.json under "cfg_analysis")
   ──────────────────────────────────────────────────────────────────
   dot          true/false  emit .dot/.svg graph (default: false)
-  focus        hot/F/D/M/RS/EX/ROB  bottleneck stage (default: hot)
+  focus        hot/exec/redirect/icache  ranking criterion (default: hot)
   top_n        integer     seed nodes in graph (default: 50)
   region_depth integer     hops around seeds in graph (default: 1)
 
@@ -628,7 +613,7 @@ def main():
     ap.add_argument("--top-n",       type=int, default=30,
                     help="Seed nodes for DOT graph and summary table (default: 30)")
     ap.add_argument("--focus",       choices=FOCUS_CHOICES, default="hot",
-                    help="Ranking criterion: hot | F | D | M | RS | EX | ROB (default: hot)")
+                    help="Ranking criterion: hot | exec | redirect | icache (default: hot)")
     ap.add_argument("--region-depth", type=int, default=1,
                     help="Hops of predecessors/successors to include in DOT (default: 1)")
     args = ap.parse_args()
