@@ -44,13 +44,6 @@
       "IPC"
     ]
   },
-  "_cfg_analysis":"CFG analysis settings for ./sci --cfg. dot: emit Graphviz .dot/.svg files. focus: bottleneck stage — hot (frequency) or F/D/M/RS/EX/ROB (per pipeline stage). top_n: number of top nodes to include in .dot output. region_depth: hops around seed nodes in .dot graph.",
-  "cfg_analysis":{
-    "dot":true,
-    "focus":"F",
-    "top_n":30,
-    "region_depth":2
-  },
   "_mem":"Memory scheduling and collection settings for Slurm jobs. collection_baseline specifies which config's MaxRSS is recorded as base_memory_mb by ./sci --collect-mem (defaults to visualize.baseline). fallback_mb is the --mem limit used for simpoints that have no measured base_memory_mb yet; set it conservatively high to avoid OOM kills on the first run.",
   "mem":{
     "collection_baseline":null,
@@ -79,5 +72,12 @@
     "threshold_pct":2.0,
     "_analyzer_cli_cmd":"CLI command for LLM-based analysis. Examples: codex, codex exec -, gemini -p \"@{prompt_file}\", claude",
     "analyzer_cli_cmd":"codex"
+  },
+  "_cfg_analysis":"CFG analysis settings for ./sci --cfg. dot: emit Graphviz .dot/.svg files. focus: bottleneck stage \u2014 hot (frequency) or F/D/M/RS/EX/ROB (per pipeline stage). top_n: number of top nodes to include in .dot output. region_depth: hops around seed nodes in .dot graph.",
+  "cfg_analysis":{
+    "dot":true,
+    "focus":"F",
+    "top_n":30,
+    "region_depth":2
   }
 }
