@@ -2139,7 +2139,7 @@ def load_simulation_experiment(
 def resolve_visualize_settings(
     descriptor: Dict[str, Any],
     configs: List[str],
-) -> Tuple[List[object], str]:
+) -> Tuple[List[object], str, List[str]]:
     visualize = descriptor.get("visualize")
     if "visualize_counters" in descriptor or "visualize_baseline" in descriptor:
         raise StepError(
@@ -2153,15 +2153,39 @@ def resolve_visualize_settings(
         raise StepError("Descriptor field 'visualize' must be an object when provided.")
     stats_to_plot: object = visualize.get("counters") or ["IPC"]
     raw_baseline: object = visualize.get("baseline")
+    raw_configs: object = visualize.get("configs")
 
     if not isinstance(stats_to_plot, list) or not stats_to_plot:
         raise StepError("Descriptor field 'visualize.counters' must be a non-empty list when provided.")
+
+    # Filter configs to plot when visualize.configs is specified.
+    plot_configs: List[str] = list(configs)
+    if isinstance(raw_configs, list) and raw_configs:
+        requested = [str(c) for c in raw_configs if c is not None]
+        configs_set = set(configs)
+        missing = [c for c in requested if c not in configs_set]
+        if missing:
+            print(
+                "visualize.configs entries not found in stats file (skipping): "
+                + ", ".join(missing)
+            )
+        plot_configs = [c for c in requested if c in configs_set]
+        if not plot_configs:
+            raise StepError(
+                "None of the configurations listed in 'visualize.configs' are present in the stats file."
+            )
+    elif raw_configs is not None:
+        print("Descriptor field 'visualize.configs' must be a list when provided; using all configs.")
 
     baseline: Optional[str] = None
     if isinstance(raw_baseline, str):
         candidate = raw_baseline.strip()
         if candidate:
-            if candidate in configs:
+            if candidate in plot_configs:
+                baseline = candidate
+            elif candidate in configs:
+                # baseline exists in data but was excluded from plot_configs; add it silently
+                plot_configs = [candidate] + [c for c in plot_configs if c != candidate]
                 baseline = candidate
             else:
                 print(
@@ -2176,8 +2200,8 @@ def resolve_visualize_settings(
             "defaulting to the first configuration."
         )
     if baseline is None:
-        baseline = configs[0]
-    return stats_to_plot, baseline
+        baseline = plot_configs[0]
+    return stats_to_plot, baseline, plot_configs
 
 
 def resolve_perf_analyze_settings(
@@ -2630,7 +2654,7 @@ def run_visualize(descriptor_name: str) -> int:
         return 1
 
     try:
-        stats_to_plot, baseline = resolve_visualize_settings(descriptor, configs)
+        stats_to_plot, baseline, configs = resolve_visualize_settings(descriptor, configs)
     except StepError as exc:
         print(exc)
         return 1
