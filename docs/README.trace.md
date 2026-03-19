@@ -146,7 +146,7 @@ docker pull ghcr.io/litz-lab/scarab-infra/$WORKLOAD_GROUPNAME:<GitHash>
 ```
 ### Alternative 2. Build your own Docker image
 ```
-./run.sh -b $WORKLOAD_GROUPNAME
+./sci --build-image $WORKLOAD_GROUPNAME
 ```
 
 ## Run tracing based on SimPoint methodology
@@ -159,23 +159,23 @@ cp json/trace.json json/your_trace.json
 3. Run tracing with the JSON desciptor.
 
 ```
-./run.sh --trace your_trace
+./sci --trace your_trace
 ```
 The script will launch all tracings in parallel. The collected simpoint information and traces will be copied to the destination `traces_dir` described in the json. The information for exec-driven/memtrace simulation will be automatically added to the workload DB and suite DB.
 
 ## Check the info/status of the tracing
 ```
-./run.sh --status your_trace
+./sci --status your_trace
 ```
 
 ## Kill the tracing
 ```
-./run.sh --kill your_trace
+./sci --kill your_trace
 ```
 
 ## Run an interactive shell of a docker container for the purpose of debugging or manually collecting traces
 ```
-./run.sh --run your_trace
+./sci --interactive your_trace
 ```
 
 # Publications

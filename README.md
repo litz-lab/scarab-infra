@@ -155,6 +155,12 @@ Cached images and containers are handled automatically by the commands above; us
 ```
 Uses `json/<descriptor>.json` with `descriptor_type: "trace"` to launch the trace pipeline (see [docs/README.trace.md](docs/README.trace.md) for details).
 
+### Run a perf container
+```
+./sci --perf perf
+```
+Uses `json/perf.json` or another `json/<descriptor>.json` with `descriptor_type: "perf"` to open the interactive perf container described in the descriptor (see [docs/README.perf.md](docs/README.perf.md)).
+
 ## Docker Images
 
 `./sci --build-scarab <descriptor>` or `./sci --sim <descriptor>` automatically pulls or rebuilds the docker image it needs, but these commands are handy when you want to inspect or pre-stage images manually.
