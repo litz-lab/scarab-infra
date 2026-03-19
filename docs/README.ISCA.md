@@ -1,6 +1,8 @@
 # Scarab-infra
 Dockerfiles of docker images running data center workloads and run Scarab simulation
 
+> This document still describes the older artifact flow and descriptor layout under `isca2024_udp/`. For the current unified CLI, use `./sci` as documented in the top-level [README](../README.md).
+
 ## Docker setup
 Install Docker based on the instructions from official [docker docs](https://docs.docker.com/engine/install/).
 

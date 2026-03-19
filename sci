@@ -3870,6 +3870,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Run simulations defined in json/<DESCRIPTOR>.json.",
     )
     parser.add_argument(
+        "--perf",
+        metavar="DESCRIPTOR",
+        help="Open a perf container defined in json/<DESCRIPTOR>.json.",
+    )
+    parser.add_argument(
         "--visualize",
         metavar="DESCRIPTOR",
         help="Plot IPC and speedup for collected stats in json/<DESCRIPTOR>.json.",
@@ -3923,6 +3928,7 @@ def main() -> int:
         bool(args.interactive),
         bool(args.trace),
         bool(args.sim),
+        bool(args.perf),
         bool(args.visualize),
         bool(args.collect_mem),
         bool(args.perf_analyze),
@@ -3940,6 +3946,7 @@ def main() -> int:
         args.interactive,
         args.trace,
         args.sim,
+        args.perf,
         args.visualize,
         args.collect_mem,
         args.perf_analyze,
@@ -4023,6 +4030,13 @@ def main() -> int:
     if args.sim:
         try:
             handle_descriptor_action(args.sim, "simulate", dbg_override=args.debug_level)
+            return 0
+        except (StepError, RuntimeError) as exc:
+            print(exc)
+            return 1
+    if args.perf:
+        try:
+            handle_descriptor_action(args.perf, "launch", dbg_override=args.debug_level)
             return 0
         except (StepError, RuntimeError) as exc:
             print(exc)

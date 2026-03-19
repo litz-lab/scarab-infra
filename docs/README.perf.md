@@ -36,8 +36,9 @@ to install the pmu-tools.
 ## Run an interactive shell of a docker container where you can run Perf
 After building a docker image, run an interactive shell of a docker container running on the image by using the perf JSON descriptor.
 ```
-./run.sh --run perf
+./sci --perf perf
 ```
+This reads `json/perf.json`. To use a different perf descriptor, run `./sci --perf <descriptor>`.
 
 ## Run a workload
 ### Binary command
