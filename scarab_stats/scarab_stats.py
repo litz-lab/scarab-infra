@@ -845,12 +845,16 @@ class stat_aggregator:
                 elif found_subsuite != None:
                     assert found_suite is not None, "Suite cannot be None when subsuite is specified"
                     for workload in list(workloads_data[found_suite][found_subsuite].keys()):
+                        if not isinstance(workloads_data[found_suite][found_subsuite][workload], dict):
+                            continue
                         for cid in self.get_cluster_ids(workload, found_suite, found_subsuite, top_simpoint_only, workloads_data=workloads_data):
                             tasks.append((config, found_suite, found_subsuite, workload, str(cid)))
 
                 else:
                     for subsuite in list(workloads_data[found_suite].keys()):
                         for workload in list(workloads_data[found_suite][subsuite].keys()):
+                            if not isinstance(workloads_data[found_suite][subsuite][workload], dict):
+                                continue
                             for cid in self.get_cluster_ids(workload, found_suite, subsuite, top_simpoint_only, workloads_data=workloads_data):
                                 tasks.append((config, found_suite, subsuite, workload, str(cid)))
 
