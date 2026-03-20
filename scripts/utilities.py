@@ -1561,6 +1561,11 @@ def print_simulation_status_summary(
                 error_runs.add(str(log_path))
                 continue
 
+            if 'docker: Error' in contents_after_docker:
+                prep_failed[config] += 1
+                error_runs.add(str(log_path))
+                continue
+
             prep_err = 0
             workload_parts = workload_path.split("/")
             sim_dir = Path(descriptor_data["root_dir"]) / "simulations" / descriptor_data["experiment"] / config
