@@ -2161,6 +2161,7 @@ def generate_table(data, title=""):
     # Add the data rows
     for j in range(num_rows):
         row_data = [data[header][j] for header in headers]
-        table_string += format_string.format(*row_data) + "\n"
+        row_string = format_string.format(*row_data) + "\n"
+        table_string += row_string.replace(' 0 ', ' \033[30m0\033[0m ')
 
     return table_string
