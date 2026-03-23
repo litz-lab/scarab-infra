@@ -93,19 +93,23 @@ def write_json_descriptor(filename, descriptor_data, dbg_lvl = 1):
     except json.JSONDecodeError as e:
             print(f"JSONDecodeError: {e}")
 
-def run_on_node(cmd, node=None, **kwargs):
+def run_on_node(cmd, node=None, immediate=5, **kwargs):
+    command = list(cmd)
     if node != None:
         # Use fast-fail scheduling for management commands so they do not
-        # block behind busy-node resource allocation.
-        cmd = [
+        # block behind busy-node resource allocation. Callers can disable the
+        # immediate flag when they want to retry and wait briefly instead.
+        command = [
             "srun",
             f"--nodelist={node}",
             "--nodes=1",
             "--ntasks=1",
             "--cpus-per-task=1",
-            "--immediate=5",
-        ] + cmd
-    return subprocess.run(cmd, **kwargs)
+        ]
+        if immediate is not None:
+            command.append(f"--immediate={immediate}")
+        command += list(cmd)
+    return subprocess.run(command, **kwargs)
 
 def validate_simulation(workloads_data, simulations, dbg_lvl = 2):
     for simulation in simulations:
