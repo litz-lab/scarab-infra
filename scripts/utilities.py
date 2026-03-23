@@ -520,6 +520,144 @@ def _cache_bin_name(bin_name: str, build_mode: str) -> str:
     return bin_name
 
 
+def _interactive_binary_status(
+    infra_dir: str,
+    scarab_path: str,
+    scarab_githash: str,
+    build_mode: str,
+) -> Tuple[bool, Optional[str], str, str]:
+    cache_name = _cache_bin_name("scarab_current", build_mode)
+    current_scarab_bin = f"{infra_dir}/scarab_builds/{cache_name}"
+    repo_scarab_bin = f"{scarab_path}/src/build/{build_mode}/scarab"
+
+    try:
+        status_output = subprocess.check_output(
+            ["git", "status", "--porcelain"],
+            cwd=scarab_path,
+            text=True,
+        )
+        dirty = any(
+            line for line in status_output.splitlines() if line and not line.startswith("??")
+        )
+    except Exception as exc:
+        return False, f"could not check scarab git status: {exc}", current_scarab_bin, repo_scarab_bin
+
+    if dirty:
+        return (
+            False,
+            "scarab repo has tracked uncommitted changes, so current binaries may be stale",
+            current_scarab_bin,
+            repo_scarab_bin,
+        )
+
+    if not os.path.isfile(repo_scarab_bin):
+        return (
+            False,
+            f"repo binary not found at {repo_scarab_bin}",
+            current_scarab_bin,
+            repo_scarab_bin,
+        )
+
+    if not os.path.isfile(current_scarab_bin):
+        return (
+            False,
+            f"cached scarab_current not found at {current_scarab_bin}",
+            current_scarab_bin,
+            repo_scarab_bin,
+        )
+
+    try:
+        result = subprocess.run(
+            ["diff", current_scarab_bin, repo_scarab_bin],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except Exception as exc:
+        return (
+            False,
+            f"could not compare cached and repo binaries: {exc}",
+            current_scarab_bin,
+            repo_scarab_bin,
+        )
+
+    if result.returncode != 0:
+        if result.returncode == 1:
+            return (
+                False,
+                "cached scarab_current differs from repo binary",
+                current_scarab_bin,
+                repo_scarab_bin,
+            )
+        return (
+            False,
+            f"could not compare cached and repo binaries (diff exit {result.returncode})",
+            current_scarab_bin,
+            repo_scarab_bin,
+        )
+
+    try:
+        if not os.path.islink(current_scarab_bin):
+            return (
+                False,
+                "cached scarab_current is not a symlink to a hash-specific binary",
+                current_scarab_bin,
+                repo_scarab_bin,
+            )
+        link_target = os.readlink(current_scarab_bin)
+    except OSError as exc:
+        return (
+            False,
+            f"could not inspect cached scarab_current symlink: {exc}",
+            current_scarab_bin,
+            repo_scarab_bin,
+        )
+
+    if scarab_githash not in link_target:
+        return (
+            False,
+            "cached scarab_current symlink does not match current git hash",
+            current_scarab_bin,
+            repo_scarab_bin,
+        )
+
+    return True, None, current_scarab_bin, repo_scarab_bin
+
+
+def _warn_interactive_binary_statuses(
+    infra_dir: str,
+    scarab_path: str,
+    scarab_githash: str,
+    dbg_lvl: int,
+    rebuild_hint: Optional[str] = None,
+) -> None:
+    for build_mode in ("opt", "dbg"):
+        is_current, reason, current_scarab_bin, repo_scarab_bin = _interactive_binary_status(
+            infra_dir,
+            scarab_path,
+            scarab_githash,
+            build_mode,
+        )
+        if is_current:
+            info(
+                f"Interactive mode: up-to-date {build_mode} Scarab binary available.",
+                dbg_lvl,
+            )
+            continue
+        rebuild_note = ""
+        if rebuild_hint:
+            rebuild_note = (
+                f" Rebuild with: {rebuild_hint} "
+                f"(with `scarab_build` set to `{build_mode}` in the descriptor)."
+            )
+        warn(
+            "Interactive mode skips rebuilding; "
+            f"no up-to-date {build_mode} Scarab binary found ({reason}). "
+            f"cache={current_scarab_bin}, repo={repo_scarab_bin}.{rebuild_note}",
+            dbg_lvl,
+        )
+
+
 def _prompt_kill_processes_and_exit(dbg_lvl: int) -> None:
     prompt = "Uncommitted changes detected in scarab repository. Do you want to kill these processes? [y/N]: "
     response = ""
@@ -780,7 +918,7 @@ def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, git
 #           architecture - Architecture name
 #
 # Outputs:  scarab githash
-def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_name, architecture, docker_prefix_list, githash, infra_dir, scarab_binaries, interactive_shell=False, dbg_lvl=1, stream_build=False):
+def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_name, architecture, docker_prefix_list, githash, infra_dir, scarab_binaries, interactive_shell=False, dbg_lvl=1, stream_build=False, rebuild_hint=None):
     # prepare docker images
     image_tag_list = []
     try:
@@ -857,20 +995,52 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
             )
             note(f"Scarab version {target_hash} built successfully!", dbg_lvl)
 
-        if "scarab_current" in scarab_binaries:
-            # Only rebuild/current-state validate when the descriptor actually uses scarab_current.
-            rebuild_scarab(
+        if interactive_shell:
+            _warn_interactive_binary_statuses(
                 infra_dir,
                 scarab_path,
-                user,
-                docker_home,
-                docker_prefix,
-                githash,
                 scarab_githash,
-                scarab_build,
-                stream_build=stream_build,
-                dbg_lvl=dbg_lvl,
+                dbg_lvl,
+                rebuild_hint=rebuild_hint,
             )
+
+        if "scarab_current" in scarab_binaries:
+            # Interactive shells should not force a rebuild just to open the environment.
+            current_cache_name = _cache_bin_name("scarab_current", build_mode)
+            current_scarab_bin = f"{infra_dir}/scarab_builds/{current_cache_name}"
+            repo_scarab_bin = f"{scarab_path}/src/build/{build_mode}/scarab"
+            if interactive_shell:
+                if os.path.isfile(current_scarab_bin):
+                    info(
+                        f"Using cached Scarab binary for interactive mode: {current_scarab_bin}",
+                        dbg_lvl,
+                    )
+                elif os.path.isfile(repo_scarab_bin):
+                    shutil.copy2(repo_scarab_bin, current_scarab_bin)
+                    info(
+                        "Interactive mode: reused existing Scarab repo binary without rebuilding.",
+                        dbg_lvl,
+                    )
+                else:
+                    warn(
+                        "Interactive mode requested, but no cached or repo Scarab binary exists; "
+                        "continuing without rebuilding.",
+                        dbg_lvl,
+                    )
+            else:
+                # Only rebuild/current-state validate when the descriptor actually uses scarab_current.
+                rebuild_scarab(
+                    infra_dir,
+                    scarab_path,
+                    user,
+                    docker_home,
+                    docker_prefix,
+                    githash,
+                    scarab_githash,
+                    scarab_build,
+                    stream_build=stream_build,
+                    dbg_lvl=dbg_lvl,
+                )
 
         # Copy architectural params to scarab/src
         arch_params = f"{scarab_path}/src/PARAMS.{architecture}"
@@ -882,6 +1052,14 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
             scarab_ver = f"{infra_dir}/scarab_builds/{cache_name}"
             dest_dir = Path(experiment_dir) / "scarab" / "src"
             dest_dir.mkdir(parents=True, exist_ok=True)
+            if not os.path.isfile(scarab_ver):
+                if interactive_shell and bin_name == "scarab_current":
+                    warn(
+                        f"Skipping missing interactive Scarab binary: {scarab_ver}",
+                        dbg_lvl,
+                    )
+                    continue
+                raise FileNotFoundError(f"Required Scarab binary not found: {scarab_ver}")
             dest_plain = dest_dir / bin_name
             if bin_name.endswith((".opt", ".dbg")):
                 dest_mode = dest_plain
@@ -1788,7 +1966,7 @@ def get_weight_by_cluster_id(exp_cluster_id, simpoints):
         if simpoint["cluster_id"] == exp_cluster_id:
             return simpoint["weight"]
 
-def prepare_trace(user, scarab_path, scarab_build, docker_home, job_name, infra_dir, docker_prefix_list, githash, interactive_shell=False, available_slurm_nodes=[], dbg_lvl=1):
+def prepare_trace(user, scarab_path, scarab_build, docker_home, job_name, infra_dir, docker_prefix_list, githash, interactive_shell=False, available_slurm_nodes=[], dbg_lvl=1, rebuild_hint=None):
     try:
         scarab_githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=scarab_path).decode("utf-8").strip()
     except Exception as e:
@@ -1810,13 +1988,50 @@ def prepare_trace(user, scarab_path, scarab_build, docker_home, job_name, infra_
         trace_dir = f"{docker_home}/simpoint_flow/{job_name}"
         os.system(f"mkdir -p {trace_dir}/scarab/src/")
 
-        # (Re)build the scarab binary first.
-        rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, githash, scarab_githash, scarab_build, stream_build=False, dbg_lvl=dbg_lvl)
+        if interactive_shell:
+            _warn_interactive_binary_statuses(
+                infra_dir,
+                scarab_path,
+                scarab_githash,
+                dbg_lvl,
+                rebuild_hint=rebuild_hint,
+            )
+            current_cache_name = _cache_bin_name("scarab_current", build_mode)
+            current_scarab_bin = f"{infra_dir}/scarab_builds/{current_cache_name}"
+            repo_scarab_bin = f"{scarab_path}/src/build/{build_mode}/scarab"
+            if os.path.isfile(current_scarab_bin):
+                info(
+                    f"Using cached Scarab binary for interactive mode: {current_scarab_bin}",
+                    dbg_lvl,
+                )
+            elif os.path.isfile(repo_scarab_bin):
+                shutil.copy2(repo_scarab_bin, current_scarab_bin)
+                info(
+                    "Interactive mode: reused existing Scarab repo binary without rebuilding.",
+                    dbg_lvl,
+                )
+            else:
+                warn(
+                    "Interactive mode requested, but no cached or repo Scarab binary exists; "
+                    "continuing without rebuilding.",
+                    dbg_lvl,
+                )
+        else:
+            # (Re)build the scarab binary first.
+            rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, githash, scarab_githash, scarab_build, stream_build=False, dbg_lvl=dbg_lvl)
 
         # Copy current scarab binary to trace dir
         cache_name = _cache_bin_name("scarab_current", build_mode)
         scarab_ver = f"{infra_dir}/scarab_builds/{cache_name}"
-        os.system(f"cp {scarab_ver} {trace_dir}/scarab/src/scarab")
+        if os.path.isfile(scarab_ver):
+            os.system(f"cp {scarab_ver} {trace_dir}/scarab/src/scarab")
+        elif interactive_shell:
+            warn(
+                f"Skipping missing interactive Scarab binary: {scarab_ver}",
+                dbg_lvl,
+            )
+        else:
+            raise FileNotFoundError(f"Required Scarab binary not found: {scarab_ver}")
 
         os.system(f"mkdir -p {trace_dir}/scarab/bin/scarab_globals")
         os.system(f"cp {scarab_path}/bin/scarab_launch.py  {trace_dir}/scarab/bin/scarab_launch.py ")

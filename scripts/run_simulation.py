@@ -103,7 +103,7 @@ def verify_descriptor(
         err("Need configurations to simulate. Set in descriptor file under 'configurations'", dbg_lvl)
         exit(1)
 
-def open_interactive_shell(user, descriptor_data, workloads_data, infra_dir, dbg_lvl = 1):
+def open_interactive_shell(user, descriptor_name, descriptor_data, workloads_data, infra_dir, dbg_lvl = 1):
     experiment_name = descriptor_data["experiment"]
     scarab_path = descriptor_data["scarab_path"]
     scarab_binaries: List[str] = []
@@ -182,7 +182,8 @@ def open_interactive_shell(user, descriptor_data, workloads_data, infra_dir, dbg
                                                 infra_dir,
                                                 scarab_binaries,
                                                 interactive_shell=True,
-                                                dbg_lvl=dbg_lvl)
+                                                dbg_lvl=dbg_lvl,
+                                                rebuild_hint=f"./sci --build-scarab {descriptor_name}")
         except Exception as exc:
             warn(f"Scarab build failed; continuing to interactive shell anyway: {exc}", dbg_lvl)
             scarab_githash = scarab_git_hash if scarab_git_hash else "unknown"
@@ -454,11 +455,7 @@ def run_simulation_command(descriptor_path, action, dbg_lvl=2, infra_dir=None):
             return 0
 
         if action == "launch":
-            try:
-                verify_descriptor(descriptor_data, workloads_data, True, False, dbg_lvl)
-            except SystemExit as exc:
-                raise RuntimeError("Descriptor verification failed") from exc
-            open_interactive_shell(user, descriptor_data, workloads_data, infra_dir, dbg_lvl)
+            open_interactive_shell(user, descriptor_path, descriptor_data, workloads_data, infra_dir, dbg_lvl)
             return 0
 
         if action == "clean":
