@@ -32,7 +32,13 @@ from . import slurm_runner, local_runner
 client = docker.from_env()
 
 # Verify the given descriptor file
-def verify_descriptor(descriptor_data, workloads_data, open_shell = False, dbg_lvl = 2):
+def verify_descriptor(
+    descriptor_data,
+    workloads_data,
+    open_shell=False,
+    warn_existing_experiment=False,
+    dbg_lvl=2,
+):
     ## Check if the provided json describes all the valid data
 
     # Check the descriptor type
@@ -60,7 +66,7 @@ def verify_descriptor(descriptor_data, workloads_data, open_shell = False, dbg_l
 
     # Check experiment doesn't already exists
     experiment_dir = f"{descriptor_data['root_dir']}/simulations/{descriptor_data['experiment']}"
-    if os.path.exists(experiment_dir) and not open_shell:
+    if warn_existing_experiment and os.path.exists(experiment_dir) and not open_shell:
         print(f"Experiment '{experiment_dir}' already exists. It will overwrite the existing simulation results!")
 
     # Check if each simulation type is valid
@@ -310,6 +316,18 @@ def find_conflicting_containers(workload_manager, docker_prefix_list, experiment
                     stale.append(name)
         return active, stale
 
+    def summarize_probe_failure(exc: Exception) -> str:
+        details: List[str] = []
+        stdout = getattr(exc, "stdout", None)
+        stderr = getattr(exc, "stderr", None)
+        if stdout:
+            details.append(f"stdout: {stdout.strip()}")
+        if stderr:
+            details.append(f"stderr: {stderr.strip()}")
+        if details:
+            return f"{exc} ({'; '.join(details)})"
+        return str(exc)
+
     if workload_manager == "manual":
         try:
             result = subprocess.run(
@@ -350,9 +368,31 @@ def find_conflicting_containers(workload_manager, docker_prefix_list, experiment
         except subprocess.TimeoutExpired as exc:
             warn(f"Timed out while listing docker containers on {node} for preflight check: {exc}", dbg_lvl)
             continue
-        except Exception as exc:
-            warn(f"Unable to list docker containers on {node} for preflight check: {exc}", dbg_lvl)
-            continue
+        except Exception as first_exc:
+            try:
+                # Busy nodes can fail the fast-fail probe even though they are
+                # still healthy. Retry once without --immediate and rely on the
+                # subprocess timeout to keep the preflight bounded.
+                result = run_on_node(
+                    ["docker", "ps", "-a", "--format", "{{.Names}}\t{{.State}}"],
+                    node=node,
+                    immediate=None,
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                    timeout=30,
+                )
+            except subprocess.TimeoutExpired as retry_exc:
+                warn(f"Timed out while listing docker containers on {node} for preflight check: {retry_exc}", dbg_lvl)
+                continue
+            except Exception as retry_exc:
+                warn(
+                    f"Unable to list docker containers on {node} for preflight check: "
+                    f"{summarize_probe_failure(first_exc)}; retry without --immediate also failed: "
+                    f"{summarize_probe_failure(retry_exc)}",
+                    dbg_lvl,
+                )
+                continue
 
         active_node, stale_node = split_matching_containers(result.stdout.splitlines())
         if active_node:
@@ -384,7 +424,7 @@ def run_simulation_command(descriptor_path, action, dbg_lvl=2, infra_dir=None):
     simulations = descriptor_data.get("simulations") or []
 
     try:
-        verify_descriptor(descriptor_data, workloads_data, False, dbg_lvl)
+        verify_descriptor(descriptor_data, workloads_data, False, False, dbg_lvl)
     except SystemExit as exc:
         return 1
 
@@ -415,7 +455,7 @@ def run_simulation_command(descriptor_path, action, dbg_lvl=2, infra_dir=None):
 
         if action == "launch":
             try:
-                verify_descriptor(descriptor_data, workloads_data, True, dbg_lvl)
+                verify_descriptor(descriptor_data, workloads_data, True, False, dbg_lvl)
             except SystemExit as exc:
                 raise RuntimeError("Descriptor verification failed") from exc
             open_interactive_shell(user, descriptor_data, workloads_data, infra_dir, dbg_lvl)
@@ -432,6 +472,7 @@ def run_simulation_command(descriptor_path, action, dbg_lvl=2, infra_dir=None):
             return 0
 
         # default: run simulation
+        verify_descriptor(descriptor_data, workloads_data, False, True, dbg_lvl)
         stale_conflicts, active_conflicts = find_conflicting_containers(
             workload_manager,
             docker_image_list,
