@@ -14,6 +14,7 @@ import docker
 
 from .utilities import (
     info,
+    note,
     err,
     warn,
     read_descriptor_from_json,
@@ -30,6 +31,7 @@ from .utilities import (
 from . import slurm_runner, local_runner
 
 client = docker.from_env()
+CONTAINER_PROBE_TIMEOUT_SECONDS = 5
 
 # Verify the given descriptor file
 def verify_descriptor(
@@ -363,10 +365,13 @@ def find_conflicting_containers(workload_manager, docker_prefix_list, experiment
                 capture_output=True,
                 text=True,
                 check=True,
-                timeout=30,
+                timeout=CONTAINER_PROBE_TIMEOUT_SECONDS,
             )
         except subprocess.TimeoutExpired as exc:
-            warn(f"Timed out while listing docker containers on {node} for preflight check: {exc}", dbg_lvl)
+            note(
+                f"Skipping stale-container probe on {node}: preflight docker listing timed out after {CONTAINER_PROBE_TIMEOUT_SECONDS}s",
+                dbg_lvl,
+            )
             continue
         except Exception as first_exc:
             try:
@@ -380,10 +385,13 @@ def find_conflicting_containers(workload_manager, docker_prefix_list, experiment
                     capture_output=True,
                     text=True,
                     check=True,
-                    timeout=30,
+                    timeout=CONTAINER_PROBE_TIMEOUT_SECONDS,
                 )
             except subprocess.TimeoutExpired as retry_exc:
-                warn(f"Timed out while listing docker containers on {node} for preflight check: {retry_exc}", dbg_lvl)
+                note(
+                    f"Skipping stale-container probe on {node}: fast probe failed and retry timed out after {CONTAINER_PROBE_TIMEOUT_SECONDS}s",
+                    dbg_lvl,
+                )
                 continue
             except Exception as retry_exc:
                 warn(
@@ -423,15 +431,14 @@ def run_simulation_command(descriptor_path, action, dbg_lvl=2, infra_dir=None):
     experiment_name = descriptor_data.get("experiment")
     simulations = descriptor_data.get("simulations") or []
 
-    try:
-        verify_descriptor(descriptor_data, workloads_data, False, False, dbg_lvl)
-    except SystemExit as exc:
-        return 1
-
     docker_image_list = get_image_list(simulations, workloads_data)
 
     try:
         if action == "kill":
+            try:
+                verify_descriptor(descriptor_data, workloads_data, False, False, dbg_lvl)
+            except SystemExit as exc:
+                return 1
             if workload_manager == "manual":
                 local_runner.kill_jobs(user, "simulation", experiment_name, docker_image_list, infra_dir, dbg_lvl)
             else:
@@ -447,6 +454,10 @@ def run_simulation_command(descriptor_path, action, dbg_lvl=2, infra_dir=None):
             return 0
 
         if action == "info":
+            try:
+                verify_descriptor(descriptor_data, workloads_data, False, False, dbg_lvl)
+            except SystemExit as exc:
+                return 1
             if workload_manager == "manual":
                 local_runner.print_status(user, experiment_name, docker_image_list, descriptor_data, workloads_data, dbg_lvl)
             else:
@@ -462,6 +473,10 @@ def run_simulation_command(descriptor_path, action, dbg_lvl=2, infra_dir=None):
             return 0
 
         if action == "clean":
+            try:
+                verify_descriptor(descriptor_data, workloads_data, False, False, dbg_lvl)
+            except SystemExit as exc:
+                return 1
             if workload_manager == "slurm":
                 slurm_runner.clean_containers(user, experiment_name, docker_image_list, dbg_lvl)
                 descriptor_root = Path(descriptor_data["root_dir"])
