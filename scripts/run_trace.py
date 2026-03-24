@@ -97,7 +97,7 @@ def get_image_list(traces):
 
     return image_list
 
-def open_interactive_shell(user, descriptor_data, infra_dir, dbg_lvl = 1):
+def open_interactive_shell(user, descriptor_name, descriptor_data, infra_dir, dbg_lvl = 1):
     trace_name = descriptor_data["trace_name"]
     scarab_path = descriptor_data["scarab_path"]
     scarab_build = descriptor_data["scarab_build"]
@@ -135,7 +135,20 @@ def open_interactive_shell(user, descriptor_data, infra_dir, dbg_lvl = 1):
             if entry not in f.read():
                 f.write(f"\n{entry}\n")
 
-        prepare_trace(user, scarab_path, scarab_build, docker_home, trace_name, infra_dir, [docker_prefix], githash, True, [], dbg_lvl=dbg_lvl)
+        prepare_trace(
+            user,
+            scarab_path,
+            scarab_build,
+            docker_home,
+            trace_name,
+            infra_dir,
+            [docker_prefix],
+            githash,
+            True,
+            [],
+            dbg_lvl=dbg_lvl,
+            rebuild_hint=f"./sci --build-scarab {descriptor_name}",
+        )
         if trace_scenario["env_vars"] != None:
             env_vars = trace_scenario["env_vars"].split()
         else:
@@ -250,7 +263,7 @@ def run_trace_command(descriptor_path, action, dbg_lvl=2, infra_dir=None):
                 verify_descriptor(descriptor_data, workload_db_path, open_shell=True, dbg_lvl=dbg_lvl)
             except SystemExit as exc:
                 raise RuntimeError("Descriptor verification failed") from exc
-            open_interactive_shell(user, descriptor_data, infra_dir, dbg_lvl)
+            open_interactive_shell(user, descriptor_path, descriptor_data, infra_dir, dbg_lvl)
             return 0
 
         if action == "clean":
