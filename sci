@@ -1585,7 +1585,9 @@ def run_build_scarab(descriptor_name: str) -> int:
             githash,
             str(REPO_ROOT),
             scarab_binaries,
-            interactive_shell=True,
+            # `--build-scarab` should force the normal rebuild/validation path.
+            # The interactive-shell path intentionally skips rebuilding.
+            interactive_shell=False,
             dbg_lvl=2,
             stream_build=True,
         )
