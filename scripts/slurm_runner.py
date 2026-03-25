@@ -6,6 +6,7 @@
 import os
 import subprocess
 import re
+import sys
 import traceback
 import json
 from pathlib import Path
@@ -234,6 +235,18 @@ def generate_sbatch_command(experiment_dir, slurm_options="", mem_mb=None):
 
     return f"sbatch -c 1{slurm_options} -o {experiment_dir}/logs/job_%j.out "
 #return f"sbatch -c 1 --ntasks-per-core=2 --oversubscribe -o {experiment_dir}/logs/job_%j.out "
+
+
+def _print_sbatch_output(result: subprocess.CompletedProcess) -> None:
+    if result.returncode == 0:
+        return
+    out = (result.stdout or "").rstrip()
+    err_out = (result.stderr or "").rstrip()
+    if out:
+        print(out)
+    if err_out:
+        print(err_out, file=sys.stderr)
+
 
 # Print info of docker/slurm nodes and running experiment
 def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_data, dbg_lvl = 1):
@@ -569,8 +582,8 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                     tmp_files.append(filename)
 
                     result = subprocess.run(["touch", f"{experiment_dir}/logs/job_%j.out"], capture_output=True, text=True, check=True)
-                    info(f"Running sbatch command '{sbatch_cmd + filename}'", dbg_lvl)
                     result = subprocess.run((sbatch_cmd + filename).split(" "), capture_output=True, text=True)
+                    _print_sbatch_output(result)
                     job_id = result.stdout.split(" ")[-1].strip()
                     slurm_ids.append(job_id)
                     run_single_workload.submitted += 1
@@ -740,7 +753,8 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
                                                clustering_k, filename, infra_dir, application_dir, slurm=True)
             tmp_files.append(filename)
 
-            os.system(sbatch_cmd + filename)
+            result = subprocess.run((sbatch_cmd + filename).split(" "), capture_output=True, text=True)
+            _print_sbatch_output(result)
         except Exception as e:
             raise e
 
