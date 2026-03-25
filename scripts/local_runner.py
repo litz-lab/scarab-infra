@@ -135,6 +135,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
     traces_dir = descriptor_data["traces_dir"]
     configs = descriptor_data["configurations"]
     simulations = descriptor_data["simulations"]
+    application_dir = descriptor_data["application_dir"]
 
     docker_prefix_list = get_image_list(simulations, workloads_data)
 
@@ -210,7 +211,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                                                  docker_prefix, docker_container_name, traces_dir,
                                                  docker_home, githash, config_key, config, sim_mode, scarab_binary,
                                                  seg_size, architecture, cluster_id, warmup, trace_warmup, trace_type,
-                                                 trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir)
+                                                 trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir, application_dir)
                     tmp_files.append(filename)
                     command = '/bin/bash ' + filename
                     _log_dir = os.path.join(docker_home, "simulations", experiment_name, "logs")

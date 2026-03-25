@@ -108,6 +108,7 @@ def verify_descriptor(
 def open_interactive_shell(user, descriptor_name, descriptor_data, workloads_data, infra_dir, dbg_lvl = 1):
     experiment_name = descriptor_data["experiment"]
     scarab_path = descriptor_data["scarab_path"]
+    application_dir = descriptor_data["application_dir"]
     scarab_binaries: List[str] = []
     configurations = descriptor_data.get("configurations") or {}
     if isinstance(configurations, dict):
@@ -203,7 +204,7 @@ def open_interactive_shell(user, descriptor_name, descriptor_data, workloads_dat
                 subprocess.run(["docker", "exec", "--privileged", "-it", f"--user={user}", f"--workdir={workdir}", docker_container_name, "/bin/bash"])
             else:
                 info(f"Create a new container for the interactive mode", dbg_lvl)
-                subprocess.run(["docker", "run",
+                subprocess.run(["docker", "run", "--privileged",
                                 "-e", f"user_id={local_uid}",
                                 "-e", f"group_id={local_gid}",
                                 "-e", f"username={user}",
@@ -214,6 +215,7 @@ def open_interactive_shell(user, descriptor_name, descriptor_data, workloads_dat
                                 "--mount", f"type=bind,source={traces_dir},target=/simpoint_traces,readonly=true",
                                 "--mount", f"type=bind,source={docker_home},target=/home/{user},readonly=false",
                                 "--mount", f"type=bind,source={scarab_path},target=/scarab,readonly=false",
+                                "--mount", f"type=bind,source={application_dir},target=/tmp_home/application,readonly=false",
                                 f"{docker_prefix}:{githash}", "/bin/bash"], check=True, capture_output=True, text=True)
                 subprocess.run(["docker", "cp", f"{infra_dir}/scripts/utilities.sh", f"{docker_container_name}:/usr/local/bin"],
                                check=True, capture_output=True, text=True)
