@@ -89,7 +89,7 @@
       }
     ]
   },
-  "_mem":"Memory scheduling and collection settings for Slurm jobs. collection_baseline specifies which config's MaxRSS is recorded as base_memory_mb by ./sci --collect-mem (defaults to visualize.baseline). fallback_mb is the --mem limit used for simpoints that have no measured base_memory_mb yet; set it conservatively high to avoid OOM kills on the first run.",
+  "_mem":"Memory scheduling and collection settings for Slurm jobs. collection_baseline specifies which config's MaxRSS is recorded in the mode-specific base_memory_mb_by_mode fields by ./sci --collect-mem (defaults to visualize.baseline). fallback_mb is the --mem limit used for workloads or simpoints that have no measured base_memory for the requested simulation mode yet; set it conservatively high to avoid OOM kills on the first run.",
   "mem":{
     "collection_baseline":null,
     "fallback_mb":16384

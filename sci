@@ -2281,6 +2281,137 @@ def resolve_perf_analyze_settings(
     }
 
 
+def _iter_descriptor_collect_mem_targets(
+    descriptor: Dict[str, Any],
+    workloads_db: Dict[str, Any],
+    infra_utils: Any,
+) -> Iterable[Tuple[str, str, str, str, str]]:
+    simulations = descriptor.get("simulations")
+    if not isinstance(simulations, list):
+        return []
+
+    targets: List[Tuple[str, str, str, str, str]] = []
+
+    def add_workload_target(
+        suite_name: str,
+        subsuite_name: str,
+        workload_name: str,
+        requested_cluster_id: Any,
+        requested_mode: Any,
+    ) -> None:
+        try:
+            workload_entry = workloads_db[suite_name][subsuite_name][workload_name]
+        except KeyError:
+            return
+        if not isinstance(workload_entry, dict):
+            return
+
+        sim_mode = infra_utils.normalize_simulation_mode(requested_mode)
+        if sim_mode is None:
+            sim_mode = infra_utils.get_default_simulation_mode(workload_entry)
+        if sim_mode is None:
+            return
+
+        if "simpoints" not in workload_entry or sim_mode != "memtrace":
+            cluster_ids = ["0"]
+        elif requested_cluster_id is None:
+            cluster_ids = list(infra_utils.get_simpoints(workload_entry, sim_mode).keys())
+        else:
+            cluster_ids = [str(requested_cluster_id)]
+
+        for cluster_id_str in cluster_ids:
+            targets.append((suite_name, subsuite_name, workload_name, cluster_id_str, sim_mode))
+
+    for simulation in simulations:
+        if not isinstance(simulation, dict):
+            continue
+
+        suite = simulation.get("suite")
+        subsuite = simulation.get("subsuite")
+        workload = simulation.get("workload")
+        cluster_id = simulation.get("cluster_id")
+        sim_mode = simulation.get("simulation_type")
+
+        if not suite or suite not in workloads_db:
+            continue
+
+        if workload is None and subsuite is None:
+            for subsuite_name, subsuite_node in workloads_db[suite].items():
+                if not isinstance(subsuite_node, dict):
+                    continue
+                for workload_name, workload_entry in subsuite_node.items():
+                    if isinstance(workload_entry, dict):
+                        add_workload_target(str(suite), str(subsuite_name), str(workload_name), cluster_id, sim_mode)
+        elif workload is None and subsuite is not None:
+            subsuite_node = workloads_db[suite].get(subsuite)
+            if not isinstance(subsuite_node, dict):
+                continue
+            for workload_name, workload_entry in subsuite_node.items():
+                if isinstance(workload_entry, dict):
+                    add_workload_target(str(suite), str(subsuite), str(workload_name), cluster_id, sim_mode)
+        elif workload is not None and subsuite is None:
+            for subsuite_name, subsuite_node in workloads_db[suite].items():
+                if not isinstance(subsuite_node, dict):
+                    continue
+                if isinstance(subsuite_node.get(workload), dict):
+                    add_workload_target(str(suite), str(subsuite_name), str(workload), cluster_id, sim_mode)
+        else:
+            add_workload_target(str(suite), str(subsuite), str(workload), cluster_id, sim_mode)
+
+    return targets
+
+
+def _build_collect_mem_mode_map(
+    descriptor: Dict[str, Any],
+    workloads_db: Dict[str, Any],
+    infra_utils: Any,
+) -> Dict[Tuple[str, str, str, str], Set[str]]:
+    mode_map: Dict[Tuple[str, str, str, str], Set[str]] = {}
+    for suite, subsuite, workload, cluster_id_str, sim_mode in _iter_descriptor_collect_mem_targets(
+        descriptor, workloads_db, infra_utils
+    ):
+        mode_map.setdefault((suite, subsuite, workload, cluster_id_str), set()).add(sim_mode)
+    return mode_map
+
+
+def _resolve_collect_mem_mode(
+    suite: str,
+    subsuite: str,
+    workload: str,
+    cluster_id_str: str,
+    log_sim_mode: Optional[str],
+    descriptor_mode_map: Dict[Tuple[str, str, str, str], Set[str]],
+    workloads_db: Dict[str, Any],
+    infra_utils: Any,
+) -> Tuple[Optional[str], Optional[str]]:
+    normalized_log_mode = infra_utils.normalize_simulation_mode(log_sim_mode)
+    if normalized_log_mode is not None:
+        return normalized_log_mode, None
+
+    key = (suite, subsuite, workload, cluster_id_str)
+    descriptor_modes = descriptor_mode_map.get(key, set())
+    if len(descriptor_modes) == 1:
+        return next(iter(descriptor_modes)), None
+    if len(descriptor_modes) > 1:
+        return None, (
+            f"Ambiguous simulation mode for {suite}/{subsuite}/{workload}/{cluster_id_str}; "
+            f"descriptor expands to {sorted(descriptor_modes)} and the job log does not encode a mode."
+        )
+
+    try:
+        workload_entry = workloads_db[suite][subsuite][workload]
+    except KeyError:
+        return None, f"Missing workload entry for {suite}/{subsuite}/{workload}."
+
+    default_mode = infra_utils.get_default_simulation_mode(workload_entry)
+    if default_mode is not None:
+        return default_mode, (
+            f"No simulation mode recorded in the job log for {suite}/{subsuite}/{workload}/{cluster_id_str}; "
+            f"falling back to default mode '{default_mode}'."
+        )
+    return None, f"Unable to determine simulation mode for {suite}/{subsuite}/{workload}/{cluster_id_str}."
+
+
 def run_collect_mem(descriptor_name: str) -> int:
     """Harvest Slurm MaxRSS for a completed experiment and update workloads_db.json."""
     try:
@@ -2308,17 +2439,47 @@ def run_collect_mem(descriptor_name: str) -> int:
         print(f"No logs directory found at {logs_dir}. Run the simulation first.")
         return 1
 
+    with WORKLOADS_DB_PATH.open(encoding="utf-8") as fh:
+        workloads_db: Dict[str, Any] = json.load(fh)
+
+    descriptor_mode_map = _build_collect_mem_mode_map(descriptor, workloads_db, infra_utils)
+
     # Deduplicate by highest job_id (latest run supersedes OOM-killed partial measurements).
-    latest_entries = list(infra_utils.iter_latest_job_logs(logs_dir))
+    latest_entries = list(infra_utils.iter_latest_job_logs_with_mode(logs_dir))
     if not latest_entries:
         print("No parseable job logs found.")
         return 1
 
-    # Build job_id → (suite, subsuite, workload, cluster_id_str, config) mapping for sacct lookup.
-    latest_job: Dict[int, Tuple[str, str, str, str, str]] = {
-        job_id_int: (suite, subsuite, workload, cluster_id_str, config)
-        for job_id_int, _log_path, config, suite, subsuite, workload, cluster_id_str in latest_entries
-    }
+    # Build job_id → (suite, subsuite, workload, cluster_id_str, config, sim_mode) mapping for sacct lookup.
+    latest_job: Dict[int, Tuple[str, str, str, str, str, str]] = {}
+    warnings: List[str] = []
+    skipped_jobs = 0
+    for job_id_int, _log_path, config, suite, subsuite, workload, cluster_id_str, log_sim_mode in latest_entries:
+        sim_mode, resolution_message = _resolve_collect_mem_mode(
+            suite,
+            subsuite,
+            workload,
+            cluster_id_str,
+            log_sim_mode,
+            descriptor_mode_map,
+            workloads_db,
+            infra_utils,
+        )
+        if resolution_message:
+            warnings.append(resolution_message)
+        if sim_mode is None:
+            skipped_jobs += 1
+            continue
+        latest_job[job_id_int] = (suite, subsuite, workload, cluster_id_str, config, sim_mode)
+
+    if warnings:
+        for message in sorted(set(warnings)):
+            print(f"WARN: {message}")
+
+    if not latest_job:
+        print("No jobs with a resolvable simulation mode were found.")
+        return 1
+
     job_ids = [str(jid) for jid in latest_job]
     try:
         result = subprocess.run(
@@ -2364,13 +2525,13 @@ def run_collect_mem(descriptor_name: str) -> int:
         if rss_mb is not None and rss_mb > sacct_rss.get(jid, 0.0):
             sacct_rss[jid] = rss_mb
 
-    # (suite, subsuite, workload, cluster_id_str) -> {config -> max_rss_mb}
-    measurements: Dict[Tuple[str, str, str, str], Dict[str, float]] = {}
-    for job_id_int, (suite, subsuite, workload, cluster_id_str, config) in latest_job.items():
+    # (suite, subsuite, workload, cluster_id_str, sim_mode) -> {config -> max_rss_mb}
+    measurements: Dict[Tuple[str, str, str, str, str], Dict[str, float]] = {}
+    for job_id_int, (suite, subsuite, workload, cluster_id_str, config, sim_mode) in latest_job.items():
         rss_mb = sacct_rss.get(job_id_int)
         if rss_mb is None:
             continue
-        measurements.setdefault((suite, subsuite, workload, cluster_id_str), {})[config] = rss_mb
+        measurements.setdefault((suite, subsuite, workload, cluster_id_str, sim_mode), {})[config] = rss_mb
 
     if not measurements:
         print("No MaxRSS data returned by sacct for the submitted jobs.")
@@ -2385,9 +2546,6 @@ def run_collect_mem(descriptor_name: str) -> int:
         or (next(iter(configs)) if configs else None)
     )
 
-    with WORKLOADS_DB_PATH.open(encoding="utf-8") as fh:
-        workloads_db: Dict[str, Any] = json.load(fh)
-
     scarab_path = descriptor.get("scarab_path")
     scarab_githash: Optional[str] = None
     if scarab_path:
@@ -2400,25 +2558,32 @@ def run_collect_mem(descriptor_name: str) -> int:
 
     updated_subsuites: Set[Tuple[str, str]] = set()
     updated_count = 0
-    for (suite, subsuite, workload, cluster_id_str), config_rss in measurements.items():
+    updated_modes: Set[str] = set()
+    for (suite, subsuite, workload, cluster_id_str, sim_mode), config_rss in measurements.items():
         base_mb = config_rss.get(baseline) if baseline else None
         if base_mb is None:
             base_mb = min(config_rss.values())
         try:
-            simpoints = workloads_db[suite][subsuite][workload].get("simpoints", [])
+            workload_entry = workloads_db[suite][subsuite][workload]
+            simpoints = workload_entry.get("simpoints", [])
         except KeyError:
             continue
         if cluster_id_str == "0":
-            # pt-mode workload — no simpoints list; store at workload level
-            workloads_db[suite][subsuite][workload]["base_memory_mb"] = round(base_mb)
+            written_mode = infra_utils.set_mode_specific_base_memory(workload_entry, sim_mode, base_mb, workload_entry)
+            if written_mode is None:
+                continue
             updated_count += 1
             updated_subsuites.add((suite, subsuite))
+            updated_modes.add(written_mode)
         else:
             for sp in simpoints:
                 if str(sp["cluster_id"]) == cluster_id_str:
-                    sp["base_memory_mb"] = round(base_mb)
+                    written_mode = infra_utils.set_mode_specific_base_memory(sp, sim_mode, base_mb, workload_entry)
+                    if written_mode is None:
+                        break
                     updated_count += 1
                     updated_subsuites.add((suite, subsuite))
+                    updated_modes.add(written_mode)
                     break
 
     if scarab_githash:
@@ -2430,16 +2595,20 @@ def run_collect_mem(descriptor_name: str) -> int:
         fh.write("\n")
 
     print(
-        f"Updated {updated_count} simpoint(s) across "
+        f"Updated {updated_count} workload/simpoint memory record(s) across "
         f"{len(updated_subsuites)} subsuite(s) in {WORKLOADS_DB_PATH}."
     )
+    if updated_modes:
+        print(f"Updated simulation modes: {', '.join(sorted(updated_modes))}.")
+    if skipped_jobs:
+        print(f"Skipped {skipped_jobs} job(s) with unresolved simulation mode.")
     if scarab_githash:
         print(f"Recorded _scarab_sim_githash={scarab_githash} for updated subsuites.")
 
     # Write per-config memory to experiment dir for --visualize
     memory_stats: Dict[str, Any] = {
-        f"{suite}/{subsuite}/{workload}/{cluster_id}": config_rss
-        for (suite, subsuite, workload, cluster_id), config_rss in measurements.items()
+        f"{suite}/{subsuite}/{workload}/{cluster_id}/{sim_mode}": config_rss
+        for (suite, subsuite, workload, cluster_id, sim_mode), config_rss in measurements.items()
     }
     memory_stats_path = experiment_dir / "memory_stats.json"
     with memory_stats_path.open("w", encoding="utf-8") as fh:
@@ -3885,7 +4054,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--collect-mem",
         dest="collect_mem",
         metavar="DESCRIPTOR",
-        help="Harvest Slurm MaxRSS from completed jobs and update per-simpoint base_memory_mb in workloads_db.json.",
+        help="Harvest Slurm MaxRSS from completed jobs and update mode-specific base_memory_mb_by_mode entries in workloads_db.json.",
     )
     parser.add_argument(
         "--perf-analyze",
