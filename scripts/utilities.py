@@ -406,7 +406,7 @@ def build_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_pre
                     f"{docker_container_name}",
                     "/bin/bash",
                     "-c",
-                    f"cd /scarab/src && make clean && make {scarab_build} -j{os.cpu_count()}"
+                    f"cd /scarab/src && make {scarab_build} -j{os.cpu_count()}"
             ]
 
         if stream_build:
