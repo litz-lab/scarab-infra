@@ -29,7 +29,8 @@ importlib.reload(extract_top_simpoints)
 
 DEFAULT_CONDA_ENV = "scarabinfra"
 _docker_client = None
-
+BASE_MEMORY_BY_MODE_KEY = "base_memory_mb_by_mode"
+VALID_SIMULATION_MODES = ("memtrace", "pt", "exec")
 
 def get_docker_client():
     global _docker_client
@@ -61,6 +62,55 @@ def info(msg: str, level: int):
 def note(msg: str, level: int):
     if level >= 2:
         print("INFO:", msg)
+
+
+def get_default_simulation_mode(workload_entry: dict) -> Optional[str]:
+    simulation = workload_entry.get("simulation")
+    if not isinstance(simulation, dict):
+        return None
+    prioritized = simulation.get("prioritized_mode")
+    if prioritized in VALID_SIMULATION_MODES and prioritized in simulation:
+        return prioritized
+    for candidate in VALID_SIMULATION_MODES:
+        if candidate in simulation:
+            return candidate
+    return None
+
+
+def get_mode_specific_base_memory(entry: dict, sim_mode: Optional[str], workload_entry: Optional[dict] = None):
+    if not isinstance(entry, dict):
+        return None
+
+    normalized_mode = sim_mode if sim_mode in VALID_SIMULATION_MODES else None
+    by_mode = entry.get(BASE_MEMORY_BY_MODE_KEY)
+    if isinstance(by_mode, dict):
+        if normalized_mode is not None:
+            return by_mode.get(normalized_mode)
+
+        default_mode = get_default_simulation_mode(workload_entry or entry)
+        if default_mode is not None:
+            return by_mode.get(default_mode)
+
+    return None
+
+
+def set_mode_specific_base_memory(entry: dict, sim_mode: Optional[str], base_memory_mb, workload_entry: Optional[dict] = None) -> Optional[str]:
+    if not isinstance(entry, dict):
+        return None
+
+    normalized_mode = sim_mode if sim_mode in VALID_SIMULATION_MODES else None
+    if normalized_mode is None:
+        normalized_mode = get_default_simulation_mode(workload_entry or entry)
+    if normalized_mode is None:
+        return None
+
+    by_mode = entry.get(BASE_MEMORY_BY_MODE_KEY)
+    if not isinstance(by_mode, dict):
+        by_mode = {}
+        entry[BASE_MEMORY_BY_MODE_KEY] = by_mode
+    by_mode[normalized_mode] = round(base_memory_mb)
+
+    return normalized_mode
 
 # json descriptor reader
 def read_descriptor_from_json(filename="experiment.json", dbg_lvl = 1):
@@ -1281,7 +1331,8 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
                                                         warmup, trace_warmup, trace_type, trace_file, env_vars, bincmd, client_bincmd)
         with open(filename, "w") as f:
             f.write("#!/bin/bash\n")
-            f.write(f"echo \"Running {config_key} {workload_home} {cluster_id}\"\n")
+            f.write(f"echo \"Running {config_key} {workload_home} {cluster_id} {scarab_mode}\"\n")
+            f.write(f"echo \"Simulation mode: {scarab_mode}\"\n")
             f.write(f"echo \"Script name: {filename}\"\n")
             f.write("echo \"Running on $(uname -n)\"\n")
             f.write(f"CONTAINER_NAME={docker_container_name}\n")
@@ -1540,6 +1591,7 @@ def parse_job_log_header(first_line: str) -> Optional[Tuple[str, str, str, str, 
     """Parse the first line of a Slurm job log.
 
     Expected format: ``Running {config} {suite}/{subsuite}/{workload} {cluster_id}``
+    or ``Running {config} {suite}/{subsuite}/{workload} {cluster_id} {simulation_mode}``
 
     Returns ``(config, suite, subsuite, workload, cluster_id_str)`` or ``None`` if
     the line does not match the expected format.
@@ -1555,6 +1607,44 @@ def parse_job_log_header(first_line: str) -> Optional[Tuple[str, str, str, str, 
         return None
     suite, subsuite, workload = path_parts
     return (config, suite, subsuite, workload, cluster_id_str)
+
+
+def parse_job_log_simulation_mode(log_lines) -> Optional[str]:
+    if not log_lines:
+        return None
+
+    first_parts = log_lines[0].split(" ")
+    if len(first_parts) >= 5 and first_parts[0] == "Running" and first_parts[4] in VALID_SIMULATION_MODES:
+        return first_parts[4]
+
+    for line in log_lines[1:8]:
+        stripped = line.strip()
+        if stripped.startswith("Simulation mode:"):
+            sim_mode = stripped.split(":", 1)[1].strip()
+            if sim_mode in VALID_SIMULATION_MODES:
+                return sim_mode
+        if stripped.startswith("Script name:"):
+            script_name = os.path.basename(stripped.split(":", 1)[1].strip())
+            match = re.search(r"_(memtrace|pt|exec)_[^/_]+(?:_tmp_run)?\.sh$", script_name)
+            if match:
+                return match.group(1)
+
+    return None
+
+
+def read_job_log_metadata(log_path: Path) -> Optional[Tuple[str, str, str, str, str, Optional[str]]]:
+    try:
+        with log_path.open(encoding="utf-8", errors="replace") as fh:
+            log_lines = [fh.readline().strip() for _ in range(8)]
+    except OSError:
+        return None
+
+    parsed = parse_job_log_header(log_lines[0] if log_lines else "")
+    if parsed is None:
+        return None
+
+    sim_mode = parse_job_log_simulation_mode(log_lines)
+    return (*parsed, sim_mode)
 
 
 def get_experiment_logs_dir(descriptor_data: dict) -> Path:
@@ -1600,6 +1690,30 @@ def iter_latest_job_logs(
             latest[key] = (job_id_int, log_path)
     for (config, suite, subsuite, workload, cluster_id_str), (job_id_int, log_path) in latest.items():
         yield (job_id_int, log_path, config, suite, subsuite, workload, cluster_id_str)
+
+
+def iter_latest_job_logs_with_mode(
+    logs_dir: Path,
+) -> Iterator[Tuple[int, Path, str, str, str, str, str, Optional[str]]]:
+    """Yield the latest job log for each (config, suite, subsuite, workload, cluster_id, sim_mode) key."""
+    latest: Dict[Tuple[str, str, str, str, str, str], Tuple[int, Path, Optional[str]]] = {}
+    for log_path in logs_dir.glob("job_*.out"):
+        try:
+            job_id_int = int(log_path.stem.split("_")[1])
+        except (IndexError, ValueError):
+            continue
+
+        metadata = read_job_log_metadata(log_path)
+        if metadata is None:
+            continue
+
+        config, suite, subsuite, workload, cluster_id_str, sim_mode = metadata
+        key = (config, suite, subsuite, workload, cluster_id_str, sim_mode or "")
+        if job_id_int > latest.get(key, (-1, log_path, None))[0]:
+            latest[key] = (job_id_int, log_path, sim_mode)
+
+    for (config, suite, subsuite, workload, cluster_id_str, _sim_mode_key), (job_id_int, log_path, sim_mode) in latest.items():
+        yield (job_id_int, log_path, config, suite, subsuite, workload, cluster_id_str, sim_mode)
 
 
 def print_simulation_status_summary(

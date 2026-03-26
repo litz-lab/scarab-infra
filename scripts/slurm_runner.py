@@ -12,13 +12,14 @@ import json
 from pathlib import Path
 
 # Per-simpoint memory scheduling constants
-DEFAULT_MEM_MB = 8192    # fallback when no base_memory_mb data exists in workloads_db
+DEFAULT_MEM_MB = 8192    # fallback when no base_memory_mb_by_mode data exists in workloads_db
 MEM_HEADROOM_FACTOR = 1.2   # 20% headroom on top of measured base memory
 from .utilities import (
         err,
         warn,
         info,
         get_simpoints,
+        get_mode_specific_base_memory,
         write_docker_command_to_file,
         prepare_simulation,
         finish_simulation,
@@ -536,17 +537,17 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
 
                     # TODO: Rewrite with sbatch arrays
 
-                    # Compute per-simpoint memory request from workloads_db base_memory_mb
+                    # Compute per-simpoint memory request from workloads_db base_memory_mb_by_mode for this simulation mode.
                     base_memory_mb = None
                     try:
                         wl_entry = memory_db[suite][subsuite][workload]
+                        lookup_mode = sim_mode
                         if str(cluster_id) == "0":
-                            # pt-mode workload — base_memory_mb stored at workload level
-                            base_memory_mb = wl_entry.get("base_memory_mb")
+                            base_memory_mb = get_mode_specific_base_memory(wl_entry, lookup_mode, wl_entry)
                         else:
                             for sp in wl_entry["simpoints"]:
                                 if str(sp["cluster_id"]) == str(cluster_id):
-                                    base_memory_mb = sp.get("base_memory_mb")
+                                    base_memory_mb = get_mode_specific_base_memory(sp, lookup_mode, wl_entry)
                                     break
                     except (KeyError, TypeError):
                         pass
@@ -571,7 +572,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                         continue
 
                     if fallback_mb is not None:
-                        print(f"WARN: no base_memory_mb for {suite}/{subsuite}/{workload} cluster={cluster_id} config={config_key}, using fallback={fallback_mb}MB + overhead={overhead_mb}MB = {mem_mb}MB")
+                        print(f"WARN: no base_memory_mb_by_mode entry for {suite}/{subsuite}/{workload} cluster={cluster_id} sim_mode={sim_mode} config={config_key}, using fallback={fallback_mb}MB + overhead={overhead_mb}MB = {mem_mb}MB")
 
                     workload_home = f"{suite}/{subsuite}/{workload}"
                     write_docker_command_to_file(user, local_uid, local_gid, workload, workload_home, experiment_name,
@@ -628,9 +629,9 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
             # This error prints a message. Now stop execution
             return
 
-        # Load workloads_db.json for base_memory_mb lookups.
+        # Load workloads_db.json for base_memory_mb_by_mode lookups.
         # When top_simpoint=true, workloads_data comes from workloads_top_simp.json which lacks
-        # base_memory_mb; always read from the full DB instead.
+        # base_memory_mb_by_mode; always read from the full DB instead.
         try:
             with open(Path(infra_dir) / "workloads" / "workloads_db.json") as _fh:
                 memory_db = json.load(_fh)
