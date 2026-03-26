@@ -2306,7 +2306,7 @@ def _iter_descriptor_collect_mem_targets(
         if not isinstance(workload_entry, dict):
             return
 
-        sim_mode = infra_utils.normalize_simulation_mode(requested_mode)
+        sim_mode = requested_mode if requested_mode in infra_utils.VALID_SIMULATION_MODES else None
         if sim_mode is None:
             sim_mode = infra_utils.get_default_simulation_mode(workload_entry)
         if sim_mode is None:
@@ -2384,9 +2384,8 @@ def _resolve_collect_mem_mode(
     workloads_db: Dict[str, Any],
     infra_utils: Any,
 ) -> Tuple[Optional[str], Optional[str]]:
-    normalized_log_mode = infra_utils.normalize_simulation_mode(log_sim_mode)
-    if normalized_log_mode is not None:
-        return normalized_log_mode, None
+    if log_sim_mode in infra_utils.VALID_SIMULATION_MODES:
+        return log_sim_mode, None
 
     key = (suite, subsuite, workload, cluster_id_str)
     descriptor_modes = descriptor_mode_map.get(key, set())

@@ -20,7 +20,6 @@ from .utilities import (
         info,
         get_simpoints,
         get_mode_specific_base_memory,
-        normalize_simulation_mode,
         write_docker_command_to_file,
         prepare_simulation,
         finish_simulation,
@@ -542,7 +541,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                     base_memory_mb = None
                     try:
                         wl_entry = memory_db[suite][subsuite][workload]
-                        lookup_mode = normalize_simulation_mode(sim_mode)
+                        lookup_mode = sim_mode
                         if str(cluster_id) == "0":
                             base_memory_mb = get_mode_specific_base_memory(wl_entry, lookup_mode, wl_entry)
                         else:

@@ -30,13 +30,7 @@ importlib.reload(extract_top_simpoints)
 DEFAULT_CONDA_ENV = "scarabinfra"
 _docker_client = None
 BASE_MEMORY_BY_MODE_KEY = "base_memory_mb_by_mode"
-SIMULATION_MODE_ALIASES = {
-    "exec-driven": "exec",
-    "exec_driven": "exec",
-    "execution-driven": "exec",
-    "execution_driven": "exec",
-}
-
+VALID_SIMULATION_MODES = ("memtrace", "pt", "exec")
 
 def get_docker_client():
     global _docker_client
@@ -70,28 +64,16 @@ def note(msg: str, level: int):
         print("INFO:", msg)
 
 
-def normalize_simulation_mode(sim_mode: Optional[str]) -> Optional[str]:
-    if sim_mode is None:
-        return None
-    normalized = str(sim_mode).strip()
-    if not normalized:
-        return None
-    return SIMULATION_MODE_ALIASES.get(normalized, normalized)
-
-
 def get_default_simulation_mode(workload_entry: dict) -> Optional[str]:
     simulation = workload_entry.get("simulation")
     if not isinstance(simulation, dict):
         return None
-    prioritized = normalize_simulation_mode(simulation.get("prioritized_mode"))
-    if prioritized and prioritized in simulation:
+    prioritized = simulation.get("prioritized_mode")
+    if prioritized in VALID_SIMULATION_MODES and prioritized in simulation:
         return prioritized
-    for candidate in ("memtrace", "pt", "exec"):
+    for candidate in VALID_SIMULATION_MODES:
         if candidate in simulation:
             return candidate
-    for candidate in simulation:
-        if candidate != "prioritized_mode":
-            return normalize_simulation_mode(candidate)
     return None
 
 
@@ -99,7 +81,7 @@ def get_mode_specific_base_memory(entry: dict, sim_mode: Optional[str], workload
     if not isinstance(entry, dict):
         return None
 
-    normalized_mode = normalize_simulation_mode(sim_mode)
+    normalized_mode = sim_mode if sim_mode in VALID_SIMULATION_MODES else None
     by_mode = entry.get(BASE_MEMORY_BY_MODE_KEY)
     if isinstance(by_mode, dict):
         if normalized_mode is not None:
@@ -116,7 +98,9 @@ def set_mode_specific_base_memory(entry: dict, sim_mode: Optional[str], base_mem
     if not isinstance(entry, dict):
         return None
 
-    normalized_mode = normalize_simulation_mode(sim_mode) or get_default_simulation_mode(workload_entry or entry)
+    normalized_mode = sim_mode if sim_mode in VALID_SIMULATION_MODES else None
+    if normalized_mode is None:
+        normalized_mode = get_default_simulation_mode(workload_entry or entry)
     if normalized_mode is None:
         return None
 
@@ -1630,20 +1614,20 @@ def parse_job_log_simulation_mode(log_lines) -> Optional[str]:
         return None
 
     first_parts = log_lines[0].split(" ")
-    if len(first_parts) >= 5 and first_parts[0] == "Running":
-        sim_mode = normalize_simulation_mode(first_parts[4])
-        if sim_mode is not None:
-            return sim_mode
+    if len(first_parts) >= 5 and first_parts[0] == "Running" and first_parts[4] in VALID_SIMULATION_MODES:
+        return first_parts[4]
 
     for line in log_lines[1:8]:
         stripped = line.strip()
         if stripped.startswith("Simulation mode:"):
-            return normalize_simulation_mode(stripped.split(":", 1)[1].strip())
+            sim_mode = stripped.split(":", 1)[1].strip()
+            if sim_mode in VALID_SIMULATION_MODES:
+                return sim_mode
         if stripped.startswith("Script name:"):
             script_name = os.path.basename(stripped.split(":", 1)[1].strip())
             match = re.search(r"_(memtrace|pt|exec)_[^/_]+(?:_tmp_run)?\.sh$", script_name)
             if match:
-                return normalize_simulation_mode(match.group(1))
+                return match.group(1)
 
     return None
 
