@@ -12,8 +12,9 @@ import json
 from pathlib import Path
 
 # Per-simpoint memory scheduling constants
-DEFAULT_MEM_MB = 8192    # fallback when no base_memory_mb_by_mode data exists in workloads_db
-MEM_HEADROOM_FACTOR = 1.2   # 20% headroom on top of measured base memory
+DEFAULT_MEM_MB = 4096    # fallback when no base_memory_mb data exists in workloads_db
+MEM_HEADROOM_MB = 1024   # fixed +1 GiB on top of workloads_db base_memory_mb for Slurm --mem
+
 from .utilities import (
         err,
         warn,
@@ -552,7 +553,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                     except (KeyError, TypeError):
                         pass
                     if base_memory_mb is not None:
-                        mem_mb = int(base_memory_mb * MEM_HEADROOM_FACTOR) + overhead_mb
+                        mem_mb = int(base_memory_mb) + MEM_HEADROOM_MB + overhead_mb
                         fallback_mb = None
                     else:
                         fallback_mb = (descriptor_data.get("mem") or {}).get("fallback_mb") or DEFAULT_MEM_MB
