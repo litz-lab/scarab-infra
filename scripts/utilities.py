@@ -1715,6 +1715,16 @@ def iter_latest_job_logs_with_mode(
     for (config, suite, subsuite, workload, cluster_id_str, _sim_mode_key), (job_id_int, log_path, sim_mode) in latest.items():
         yield (job_id_int, log_path, config, suite, subsuite, workload, cluster_id_str, sim_mode)
 
+def _scrub_ignorable_slurm_job_log_noise(log_text: str) -> str:
+    """Drop known non-fatal Slurm lines that trip substring-based error heuristics in status."""
+    out = []
+    for line in log_text.splitlines(keepends=True):
+        low = line.lower()
+        if "slurmstepd" in low and "unable to unlink domain socket" in low:
+            continue
+        out.append(line)
+    return "".join(out)
+
 
 def print_simulation_status_summary(
     descriptor_data,
@@ -1872,19 +1882,21 @@ def print_simulation_status_summary(
             except OSError:
                 has_csv = False
 
+            status_scan_text = _scrub_ignorable_slurm_job_log_noise(contents_after_docker)
+
             # If slurm cancelled wrapper execution but results were already produced, treat as completed.
-            if "cancelled" in contents_after_docker.lower() and has_csv:
+            if "cancelled" in status_scan_text.lower() and has_csv:
                 completed[config] += 1
                 continue
 
             if all_nodes:
                 for node in all_nodes:
-                    if f"{node}: error:" in contents_after_docker:
+                    if f"{node}: error:" in status_scan_text:
                         error_runs.add(str(log_path))
                         prep_failed[config] += 1
                         prep_err = 1
 
-                        if "oom_kill" in contents_after_docker:
+                        if "oom_kill" in status_scan_text:
                             oom_killed_sps += 1
                             if config not in oom_killed:
                                 oom_killed.append(config)
@@ -1893,13 +1905,13 @@ def print_simulation_status_summary(
                 continue
 
             error = 0
-            if 'Segmentation fault' in contents_after_docker:
+            if 'Segmentation fault' in status_scan_text:
                 error = 1
 
-            if 'error' in contents_after_docker.lower():
+            if 'error' in status_scan_text.lower():
                 error = 1
 
-            if "Completed Simulation" in contents_after_docker and not error:
+            if "Completed Simulation" in status_scan_text and not error:
                 if has_csv:
                     completed[config] += 1
                     continue
