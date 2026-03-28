@@ -121,7 +121,7 @@ class Experiment:
         if aggregation_level == "Workload":
             for c in config:
                 for w in workload:
-                    selected_simpoints = [col for col in self.data.columns if col.startswith(f"{c} {w}")]
+                    selected_simpoints = [col for col in self.data.columns if col.startswith(f"{c} {w} ")]
 
                     for stat in stats:
                         values = list(self.data[selected_simpoints][self.data["stats"] == stat].iloc[0])
