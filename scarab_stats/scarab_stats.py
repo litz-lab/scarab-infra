@@ -121,7 +121,7 @@ class Experiment:
         if aggregation_level == "Workload":
             for c in config:
                 for w in workload:
-                    selected_simpoints = [col for col in self.data.columns if col.startswith(f"{c} {w}")]
+                    selected_simpoints = [col for col in self.data.columns if col.startswith(f"{c} {w} ")]
 
                     for stat in stats:
                         values = list(self.data[selected_simpoints][self.data["stats"] == stat].iloc[0])
@@ -136,7 +136,7 @@ class Experiment:
 
                     # Set selected simpoints to all possible if not provided
                     if simpoints == None:
-                        selected_simpoints = [col.split(" ")[-1] for col in self.data.columns if col.startswith(f"{c} {w}")]
+                        selected_simpoints = [col.split(" ")[-1] for col in self.data.columns if col.startswith(f"{c} {w} ")]
                     else: selected_simpoints = simpoints
 
                     for sp in selected_simpoints:
@@ -148,7 +148,7 @@ class Experiment:
             for c in config:
                 config_data = {stat:[] for stat in stats}
                 for w in workload:
-                    selected_simpoints = [col for col in self.data.columns if col.startswith(f"{c} {w}")]
+                    selected_simpoints = [col for col in self.data.columns if col.startswith(f"{c} {w} ")]
 
                     for stat in stats:
                         values = list(self.data[selected_simpoints][self.data["stats"] == stat].iloc[0])
@@ -2269,7 +2269,7 @@ class stat_aggregator:
 
         to_drop_for_data = []
         for col in baseline_raw_data.columns:
-            if f"{config} {workload}" not in col:
+            if f"{config} {workload} " not in col:
                 to_drop_for_data.append(col)
 
         baseline_data = baseline_raw_data.drop(columns=to_drop_for_data)
@@ -2287,7 +2287,7 @@ class stat_aggregator:
         if baseline_config != None:
             to_drop_for_baseline_config = []
             for col in baseline_raw_data.columns:
-                if f"{baseline_config} {workload}" not in col:
+                if f"{baseline_config} {workload} " not in col:
                     to_drop_for_baseline_config.append(col)
 
             baseline_data_baseline_config = baseline_raw_data.drop(columns=to_drop_for_baseline_config)
