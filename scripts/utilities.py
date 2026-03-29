@@ -1957,6 +1957,7 @@ def print_simulation_status_summary(
         elif calculated_logfile_count != expected_log_count:
             warn("Log file count doesn't match number of accounted jobs.", dbg_lvl)
 
+    print("PRINTING SUMMARY TABLE:")
     print(generate_table(data))
 
     if error_runs:
