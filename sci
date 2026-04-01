@@ -2044,10 +2044,11 @@ def load_simulation_experiment(
 
     stats_path = Path(root_dir) / "simulations" / experiment_name / "collected_stats.csv"
 
-    if not hash_current and exp_status_hash != None:
+    if not hash_current:
         info("Status hash is not current (or missing). Stat recollect required.")
-        with open(experiment_path / "status_hash.txt", "w") as f:
-            f.write(str(exp_status_hash))
+        if exp_status_hash != None:
+            with open(experiment_path / "status_hash.txt", "w") as f:
+                f.write(str(exp_status_hash))
 
         if stats_path.is_file(): os.remove(stats_path)
 
