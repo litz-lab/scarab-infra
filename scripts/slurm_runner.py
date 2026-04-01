@@ -175,7 +175,7 @@ def check_available_nodes(dbg_lvl = 1):
             all_nodes.append(node)
 
             # Index -1 is STATE. Skip if not partially available
-            if line[-1] != 'idle' and line[-1] != 'mixed':
+            if line[-1] != 'idle' and line[-1] != 'mix' and line[-1] != 'alloc':
                 info(f"{node} is not available. It is '{line[-1]}'", dbg_lvl)
                 continue
 
@@ -274,7 +274,12 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
         if node in available_slurm_nodes:
             print(f"\033[92mAVAILABLE:   {node}\033[0m")
         else:
-            print(f"\033[31mUNAVAILABLE: {node}\033[0m")
+            print(f"\033[31mUNREACHABLE: {node}\033[0m")
+
+    cmd = f"squeue --state=PENDING | grep -B 10000 '{user}' | wc -l"
+    output = subprocess.check_output(cmd, shell=True, timeout=5).decode("utf-8").strip()
+    jobs_ahead = int(output) - 2 if output.isnumeric() else -1 # subtract 2 to exclude the header line and job itself
+    if jobs_ahead >= 0: print(f"Jobs ahead in queue: {jobs_ahead}")
 
     # Get dictionary of {node: [processes]}
     # NOTE: This is a list of run commands, not the actual containers. Container name will be same miunus tmp_run.sh
