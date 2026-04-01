@@ -1006,7 +1006,9 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
         dest_scarab_bin = f"{experiment_dir}/scarab/src/scarab"
         build_mode = scarab_build if scarab_build else "opt"
 
-        binary_pattern = re.compile(r"^scarab_([0-9a-fA-F]+)(?:_(\d+))?(?:\.(opt|dbg))?$")
+        binary_pattern = re.compile(
+            r"^scarab_([0-9a-fA-F]+)(?:_(\d+))?(?:\.(opt-avx|opt|dbg))?$"
+        )
 
         # Make sure each requested scarab binary is present; build from git hash if missing
         for bin_name in scarab_binaries:

@@ -1540,8 +1540,8 @@ def run_build_scarab(descriptor_name: str) -> int:
         raise StepError("Unable to determine docker image from descriptor simulations.")
 
     build_mode: str = descriptor.get("scarab_build") or "opt"
-    if build_mode not in {"opt", "dbg"}:
-        raise StepError("Build mode must be 'opt' or 'dbg'.")
+    if build_mode not in {"opt", "opt-avx", "dbg"}:
+        raise StepError("Build mode must be 'opt', 'opt-avx', or 'dbg'.")
 
     try:
         githash = run_command(["git", "rev-parse", "--short", "HEAD"], capture=True, check=True, input_data=None)
