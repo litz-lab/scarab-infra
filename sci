@@ -1904,10 +1904,12 @@ def run_init(args: argparse.Namespace) -> int:
         )
         info(
             "For users who need to download traces from the shared Google Drive, prepare cookies.txt before continuing:"
-            "\n1. On your local machine, open the shared folder in a logged-in browser session."
+            "\n1. Open this 'entry-level' folder in a logged-in browser session:"
+            "\n   https://drive.google.com/drive/folders/1y9bgl1rA13AhEFx-1ZbodYZIa0Q5QJuW"
             "\n2. Install a cookies export extension (e.g. 'Get cookies.txt LOCALLY')."
-            "\n3. Use the extension's 'Export All Cookies' button to save the folder cookies as cookies.txt."
-            "\n4. Upload cookies.txt to this server before continuing (for example: scp cookies.txt user@host:~/.cache/gdown/cookies.txt)."
+            "\n3. Use the extension to export cookies in **Netscape** format and save as 'cookies.txt'."
+            f"\n4. Upload cookies.txt to this server at: {COOKIES_CACHE_PATH}"
+            "\n   (Example: scp cookies.txt user@host:~/.cache/gdown/cookies.txt)"
         )
         if not confirm("Ready to continue with the setup now?", default=True):
             print("Re-run `./sci --init` after cookies.txt is uploaded.")
