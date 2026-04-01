@@ -1793,6 +1793,7 @@ def print_simulation_status_summary(
     total_log_count = len(latest_logs) + len(_unparseable)
 
     error_runs = set()
+    sim_log_to_job_log = {}
     skipped = 0
 
     confs = list(descriptor_data["configurations"].keys())
@@ -1830,6 +1831,7 @@ def print_simulation_status_summary(
                 cluster_id,
                 "sim.log",
             )
+            sim_log_to_job_log[scarab_logfile_path] = str(log_path)
 
             if config not in confs:
                 if config not in not_in_experiment:
@@ -1967,15 +1969,39 @@ def print_simulation_status_summary(
         first_error_log = error_list[0]
         print()
         print(f"\033[94mTail of the first error ({first_error_log}):")
+        fallback_log = sim_log_to_job_log.get(first_error_log)
         try:
             with open(first_error_log, "r", errors="replace") as first_error_log_file:
                 tail_lines = list(deque(first_error_log_file, maxlen=20))
             if tail_lines:
                 print("".join(tail_lines).rstrip("\n"))
+            elif fallback_log:
+                print(f"<empty log file; showing runner log fallback: {fallback_log}>")
+                try:
+                    with open(fallback_log, "r", errors="replace") as fallback_log_file:
+                        fallback_tail_lines = list(deque(fallback_log_file, maxlen=20))
+                    if fallback_tail_lines:
+                        print("".join(fallback_tail_lines).rstrip("\n"))
+                    else:
+                        print("<runner log is also empty>")
+                except OSError as fallback_exc:
+                    print(f"<unable to read runner log fallback: {fallback_exc}>")
             else:
                 print("<empty log file>")
         except OSError as exc:
-            print(f"<unable to read log file: {exc}>")
+            if fallback_log:
+                print(f"<unable to read log file: {exc}; showing runner log fallback: {fallback_log}>")
+                try:
+                    with open(fallback_log, "r", errors="replace") as fallback_log_file:
+                        fallback_tail_lines = list(deque(fallback_log_file, maxlen=20))
+                    if fallback_tail_lines:
+                        print("".join(fallback_tail_lines).rstrip("\n"))
+                    else:
+                        print("<runner log is also empty>")
+                except OSError as fallback_exc:
+                    print(f"<unable to read runner log fallback: {fallback_exc}>")
+            else:
+                print(f"<unable to read log file: {exc}>")
         print("\033[0m", end="")
     else:
         print(f"\033[92mNo errors found in log files\033[0m")
