@@ -274,7 +274,7 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
         if node in available_slurm_nodes:
             print(f"\033[92mAVAILABLE:   {node}\033[0m")
         else:
-            print(f"\033[31mUNREACHABLE: {node}\033[0m")
+            print(f"\033[31mUNAVAILABLE: {node}\033[0m")
 
     cmd = f"squeue --state=PENDING | grep -B 10000 '{user}' | wc -l"
     output = subprocess.check_output(cmd, shell=True, timeout=5).decode("utf-8").strip()
