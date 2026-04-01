@@ -32,6 +32,7 @@ from .utilities import (
         get_weight_by_cluster_id,
         image_exist,
         check_can_skip,
+        remove_old_job_logs,
         print_simulation_status_summary,
         run_on_node
         )
@@ -582,6 +583,8 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                                                  seg_size, architecture, cluster_id, warmup, trace_warmup, trace_type,
                                                  trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir, slurm=True)
                     tmp_files.append(filename)
+
+                    remove_old_job_logs(f"{experiment_dir}/logs", config_key, suite, subsuite, workload, cluster_id)
 
                     result = subprocess.run(["touch", f"{experiment_dir}/logs/job_%j.out"], capture_output=True, text=True, check=True)
                     result = subprocess.run((sbatch_cmd + filename).split(" "), capture_output=True, text=True)
