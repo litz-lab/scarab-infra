@@ -2017,14 +2017,19 @@ def load_simulation_experiment(
         print("Descriptor must include 'root_dir' and 'experiment'.")
         return None
 
-    # TODO: Recollect here!
-    completed = subprocess.run(
+    status_run = subprocess.run(
             ["./sci", "--status", descriptor_name],
             text=True,
             capture_output=True
         )
-    experiment_status = completed.stdout.strip().split("PRINTING SUMMARY TABLE:")[1] if completed.returncode == 0 else None
-    exp_status_hash = hashlib.md5(experiment_status.encode()).hexdigest() if experiment_status else None
+
+    exp_status_full = status_run.stdout.strip()
+    summary_present = "PRINTING SUMMARY TABLE:" in exp_status_full
+    if not summary_present:
+        print("WARN: Status failed, summary table not produced for descriptor", descriptor_name)
+
+    exp_status = exp_status_full.split("PRINTING SUMMARY TABLE:")[1] if summary_present and status_run.returncode == 0 else None
+    exp_status_hash = hashlib.md5(exp_status.encode()).hexdigest() if exp_status else None
 
     hash_current = False
 
@@ -2039,7 +2044,7 @@ def load_simulation_experiment(
 
     stats_path = Path(root_dir) / "simulations" / experiment_name / "collected_stats.csv"
 
-    if not hash_current:
+    if not hash_current and exp_status_hash != None:
         info("Status hash is not current (or missing). Stat recollect required.")
         with open(experiment_path / "status_hash.txt", "w") as f:
             f.write(str(exp_status_hash))
