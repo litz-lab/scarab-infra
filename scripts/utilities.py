@@ -1609,6 +1609,31 @@ def parse_job_log_header(first_line: str) -> Optional[Tuple[str, str, str, str, 
     return (config, suite, subsuite, workload, cluster_id_str)
 
 
+def remove_old_job_logs(log_dir: str, config_key: str, suite: str, subsuite: str, workload: str, cluster_id) -> int:
+    """Remove old job log files matching the given (config, workload, simpoint).
+
+    Scans ``log_dir`` for ``job_*.out`` files whose header matches the target
+    key and deletes them so that stale logs don't inflate counts in --status.
+
+    Returns the number of removed files.
+    """
+    log_path = Path(log_dir)
+    if not log_path.is_dir():
+        return 0
+    target_key = (config_key, suite, subsuite, workload, str(cluster_id))
+    removed = 0
+    for old_log in log_path.glob("job_*.out"):
+        try:
+            with old_log.open(encoding="utf-8", errors="replace") as fh:
+                hdr = parse_job_log_header(fh.readline().strip())
+            if hdr == target_key:
+                old_log.unlink()
+                removed += 1
+        except OSError:
+            pass
+    return removed
+
+
 def parse_job_log_simulation_mode(log_lines) -> Optional[str]:
     if not log_lines:
         return None

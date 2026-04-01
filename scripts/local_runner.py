@@ -24,7 +24,8 @@ from .utilities import (
         get_weight_by_cluster_id,
         image_exist,
         check_can_skip,
-        print_simulation_status_summary
+        remove_old_job_logs,
+        print_simulation_status_summary,
         )
 
 # Check if a container is running on local
@@ -212,11 +213,10 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                                                  trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir)
                     tmp_files.append(filename)
                     command = '/bin/bash ' + filename
+                    _log_dir = os.path.join(docker_home, "simulations", experiment_name, "logs")
+                    remove_old_job_logs(_log_dir, config_key, suite, subsuite, workload, cluster_id)
                     log_path = os.path.join(
-                        docker_home,
-                        "simulations",
-                        experiment_name,
-                        "logs",
+                        _log_dir,
                         f"job_{log_index}.out",
                     )
                     log_index += 1
