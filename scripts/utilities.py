@@ -1415,6 +1415,8 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
             f.write("docker exec --privileged $CONTAINER_NAME /bin/bash -c '/usr/local/bin/root_entrypoint.sh'\n")
             f.write(f"docker exec --user={user} $CONTAINER_NAME /bin/bash -c \"source /usr/local/bin/user_entrypoint.sh && {scarab_cmd}\" || echo \"Scarab error detected\"\n")
             f.write("cleanup_container\n")
+            if scarab_mode == "exec":
+                f.write("docker exec --privileged $CONTAINER_NAME /bin/bash -c \"echo 2 | sudo tee /proc/sys/kernel/randomize_va_space\"\n")
             f.write("echo \"Completed Simulation\"\n")
             f.write(f"sync {docker_home}/simulations/{experiment_name}/logs")
     except Exception as e:
