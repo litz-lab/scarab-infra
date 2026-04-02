@@ -762,6 +762,13 @@ def _build_missing_scarab_version(
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(built_bin, dest)
             info(f"Cached new scarab binary at {dest}", dbg_lvl)
+            
+            built_pin_exec = Path(scarab_path) / "src" / "pin" / "pin_exec" / "obj-intel64" / "pin_exec.so"
+            if built_pin_exec.is_file():
+                pin_cache_name = _cache_bin_name(f"pin_exec_{bin_name}", build_mode)
+                pin_dest = Path(infra_dir) / "scarab_builds" / pin_cache_name
+                shutil.copy2(built_pin_exec, pin_dest)
+            info(f"Cached new pin_exec binary at {pin_dest}", dbg_lvl)
     except subprocess.CalledProcessError as exc:
         err(
             f"Failed to checkout {target_hash} in scarab repository: {exc.stderr or exc.stdout or exc}",
@@ -906,6 +913,10 @@ def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, git
                     githash_name = _cache_bin_name(f"scarab_{scarab_githash}_0", build_mode)
                     githash_scarab_bin = f"{infra_dir}/scarab_builds/{githash_name}"
                     shutil.copy2(scarab_bin, githash_scarab_bin)
+                    pin_exec_src = f"{scarab_path}/src/pin/pin_exec/obj-intel64/pin_exec.so"
+                    if os.path.isfile(pin_exec_src):
+                        pin_cache_name = _cache_bin_name(f"pin_exec_scarab_{scarab_githash}_0", build_mode)
+                        shutil.copy2(pin_exec_src, f"{infra_dir}/scarab_builds/{pin_cache_name}")
                 elif not current_indicies:
                     githash_name = _cache_bin_name(f"scarab_{scarab_githash}", build_mode)
                     githash_scarab_bin = f"{infra_dir}/scarab_builds/{githash_name}"
@@ -918,6 +929,14 @@ def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, git
 
                 current_path.unlink()
                 current_path.symlink_to(Path(githash_scarab_bin).name)
+                
+                pin_current_name = _cache_bin_name("pin_exec_scarab_current", build_mode)
+                pin_current_path = Path(f"{infra_dir}/scarab_builds/{pin_current_name}")
+                pin_githash_name = githash_name.replace("scarab_", "pin_exec_scarab_", 1)
+                if Path(f"{infra_dir}/scarab_builds/{pin_githash_name}").exists():
+                    if pin_current_path.exists() or pin_current_path.is_symlink():
+                        pin_current_path.unlink()
+                    pin_current_path.symlink_to(pin_githash_name)
         else:
             info(f"Current scarab binary differs from cached version. Updating cache...", dbg_lvl)
 
@@ -941,11 +960,23 @@ def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, git
 
             info(f"Copying scarab binary for {githash_scarab_bin} to cache", dbg_lvl)
             shutil.copy2(scarab_bin, githash_scarab_bin)
+            pin_exec_src = f"{scarab_path}/src/pin/pin_exec/obj-intel64/pin_exec.so"
+            if os.path.isfile(pin_exec_src):
+                pin_cache = githash_name.replace("scarab_", "pin_exec_scarab_", 1)
+                shutil.copy2(pin_exec_src, f"{infra_dir}/scarab_builds/{pin_cache}")
             current_path = Path(current_scarab_bin)
             if current_path.exists() or current_path.is_symlink():
                 current_path.unlink()
             # Keep scarab_current as a symlink to the hash-specific binary for traceability.
             current_path.symlink_to(Path(githash_scarab_bin).name)
+            
+            pin_current_name = _cache_bin_name("pin_exec_scarab_current", build_mode)
+            pin_current_path = Path(f"{infra_dir}/scarab_builds/{pin_current_name}")
+            pin_githash_name = githash_name.replace("scarab_", "pin_exec_scarab_", 1)
+            if Path(f"{infra_dir}/scarab_builds/{pin_githash_name}").exists():
+                if pin_current_path.exists() or pin_current_path.is_symlink():
+                    pin_current_path.unlink()
+                pin_current_path.symlink_to(pin_githash_name)
 
     except Exception as e:
         err(f"Scarab build failed! {str(e)}", dbg_lvl)
@@ -1128,8 +1159,22 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
                 except Exception:
                     os.system(f"cp {scarab_ver} {dest_mode}")
 
+            pin_cache_name = _cache_bin_name(f"pin_exec_{bin_name}", build_mode)
+            if not pin_cache_name.endswith(".so"):
+                pin_cache_name += ".so"
+            
+            pin_cached = f"{infra_dir}/scarab_builds/{pin_cache_name}"
+            pin_obj_dir = dest_dir / "pin" / "pin_exec" / "obj-intel64"
+            pin_obj_dir.mkdir(parents=True, exist_ok=True)
+            pin_dest = pin_obj_dir / f"pin_exec_{bin_name}.so"
+
+            pin_src = pin_cached if os.path.isfile(pin_cached) else pin_exec_so
+            try:
+                shutil.copy2(pin_src, pin_dest)
+            except Exception:
+                os.system(f"cp {pin_src} {pin_dest}")
+
         os.system(f"cp {arch_params} {experiment_dir}/scarab/src")
-        os.system(f"cp {pin_exec_so} {experiment_dir}/scarab/src/pin/pin_exec/obj-intel64/pin_exec.so")
 
         # Export hash-specific PARAMS so each scarab binary can use matching defaults.
         for bin_name in scarab_binaries:

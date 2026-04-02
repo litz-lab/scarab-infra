@@ -30,10 +30,20 @@ OUTDIR=$SIMHOME
 segID=$SEGMENT_ID
 #echo "SEGMENT ID: $segID"
 mkdir -p $OUTDIR/$segID
-cp $SCARABHOME/src/PARAMS.$SCARABARCH $OUTDIR/$segID/PARAMS.in
-cp $SCARABHOME/src/pin/pin_exec/obj-intel64/pin_exec.so $OUTDIR/$segID/pin_exec.so
-cd $OUTDIR/$segID
+PARAMS_FILE="$SCARABHOME/src/PARAMS.$SCARABARCH"
+if [[ "$SCARAB_BIN" =~ ^scarab_([0-9a-fA-F]+) ]]; then
+  HASH="${BASH_REMATCH[1]}"
+  PARAMS_BY_HASH="$SCARABHOME/src/PARAMS.$SCARABARCH.$HASH"
+  if [ -f "$PARAMS_BY_HASH" ]; then
+    PARAMS_FILE="$PARAMS_BY_HASH"
+  fi
+fi
+cp "$PARAMS_FILE" "$OUTDIR/$segID/PARAMS.in"
 
+PIN_EXEC="$SCARABHOME/src/pin/pin_exec/obj-intel64/pin_exec_${SCARAB_BIN}.so"
+cp "$PIN_EXEC" "$OUTDIR/$segID/pin_exec.so"
+
+cd $OUTDIR/$segID
 BINARY_DIR=$(dirname ${BINCMD%% *})
 cd $BINARY_DIR
 
@@ -51,6 +61,7 @@ instLimit=$(( $roiEnd - $roiStart + 1 ))
 
 scarabCmd="python3 $SCARABHOME/bin/scarab_launch.py --program=\"$BINCMD\" \
   --scarab=\"$SCARABHOME/src/$SCARAB_BIN\" \
+  --frontend_pin_tool=\"$OUTDIR/$segID/pin_exec.so\" \
   --simdir=\"$SIMHOME/$SCENARIONUM/$segID\" \
   --pintool_args=\"-hyper_fast_forward_count $roiStart\" \
   --scarab_args=\"--use_fetched_count 1 --uop_cache_insert_only_onpath 1 --inst_limit $instLimit --full_warmup $WARMUP $SCARABPARAMS\" \
