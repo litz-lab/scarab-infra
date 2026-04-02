@@ -1300,7 +1300,7 @@ def generate_single_scarab_run_command(user, workload_home, experiment, config_k
             f"\\\"{config}\\\" "                             # $3 SCARABPARAMS
             f"\\\"{seg_size}\\\" "                           # $4 SEGSIZE
             f"\\\"{arch}\\\" "                               # $5 SCARABARCH
-            f"\\\"\\\" "                                     # $6 TRACESSIMP (unused)
+            f"\\\"{warmup}\\\" "                             # $6 WARMUP
             f"\\\"/home/{user}/simulations/{experiment}/scarab\\\" "  # $7 SCARABHOME
             f"\\\"{cluster_id}\\\" "                         # $8 SEGMENT_ID
             f"\\\"{env_vars_safe}\\\" "                      # $9 ENVVAR
