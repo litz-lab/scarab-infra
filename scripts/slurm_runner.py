@@ -476,7 +476,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
     traces_dir = descriptor_data["traces_dir"]
     configs = descriptor_data["configurations"]
     simulations = descriptor_data["simulations"]
-    application_dir = descriptor_data["application_dir"]
+    application_dir = descriptor_data.get("application_dir", ".")
     total_sims = 0
     docker_prefix_list = get_image_list(simulations, workloads_data)
 

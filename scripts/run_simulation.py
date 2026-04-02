@@ -108,7 +108,7 @@ def verify_descriptor(
 def open_interactive_shell(user, descriptor_name, descriptor_data, workloads_data, infra_dir, dbg_lvl = 1):
     experiment_name = descriptor_data["experiment"]
     scarab_path = descriptor_data["scarab_path"]
-    application_dir = descriptor_data["application_dir"]
+    application_dir = descriptor_data.get("application_dir", ".")
     scarab_binaries: List[str] = []
     configurations = descriptor_data.get("configurations") or {}
     if isinstance(configurations, dict):
