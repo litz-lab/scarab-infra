@@ -42,6 +42,9 @@
   "_visualize":"Visualization settings for ./sci --visualize. Configure baseline and counters.",
   "visualize":{
     "baseline":"this_pr",
+    "configs":[
+      "this_pr"
+    ],
     "counters":[
       "IPC"
     ]

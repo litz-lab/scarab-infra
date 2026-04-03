@@ -72,6 +72,9 @@
   "_visualize":"Visualization settings for ./sci --visualize. Configure baseline and counters.",
   "visualize":{
     "baseline":"icache_32k",
+    "configs":[
+      "icache_64k"
+    ],
     "counters":[
       "IPC",
       [
