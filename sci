@@ -255,6 +255,93 @@ def collect_stats_for_visualization(descriptor_path: Path, stats_path: Path) -> 
     return True
 
 
+def run_collect_stats(descriptor_name: str) -> int:
+    """Collect simulation stats into collected_stats.csv.
+
+    When the descriptor contains a ``collect_stats`` block with a ``configs``
+    list, only the named configurations are collected.  Otherwise all
+    configurations in the descriptor are collected.
+    """
+    try:
+        descriptor_path, descriptor = read_descriptor(descriptor_name)
+    except StepError as exc:
+        print(exc)
+        return 1
+
+    if descriptor.get("descriptor_type") != "simulation":
+        print("--collect-stats only supports simulation descriptors.")
+        return 1
+
+    missing = _check_descriptor_fields(descriptor, _SCHEMA_COLLECT_STATS)
+    if missing:
+        print(f"Descriptor missing required fields: {', '.join(missing)}")
+        return 1
+
+    root_dir = descriptor.get("root_dir")
+    experiment_name = descriptor.get("experiment")
+    if not root_dir or not experiment_name:
+        print("Descriptor must include 'root_dir' and 'experiment'.")
+        return 1
+
+    stats_path = Path(root_dir) / "simulations" / experiment_name / "collected_stats.csv"
+
+    # Resolve the config subset (if any) from the collect_stats block.
+    collect_block = descriptor.get("collect_stats") or {}
+    requested_configs: Optional[List[str]] = None
+    if isinstance(collect_block, dict):
+        raw_configs = collect_block.get("configs")
+        if isinstance(raw_configs, list) and raw_configs:
+            requested_configs = [str(c) for c in raw_configs if c is not None]
+
+    effective_descriptor_path = descriptor_path
+    tmp_descriptor: Optional[Path] = None
+
+    if requested_configs:
+        all_configs = descriptor.get("configurations", {})
+        if not isinstance(all_configs, dict):
+            print("Descriptor 'configurations' must be a dict.")
+            return 1
+
+        unknown = [c for c in requested_configs if c not in all_configs]
+        if unknown:
+            print(
+                "collect_stats.configs references unknown configurations: "
+                + ", ".join(unknown)
+            )
+            return 1
+
+        filtered_configs = {k: v for k, v in all_configs.items() if k in requested_configs}
+        tmp_descriptor_data = dict(descriptor)
+        tmp_descriptor_data["configurations"] = filtered_configs
+        tmp_dir = stats_path.parent / "tmp"
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+        tmp_descriptor = tmp_dir / f"_collect_stats_{descriptor_name}.json"
+        with tmp_descriptor.open("w", encoding="utf-8") as fh:
+            json.dump(tmp_descriptor_data, fh, indent=2)
+        effective_descriptor_path = tmp_descriptor
+        print(
+            f"Collecting stats for {len(filtered_configs)} configuration(s): "
+            + ", ".join(requested_configs)
+        )
+    else:
+        print("Collecting stats for all configurations in the descriptor.")
+
+    success = collect_stats_for_visualization(effective_descriptor_path, stats_path)
+
+    if tmp_descriptor and tmp_descriptor.is_file():
+        try:
+            tmp_descriptor.unlink()
+        except OSError:
+            pass
+
+    if not success:
+        print("Stat collection failed.")
+        return 1
+
+    print(f"Stats written to {stats_path}")
+    return 0
+
+
 def ensure_repo_on_path() -> None:
     repo_str = str(REPO_ROOT)
     if repo_str not in sys.path:
@@ -306,6 +393,8 @@ _SCHEMA_BUILD = {
 _SCHEMA_VISUALIZE    = {**_SCHEMA_SIM_BASE, "simulations": True, "configurations": True}
 _SCHEMA_PERF_ANALYZE = {**_SCHEMA_SIM_BASE, "simulations": True, "configurations": True}
 _SCHEMA_COLLECT_MEM  = {**_SCHEMA_SIM_BASE, "configurations": True}
+_SCHEMA_COLLECT_MEM   = {**_SCHEMA_SIM_BASE, "configurations": True}
+_SCHEMA_COLLECT_STATS = {**_SCHEMA_SIM_BASE, "simulations": True, "configurations": True}
 
 
 def read_descriptor(descriptor_name: str):
@@ -4117,6 +4206,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="Harvest Slurm MaxRSS from completed jobs and update mode-specific base_memory_mb_by_mode entries in workloads_db.json.",
     )
     parser.add_argument(
+        "--collect-stats",
+        dest="collect_stats",
+        metavar="DESCRIPTOR",
+        help="Collect simulation stats into collected_stats.csv for json/<DESCRIPTOR>.json. "
+             "Optionally reads collect_stats.configs from the descriptor to limit collection to specific configurations.",
+    )
+    parser.add_argument(
         "--perf-analyze",
         dest="perf_analyze",
         metavar="DESCRIPTOR",
@@ -4162,6 +4258,7 @@ def main() -> int:
         bool(args.perf),
         bool(args.visualize),
         bool(args.collect_mem),
+        bool(args.collect_stats),
         bool(args.perf_analyze),
         bool(args.kill),
         bool(args.status),
@@ -4180,6 +4277,7 @@ def main() -> int:
         args.perf,
         args.visualize,
         args.collect_mem,
+        args.collect_stats,
         args.perf_analyze,
         args.kill,
         args.status,
@@ -4276,6 +4374,8 @@ def main() -> int:
         return run_visualize(args.visualize)
     if args.collect_mem:
         return run_collect_mem(args.collect_mem)
+    if args.collect_stats:
+        return run_collect_stats(args.collect_stats)
     if args.perf_analyze:
         return run_perf_analyze(args.perf_analyze)
     if args.kill:
