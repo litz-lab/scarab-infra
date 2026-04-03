@@ -476,6 +476,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
     traces_dir = descriptor_data["traces_dir"]
     configs = descriptor_data["configurations"]
     simulations = descriptor_data["simulations"]
+    application_dir = descriptor_data.get("application_dir", ".")
     total_sims = 0
     docker_prefix_list = get_image_list(simulations, workloads_data)
 
@@ -581,7 +582,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                                                  docker_prefix, docker_container_name, traces_dir,
                                                  docker_home, githash, config_key, config, sim_mode, binary_name,
                                                  seg_size, architecture, cluster_id, warmup, trace_warmup, trace_type,
-                                                 trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir, slurm=True)
+                                                 trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir, application_dir, slurm=True)
                     tmp_files.append(filename)
 
                     remove_old_job_logs(f"{experiment_dir}/logs", config_key, suite, subsuite, workload, cluster_id)

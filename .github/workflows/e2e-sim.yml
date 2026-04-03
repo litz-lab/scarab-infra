@@ -41,6 +41,7 @@ jobs:
           d["root_dir"] = workspace + "/"
           d["scarab_path"] = workspace + "/scarab"
           d["traces_dir"] = workspace + "/traces_top_simpoint"
+          d["application_dir"] = workspace + "/"
           Path("json/top_simpoint_infra_ci.json").write_text(
               json.dumps(d, indent=2, separators=(',', ':')) + "\n"
           )

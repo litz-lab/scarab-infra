@@ -762,6 +762,13 @@ def _build_missing_scarab_version(
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(built_bin, dest)
             info(f"Cached new scarab binary at {dest}", dbg_lvl)
+            
+            built_pin_exec = Path(scarab_path) / "src" / "pin" / "pin_exec" / "obj-intel64" / "pin_exec.so"
+            if built_pin_exec.is_file():
+                pin_cache_name = _cache_bin_name(f"pin_exec_{bin_name}", build_mode)
+                pin_dest = Path(infra_dir) / "scarab_builds" / pin_cache_name
+                shutil.copy2(built_pin_exec, pin_dest)
+            info(f"Cached new pin_exec binary at {pin_dest}", dbg_lvl)
     except subprocess.CalledProcessError as exc:
         err(
             f"Failed to checkout {target_hash} in scarab repository: {exc.stderr or exc.stdout or exc}",
@@ -906,6 +913,10 @@ def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, git
                     githash_name = _cache_bin_name(f"scarab_{scarab_githash}_0", build_mode)
                     githash_scarab_bin = f"{infra_dir}/scarab_builds/{githash_name}"
                     shutil.copy2(scarab_bin, githash_scarab_bin)
+                    pin_exec_src = f"{scarab_path}/src/pin/pin_exec/obj-intel64/pin_exec.so"
+                    if os.path.isfile(pin_exec_src):
+                        pin_cache_name = _cache_bin_name(f"pin_exec_scarab_{scarab_githash}_0", build_mode)
+                        shutil.copy2(pin_exec_src, f"{infra_dir}/scarab_builds/{pin_cache_name}")
                 elif not current_indicies:
                     githash_name = _cache_bin_name(f"scarab_{scarab_githash}", build_mode)
                     githash_scarab_bin = f"{infra_dir}/scarab_builds/{githash_name}"
@@ -918,6 +929,14 @@ def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, git
 
                 current_path.unlink()
                 current_path.symlink_to(Path(githash_scarab_bin).name)
+                
+                pin_current_name = _cache_bin_name("pin_exec_scarab_current", build_mode)
+                pin_current_path = Path(f"{infra_dir}/scarab_builds/{pin_current_name}")
+                pin_githash_name = githash_name.replace("scarab_", "pin_exec_scarab_", 1)
+                if Path(f"{infra_dir}/scarab_builds/{pin_githash_name}").exists():
+                    if pin_current_path.exists() or pin_current_path.is_symlink():
+                        pin_current_path.unlink()
+                    pin_current_path.symlink_to(pin_githash_name)
         else:
             info(f"Current scarab binary differs from cached version. Updating cache...", dbg_lvl)
 
@@ -941,11 +960,23 @@ def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, git
 
             info(f"Copying scarab binary for {githash_scarab_bin} to cache", dbg_lvl)
             shutil.copy2(scarab_bin, githash_scarab_bin)
+            pin_exec_src = f"{scarab_path}/src/pin/pin_exec/obj-intel64/pin_exec.so"
+            if os.path.isfile(pin_exec_src):
+                pin_cache = githash_name.replace("scarab_", "pin_exec_scarab_", 1)
+                shutil.copy2(pin_exec_src, f"{infra_dir}/scarab_builds/{pin_cache}")
             current_path = Path(current_scarab_bin)
             if current_path.exists() or current_path.is_symlink():
                 current_path.unlink()
             # Keep scarab_current as a symlink to the hash-specific binary for traceability.
             current_path.symlink_to(Path(githash_scarab_bin).name)
+            
+            pin_current_name = _cache_bin_name("pin_exec_scarab_current", build_mode)
+            pin_current_path = Path(f"{infra_dir}/scarab_builds/{pin_current_name}")
+            pin_githash_name = githash_name.replace("scarab_", "pin_exec_scarab_", 1)
+            if Path(f"{infra_dir}/scarab_builds/{pin_githash_name}").exists():
+                if pin_current_path.exists() or pin_current_path.is_symlink():
+                    pin_current_path.unlink()
+                pin_current_path.symlink_to(pin_githash_name)
 
     except Exception as e:
         err(f"Scarab build failed! {str(e)}", dbg_lvl)
@@ -1095,6 +1126,9 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
         # Copy architectural params to scarab/src
         arch_params = f"{scarab_path}/src/PARAMS.{architecture}"
         os.system(f"mkdir -p {experiment_dir}/scarab/src/")
+        # Copy pin_exec.so to scarab/src/pin/pin_exec/obj-intel64/pin_exec.so
+        pin_exec_so = f"{scarab_path}/src/pin/pin_exec/obj-intel64/pin_exec.so"
+        os.system(f"mkdir -p {experiment_dir}/scarab/src/pin/pin_exec/obj-intel64/")
 
         # Copy from cache all required scarab binaries
         for bin_name in scarab_binaries:
@@ -1124,6 +1158,21 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
                     shutil.copy2(scarab_ver, dest_mode)
                 except Exception:
                     os.system(f"cp {scarab_ver} {dest_mode}")
+
+            pin_cache_name = _cache_bin_name(f"pin_exec_{bin_name}", build_mode)
+            if not pin_cache_name.endswith(".so"):
+                pin_cache_name += ".so"
+            
+            pin_cached = f"{infra_dir}/scarab_builds/{pin_cache_name}"
+            pin_obj_dir = dest_dir / "pin" / "pin_exec" / "obj-intel64"
+            pin_obj_dir.mkdir(parents=True, exist_ok=True)
+            pin_dest = pin_obj_dir / f"pin_exec_{bin_name}.so"
+
+            pin_src = pin_cached if os.path.isfile(pin_cached) else pin_exec_so
+            try:
+                shutil.copy2(pin_src, pin_dest)
+            except Exception:
+                os.system(f"cp {pin_src} {pin_dest}")
 
         os.system(f"cp {arch_params} {experiment_dir}/scarab/src")
 
@@ -1286,9 +1335,24 @@ def generate_single_scarab_run_command(user, workload_home, experiment, config_k
         command = f"run_memtrace_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{seg_size}\\\" \\\"{arch}\\\" \\\"{warmup}\\\" \\\"{trace_warmup}\\\" \\\"{trace_type}\\\" /home/{user}/simulations/{experiment}/scarab {cluster_id} {trace_file} {scarab_binary}"
     elif mode == "pt":
         command = f"run_pt_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{arch}\\\" \\\"{warmup}\\\" /home/{user}/simulations/{experiment}/scarab {scarab_binary}"
-
     elif mode == "exec":
-        command = f"run_exec_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{arch}\\\" /home/{user}/simulations/{experiment}/scarab {env_vars} {bincmd} {client_bincmd} {scarab_binary}"
+        env_vars_safe = env_vars if env_vars else ""
+        client_bincmd_safe = client_bincmd if client_bincmd else ""
+        command = (
+            "run_exec_single_simpoint.sh "
+            f"\\\"{workload_home}\\\" "                      # $1 WORKLOAD_HOME
+            f"\\\"/home/{user}/simulations/{experiment}/{config_key}\\\" "  # $2 SCENARIO
+            f"\\\"{config}\\\" "                             # $3 SCARABPARAMS
+            f"\\\"{seg_size}\\\" "                           # $4 SEGSIZE
+            f"\\\"{arch}\\\" "                               # $5 SCARABARCH
+            f"\\\"{warmup}\\\" "                             # $6 WARMUP
+            f"\\\"/home/{user}/simulations/{experiment}/scarab\\\" "  # $7 SCARABHOME
+            f"\\\"{cluster_id}\\\" "                         # $8 SEGMENT_ID
+            f"\\\"{env_vars_safe}\\\" "                      # $9 ENVVAR
+            f"\\\"{bincmd}\\\" "                             # $10 BINCMD (stay as one arg)
+            f"\\\"{client_bincmd_safe}\\\" "                 # $11 CLIENT_BINCMD
+            f"\\\"{scarab_binary}\\\""                       # $12 SCARAB_BIN
+        )
     else:
         command = ""
 
@@ -1324,7 +1388,7 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
                                  docker_prefix, docker_container_name, traces_dir,
                                  docker_home, githash, config_key, config, scarab_mode, scarab_binary,
                                  seg_size, architecture, cluster_id, warmup, trace_warmup, trace_type,
-                                 trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir, slurm=False):
+                                 trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir, application_dir, slurm=False):
     try:
         scarab_cmd = generate_single_scarab_run_command(user, workload_home, experiment_name, config_key, config,
                                                         scarab_mode, seg_size, architecture, scarab_binary, cluster_id,
@@ -1346,7 +1410,7 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
             if slurm:
                 f.write("SLURM_CGROUP=$(cat /proc/self/cgroup | cut -d: -f3 | head -n 1)\n")
                 f.write("echo $SLURM_CGROUP\n")
-                f.write(f"docker run \
+                f.write(f"docker run --privileged\
                 --cgroup-parent $SLURM_CGROUP \
                 --cgroupns=host \
                 -e user_id={local_uid} \
@@ -1360,10 +1424,11 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
                 --name $CONTAINER_NAME \
                 --mount type=bind,source={traces_dir},target=/simpoint_traces,readonly=true \
                 --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
+                --mount type=bind,source={application_dir},target=/tmp_home/application,readonly=false \
                 {docker_prefix}:{githash} \
                 /bin/bash\n")
             else:
-                f.write(f"docker run \
+                f.write(f"docker run --privileged\
                 -e user_id={local_uid} \
                 -e group_id={local_gid} \
                 -e username={user} \
@@ -1375,6 +1440,7 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
                 --name $CONTAINER_NAME \
                 --mount type=bind,source={traces_dir},target=/simpoint_traces,readonly=true \
                 --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
+                --mount type=bind,source={application_dir},target=/tmp_home/application,readonly=false \
                 {docker_prefix}:{githash} \
                 /bin/bash\n")
             f.write(f"docker cp {infra_dir}/scripts/utilities.sh $CONTAINER_NAME:/usr/local/bin\n")
@@ -1390,6 +1456,7 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
                 f.write(f"docker cp {infra_dir}/common/scripts/run_pt_single_simpoint.sh $CONTAINER_NAME:/usr/local/bin\n")
             elif scarab_mode == "exec":
                 f.write(f"docker cp {infra_dir}/common/scripts/run_exec_single_simpoint.sh $CONTAINER_NAME:/usr/local/bin\n")
+                f.write("docker exec --privileged $CONTAINER_NAME /bin/bash -c \"echo 0 | sudo tee /proc/sys/kernel/randomize_va_space\"\n")
             f.write("docker exec --privileged $CONTAINER_NAME /bin/bash -c '/usr/local/bin/root_entrypoint.sh'\n")
             f.write(f"docker exec --user={user} $CONTAINER_NAME /bin/bash -c \"source /usr/local/bin/user_entrypoint.sh && {scarab_cmd}\" || echo \"Scarab error detected\"\n")
             f.write("cleanup_container\n")
@@ -1477,7 +1544,7 @@ def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_contai
 
 def get_simpoints (workload_data, sim_mode, dbg_lvl = 2):
     simpoints = {}
-    if sim_mode == "memtrace":
+    if sim_mode == "memtrace" or sim_mode == "exec":
         for simpoint in workload_data["simpoints"]:
             simpoints[f"{simpoint['cluster_id']}"] = simpoint["weight"]
     else:
