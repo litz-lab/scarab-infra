@@ -39,6 +39,10 @@
       "memory_overhead_mb":0
     }
   },
+  "_collect_stats":"Stats collection settings for ./sci --collect-stats. configs: optional list of configuration names to collect (null or omitted = all configurations).",
+  "collect_stats":{
+    "configs":null
+  },
   "_visualize":"Visualization settings for ./sci --visualize. Configure baseline and counters.",
   "visualize":{
     "baseline":"this_pr",
