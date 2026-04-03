@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import getpass
+import hashlib
 import importlib
 import json
 import math
@@ -2018,7 +2019,41 @@ def load_simulation_experiment(
         print("Descriptor must include 'root_dir' and 'experiment'.")
         return None
 
+    status_run = subprocess.run(
+            ["./sci", "--status", descriptor_name],
+            text=True,
+            capture_output=True
+        )
+
+    exp_status_full = status_run.stdout.strip()
+    summary_present = "PRINTING SUMMARY TABLE:" in exp_status_full
+    if not summary_present:
+        print("WARN: Status failed, summary table not produced for descriptor", descriptor_name)
+
+    exp_status = exp_status_full.split("PRINTING SUMMARY TABLE:")[1] if summary_present and status_run.returncode == 0 else None
+    exp_status_hash = hashlib.md5(exp_status.encode()).hexdigest() if exp_status else None
+
+    hash_current = False
+
+    try:
+        experiment_path = Path(root_dir) / "simulations" / experiment_name
+        with open(experiment_path / "status_hash.txt", "r") as f:
+            existing_descriptor = f.readlines()
+            existing_hash = existing_descriptor[0].strip() if existing_descriptor else None
+            hash_current = existing_hash == str(exp_status_hash)
+    except FileNotFoundError:
+        info("No existing status hash found; proceeding with stat loading.")
+
     stats_path = Path(root_dir) / "simulations" / experiment_name / "collected_stats.csv"
+
+    if not hash_current:
+        info("Status hash is not current (or missing). Stat recollect required.")
+        if exp_status_hash != None:
+            with open(experiment_path / "status_hash.txt", "w") as f:
+                f.write(str(exp_status_hash))
+
+        if stats_path.is_file(): os.remove(stats_path)
+
     if not stats_path.is_file():
         print(f"No collected stats found at {stats_path}. Attempting to collect now...")
         if not collect_stats_for_visualization(descriptor_path, stats_path):
