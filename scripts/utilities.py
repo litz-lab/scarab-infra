@@ -162,6 +162,7 @@ def run_on_node(cmd, node=None, immediate=5, **kwargs):
     return subprocess.run(command, **kwargs)
 
 def validate_simulation(workloads_data, simulations, dbg_lvl = 2):
+    simulations = normalize_simulations(simulations)
     for simulation in simulations:
         suite = simulation["suite"]
         subsuite = simulation["subsuite"]
@@ -1561,6 +1562,8 @@ def get_image_name(workloads_data, simulation):
     cluster_id = simulation["cluster_id"]
     sim_mode = simulation["simulation_type"]
 
+    if isinstance(workload, list):
+        workload = workload[0]
     if workload != None:
         if subsuite == None:
             subsuite = next(iter(workloads_data[suite]))
@@ -1583,10 +1586,30 @@ def get_image_name(workloads_data, simulation):
 
     return workloads_data[suite][subsuite][workload]["simulation"][sim_mode]["image_name"]
 
+def normalize_simulations(simulations):
+    """Expand simulation entries where 'workload' is a list into individual entries."""
+    expanded = []
+    for sim in simulations:
+        workload = sim.get("workload")
+        if isinstance(workload, list):
+            if len(workload) > 1 and sim.get("cluster_id") is not None:
+                raise ValueError(
+                    f"cluster_id must be null when workload is a list with multiple entries, "
+                    f"got cluster_id={sim['cluster_id']} with workload={workload}"
+                )
+            if len(workload) == 0:
+                expanded.append({**sim, "workload": None})
+            else:
+                for w in workload:
+                    expanded.append({**sim, "workload": w})
+        else:
+            expanded.append(sim)
+    return expanded
+
 def get_simulation_jobs(descriptor_data, workloads_data, docker_prefix, user, dbg_lvl = 1):
     experiment_name = descriptor_data["experiment"]
     configs = descriptor_data["configurations"]
-    simulations = descriptor_data["simulations"]
+    simulations = normalize_simulations(descriptor_data["simulations"])
 
     def get_simpoints_wrapper(suite, subsuite, workload, exp_cluster_id, sim_mode):
         if "simpoints" not in workloads_data[suite][subsuite][workload].keys():
@@ -2148,6 +2171,7 @@ def remove_tmp_run_scripts(base_path, job_name, user, dbg_lvl):
 
 def get_image_list(simulations, workloads_data):
     image_list = []
+    simulations = normalize_simulations(simulations)
     for simulation in simulations:
         suite = simulation["suite"]
         subsuite = simulation["subsuite"]
