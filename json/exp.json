@@ -13,7 +13,7 @@
   "application_dir":"/home/$USER/applications",
   "_scarab_path":"The path to the scarab repository that contains the scarab binary used to run the experiment.",
   "scarab_path":"/home/$USER/allbench_home/scarab",
-  "_scarab_build":"scarab build mode. 'opt', 'dbg', or null",
+  "_scarab_build":"scarab build mode. 'opt', 'opt-avx' (-march=skylake-avx512), 'dbg', or null. Values must match Scarab src/Makefile targets.",
   "scarab_build":"opt",
   "_traces_dir":"The local directory containing all simpointed traces",
   "traces_dir":"/home/$USER/traces",

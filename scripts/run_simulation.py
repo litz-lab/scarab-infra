@@ -54,8 +54,8 @@ def verify_descriptor(
         exit(1)
 
     # Check the scarab build mode
-    if descriptor_data["scarab_build"] != None and descriptor_data["scarab_build"] != 'opt' and descriptor_data["scarab_build"] != 'dbg':
-        err("Need a valid scarab build mode ('opt' or 'dbg' or null). Set in descriptor file under 'scarab_build'", dbg_lvl)
+    if descriptor_data["scarab_build"] != None and descriptor_data["scarab_build"] not in ('opt', 'opt-avx', 'dbg'):
+        err("Need a valid scarab build mode ('opt', 'opt-avx', 'dbg', or null). Set in descriptor file under 'scarab_build'", dbg_lvl)
         exit(1)
 
     # Check if a correct architecture spec is provided
