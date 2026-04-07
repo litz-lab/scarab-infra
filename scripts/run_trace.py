@@ -205,8 +205,6 @@ def open_interactive_shell(user, descriptor_name, descriptor_data, infra_dir, db
                 subprocess.run(["docker", "exec", "--privileged", f"--user={user}", f"--workdir=/home/{user}", docker_container_name,
                                 "sed", "-i", "/source \\/usr\\/local\\/bin\\/user_entrypoint.sh/d", f"/home/{user}/.bashrc"], check=True, capture_output=True, text=True)
                 os.system(f"docker rm -f {docker_container_name}")
-                print("Recover the ASLR setting with sudo. Provide password..")
-                os.system("echo 2 | sudo tee /proc/sys/kernel/randomize_va_space")
             return
         finally:
             try:
