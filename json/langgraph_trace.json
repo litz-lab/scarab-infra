@@ -1,0 +1,34 @@
+{
+  "_descriptor_type":"A type of descriptor. One of 'simulation', 'trace', and 'perf'.",
+  "descriptor_type":"trace",
+  "_workload_manager":"manual: run each exp scenario with all the simpoints at a time, slurm: Slurm schedules simulations based on its policy",
+  "workload_manager":"manual",
+  "_root_dir":"Root directory mounted into the docker container home, for instance, $tmp_dir as a root home directory",
+  "root_dir":"/soe/surim",
+  "_application_dir":"Optional host application directory mounted at /tmp_home/application. Use null when the workload is fully contained in the image.",
+  "application_dir":null,
+  "_scarab_path":"The path to the scarab repository that contains the scarab binary used to run the experiment.",
+  "scarab_path":"/soe/surim/src/scarab",
+  "_scarab_build":"scarab build mode. 'opt', 'dbg', or null",
+  "scarab_build":"opt",
+  "_traces_dir":"A directory to place the collected traces.",
+  "traces_dir":"/soe/surim/traces",
+  "_trace_name":"The name of the tracing run.",
+  "trace_name":"trace_langgraph",
+  "_trace_configurations":"Start with a single trace scenario.",
+  "trace_configurations":[
+    {
+      "workload":"langgraph",
+      "image_name":"langgraph",
+      "suite":"langgraph",
+      "subsuite":"langgraph",
+      "env_vars":null,
+      "binary_cmd":"python3 \\$tmpdir/langgraph/run_langgraph.py --task-id lg-trace --trace-output /tmp/langgraph_trace.json --summary-output /tmp/langgraph_summary.json --iterations 10",
+      "client_bincmd":null,
+      "trace_type":"trace_then_cluster",
+      "dynamorio_args":null,
+      "clustering_k":null,
+      "slurm_options":""
+    }
+  ]
+}
