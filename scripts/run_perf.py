@@ -19,8 +19,53 @@ from .utilities import (
 
 client = docker.from_env()
 
+def sync_perf_support_files(docker_container_name, image_name, infra_dir):
+    common_files = [
+        (f"{infra_dir}/scripts/utilities.sh", "/usr/local/bin"),
+        (f"{infra_dir}/common/scripts/root_entrypoint.sh", "/usr/local/bin"),
+        (f"{infra_dir}/common/scripts/user_entrypoint.sh", "/usr/local/bin"),
+        (f"{infra_dir}/common/scripts/perf_entrypoint.sh", "/usr/local/bin"),
+    ]
+    for src, dst in common_files:
+        subprocess.run(["docker", "cp", src, f"{docker_container_name}:{dst}"], check=True)
+
+    for script in ("workload_root_entrypoint.sh", "workload_user_entrypoint.sh"):
+        src = f"{infra_dir}/workloads/{image_name}/{script}"
+        if os.path.exists(src):
+            subprocess.run(["docker", "cp", src, f"{docker_container_name}:/usr/local/bin"], check=True)
+
+
+def perf_container_initialized(docker_container_name):
+    result = subprocess.run(
+        ["docker", "exec", docker_container_name, "test", "-f", "/tmp_home/.scarab_perf_ready"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    return result.returncode == 0
+
+
+def bootstrap_perf_container(docker_container_name):
+    subprocess.run(
+        ["docker", "exec", "--privileged", docker_container_name, "/bin/bash", "-c", "/usr/local/bin/root_entrypoint.sh"],
+        check=True,
+    )
+    subprocess.run(
+        ["docker", "exec", "--privileged", docker_container_name, "/bin/bash", "-c", "/usr/local/bin/perf_entrypoint.sh"],
+        check=True,
+    )
+    subprocess.run(
+        ["docker", "exec", "--privileged", docker_container_name, "/bin/bash", "-c", "touch /tmp_home/.scarab_perf_ready"],
+        check=True,
+    )
+
+
 def open_interactive_shell(user, docker_home, image_name, infra_dir, dbg_lvl = 1):
     try:
+        local_uid = os.getuid()
+        local_gid = os.getgid()
+        container_home = "/tmp_home" if user == "root" else f"/home/{user}"
+
         # Get GitHash
         try:
             githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).decode("utf-8").strip()
@@ -32,11 +77,20 @@ def open_interactive_shell(user, docker_home, image_name, infra_dir, dbg_lvl = 1
 
         docker_container_name = f"{image_name}_perf_{user}"
         try:
+            shell_cmd = f"export HOME={container_home}; source /usr/local/bin/user_entrypoint.sh >/dev/null 2>&1 || true; exec /bin/bash"
+            needs_bootstrap = False
             if is_container_running(docker_container_name, dbg_lvl):
-                subprocess.run(["docker", "exec", "-it", f"--user={user}", f"--workdir=/tmp_home", docker_container_name, "/bin/bash"])
+                sync_perf_support_files(docker_container_name, image_name, infra_dir)
+                needs_bootstrap = not perf_container_initialized(docker_container_name)
             else:
                 info(f"Create a new container for the interactive mode", dbg_lvl)
                 command = f"docker run --privileged \
+                        -e user_id={local_uid} \
+                        -e group_id={local_gid} \
+                        -e username={user} \
+                        -e HOME={container_home} \
+                        -e APP_GROUPNAME={image_name} \
+                        -e APPNAME={image_name} \
                         -dit \
                         --name {docker_container_name} \
                         --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
@@ -44,12 +98,14 @@ def open_interactive_shell(user, docker_home, image_name, infra_dir, dbg_lvl = 1
                         /bin/bash"
                 print(command)
                 os.system(command)
-                os.system(f"docker cp {infra_dir}/scripts/utilities.sh {docker_container_name}:/usr/local/bin")
-                os.system(f"docker cp {infra_dir}/common/scripts/root_entrypoint.sh {docker_container_name}:/usr/local/bin")
-                os.system(f"docker cp {infra_dir}/common/scripts/perf_entrypoint.sh {docker_container_name}:/usr/local/bin")
-                os.system(f"docker exec --privileged {docker_container_name} /bin/bash -c '/usr/local/bin/root_entrypoint.sh'")
-                os.system(f"docker exec --privileged {docker_container_name} /bin/bash -c '/usr/local/bin/perf_entrypoint.sh'")
-                subprocess.run(["docker", "exec", "-it", f"--user={user}", f"--workdir=/tmp_home", docker_container_name, "/bin/bash"])
+                sync_perf_support_files(docker_container_name, image_name, infra_dir)
+                needs_bootstrap = True
+            if needs_bootstrap:
+                bootstrap_perf_container(docker_container_name)
+            subprocess.run([
+                "docker", "exec", "-it", f"--user={user}", f"--workdir=/tmp_home",
+                docker_container_name, "/bin/bash", "-c", shell_cmd
+            ])
         except KeyboardInterrupt:
             if count_interactive_shells(docker_container_name, dbg_lvl) == 1:
                 os.system(f"docker rm -f {docker_container_name}")

@@ -62,8 +62,8 @@ def verify_descriptor(descriptor_data, workload_db_path, open_shell=False, dbg_l
         exit(1)
 
     # Check the scarab build mode
-    if descriptor_data["scarab_build"] != None and descriptor_data["scarab_build"] not in ('opt', 'opt-avx', 'dbg'):
-        err("Need a valid scarab build mode ('opt', 'opt-avx', 'dbg', or null). Set in descriptor file under 'scarab_build'", dbg_lvl)
+    if descriptor_data["scarab_build"] != None and descriptor_data["scarab_build"] != 'opt' and descriptor_data["scarab_build"] != 'dbg':
+        err("Need a valid scarab build mode (\'opt\' or \'dbg\' or null). Set in descriptor file under 'scarab_build'", dbg_lvl)
         exit(1)
 
     # Check trace doesn't already exists
@@ -84,6 +84,8 @@ def verify_descriptor(descriptor_data, workload_db_path, open_shell=False, dbg_l
     if descriptor_data["root_dir"] == None:
         err("Need path to docker home directory. Set in descriptor file under 'root_dir'", dbg_lvl)
         exit(1)
+
+    # application_dir is optional for workloads that are fully contained in the image.
 
     # Check if trace dir exists
     if descriptor_data["traces_dir"] == None:
@@ -126,14 +128,16 @@ def open_interactive_shell(user, descriptor_name, descriptor_data, infra_dir, db
         trace_scenario = descriptor_data["trace_configurations"][0]
         docker_prefix = trace_scenario["image_name"]
         workload = trace_scenario["workload"]
+        container_home = "/tmp_home" if user == "root" else f"/home/{user}"
 
         # Set the env for simulation again (already set in Dockerfile.common) in case user's bashrc overwrite the existing ones when the home directory is mounted
-        bashrc_path = f"{docker_home}/.bashrc"
-        entry = "source /usr/local/bin/user_entrypoint.sh"
-        with open(bashrc_path, "a+") as f:
-            f.seek(0)
-            if entry not in f.read():
-                f.write(f"\n{entry}\n")
+        if user != "root":
+            bashrc_path = f"{docker_home}/.bashrc"
+            entry = "source /usr/local/bin/user_entrypoint.sh"
+            with open(bashrc_path, "a+") as f:
+                f.seek(0)
+                if entry not in f.read():
+                    f.write(f"\n{entry}\n")
 
         prepare_trace(
             user,
@@ -160,16 +164,20 @@ def open_interactive_shell(user, descriptor_name, descriptor_data, infra_dir, db
         docker_container_name = f"{docker_prefix}_{trace_name}_scarab_{scarab_githash}_{user}"
         trace_dir = f"{docker_home}/simpoint_flow/{trace_name}"
         try:
+            shell_cmd = f"export HOME={container_home}; source /usr/local/bin/user_entrypoint.sh >/dev/null 2>&1 || true; exec /bin/bash"
             # If the container is already running, log into it by openning another interactive shell
             if is_container_running(docker_container_name, dbg_lvl):
-                subprocess.run(["docker", "exec", "--privileged", "-it", f"--user={user}", f"--workdir=/home/{user}", docker_container_name, "/bin/bash"])
+                subprocess.run([
+                    "docker", "exec", "--privileged", "-it", f"--user={user}", f"--workdir={container_home}",
+                    docker_container_name, "/bin/bash", "-c", shell_cmd
+                ])
             else:
                 info(f"Create a new container for the interactive mode", dbg_lvl)
                 command = f"docker run --privileged \
                         -e user_id={local_uid} \
                         -e group_id={local_gid} \
                         -e username={user} \
-                        -e HOME=/home/{user} \
+                        -e HOME={container_home} \
                         -e APP_GROUPNAME={docker_prefix} \
                         -e APPNAME={workload} "
                 if env_vars:
@@ -178,10 +186,10 @@ def open_interactive_shell(user, descriptor_name, descriptor_data, infra_dir, db
                 command = command + f"-dit \
                         --name {docker_container_name} \
                         --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
-                        --mount type=bind,source={scarab_path},target=/scarab,readonly=false \
-                        --mount type=bind,source={application},target=/tmp_home/application,readonly=false \
-                        {docker_prefix}:{githash} \
-                        /bin/bash"
+                        --mount type=bind,source={scarab_path},target=/scarab,readonly=false "
+                if application:
+                    command = command + f"--mount type=bind,source={application},target=/tmp_home/application,readonly=false "
+                command = command + f"{docker_prefix}:{githash} /bin/bash"
                 print(command)
                 os.system(command)
                 os.system(f"docker cp {infra_dir}/scripts/utilities.sh {docker_container_name}:/usr/local/bin")
@@ -199,18 +207,26 @@ def open_interactive_shell(user, descriptor_name, descriptor_data, infra_dir, db
                 os.system(f"docker cp {infra_dir}/common/scripts/gather_fp_pieces.py {docker_container_name}:/usr/local/bin")
                 os.system(f"docker exec --privileged {docker_container_name} /bin/bash -c '/usr/local/bin/root_entrypoint.sh'")
                 os.system(f"docker exec --privileged {docker_container_name} /bin/bash -c \"echo 0 | sudo tee /proc/sys/kernel/randomize_va_space\"")
-                subprocess.run(["docker", "exec", "--privileged", "-it", f"--user={user}", f"--workdir=/home/{user}", docker_container_name, "/bin/bash"])
+                subprocess.run([
+                    "docker", "exec", "--privileged", "-it", f"--user={user}", f"--workdir={container_home}",
+                    docker_container_name, "/bin/bash", "-c", shell_cmd
+                ])
         except KeyboardInterrupt:
             if count_interactive_shells(docker_container_name, dbg_lvl) == 1:
-                subprocess.run(["docker", "exec", "--privileged", f"--user={user}", f"--workdir=/home/{user}", docker_container_name,
-                                "sed", "-i", "/source \\/usr\\/local\\/bin\\/user_entrypoint.sh/d", f"/home/{user}/.bashrc"], check=True, capture_output=True, text=True)
+                if user != "root":
+                    subprocess.run(["docker", "exec", "--privileged", f"--user={user}", f"--workdir=/home/{user}", docker_container_name,
+                                    "sed", "-i", "/source \\/usr\\/local\\/bin\\/user_entrypoint.sh/d", f"/home/{user}/.bashrc"], check=True, capture_output=True, text=True)
                 os.system(f"docker rm -f {docker_container_name}")
+                print("Recover the ASLR setting with sudo. Provide password..")
+                os.system("echo 2 | sudo tee /proc/sys/kernel/randomize_va_space")
             return
         finally:
             try:
                 if count_interactive_shells(docker_container_name, dbg_lvl) == 1:
-                    subprocess.run(["docker", "exec", "--privileged", f"--user={user}", f"--workdir=/home/{user}", docker_container_name,
-                                    "sed", "-i", "/source \\/usr\\/local\\/bin\\/user_entrypoint.sh/d", f"/home/{user}/.bashrc"], check=True, capture_output=True, text=True)
+                    if user != "root":
+                        subprocess.run(["docker", "exec", "--privileged", f"--user={user}", f"--workdir=/home/{user}", docker_container_name,
+                                        "sed", "-i", "/source \\/usr\\/local\\/bin\\/user_entrypoint.sh/d", f"/home/{user}/.bashrc"], check=True, capture_output=True, text=True)
+                    os.system("echo 2 | sudo tee /proc/sys/kernel/randomize_va_space")
                     client.containers.get(docker_container_name).remove(force=True)
                     print(f"Container {docker_container_name} removed.")
             except docker.errors.NotFound:

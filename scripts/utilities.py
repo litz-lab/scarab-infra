@@ -1490,6 +1490,7 @@ def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_contai
                                        env_vars, binary_cmd, client_bincmd, simpoint_mode, drio_args,
                                        clustering_k, filename, infra_dir, application_dir, slurm = False):
     try:
+        container_home = "/tmp_home" if user == "root" else f"/home/{user}"
         trace_cmd = generate_single_trace_run_command(user, workload, image_name, trace_name, binary_cmd, client_bincmd,
                                                       simpoint_mode, drio_args, clustering_k)
         with open(filename, "w") as f:
@@ -1505,7 +1506,7 @@ def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_contai
                     -e user_id={local_uid} \
                     -e group_id={local_gid} \
                     -e username={user} \
-                    -e HOME=/home/{user} \
+                    -e HOME={container_home} \
                     -e APP_GROUPNAME={image_name} \
                     -e APPNAME={workload} "
 
@@ -1520,10 +1521,10 @@ def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_contai
                     command = command + f"-e {env} "
             command = command + f"-dit \
                     --name $CONTAINER_NAME \
-                    --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
-                    --mount type=bind,source={application_dir},target=/tmp_home/application,readonly=false \
-                    {image_name}:{githash} \
-                    /bin/bash\n"
+                    --mount type=bind,source={docker_home},target=/home/{user},readonly=false "
+            if application_dir:
+                command = command + f"--mount type=bind,source={application_dir},target=/tmp_home/application,readonly=false "
+            command = command + f"{image_name}:{githash} /bin/bash\n"
             f.write(f"{command}")
             f.write(f"docker cp {infra_dir}/scripts/utilities.sh $CONTAINER_NAME:/usr/local/bin\n")
             f.write(f"docker cp {infra_dir}/common/scripts/root_entrypoint.sh $CONTAINER_NAME:/usr/local/bin\n")
@@ -1540,7 +1541,7 @@ def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_contai
             f.write(f"docker cp {infra_dir}/common/scripts/gather_fp_pieces.py $CONTAINER_NAME:/usr/local/bin\n")
             f.write("docker exec --privileged $CONTAINER_NAME /bin/bash -c '/usr/local/bin/root_entrypoint.sh'\n")
             f.write("docker exec --privileged $CONTAINER_NAME /bin/bash -c \"echo 0 | sudo tee /proc/sys/kernel/randomize_va_space\"\n")
-            f.write(f"docker exec --privileged --user={user} --workdir=/home/{user} $CONTAINER_NAME /bin/bash -c \"source /usr/local/bin/user_entrypoint.sh && {trace_cmd}\"\n")
+            f.write(f"docker exec --privileged --user={user} --workdir={container_home} $CONTAINER_NAME /bin/bash -c \"export HOME={container_home}; source /usr/local/bin/user_entrypoint.sh && {trace_cmd}\"\n")
             f.write("cleanup_container\n")
     except Exception as e:
         raise e
@@ -2519,7 +2520,12 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
                 "simpoints":simpoints
             }
 
-            if suite in workload_db_data.keys() and subsuite in workload_db_data[suite].keys() and workload in workload_db_data[suite][subsuite].keys():
+            if suite not in workload_db_data:
+                workload_db_data[suite] = {}
+            if subsuite not in workload_db_data[suite]:
+                workload_db_data[suite][subsuite] = {}
+
+            if workload in workload_db_data[suite][subsuite].keys():
                 print("WARNING: workload name should be unique within a subsuite. db will be overwritten!")
             workload_db_data[suite][subsuite][workload] = workload_dict
 
