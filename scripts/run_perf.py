@@ -53,8 +53,6 @@ def open_interactive_shell(user, docker_home, image_name, infra_dir, dbg_lvl = 1
         except KeyboardInterrupt:
             if count_interactive_shells(docker_container_name, dbg_lvl) == 1:
                 os.system(f"docker rm -f {docker_container_name}")
-                print("Recover the ASLR setting with sudo. Provide password..")
-                os.system("echo 2 | sudo tee /proc/sys/kernel/randomize_va_space")
             return
         finally:
             try:
