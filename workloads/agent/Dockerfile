@@ -15,6 +15,18 @@ WORKDIR $tmpdir
 
 RUN mkdir -p /tmp_home/agent
 COPY workloads/agent/requirements.txt /tmp_home/agent/requirements.txt
+
+# Upgrade pip first. Ubuntu jammy ships pip 22 which has a known
+# AssertionError in resolvelib.get_topological_weights on complex graphs.
+RUN python3 -m pip install --no-cache-dir --upgrade "pip>=24.0"
+
+# Install CPU-only torch BEFORE the main requirements so sentence-transformers
+# sees torch already satisfied and does NOT drag in the 2.5+ GB NVIDIA CUDA
+# stack (cublas/cudnn/nccl/triton/...). This is a CPU-only benchmark suite.
+RUN python3 -m pip install --no-cache-dir \
+    --index-url https://download.pytorch.org/whl/cpu \
+    "torch>=2.1,<2.5"
+
 RUN python3 -m pip install --no-cache-dir -r /tmp_home/agent/requirements.txt
 
 # Pre-download the haystack sentence-transformer model at build time so the
