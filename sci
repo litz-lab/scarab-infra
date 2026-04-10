@@ -2010,6 +2010,7 @@ def ensure_aslr_disabled(_: argparse.Namespace) -> Tuple[bool, str]:
                 
                 if node_aslr != '0':
                     print(f"\n[!] ERROR: ASLR is enabled on Slurm node [{node}] (value: {node_aslr}).")
+                    print(f"    Please run: srun -w {node} sudo sh -c 'echo 0 > {aslr_path}'")
                     sys.exit(1)
             except Exception:
                 continue
