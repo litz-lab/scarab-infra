@@ -334,10 +334,12 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
             if log_handle:
                 log_handle.close()
 
-        # Clean up temp files
+        # Clean up temp files (idempotent: success path may have already
+        # removed them before an exception in finish_trace).
         for tmp in tmp_files:
-            info(f"Removing temporary run script {tmp}", dbg_lvl)
-            os.remove(tmp)
+            if os.path.exists(tmp):
+                info(f"Removing temporary run script {tmp}", dbg_lvl)
+                os.remove(tmp)
 
         finish_simulation(user, docker_home, descriptor_path, descriptor_data['root_dir'], experiment_name, image_tag_list, [], dont_collect=dont_collect)
 
@@ -350,10 +352,12 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
         for handle in log_files:
             handle.close()
 
-        # Clean up temp files
+        # Clean up temp files (idempotent: success path may have already
+        # removed them before an exception in finish_trace).
         for tmp in tmp_files:
-            info(f"Removing temporary run script {tmp}", dbg_lvl)
-            os.remove(tmp)
+            if os.path.exists(tmp):
+                info(f"Removing temporary run script {tmp}", dbg_lvl)
+                os.remove(tmp)
 
         infra_dir = subprocess.check_output(["pwd"]).decode("utf-8").split("\n")[0]
         print(infra_dir)
@@ -374,8 +378,43 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
         if image_name not in docker_prefix_list:
             docker_prefix_list.append(image_name)
 
-    available_cores = os.cpu_count()
-    max_processes = int(available_cores * 0.9)
+    # --- Capacity auto-detection for parallel tracing ------------------------
+    # Two knobs are decided here based on host resources:
+    #   1. max_parallel: number of trace-variant containers running at once.
+    #   2. dr_jobs:      per-variant DynamoRIO drrun/drraw2trace -jobs fanout.
+    # Each variant is dominated by drraw2trace unzipping chunks of the raw
+    # trace; measured peak ~4 GB RSS per variant on langchain-style Python
+    # workloads, so we budget 6 GB per variant as a safety pad. CPU side, we
+    # try to keep (max_parallel * dr_jobs) around ~2 * cores, since DR workers
+    # are mostly I/O bound on zip (de)compression.
+    # User overrides: SCI_MAX_PARALLEL_TRACES, SCI_DR_JOBS.
+    try:
+        # Respect cgroup / taskset affinity when present.
+        available_cores = len(os.sched_getaffinity(0))
+    except (AttributeError, OSError):
+        available_cores = os.cpu_count() or 1
+    try:
+        avail_mem_gb = psutil.virtual_memory().available / (1024 ** 3)
+    except Exception:
+        avail_mem_gb = 16.0
+    per_variant_gb = 6.0
+    safety_gb = 4.0
+    num_configs = len(trace_configs)
+    env_override_par = os.environ.get("SCI_MAX_PARALLEL_TRACES")
+    if env_override_par:
+        max_parallel = max(1, int(env_override_par))
+    else:
+        mem_cap = max(1, int((avail_mem_gb - safety_gb) / per_variant_gb))
+        cpu_cap = max(1, available_cores // 2)
+        max_parallel = max(1, min(num_configs, mem_cap, cpu_cap))
+    env_override_jobs = os.environ.get("SCI_DR_JOBS")
+    if env_override_jobs:
+        dr_jobs = max(1, int(env_override_jobs))
+    else:
+        dr_jobs = max(2, min(40, (2 * available_cores) // max_parallel))
+    info(f"Trace auto-tune: cores={available_cores}, avail_mem={avail_mem_gb:.1f}GB, "
+         f"configs={num_configs} -> max_parallel={max_parallel}, dr_jobs={dr_jobs}", dbg_lvl)
+    max_processes = max_parallel
     processes = set()
     tmp_files = []
     log_files = []
@@ -405,9 +444,12 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
             out = open(log_out, "w")
             err = open(log_err, "w")
             log_files.append((out, err))
-            process = subprocess.Popen(command, stdout=out, stderr=err, shell=True, preexec_fn=os.setsid)
+            child_env = os.environ.copy()
+            child_env["DR_JOBS"] = str(dr_jobs)
+            process = subprocess.Popen(command, stdout=out, stderr=err, shell=True,
+                                       preexec_fn=os.setsid, env=child_env)
             processes.add(process)
-            info(f"Running command '{command}'", dbg_lvl)
+            info(f"Running command '{command}' (DR_JOBS={dr_jobs})", dbg_lvl)
         except Exception as e:
             raise e
 
@@ -428,7 +470,9 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
 
         prepare_trace(user, scarab_path, scarab_build, docker_home, trace_name, infra_dir, docker_prefix_list, githash, False, [], dbg_lvl=dbg_lvl)
 
-        # Iterate over each trace configuration
+        # Iterate over each trace configuration, throttling concurrency to
+        # max_processes (auto-tuned above from CPU + memory headroom).
+        import time as _time
         for config in trace_configs:
             workload = config["workload"]
             image_name = config["image_name"]
@@ -442,8 +486,16 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
             drio_args = config["dynamorio_args"]
             clustering_k = config["clustering_k"]
 
+            # Rolling pool: wait for a slot to free up before launching the
+            # next variant.
+            while len([p for p in processes if p.poll() is None]) >= max_processes:
+                _time.sleep(2)
+
             run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd,
                              trace_type, drio_args, clustering_k, infra_dir, application_dir)
+            # Stagger cold-start by a couple seconds to avoid simultaneous
+            # drrun module/encoding file races on shared interpreters.
+            _time.sleep(3)
 
         print("Wait processes...")
         for p in processes:
@@ -453,10 +505,12 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
             out.close()
             err.close()
 
-        # Clean up temp files
+        # Clean up temp files (idempotent: success path may have already
+        # removed them before an exception in finish_trace).
         for tmp in tmp_files:
-            info(f"Removing temporary run script {tmp}", dbg_lvl)
-            os.remove(tmp)
+            if os.path.exists(tmp):
+                info(f"Removing temporary run script {tmp}", dbg_lvl)
+                os.remove(tmp)
 
         finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl)
     except Exception as e:
@@ -469,10 +523,12 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
             out.close()
             err.close()
 
-        # Clean up temp files
+        # Clean up temp files (idempotent: success path may have already
+        # removed them before an exception in finish_trace).
         for tmp in tmp_files:
-            info(f"Removing temporary run script {tmp}", dbg_lvl)
-            os.remove(tmp)
+            if os.path.exists(tmp):
+                info(f"Removing temporary run script {tmp}", dbg_lvl)
+                os.remove(tmp)
 
         kill_jobs(user, "trace", trace_name, docker_prefix_list, infra_dir, dbg_lvl)
 

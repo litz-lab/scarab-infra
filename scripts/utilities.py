@@ -1502,13 +1502,19 @@ def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_contai
             f.write("    docker rm -f \"$CONTAINER_NAME\" >/dev/null 2>&1 || true\n")
             f.write("}\n")
             f.write("trap cleanup_container EXIT INT TERM HUP\n")
+            # Defensive: absorb any leftover container with the same name from
+            # a prior run that didn't clean up (e.g. SIGKILL'd sci process).
+            f.write("docker rm -f \"$CONTAINER_NAME\" >/dev/null 2>&1 || true\n")
+            # DR_JOBS is set by the outer runner (local_runner.run_tracing)
+            # via each child's env; fall back to 2 when launched standalone.
             command = f"docker run --privileged \
                     -e user_id={local_uid} \
                     -e group_id={local_gid} \
                     -e username={user} \
                     -e HOME={container_home} \
                     -e APP_GROUPNAME={image_name} \
-                    -e APPNAME={workload} "
+                    -e APPNAME={workload} \
+                    -e DR_JOBS=${{DR_JOBS:-2}} "
 
             if slurm:
                 f.write("SLURM_CGROUP=$(cat /proc/self/cgroup | cut -d: -f3 | head -n 1)\n")
