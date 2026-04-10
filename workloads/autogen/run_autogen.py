@@ -72,6 +72,11 @@ SCRIPTED_RESPONSES = [
 # Helpers
 # ---------------------------------------------------------------------------
 
+def context_blob(size: str) -> str:
+    units = {"short": 32, "medium": 128, "long": 512}[size]
+    return "agent-context " * units
+
+
 def ensure_parent(path: str) -> None:
     Path(path).parent.mkdir(parents=True, exist_ok=True)
 
@@ -89,6 +94,7 @@ def write_json(path: str, payload: dict) -> None:
 
 async def run_benchmark(args) -> None:
     run_id = f"autogen__{args.task_id}__seed{args.seed}"
+    context = context_blob(args.context_size)
 
     mock_client = ReplayChatCompletionClient(
         chat_completions=SCRIPTED_RESPONSES
@@ -126,7 +132,7 @@ async def run_benchmark(args) -> None:
 
         t = time.perf_counter_ns()
         response = await agent.run(
-            task=f"Analyze CPU microarchitecture bottlenecks for agent workload, iteration {i}"
+            task=f"Analyze CPU microarchitecture bottlenecks for agent workload, iteration {i}. Context: {context}"
         )
         msg_count = len(response.messages)
         total_messages += msg_count
@@ -134,6 +140,7 @@ async def run_benchmark(args) -> None:
         record("agent_run", t, {
             "iteration": i,
             "messages": msg_count,
+            "context_bytes": len(context),
         })
 
     end_run = time.perf_counter_ns()
@@ -148,6 +155,7 @@ async def run_benchmark(args) -> None:
         "mode": "replay",
         "run_metadata": {
             "framework": "autogen",
+            "context_size": args.context_size,
             "iterations": args.iterations,
         },
         "spans": spans,
@@ -162,6 +170,7 @@ async def run_benchmark(args) -> None:
         "run_id": run_id,
         "config": {
             "framework": "autogen",
+            "context_size": args.context_size,
             "iterations": args.iterations,
             "tools": ["topdown_analyze", "cache_profile", "branch_stats"],
         },
@@ -170,6 +179,7 @@ async def run_benchmark(args) -> None:
             "latency_ms": total_ms,
             "iterations": args.iterations,
             "total_messages": total_messages,
+            "context_bytes": len(context),
         },
         "trace_output": args.trace_output,
     }
@@ -185,6 +195,7 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--trace-output", required=True)
     parser.add_argument("--summary-output", required=True)
+    parser.add_argument("--context-size", choices=("short", "medium", "long"), default="medium")
     parser.add_argument("--iterations", type=int, default=10,
                         help="Number of full agent invocations")
     args = parser.parse_args()

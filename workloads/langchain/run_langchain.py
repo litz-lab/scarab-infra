@@ -91,6 +91,7 @@ def main() -> None:
             "query": "How should an agent benchmark characterize CPU bottlenecks?",
             "iteration": i,
             "plan": plan,
+            "context": context,
         }
         marshaled = json.dumps(request, sort_keys=True)
         record("marshal_request", t, {"iteration": i, "request_bytes": len(marshaled)})
