@@ -2456,8 +2456,6 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
         extract_top_simpoints.modify_simpoints_in_place(workload_db_data)
         write_json_descriptor(f"{infra_dir}/workloads/workloads_top_simp.json", workload_db_data, dbg_lvl)
 
-        print("Recover the ASLR setting with sudo. Provide password..")
-        os.system("echo 2 | sudo tee /proc/sys/kernel/randomize_va_space")
 
     except Exception as e:
         raise e

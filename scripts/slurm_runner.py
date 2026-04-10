@@ -835,6 +835,3 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
             os.remove(tmp)
 
         kill_jobs(user, trace_name, docker_prefix_list, dbg_lvl)
-
-        print("Recover the ASLR setting with sudo. Provide password..")
-        os.system("echo 2 | sudo tee /proc/sys/kernel/randomize_va_space")
