@@ -7,6 +7,7 @@ import time
 from pathlib import Path
 
 from autogen_agentchat.agents import AssistantAgent
+from autogen_core.models import ModelFamily, ModelInfo
 from autogen_ext.models.replay import ReplayChatCompletionClient
 
 
@@ -96,19 +97,28 @@ async def run_benchmark(args) -> None:
     run_id = f"autogen__{args.task_id}__seed{args.seed}"
     context = context_blob(args.context_size)
 
-    mock_client = ReplayChatCompletionClient(
-        chat_completions=SCRIPTED_RESPONSES
-    )
+    model_info: ModelInfo = {
+        "vision": False,
+        "function_calling": True,
+        "json_output": False,
+        "family": ModelFamily.UNKNOWN,
+        "structured_output": False,
+    }
 
-    agent = AssistantAgent(
-        name="perf_analyst",
-        model_client=mock_client,
-        tools=[topdown_analyze, cache_profile, branch_stats],
-        system_message=(
-            "You are a CPU performance analyst. Use the provided tools "
-            "to gather microarchitectural data and report findings."
-        ),
-    )
+    def build_agent() -> AssistantAgent:
+        client = ReplayChatCompletionClient(
+            chat_completions=list(SCRIPTED_RESPONSES),
+            model_info=model_info,
+        )
+        return AssistantAgent(
+            name="perf_analyst",
+            model_client=client,
+            tools=[topdown_analyze, cache_profile, branch_stats],
+            system_message=(
+                "You are a CPU performance analyst. Use the provided tools "
+                "to gather microarchitectural data and report findings."
+            ),
+        )
 
     spans = []
     start_run = time.perf_counter_ns()
@@ -128,7 +138,7 @@ async def run_benchmark(args) -> None:
     total_messages = 0
 
     for i in range(args.iterations):
-        mock_client.reset()
+        agent = build_agent()
 
         t = time.perf_counter_ns()
         response = await agent.run(
