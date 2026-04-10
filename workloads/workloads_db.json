@@ -23184,28 +23184,28 @@
       "autogen_short_250iter":{
         "performance":{
           "topdown":{
-            "retiring":17.3,
-            "bad_speculation":3.7,
-            "frontend_bound":23.3,
-            "backend_bound":55.6
+            "retiring":16.8,
+            "bad_speculation":3.8,
+            "frontend_bound":23.0,
+            "backend_bound":56.4
           },
           "execution_time":{
             "min":0,
-            "sec":8.436861024
+            "sec":21.888234811
           }
         }
       },
       "autogen_short_750iter":{
         "performance":{
           "topdown":{
-            "retiring":16.7,
+            "retiring":16.4,
             "bad_speculation":3.7,
-            "frontend_bound":24.1,
-            "backend_bound":55.5
+            "frontend_bound":23.1,
+            "backend_bound":56.7
           },
           "execution_time":{
             "min":0,
-            "sec":8.430127781
+            "sec":48.842494861
           }
         }
       }
@@ -23214,14 +23214,14 @@
       "autogen_medium_100iter":{
         "performance":{
           "topdown":{
-            "retiring":16.2,
-            "bad_speculation":3.6,
-            "frontend_bound":23.7,
-            "backend_bound":56.5
+            "retiring":16.7,
+            "bad_speculation":4.1,
+            "frontend_bound":22.9,
+            "backend_bound":56.3
           },
           "execution_time":{
             "min":0,
-            "sec":8.432229148
+            "sec":13.757574732
           }
         }
       },
@@ -23230,12 +23230,12 @@
           "topdown":{
             "retiring":15.9,
             "bad_speculation":3.6,
-            "frontend_bound":23.5,
-            "backend_bound":57.0
+            "frontend_bound":24.0,
+            "backend_bound":56.4
           },
           "execution_time":{
             "min":0,
-            "sec":8.433580832
+            "sec":24.567142064
           }
         }
       }
@@ -23244,28 +23244,28 @@
       "autogen_long_50iter":{
         "performance":{
           "topdown":{
-            "retiring":15.9,
+            "retiring":15.6,
             "bad_speculation":3.6,
-            "frontend_bound":24.4,
-            "backend_bound":56.1
+            "frontend_bound":24.8,
+            "backend_bound":56.0
           },
           "execution_time":{
             "min":0,
-            "sec":8.43689919
+            "sec":11.11228697
           }
         }
       },
       "autogen_long_150iter":{
         "performance":{
           "topdown":{
-            "retiring":16.1,
-            "bad_speculation":3.7,
-            "frontend_bound":23.4,
-            "backend_bound":56.8
+            "retiring":16.4,
+            "bad_speculation":3.6,
+            "frontend_bound":24.8,
+            "backend_bound":55.3
           },
           "execution_time":{
             "min":0,
-            "sec":8.423027334
+            "sec":16.439096015
           }
         }
       }
