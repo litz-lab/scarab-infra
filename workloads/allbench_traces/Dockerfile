@@ -1,7 +1,7 @@
 # syntax = edrevo/dockerfile-plus
 
 # choose a ubuntu version
-FROM ubuntu:focal
+FROM ubuntu:jammy
 
 INCLUDE+ ./common/Dockerfile.common
 

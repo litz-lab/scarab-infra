@@ -1396,6 +1396,7 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
         scarab_cmd = generate_single_scarab_run_command(user, workload_home, experiment_name, config_key, config,
                                                         scarab_mode, seg_size, architecture, scarab_binary, cluster_id,
                                                         warmup, trace_warmup, trace_type, trace_file, env_vars, bincmd, client_bincmd)
+        app_mount = f"--mount type=bind,source={application_dir},target=/tmp_home/application,readonly=false" if application_dir else ""
         with open(filename, "w") as f:
             f.write("#!/bin/bash\n")
             f.write(f"echo \"Running {config_key} {workload_home} {cluster_id} {scarab_mode}\"\n")
@@ -1427,7 +1428,7 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
                 --name $CONTAINER_NAME \
                 --mount type=bind,source={traces_dir},target=/simpoint_traces,readonly=true \
                 --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
-                --mount type=bind,source={application_dir},target=/tmp_home/application,readonly=false \
+                {app_mount} \
                 {docker_prefix}:{githash} \
                 /bin/bash\n")
             else:
@@ -1443,7 +1444,7 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
                 --name $CONTAINER_NAME \
                 --mount type=bind,source={traces_dir},target=/simpoint_traces,readonly=true \
                 --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
-                --mount type=bind,source={application_dir},target=/tmp_home/application,readonly=false \
+                {app_mount} \
                 {docker_prefix}:{githash} \
                 /bin/bash\n")
             f.write(f"docker cp {infra_dir}/scripts/utilities.sh $CONTAINER_NAME:/usr/local/bin\n")
@@ -2482,8 +2483,8 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
             # Copy successfully collected traces to target_traces_dir (simpoints are recorded in workloads_db.json)
             os.system(f"mkdir -p {target_traces_path}/traces/whole")
             os.system(f"mkdir -p {target_traces_path}/traces/simp")
-            trace_clustering_info = read_descriptor_from_json(os.path.join(trace_dir, workload, "trace_clustering_info.json"), dbg_lvl)
             if config['trace_type'] == "trace_then_cluster":
+                trace_clustering_info = read_descriptor_from_json(os.path.join(trace_dir, workload, "trace_clustering_info.json"), dbg_lvl)
                 os.system(f"cp -r {trace_dir}/{workload}/traces_simp/* {target_traces_path}/traces/simp/")
                 os.system(f"mkdir -p {target_traces_path}/traces/whole/")
                 whole_trace_dir = trace_clustering_info['dr_folder']
@@ -2492,11 +2493,12 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
                 memtrace_dict['warmup'] = 50000000
                 memtrace_dict['whole_trace_file'] = trace_clustering_info['trace_file']
             elif config['trace_type'] == "cluster_then_trace":
+                # cluster_then_trace doesn't produce a whole-trace clustering_info file.
                 os.system(f"cp -r {trace_dir}/{workload}/traces_simp/trace/* {target_traces_path}/traces/simp/")
                 memtrace_dict['warmup'] = 50000000
                 memtrace_dict['whole_trace_file'] = None
-                print("cluster_then_trace doesn't have a whole trace file.")
             else: # iterative_trace
+                trace_clustering_info = read_descriptor_from_json(os.path.join(trace_dir, workload, "trace_clustering_info.json"), dbg_lvl)
                 largest_traces = trace_clustering_info['trace_file']
                 for trace_path in largest_traces:
                     print("Processing trace:", trace_path)
