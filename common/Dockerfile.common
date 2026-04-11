@@ -24,7 +24,14 @@ RUN apt update && DEBIAN_FRONTEND=noninteractive apt install -y \
     linux-tools-generic \
     gdb \
     graphviz \
-    curl
+    curl \
+    time
+
+# Restore libpthread.so linker script: Ubuntu jammy libc6-dev no longer ships
+# it because glibc 2.34+ merged libpthread into libc, but DynamoRIO's CMake
+# bakes find_library(pthread) absolute paths into make targets that later
+# break scarab build. Point -lpthread at the runtime stub.
+RUN echo 'GROUP ( /lib/x86_64-linux-gnu/libpthread.so.0 )' > /usr/lib/x86_64-linux-gnu/libpthread.so
 
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
 RUN apt install -y nodejs
