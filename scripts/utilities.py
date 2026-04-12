@@ -1506,6 +1506,11 @@ def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_contai
             # Defensive: absorb any leftover container with the same name from
             # a prior run that didn't clean up (e.g. SIGKILL'd sci process).
             f.write("docker rm -f \"$CONTAINER_NAME\" >/dev/null 2>&1 || true\n")
+            # Ensure the workload image is present on whichever node slurm
+            # lands us on. Mirrors write_docker_command_to_file's sim path.
+            f.write(f"cd {infra_dir}\n")
+            f.write(f"python -m scripts.prepare_docker_image --docker-prefix {image_name} --githash {githash} \n")
+            f.write(f"cd -\n")
             # DR_JOBS is set by the outer runner (local_runner.run_tracing)
             # via each child's env; fall back to 2 when launched standalone.
             command = f"docker run --privileged \
@@ -2327,6 +2332,11 @@ def prepare_trace(user, scarab_path, scarab_build, docker_home, job_name, infra_
 
     if not os.path.exists(f"{infra_dir}/scarab_builds"):
         os.system(f"mkdir -p {infra_dir}/scarab_builds")
+
+    # Ensure docker images are present locally (mirrors prepare_simulation).
+    for docker_prefix in docker_prefix_list:
+        image_tag = f"{docker_prefix}:{githash}"
+        prepare_docker_image(docker_prefix, image_tag, dbg_lvl)
 
     docker_prefix = docker_prefix_list[0]
     docker_container_name = None

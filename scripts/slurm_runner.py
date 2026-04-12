@@ -4,6 +4,7 @@
 # 01/27/2025 | Surim Oh | slurm_runner.py
 
 import os
+import shutil
 import subprocess
 import re
 import sys
@@ -14,6 +15,60 @@ from pathlib import Path
 # Per-simpoint memory scheduling constants
 DEFAULT_MEM_MB = 4096    # fallback when no base_memory_mb data exists in workloads_db
 MEM_HEADROOM_MB = 1024   # fixed +1 GiB on top of workloads_db base_memory_mb for Slurm --mem
+
+# Trace-job memory scheduling constants.
+# Formula: trace_mem_mb = max(TRACE_MEM_MIN_MB, peak_rss_mb * factor + TRACE_MEM_OVERHEAD_MB)
+# where peak_rss_mb comes from workloads_db.json performance.peak_rss_mb
+# (written by run_perf.py during the warmup run via /usr/bin/time -v).
+# `factor` absorbs the DynamoRIO + libfpg/drraw2trace inflation over the bare
+# workload RSS; `overhead` covers the fixed DR runtime + per-cluster raw2trace
+# buffers. See discussion in run_perf / cluster_then_trace design notes.
+TRACE_MEM_OVERHEAD_MB = 2000
+TRACE_MEM_MIN_MB = 8000
+TRACE_MEM_FALLBACK_MB = 16000  # used only if perf never ran for this workload
+TRACE_MEM_FACTOR = {
+    "cluster_then_trace": 2.5,   # parallel drraw2trace across clusters
+    "trace_then_cluster": 1.8,   # sequential raw2trace post-process
+    "iterative_trace":    2.0,
+}
+
+
+def estimate_trace_mem_mb(wl_entry, trace_type, descriptor_data=None):
+    """Return the slurm --mem (MB) to request for a single trace job.
+
+    Reads `performance.peak_rss_mb` written by run_perf.py from the workload
+    entry in workloads_db.json and applies a trace-type-specific multiplier +
+    fixed overhead. Falls back to TRACE_MEM_FALLBACK_MB if perf never ran.
+
+    Descriptor-level overrides (optional):
+        "mem": {
+            "trace_fallback_mb": 20000,
+            "trace_factor_cluster_then_trace": 3.0,
+            "trace_factor_trace_then_cluster": 2.0,
+            "trace_overhead_mb": 3000,
+            "trace_min_mb": 6000,
+        }
+    """
+    mem_cfg = (descriptor_data or {}).get("mem") or {}
+    overhead = int(mem_cfg.get("trace_overhead_mb", TRACE_MEM_OVERHEAD_MB))
+    min_mb = int(mem_cfg.get("trace_min_mb", TRACE_MEM_MIN_MB))
+    fallback = int(mem_cfg.get("trace_fallback_mb", TRACE_MEM_FALLBACK_MB))
+    factor = float(mem_cfg.get(
+        f"trace_factor_{trace_type}",
+        TRACE_MEM_FACTOR.get(trace_type, 2.0),
+    ))
+
+    peak_rss_mb = None
+    try:
+        peak_rss_mb = ((wl_entry or {}).get("performance") or {}).get("peak_rss_mb")
+    except (AttributeError, TypeError):
+        peak_rss_mb = None
+
+    if peak_rss_mb is None:
+        return fallback, None  # (mem_mb, measured_rss_mb)
+
+    est = int(round(peak_rss_mb * factor)) + overhead
+    return max(est, min_mb), peak_rss_mb
 
 from .utilities import (
         err,
@@ -326,6 +381,89 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
         log_count_offset=1,
         prep_failed_label="Failed - Slurm",
     )
+
+def print_trace_status(user, job_name, docker_prefix_list, dbg_lvl = 1):
+    """Print status of slurm trace jobs: node availability, running/queued/completed counts."""
+    try:
+        githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).decode("utf-8").strip()
+        info(f"Git hash: {githash}", dbg_lvl)
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        githash = "unknown"
+
+    try:
+        available_slurm_nodes, all_nodes = check_available_nodes(dbg_lvl)
+    except:
+        exit(1)
+
+    print(f"Checking resource availability of slurm nodes:")
+    for node in all_nodes:
+        if node in available_slurm_nodes:
+            print(f"\033[92mAVAILABLE:   {node}\033[0m")
+        else:
+            print(f"\033[31mUNAVAILABLE: {node}\033[0m")
+
+    # Deduplicate prefixes (all configs may share the same image)
+    unique_prefixes = list(dict.fromkeys(docker_prefix_list))
+    slurm_tasks = check_slurm_task_queued_or_running(unique_prefixes, job_name, user, dbg_lvl)
+
+    running = []
+    queued = []
+    by_node = {}
+    for node, tasks in slurm_tasks.items():
+        if node == '':
+            queued += tasks
+        else:
+            running += tasks
+            if tasks:
+                by_node[node] = tasks
+
+    # Check for completed/in-progress traces on disk
+    trace_dir = f"{os.path.expanduser('~')}/simpoint_flow/{job_name}"
+    completed = []
+    failed = []
+    in_progress = []
+    if os.path.isdir(trace_dir):
+        for wl_dir in sorted(os.listdir(trace_dir)):
+            wl_path = os.path.join(trace_dir, wl_dir)
+            if not os.path.isdir(wl_path) or wl_dir in ("logs", "scarab"):
+                continue
+            fp_file = os.path.join(wl_path, "fingerprint", "segment_size")
+            if os.path.isfile(fp_file):
+                completed.append(wl_dir)
+            else:
+                # Check if any slurm job is still running for this workload
+                is_running = any(wl_dir in t for t in running)
+                is_queued = any(wl_dir in t for t in queued)
+                if is_running or is_queued:
+                    in_progress.append(wl_dir)
+                else:
+                    failed.append(wl_dir)
+
+    total = len(completed) + len(in_progress) + len(failed)
+    print(f"\nTrace job: {job_name}")
+    print(f"Slurm jobs — Running: {len(running)}  |  Queued: {len(queued)}")
+    print(f"Traces    — Completed: {len(completed)}  |  In-progress: {len(in_progress)}  |  Failed: {len(failed)}  |  Total: {total}")
+
+    if by_node:
+        print(f"\nRunning jobs by node:")
+        for node, tasks in by_node.items():
+            print(f"  {node}: {len(tasks)} jobs")
+            for t in tasks:
+                print(f"    {t}")
+
+    if completed:
+        print(f"\nCompleted ({len(completed)}):")
+        for wl in completed:
+            print(f"  \033[92m{wl}\033[0m")
+    if in_progress:
+        print(f"\nIn-progress ({len(in_progress)}):")
+        for wl in in_progress:
+            print(f"  \033[93m{wl}\033[0m")
+    if failed:
+        print(f"\nFailed ({len(failed)}):")
+        for wl in failed:
+            print(f"  \033[31m{wl}\033[0m")
+
 
 # Kills all jobs for job_name, if associated with user
 def kill_jobs(user, job_name, docker_prefix_list, dbg_lvl = 2):
@@ -745,9 +883,35 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
 
     tmp_files = []
 
-    def run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd, trace_type, drio_args, clustering_k, application_dir, slurm_options):
+    def run_single_trace(workload, suite, subsuite, image_name, trace_name, env_vars, binary_cmd, client_bincmd, trace_type, drio_args, clustering_k, application_dir, slurm_options, config_mem_override):
         try:
-            sbatch_cmd = generate_sbatch_command(trace_dir, slurm_options=slurm_options)
+            # Look up this workload's peak RSS (written by run_perf.py during
+            # the previous --perf run) and compute the slurm --mem request.
+            # Per-config override wins over the computed value.
+            wl_entry = None
+            try:
+                wl_entry = workloads_db_data[suite][subsuite][workload]
+            except (KeyError, TypeError):
+                wl_entry = None
+            est_mem_mb, measured_rss_mb = estimate_trace_mem_mb(
+                wl_entry, trace_type, descriptor_data=descriptor_data,
+            )
+            if config_mem_override is not None:
+                trace_mem_mb = int(config_mem_override)
+                mem_source = f"descriptor override trace_mem_mb={trace_mem_mb}MB"
+            else:
+                trace_mem_mb = est_mem_mb
+                if measured_rss_mb is not None:
+                    mem_source = (f"estimated from peak_rss={measured_rss_mb}MB "
+                                  f"(trace_type={trace_type})")
+                else:
+                    mem_source = (f"fallback (no peak_rss_mb in workloads_db for "
+                                  f"{suite}/{subsuite}/{workload}; run --perf first)")
+            info(f"Trace mem for {workload}: --mem {trace_mem_mb}M ({mem_source})", dbg_lvl)
+
+            sbatch_cmd = generate_sbatch_command(
+                trace_dir, slurm_options=slurm_options, mem_mb=trace_mem_mb,
+            )
 
             if trace_type == "cluster_then_trace":
                 simpoint_mode = "cluster_then_trace"
@@ -801,10 +965,61 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
         trace_dir = f"{descriptor_data['root_dir']}/simpoint_flow/{trace_name}"
         prepare_trace(user, scarab_path, scarab_build, docker_home, trace_name, infra_dir, docker_prefix_list, githash, False, available_slurm_nodes, dbg_lvl=dbg_lvl)
 
+        # Load workloads_db.json once so run_single_trace can look up
+        # per-workload peak_rss_mb for trace memory estimation.
+        workloads_db_data = {}
+        try:
+            with open(workload_db_path) as f:
+                workloads_db_data = json.load(f) or {}
+        except (FileNotFoundError, json.JSONDecodeError) as exc:
+            warn(f"Could not read {workload_db_path}: {exc}. "
+                 f"Trace memory requests will use fallback.", dbg_lvl)
+
+        # Build skip sets: completed traces and currently running/queued slurm jobs
+        completed_traces = set()
+        if os.path.isdir(trace_dir):
+            for wl_dir in os.listdir(trace_dir):
+                fp_file = os.path.join(trace_dir, wl_dir, "fingerprint", "segment_size")
+                if os.path.isfile(fp_file):
+                    completed_traces.add(wl_dir)
+
+        unique_prefixes = list(dict.fromkeys(docker_prefix_list))
+        slurm_tasks = check_slurm_task_queued_or_running(unique_prefixes, trace_name, user, dbg_lvl)
+        running_workloads = set()
+        for tasks in slurm_tasks.values():
+            for t in tasks:
+                # Container name format: {image}_{workload}_{trace_name}_...
+                # Extract workload name between first and second underscore-group
+                parts = t.split(f"_{trace_name}_")
+                if parts:
+                    wl = parts[0].split(f"{unique_prefixes[0]}_", 1)[-1]
+                    running_workloads.add(wl)
+
+        skipped = 0
+        submitted = 0
         # Iterate over each trace configuration
         for config in trace_configs:
             workload = config["workload"]
+            suite = config.get("suite")
+            subsuite = config.get("subsuite")
             image_name = config["image_name"]
+
+            # Skip completed or already-running traces
+            if workload in completed_traces:
+                info(f"Skipping {workload}: already completed", dbg_lvl)
+                skipped += 1
+                continue
+            if workload in running_workloads:
+                info(f"Skipping {workload}: slurm job already running", dbg_lvl)
+                skipped += 1
+                continue
+
+            # Clean stale partial state from prior failed runs
+            wl_trace_dir = os.path.join(trace_dir, workload)
+            if os.path.isdir(wl_trace_dir):
+                info(f"Cleaning stale state for {workload}", dbg_lvl)
+                shutil.rmtree(wl_trace_dir)
+
             if config["env_vars"] != None:
                 env_vars = config["env_vars"].split()
             else:
@@ -815,23 +1030,34 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
             drio_args = config["dynamorio_args"]
             clustering_k = config["clustering_k"]
             slurm_options = config.get("slurm_options", "")
+            config_mem_override = config.get("trace_mem_mb")
 
-            run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd,
-                             trace_type, drio_args, clustering_k, application_dir, slurm_options)
+            run_single_trace(workload, suite, subsuite, image_name, trace_name, env_vars, binary_cmd,
+                             client_bincmd, trace_type, drio_args, clustering_k, application_dir,
+                             slurm_options, config_mem_override)
+            submitted += 1
+
+        info(f"Submitted: {submitted}, Skipped: {skipped} (completed: {len(completed_traces)}, running: {len(running_workloads)})", dbg_lvl)
 
         # Clean up temp files
         for tmp in tmp_files:
-            info(f"Removing temporary run script {tmp}", dbg_lvl)
-            os.remove(tmp)
+            if os.path.exists(tmp):
+                info(f"Removing temporary run script {tmp}", dbg_lvl)
+                os.remove(tmp)
 
-        finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl)
+        # NOTE: finish_trace is NOT called here because sbatch jobs are
+        # asynchronous.  Call `./sci --trace agent_trace` again after all
+        # slurm jobs have completed to run finish_trace (the jobs will be
+        # skipped and only the post-processing step will execute).
+        info("Slurm trace jobs submitted. Run finish_trace after all jobs complete.", dbg_lvl)
     except Exception as e:
         print("An exception occurred:", e)
         traceback.print_exc()  # Print the full stack trace
 
-        # Clean up temp files
+        # Clean up temp files (idempotent)
         for tmp in tmp_files:
-            info(f"Removing temporary run script {tmp}", dbg_lvl)
-            os.remove(tmp)
+            if os.path.exists(tmp):
+                info(f"Removing temporary run script {tmp}", dbg_lvl)
+                os.remove(tmp)
 
         kill_jobs(user, trace_name, docker_prefix_list, dbg_lvl)

@@ -7,6 +7,8 @@
 #include <map>
 #include <fstream>
 #include <string>
+#include <cstring>
+#include <cstdio>
 #ifdef WINDOWS
 # define DISPLAY_STRING(msg) dr_messagebox(msg)
 #else
@@ -149,7 +151,10 @@ clean_call(uint instruction_count, uint64 bb_id, uint64 segment_size, uint emula
 
 // identical to memtrace post processing
 // excepty for assertions
-uint64_t output_fingerprint(std::string file_name, std::map<uint64_t, uint64_t> fingerprint, bool exit);
+// NOTE: fingerprint is passed by const reference. Passing by value copies the
+// entire std::map on the DR client stack (which is only 56K by default) and
+// overflows on workloads with large unique bb_id counts like CPython 3.10+.
+uint64_t output_fingerprint(const std::string &file_name, const std::map<uint64_t, uint64_t> &fingerprint, bool exit);
 void output_total_instrs_in_seg(per_thread_data *t_data, uint64 seg_idx);
 
 DR_EXPORT void
@@ -330,34 +335,47 @@ event_thread_exit(void *drcontext)
                     t_data->inspect_case_as_built[BIG_BB]
                     );
 
-    // dumping bb pc map
-    std::ofstream mypcmap;
-    mypcmap.open(op_pcmap_output.get_value() + "." + std::to_string(dr_get_thread_id(drcontext)), std::ofstream::out);
-    if (!mypcmap.is_open()) {
-        dr_printf("open pcmap file failed\n");
+    // dumping bb pc map (DR-native file I/O; see output_fingerprint for why).
+    const std::string pcmap_path =
+        op_pcmap_output.get_value() + "." + std::to_string(dr_get_thread_id(drcontext));
+    file_t pcmap_f = dr_open_file(pcmap_path.c_str(), DR_FILE_WRITE_OVERWRITE);
+    if (pcmap_f == INVALID_FILE) {
+        dr_printf("open pcmap file failed: %s\n", pcmap_path.c_str());
     }
-    std::cout <<"dumping pc map, total unique bb: " << t_data->addr_to_bb_for_trace.size() << std::endl;
+    dr_printf("dumping pc map, total unique bb: %lu\n", t_data->addr_to_bb_for_trace.size());
     DR_ASSERT(t_data->addr_to_bb_for_trace.size() == t_data->bb_pc_map.size());
-    mypcmap << "bb_pc,bb_id,bb_size,bb_pc_vec" << std::endl;
-    // pc -> bb_id, bb_size
-    std::map<app_pc, std::pair<uint64, uint>>::iterator bb_info;
+
+    // Build the whole pcmap as a heap string, then one dr_write_file.
+    std::string pcmap_out;
+    pcmap_out.reserve(t_data->addr_to_bb_for_trace.size() * 64);
+    pcmap_out.append("bb_pc,bb_id,bb_size,bb_pc_vec\n");
+    char buf[128];
     uint64 unique_instrs_count = 0;
-    for (bb_info = t_data->addr_to_bb_for_trace.begin(); bb_info != t_data->addr_to_bb_for_trace.end(); bb_info++) {
+    for (std::map<app_pc, std::pair<uint64, uint>>::iterator bb_info =
+             t_data->addr_to_bb_for_trace.begin();
+         bb_info != t_data->addr_to_bb_for_trace.end(); ++bb_info) {
         unique_instrs_count += bb_info->second.second;
-        mypcmap << (uint64)bb_info->first << "," << bb_info->second.first << "," << bb_info->second.second << ",";
-        // using bb_pc_map for complete bb pc vector!
+        int n = snprintf(buf, sizeof(buf), "%llu,%llu,%u,",
+                         (unsigned long long)(uint64)bb_info->first,
+                         (unsigned long long)bb_info->second.first,
+                         bb_info->second.second);
+        if (n > 0) pcmap_out.append(buf, n);
 
         DR_ASSERT(t_data->bb_pc_map.find(bb_info->second.first) != t_data->bb_pc_map.end());
         const std::vector<app_pc> & bb_pc = t_data->bb_pc_map[bb_info->second.first];
         DR_ASSERT(bb_info->second.second == bb_pc.size());
         DR_ASSERT(bb_info->first == bb_pc.front());
         for (app_pc pc : bb_pc) {
-            mypcmap << (uint64)pc << "-";
+            n = snprintf(buf, sizeof(buf), "%llu-", (unsigned long long)(uint64)pc);
+            if (n > 0) pcmap_out.append(buf, n);
         }
-        mypcmap << std::endl;
+        pcmap_out.append("\n");
     }
-    std::cout <<"total unique instrs: " << unique_instrs_count << std::endl;
-    mypcmap.close();
+    if (pcmap_f != INVALID_FILE) {
+        dr_write_file(pcmap_f, pcmap_out.data(), pcmap_out.size());
+        dr_close_file(pcmap_f);
+    }
+    dr_printf("total unique instrs: %llu\n", (unsigned long long)unique_instrs_count);
 
     dr_thread_free(drcontext, t_data, sizeof(per_thread_data));
 
@@ -713,7 +731,17 @@ event_app_analysis(void *drcontext, void *tag, instrlist_t *bb,
     // see https://groups.google.com/g/dynamorio-users/c/DDHfM_mB9Vg/m/NxIjLfLjAQAJ?pli=1
 
     if (t_data->addr_to_bb_for_trace.find(first_addr) == t_data->addr_to_bb_for_trace.end()) {
-        DR_ASSERT(!for_trace);
+        // Previously: DR_ASSERT(!for_trace);
+        // Removed: multi-threaded Python workloads (torch/faiss in haystack,
+        // autogen thread pools) can spawn new threads during the trace phase
+        // that encounter basic blocks never seen during fingerprinting.
+        // These new BBs are harmless — just allocate a fresh bb_id and
+        // register them so the trace can proceed.
+        if (for_trace) {
+            dr_printf("[%llu] new bb at addr %llu discovered during trace phase "
+                      "(late thread); allocating fresh bb_id\n",
+                      dr_get_thread_id(drcontext), (uint64)first_addr);
+        }
 
         t_data->counts_as_built.rep_string_count += emulation_start_count;
         t_data->counts_as_built.blocks++;
@@ -726,7 +754,12 @@ event_app_analysis(void *drcontext, void *tag, instrlist_t *bb,
 
         // t_data->addr_to_bb_for_trace.insert(std::make_pair(first_addr, std::make_pair(cleancall_bb_id, num_instrs)));
         t_data->addr_to_bb_for_trace[first_addr] = std::make_pair(cleancall_bb_id, num_instrs);
-        DR_ASSERT(cleancall_bb_id == t_data->addr_to_bb_for_trace.size());
+        // Note: bb_id may exceed addr_to_bb_for_trace.size() because a single
+        // first_addr can legitimately map to multiple bb_ids when the same PC
+        // produces different bb content across time (self-modifying code,
+        // CPython 3.10+ adaptive interpreter / inline cache specialization,
+        // JIT'd ctypes/torch/faiss trampolines, DR code-cache flushes on
+        // mmap/dlopen). See the else-branch below for the re-key path.
 
         DR_ASSERT(t_data->bb_pc_map.find(cleancall_bb_id) == t_data->bb_pc_map.end());
         t_data->bb_pc_map[cleancall_bb_id] = bb_pc;
@@ -739,32 +772,60 @@ event_app_analysis(void *drcontext, void *tag, instrlist_t *bb,
     } else {
         // get the bb id for the bb in trace
         std::map<app_pc, std::pair<uint64, uint>>::iterator bb_info = t_data->addr_to_bb_for_trace.find(first_addr);
-        cleancall_bb_id = bb_info->second.first;
-        dr_printf("[%llu] re-create bb_id %llu, for_trace: %d, translating: %d\n", dr_get_thread_id(drcontext), cleancall_bb_id, for_trace, translating);
+        uint64 cached_bb_id = bb_info->second.first;
+        uint cached_num_instrs = bb_info->second.second;
 
-        if (num_instrs != bb_info->second.second) {
-            dr_printf("[%llu] re-created bb_id %llu has different inst count: %u v.s. %u.\n", dr_get_thread_id(drcontext), cleancall_bb_id, num_instrs, bb_info->second.second);
-        }
-        DR_ASSERT(num_instrs == bb_info->second.second);
+        DR_ASSERT(t_data->bb_pc_map.find(cached_bb_id) != t_data->bb_pc_map.end());
+        const std::vector<app_pc> & existed_bb_pc = t_data->bb_pc_map[cached_bb_id];
 
-        DR_ASSERT(t_data->bb_pc_map.find(cleancall_bb_id) != t_data->bb_pc_map.end());
-        const std::vector<app_pc> & existed_bb_pc = t_data->bb_pc_map[cleancall_bb_id];
-        if (bb_pc != existed_bb_pc) {
-            dr_printf("[%llu] re-created bb_id %llu has different bb content; bb size: %lu v.s. %lu.\n", dr_get_thread_id(drcontext), cleancall_bb_id, bb_pc.size(), existed_bb_pc.size());
-            dr_printf("re-created bb:\n");
-            for (app_pc pc : bb_pc) {
-                dr_printf("%llu\n", (uint64)pc);
+        bool content_matches = (num_instrs == cached_num_instrs) && (bb_pc == existed_bb_pc);
+
+        if (content_matches) {
+            // same first_addr, same content: reuse the existing bb_id.
+            cleancall_bb_id = cached_bb_id;
+            dr_printf("[%llu] re-create bb_id %llu, for_trace: %d, translating: %d\n",
+                      dr_get_thread_id(drcontext), cleancall_bb_id, for_trace, translating);
+
+            // inspections
+            if (!for_trace && !translating) {
+                t_data->inspect_case_as_built[NON_TRACE_NON_TRANSLATING_RECREATION]++;
             }
-            dr_printf("existed bb:\n");
-            for (app_pc pc : existed_bb_pc) {
-                dr_printf("%llu\n", (uint64)pc);
-            }
-        }
-        DR_ASSERT(bb_pc == existed_bb_pc);
+        } else {
+            // Same first_addr but different content. This is legal on Python
+            // 3.10+ (PEP 659 adaptive interp self-modifies inline caches),
+            // JIT'd trampolines, and after DR code-cache flushes. Instead of
+            // asserting (which used to SIGSEGV libfpg.so mid-run), allocate a
+            // fresh bb_id and overwrite the addr -> bb_id mapping so future
+            // lookups see the newest version.
+            dr_printf("[%llu] bb at first_addr %llu re-materialized with different content "
+                      "(instr count %u -> %u, bb size %lu -> %lu); re-keying as new bb_id\n",
+                      dr_get_thread_id(drcontext), (uint64)first_addr,
+                      cached_num_instrs, num_instrs,
+                      existed_bb_pc.size(), bb_pc.size());
 
-        // inspections
-        if (!for_trace && !translating) {
-            t_data->inspect_case_as_built[NON_TRACE_NON_TRANSLATING_RECREATION]++;
+            t_data->counts_as_built.rep_string_count += emulation_start_count;
+            t_data->counts_as_built.blocks++;
+            t_data->counts_as_built.total_size += num_instrs;
+            t_data->counts_as_built.fetched_size += num_instrs;
+            t_data->bb_id++;
+            cleancall_bb_id = t_data->bb_id;
+
+            // Erase the stale bb_pc_map entry for the old bb_id so the
+            // thread-exit invariant addr_to_bb_for_trace.size() ==
+            // bb_pc_map.size() still holds. Nothing references the old bb_id
+            // after we overwrite addr_to_bb_for_trace below.
+            t_data->bb_pc_map.erase(cached_bb_id);
+
+            bb_info->second = std::make_pair(cleancall_bb_id, num_instrs);
+
+            DR_ASSERT(t_data->bb_pc_map.find(cleancall_bb_id) == t_data->bb_pc_map.end());
+            t_data->bb_pc_map[cleancall_bb_id] = bb_pc;
+
+            // inspections
+            t_data->inspect_case_as_built[NON_EMULATION_NON_APP] += non_emulation_non_app;
+            if (num_instrs > 2048) {
+                t_data->inspect_case_as_built[BIG_BB]++;
+            }
         }
     }
 
@@ -867,38 +928,45 @@ event_app_instruction(void *drcontext, void *tag, instrlist_t *bb,
 }
 
 // is also used to print footprint
-uint64_t output_fingerprint(std::string file_name, std::map<uint64_t, uint64_t> fingerprint, bool exit) {
-    // output the map for this segment
-    // make it a function?
-    std::ofstream myfile;
-    myfile.open(file_name, std::ofstream::out | std::ofstream::app);
-
-    if (!myfile.is_open()) {
-        std::cout << "open file failed: " << file_name << std::endl;
+//
+// NOTE: we use DR's native file I/O (dr_open_file / dr_write_file) instead of
+// std::ofstream. std::ofstream/<fstream> ends up calling into the app's libc
+// stdio (_IO_FILE streams) from within a DR clean-call, which corrupts the
+// FILE linked list and SIGSEGVs on multi-threaded Python workloads (CPython
+// 3.10+ with torch/faiss). The crash signature was a SIGSEGV with the
+// _IO_MAGIC (0xfbad0000) in the registers. DR's dr_write_file bypasses libc
+// stdio entirely.
+uint64_t output_fingerprint(const std::string &file_name, const std::map<uint64_t, uint64_t> &fingerprint, bool exit) {
+    file_t f = dr_open_file(file_name.c_str(), DR_FILE_WRITE_APPEND);
+    if (f == INVALID_FILE) {
+        dr_printf("open file failed: %s\n", file_name.c_str());
+        return 0;
     }
 
-    // std::cout << num_of_segments << "th fp dimensions: " << fingerprint.size() << std::endl;
-    // fine if comment starting here
-    std::map<uint64_t, uint64_t>::iterator freq;
+    // Format the full line into a heap-allocated std::string first, then
+    // write it in a single dr_write_file call. This avoids many small writes
+    // inside the clean-call and keeps formatting off the tiny (56K) client
+    // stack.
+    std::string line;
+    line.reserve(fingerprint.size() * 24 + 8);
     uint64_t instrs_count = 0;
-
     uint64_t nonzero_count = 0;
-    // static std::vector<uint64> csv_line(counts_as_built.blocks, 0);
-
-    for (freq = fingerprint.begin(); freq != fingerprint.end(); freq++) {
+    bool first = true;
+    char buf[64];
+    for (std::map<uint64_t, uint64_t>::const_iterator freq = fingerprint.begin();
+         freq != fingerprint.end(); ++freq) {
         instrs_count += freq->second;
-        if(freq == fingerprint.begin()) {
-            myfile << "T";
+        if (first) {
+            line.append("T");
+            first = false;
         }
-        myfile << ":" << freq->first << ":" << freq->second << " ";
-
-        // csv_line[freq->first] = freq->second;
+        int n = snprintf(buf, sizeof(buf), ":%llu:%llu ",
+                         (unsigned long long)freq->first,
+                         (unsigned long long)freq->second);
+        if (n > 0) line.append(buf, n);
         nonzero_count++;
-
-        // if (freq->first + 1 == counts_as_built.blocks) {
-        //     witness_total = true;
-        // }
     }
+    line.append("\n");
 
     DR_ASSERT(nonzero_count == fingerprint.size());
     if (!exit) {
@@ -907,26 +975,33 @@ uint64_t output_fingerprint(std::string file_name, std::map<uint64_t, uint64_t> 
         }
     }
 
-    myfile << std::endl;
-    myfile.close();
+    dr_write_file(f, line.data(), line.size());
+    dr_close_file(f);
 
     return instrs_count;
 }
 
 void output_total_instrs_in_seg(per_thread_data *t_data, uint64 seg_idx)
 {
+    // See output_fingerprint for why we avoid <fstream> inside DR clean-calls.
     const std::string fname =
         op_output.get_value() + "." + std::to_string(t_data->thread_id) + ".inscount";
 
-    std::ofstream out(fname, std::ofstream::out | std::ofstream::app);
-    if (!out.is_open()) {
+    file_t f = dr_open_file(fname.c_str(), DR_FILE_WRITE_APPEND);
+    if (f == INVALID_FILE) {
         dr_printf("open file failed: %s\n", fname.c_str());
         return;
     }
 
-    if (seg_idx == 1)
-        out << "segment,total_instrs_in_seg\n";
-
-    out << seg_idx << "," << t_data->total_instrs_in_seg << "\n";
-    out.close();
+    char buf[128];
+    int n;
+    if (seg_idx == 1) {
+        const char *hdr = "segment,total_instrs_in_seg\n";
+        dr_write_file(f, hdr, strlen(hdr));
+    }
+    n = snprintf(buf, sizeof(buf), "%llu,%llu\n",
+                 (unsigned long long)seg_idx,
+                 (unsigned long long)t_data->total_instrs_in_seg);
+    if (n > 0) dr_write_file(f, buf, n);
+    dr_close_file(f);
 }

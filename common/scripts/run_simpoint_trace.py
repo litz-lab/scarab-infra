@@ -284,7 +284,13 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
             subprocess.Popen("exec " + client_bincmd, stdout=subprocess.PIPE, shell=True)
         start_time = time.perf_counter()
         fp_cmd = f"{dynamorio_home}/bin64/drrun -max_bb_instrs 4095 -opt_cleancall 2 -c $tmpdir/libfpg.so -no_use_bb_pc -segment_size {seg_size} -output {workload_home}/fingerprint/bbfp -pcmap_output {workload_home}/fingerprint/pcmap -- {bincmd}"
-        subprocess.run([fp_cmd], check=True, capture_output=True, text=True, shell=True)
+        result = subprocess.run([fp_cmd], capture_output=True, text=True, shell=True)
+        if result.returncode != 0:
+            print(f"Fingerprint command failed (exit {result.returncode}):")
+            print(f"  cmd: {fp_cmd}")
+            if result.stdout: print(f"  stdout: {result.stdout[-2000:]}")
+            if result.stderr: print(f"  stderr: {result.stderr[-2000:]}")
+            result.check_returncode()
         end_time = time.perf_counter()
 
         fingerprint_dir = os.path.join(workload_home, "fingerprint")
