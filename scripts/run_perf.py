@@ -189,6 +189,29 @@ def parse_perf_stat_time(stderr_text):
     return None
 
 
+def _parse_peak_rss_mb(stderr_text):
+    """Parse warmup stderr for peak RSS (MB int) or None.
+
+    Two formats are supported:
+      1. Our python3 RUSAGE_CHILDREN wrapper (default; see run_perf_for_descriptor):
+             PEAK_RSS_KB=<n>
+      2. GNU `/usr/bin/time -v` (legacy; only if `time` package is installed in
+         the container):
+             Maximum resident set size (kbytes): <n>
+    Both report kB from getrusage(RUSAGE_CHILDREN).ru_maxrss, i.e. the
+    high-water mark of the workload's RSS (VmHWM).
+    """
+    if not stderr_text:
+        return None
+    match = re.search(r"PEAK_RSS_KB=(\d+)", stderr_text)
+    if not match:
+        match = re.search(r"Maximum resident set size \(kbytes\):\s+(\d+)", stderr_text)
+    if not match:
+        return None
+    kb = int(match.group(1))
+    return int(round(kb / 1024))
+
+
 TOPLEV_PATH = "/tmp_home/pmu-tools/toplev.py"
 PERF_CORE = 10  # Pin workloads to a high-numbered core to reduce interference
 PERF_REPEAT = 15  # Re-run the entire workload binary this many times per measurement
@@ -327,13 +350,34 @@ def collect_perf_data(user, root_dir, image_name, infra_dir, perf_configs, dbg_l
             subsuite = config["subsuite"]
             print(f"  Collecting perf data for {workload}...")
 
-            # Warmup: run once to populate FS cache, shared libs, bytecode caches
+            # Warmup: run once to populate FS cache, shared libs, bytecode
+            # caches. We also capture the workload's peak RSS (ru_maxrss) via
+            # a small python3 wrapper that execs taskset+binary_cmd as a child
+            # and then reads RUSAGE_CHILDREN. Prints a PEAK_RSS_KB=<n> sentinel
+            # on its own line to stderr. We avoid GNU time (`/usr/bin/time -v`)
+            # so we don't depend on the `time` apt package being present in
+            # every workload image. The captured value is stored in
+            # workloads_db.json under performance.peak_rss_mb and later
+            # consumed by slurm_runner.estimate_trace_mem_mb() to size `--mem`
+            # for sbatch trace jobs. Effectively free: this run already happens.
             binary_cmd = config["binary_cmd"]
-            subprocess.run(
-                ["docker", "exec", "--privileged", docker_container_name,
-                 "/bin/bash", "-c", f"taskset -c {PERF_CORE} {binary_cmd} >/dev/null 2>&1"],
-                capture_output=True, timeout=120,
+            rss_wrapper = (
+                "python3 -c '"
+                "import os,sys,subprocess,resource;"
+                "cmd=sys.argv[1];"
+                "r=subprocess.run([\"/bin/bash\",\"-c\",cmd],"
+                "stdout=subprocess.DEVNULL);"
+                "u=resource.getrusage(resource.RUSAGE_CHILDREN);"
+                "sys.stderr.write(f\"PEAK_RSS_KB={u.ru_maxrss}\\n\");"
+                "sys.exit(r.returncode)' "
+                f'"taskset -c {PERF_CORE} {binary_cmd}"'
             )
+            warmup_res = subprocess.run(
+                ["docker", "exec", "--privileged", docker_container_name,
+                 "/bin/bash", "-c", rss_wrapper],
+                capture_output=True, text=True, timeout=300,
+            )
+            peak_rss_mb = _parse_peak_rss_mb(warmup_res.stderr)
 
             topdown = run_toplev_for_config(docker_container_name, config)
             elapsed = run_perf_stat_for_config(docker_container_name, config)
@@ -355,6 +399,7 @@ def collect_perf_data(user, root_dir, image_name, infra_dir, perf_configs, dbg_l
                     "min": elapsed_min,
                     "sec": elapsed_sec,
                 },
+                "peak_rss_mb": peak_rss_mb,
             }
 
             # Write to workloads_db at [suite][subsuite][workload]["performance"]
@@ -368,6 +413,10 @@ def collect_perf_data(user, root_dir, image_name, infra_dir, perf_configs, dbg_l
 
             print(f"    topdown: {topdown}")
             print(f"    elapsed: {elapsed}s")
+            if peak_rss_mb is not None:
+                print(f"    peak_rss: {peak_rss_mb} MB")
+            else:
+                print(f"    peak_rss: (not captured)")
 
         write_json_descriptor(workload_db_path, workload_db, dbg_lvl)
         print(f"Results written to {workload_db_path}")
