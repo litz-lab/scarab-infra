@@ -154,9 +154,11 @@ def extract_descriptor_expectations(descriptor: Dict[str, Any]) -> Tuple[Set[str
 
             # If workload is explicitly listed, include suite/subsuite in the expected name.
             if workload:
-                workloads.add(canon(str(suite) if suite else None,
-                                    str(subsuite) if subsuite else None,
-                                    str(workload)))
+                wl_list = workload if isinstance(workload, list) else [workload]
+                for w in wl_list:
+                    workloads.add(canon(str(suite) if suite else None,
+                                        str(subsuite) if subsuite else None,
+                                        str(w)))
                 continue
 
             # If only suite/subsuite given (or just suite), expand from workloads_db.json.
