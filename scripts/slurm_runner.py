@@ -686,6 +686,32 @@ def clean_containers(user, job_name, docker_prefix_list, dbg_lvl = 2):
         print("No matching containers found on any slurm node.")
 
     clean_tmp_run_scripts(all_nodes, job_name, user, dbg_lvl)
+    clean_docker_images(all_nodes, docker_prefix_list, dbg_lvl)
+
+def clean_docker_images(nodes, docker_prefix_list, dbg_lvl = 2):
+    """Remove all Docker images matching the workload prefixes on every node."""
+    for node in nodes:
+        for prefix in docker_prefix_list:
+            try:
+                result = run_on_node(
+                    ["docker", "images", "--format", "{{.Repository}}:{{.Tag}}", prefix],
+                    node=node,
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                    timeout=30,
+                )
+            except Exception as exc:
+                warn(f"Failed to list images on {node}: {exc}", dbg_lvl)
+                continue
+
+            images = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+            for img in images:
+                try:
+                    run_on_node(["docker", "rmi", "-f", img], node=node, check=True, timeout=30)
+                    print(f"Removed image {img} on {node}")
+                except Exception as exc:
+                    warn(f"Failed to remove image {img} on {node}: {exc}", dbg_lvl)
 
 def clean_tmp_run_scripts(nodes, job_name, user, dbg_lvl = 2):
     pattern = re.compile(rf".*_{re.escape(job_name)}_.*_{re.escape(user)}_tmp_run\.sh$")
