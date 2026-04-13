@@ -647,7 +647,6 @@ def build_gdown_command(file_id: str, output_path: Path, *, use_conda: bool) -> 
     else:
         cmd.append("gdown")
 
-    cmd.append("--fuzzy")
     cmd.extend([url, "-O", str(output_path)])
     return cmd
 
