@@ -1481,7 +1481,7 @@ def generate_single_trace_run_command(user, workload, image_name, trace_name, bi
     if client_bincmd != None:
         command = f"{command} --client_bincmd \\\"{client_bincmd}\\\""
     if drio_args != None:
-        command = f"{command} --drio_args {drio_args}"
+        command = f"{command} --drio_args \\\"{drio_args}\\\""
     if clustering_k != None:
         command = f"{command} -userk {clustering_k}"
     return command
@@ -2453,10 +2453,17 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
 
         print("Copying the successfully collected traces and update workloads_db.json...")
 
+        skipped = []
         for config in trace_configs:
             workload = config['workload']
             suite = config['suite']
             subsuite = config['subsuite']
+
+            # Skip incomplete traces (fingerprinting/tracing not finished yet)
+            segment_size_file = os.path.join(trace_dir, workload, "fingerprint", "segment_size")
+            if not os.path.isfile(segment_size_file):
+                skipped.append(workload)
+                continue
 
             # Update workload_db_data
             trace_dict = {}
@@ -2466,7 +2473,6 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
             simulation_dict = {}
             exec_dict = {}
             exec_dict['image_name'] = config['image_name']
-            segment_size_file = os.path.join(trace_dir, workload, "fingerprint", "segment_size")
             exec_dict['segment_size'] = int(read_first_line(segment_size_file))
             exec_dict['env_vars'] = config['env_vars']
             exec_dict['binary_cmd'] = config['binary_cmd']
@@ -2546,6 +2552,11 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
             if workload in workload_db_data[suite][subsuite].keys():
                 print("WARNING: workload name should be unique within a subsuite. db will be overwritten!")
             workload_db_data[suite][subsuite][workload] = workload_dict
+
+        if skipped:
+            print(f"\nSkipped {len(skipped)} incomplete traces (rerun finish_trace after they complete):")
+            for wl in skipped:
+                print(f"  {wl}")
 
         write_json_descriptor(workload_db_path, workload_db_data, dbg_lvl)
         extract_top_simpoints.modify_simpoints_in_place(workload_db_data)

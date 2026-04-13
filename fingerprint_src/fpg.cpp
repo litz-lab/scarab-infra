@@ -2,10 +2,8 @@
 #include "drmgr.h"
 #include "drutil.h"
 #include "droption.h"
-#include <iostream>
 #include <vector>
 #include <map>
-#include <fstream>
 #include <string>
 #include <cstring>
 #include <cstdio>
@@ -539,7 +537,7 @@ clean_call_for_all_instr(/*uint64 bb_id, */uint64 segment_size, app_pc addr)
     // if at the start
     if (per_cur_counter == 1) {
         // pc_markers.push_back(pc_marker(addr, pc_map[addr]));
-        std::cout<< "cur markers size: " << pc_markers.size() << std::endl;
+        dr_printf("cur markers size: %llu\n", (unsigned long long)pc_markers.size());
     }
 
     dr_mutex_unlock(count_lock);
@@ -692,7 +690,7 @@ event_app_analysis(void *drcontext, void *tag, instrlist_t *bb,
         if (is_emulation) {
             emulation_length++;
             if (instr_get_next(instr) == NULL) {
-                std::cout<< "inc emulation till end: " << emulation_length << std::endl;
+                dr_printf("inc emulation till end: %u\n", emulation_length);
             }
             continue;
         }
@@ -719,7 +717,7 @@ event_app_analysis(void *drcontext, void *tag, instrlist_t *bb,
     /* update the as-built counts */
     dr_mutex_lock(as_built_lock);
     if (emulation_start_count) {
-        std::cout<< "emulation_start_count: " <<  emulation_start_count << std::endl;
+        dr_printf("emulation_start_count: %u\n", emulation_start_count);
         DR_ASSERT(emulation_start_count == 1);
         DR_ASSERT(num_instrs == 1);
     }
@@ -902,7 +900,7 @@ event_app_instruction(void *drcontext, void *tag, instrlist_t *bb,
     if (global_is_emulation) {
         emulation_length++;
         if (instr_get_next(inst) == NULL) {
-            std::cout<< "instrument emulation till end: " << emulation_length << std::endl;
+            dr_printf("instrument emulation till end: %u\n", emulation_length);
             global_is_emulation = false;
         }
     dr_printf("line: %d\n", __LINE__);

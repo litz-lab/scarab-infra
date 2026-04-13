@@ -15,6 +15,7 @@ from .utilities import (
     read_descriptor_from_json,
     remove_docker_containers,
     prepare_trace,
+    finish_trace,
     is_container_running,
     count_interactive_shells
 )
@@ -280,6 +281,10 @@ def run_trace_command(descriptor_path, action, dbg_lvl=2, infra_dir=None):
             remove_docker_containers(docker_image_list, trace_name, user, dbg_lvl)
             return 0
 
+        if action == "finish":
+            finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl)
+            return 0
+
         try:
             verify_descriptor(descriptor_data, workload_db_path, open_shell=False, dbg_lvl=dbg_lvl)
         except SystemExit as exc:
@@ -302,6 +307,7 @@ def main():
     parser.add_argument('-i','--info', required=False, default=False, action=argparse.BooleanOptionalAction, help='Get info about all nodes and if they have containers for slurm workloads')
     parser.add_argument('-l','--launch', required=False, default=False, action=argparse.BooleanOptionalAction, help='Launch a docker container on a node for the purpose of development/debugging where the environment is for the experiment described in a descriptor.')
     parser.add_argument('-c','--clean', required=False, default=False, action=argparse.BooleanOptionalAction, help='Clean up all the docker containers related to an experiment')
+    parser.add_argument('-f','--finish', required=False, default=False, action=argparse.BooleanOptionalAction, help='Post-process completed traces: copy to traces_dir and update workloads_db.json')
     parser.add_argument('-dbg','--debug', required=False, type=int, default=2, help='1 for errors, 2 for warnings, 3 for info')
     parser.add_argument('-si','--scarab_infra', required=False, default=None, help='Path to scarab infra repo to launch new containers')
 
@@ -319,6 +325,8 @@ def main():
         action = "launch"
     elif args.clean:
         action = "clean"
+    elif args.finish:
+        action = "finish"
 
     return run_trace_command(descriptor_path, action, dbg_lvl=dbg_lvl, infra_dir=infra_dir)
 

@@ -392,6 +392,18 @@ _SCHEMA_BUILD = {
     "simulations": True,
     "scarab_path": True,
 }
+# Trace descriptors have a different top-level schema than simulation ones:
+# no `experiment`, no `architecture`, no `simulations`. Only the base keys
+# common to all descriptor types plus `trace_name`, `trace_configurations`,
+# and `scarab_path`. Used by `--build-scarab` to allow rebuilding Scarab
+# against a trace descriptor prior to `--trace`.
+_SCHEMA_BUILD_TRACE = {
+    "descriptor_type": True,
+    "root_dir": True,
+    "scarab_path": True,
+    "trace_name": True,
+    "trace_configurations": True,
+}
 _SCHEMA_VISUALIZE    = {**_SCHEMA_SIM_BASE, "simulations": True, "configurations": True}
 _SCHEMA_PERF_ANALYZE = {**_SCHEMA_SIM_BASE, "simulations": True, "configurations": True}
 _SCHEMA_COLLECT_MEM  = {**_SCHEMA_SIM_BASE, "configurations": True}
@@ -508,6 +520,7 @@ def handle_descriptor_action(descriptor_name: str, action: str, dbg_override: Op
             "kill": "kill",
             "info": "info",
             "clean": "clean",
+            "finish": "finish",
         }.get(action)
         if trace_action is None:
             raise StepError(f"Unsupported action '{action}' for trace descriptors")
@@ -1595,9 +1608,15 @@ def prebuilt_image_present() -> Tuple[bool, str]:
 def run_build_scarab(descriptor_name: str) -> int:
     infra_utils = load_infra_utilities()
     descriptor_path, descriptor = read_descriptor(descriptor_name)
-    if descriptor.get("descriptor_type") != "simulation":
-        raise StepError("`--build` currently supports simulation descriptors only.")
-    missing = _check_descriptor_fields(descriptor, _SCHEMA_BUILD)
+    descriptor_type = descriptor.get("descriptor_type")
+    if descriptor_type not in ("simulation", "trace"):
+        raise StepError(
+            "`--build-scarab` supports simulation and trace descriptors; "
+            f"got descriptor_type={descriptor_type!r}."
+        )
+    is_trace = descriptor_type == "trace"
+    schema = _SCHEMA_BUILD_TRACE if is_trace else _SCHEMA_BUILD
+    missing = _check_descriptor_fields(descriptor, schema)
     if missing:
         raise StepError(f"Descriptor missing required fields: {', '.join(missing)}")
 
@@ -1613,22 +1632,42 @@ def run_build_scarab(descriptor_name: str) -> int:
     if not Path(docker_home).exists():
         raise StepError(f"root_dir '{docker_home}' does not exist.")
 
-    architecture = descriptor.get("architecture")
-    if not architecture:
-        raise StepError("Descriptor missing `architecture`.")
+    if is_trace:
+        # Trace descriptors carry the docker image per trace_configurations entry;
+        # dedupe in order. No architecture, no workloads_db lookup required.
+        trace_configurations = descriptor.get("trace_configurations") or []
+        if not trace_configurations:
+            raise StepError("Trace descriptor contains no trace_configurations.")
+        seen = set()
+        docker_prefix_list: List[str] = []
+        for cfg in trace_configurations:
+            image_name = cfg.get("image_name") if isinstance(cfg, dict) else None
+            if image_name and image_name not in seen:
+                seen.add(image_name)
+                docker_prefix_list.append(image_name)
+        if not docker_prefix_list:
+            raise StepError(
+                "Unable to determine docker image from trace_configurations; "
+                "each entry must have an `image_name` field."
+            )
+        architecture = None
+    else:
+        architecture = descriptor.get("architecture")
+        if not architecture:
+            raise StepError("Descriptor missing `architecture`.")
 
-    simulations = descriptor.get("simulations") or []
-    if not simulations:
-        raise StepError("Descriptor contains no simulations to derive docker image.")
+        simulations = descriptor.get("simulations") or []
+        if not simulations:
+            raise StepError("Descriptor contains no simulations to derive docker image.")
 
-    workloads_path = REPO_ROOT / "workloads" / "workloads_db.json"
-    workloads = infra_utils.read_descriptor_from_json(str(workloads_path))
-    if workloads is None:
-        raise StepError("Failed to read workloads/workloads_db.json.")
+        workloads_path = REPO_ROOT / "workloads" / "workloads_db.json"
+        workloads = infra_utils.read_descriptor_from_json(str(workloads_path))
+        if workloads is None:
+            raise StepError("Failed to read workloads/workloads_db.json.")
 
-    docker_prefix_list = infra_utils.get_image_list(simulations, workloads)
-    if not docker_prefix_list:
-        raise StepError("Unable to determine docker image from descriptor simulations.")
+        docker_prefix_list = infra_utils.get_image_list(simulations, workloads)
+        if not docker_prefix_list:
+            raise StepError("Unable to determine docker image from descriptor simulations.")
 
     build_mode: str = descriptor.get("scarab_build") or "opt"
     if build_mode not in {"opt", "opt-avx", "dbg"}:
@@ -1649,39 +1688,59 @@ def run_build_scarab(descriptor_name: str) -> int:
     info(f"Mode: make {build_mode}")
     info(f"Scarab path: {scarab_path}")
 
-    configurations = descriptor.get("configurations") or {}
-    scarab_binaries: List[str] = []
-    if isinstance(configurations, dict):
-        for config in configurations.values():
-            if not isinstance(config, dict):
-                continue
-            binary = config.get("binary")
-            if binary:
-                binary_name = str(binary)
-                if binary_name not in scarab_binaries:
-                    scarab_binaries.append(binary_name)
-
-    if not scarab_binaries:
-        scarab_binaries = ["scarab_current"]
-
     try:
-        infra_utils.prepare_simulation(
-            user,
-            scarab_path,
-            build_mode,
-            docker_home,
-            descriptor.get("experiment", "build"),
-            architecture,
-            docker_prefix_list,
-            githash,
-            str(REPO_ROOT),
-            scarab_binaries,
-            # `--build-scarab` should force the normal rebuild/validation path.
-            # The interactive-shell path intentionally skips rebuilding.
-            interactive_shell=False,
-            dbg_lvl=2,
-            stream_build=True,
-        )
+        if is_trace:
+            # Trace descriptors: call prepare_trace directly. It drives the
+            # same rebuild_scarab/build_scarab_binary path that the simulation
+            # flow uses, but doesn't need scarab_binaries (trace flow only
+            # uses the default `scarab_current` binary) or `experiment`.
+            job_name = descriptor.get("trace_name", "build")
+            infra_utils.prepare_trace(
+                user,
+                scarab_path,
+                build_mode,
+                docker_home,
+                job_name,
+                str(REPO_ROOT),
+                docker_prefix_list,
+                githash,
+                interactive_shell=False,
+                available_slurm_nodes=[],
+                dbg_lvl=2,
+            )
+        else:
+            configurations = descriptor.get("configurations") or {}
+            scarab_binaries: List[str] = []
+            if isinstance(configurations, dict):
+                for config in configurations.values():
+                    if not isinstance(config, dict):
+                        continue
+                    binary = config.get("binary")
+                    if binary:
+                        binary_name = str(binary)
+                        if binary_name not in scarab_binaries:
+                            scarab_binaries.append(binary_name)
+
+            if not scarab_binaries:
+                scarab_binaries = ["scarab_current"]
+
+            infra_utils.prepare_simulation(
+                user,
+                scarab_path,
+                build_mode,
+                docker_home,
+                descriptor.get("experiment", "build"),
+                architecture,
+                docker_prefix_list,
+                githash,
+                str(REPO_ROOT),
+                scarab_binaries,
+                # `--build-scarab` should force the normal rebuild/validation path.
+                # The interactive-shell path intentionally skips rebuilding.
+                interactive_shell=False,
+                dbg_lvl=2,
+                stream_build=True,
+            )
     except subprocess.CalledProcessError as exc:
         raise StepError(
             f"Scarab build failed (exit {exc.returncode}).\nSTDOUT:{exc.stdout}\nSTDERR:{exc.stderr}"
@@ -1739,14 +1798,37 @@ def run_build_image(workload_group: str) -> int:
         )
         return {line.strip() for line in (output or "").splitlines() if line.strip()}
 
+    def image_group_label(tag: str) -> str:
+        """Return the sci.workload_group label for the image, or '' if missing."""
+        output = run_command(
+            [
+                "docker",
+                "inspect",
+                "--format",
+                '{{index .Config.Labels "sci.workload_group"}}',
+                tag,
+            ],
+            capture=True,
+            check=False,
+        )
+        return (output or "").strip()
+
     images = current_images()
     print_heading("Build Docker Image")
     info(f"Workload group: {workload_group}")
     info(f"Target tag: {current_ref}")
 
     if current_ref in images:
-        info(f"Image {current_ref} already available; nothing to do.")
-        return 0
+        existing_group = image_group_label(current_ref)
+        if existing_group == workload_group:
+            info(f"Image {current_ref} already available; nothing to do.")
+            return 0
+        info(
+            f"Tag {current_ref} exists but sci.workload_group='{existing_group}' "
+            f"(expected '{workload_group}'); untagging and rebuilding."
+        )
+        run_command(["docker", "rmi", current_ref], check=False)
+        images = current_images()
 
     tag_path = REPO_ROOT / "last_built_tag.txt"
     last_hash = tag_path.read_text(encoding="utf-8").strip() if tag_path.is_file() else ""
@@ -1794,13 +1876,30 @@ def run_build_image(workload_group: str) -> int:
                 "-f",
                 str(dockerfile_path),
                 "--no-cache",
+                "--label",
+                f"sci.workload_group={workload_group}",
                 "-t",
                 current_ref,
             ],
         )
     else:
+        base_group = image_group_label(base_ref)
+        if base_group and base_group != workload_group:
+            raise StepError(
+                f"Base image {base_ref} has sci.workload_group='{base_group}', "
+                f"refusing to retag as {current_ref} (workload group '{workload_group}'). "
+                f"Delete the stale tag and rerun."
+            )
         info(f"No Dockerfile changes since {last_hash}; retagging {base_ref} -> {current_ref}")
         run_command(["docker", "tag", base_ref, current_ref])
+
+    # Verify the final image actually carries the expected label.
+    final_group = image_group_label(current_ref)
+    if final_group != workload_group:
+        raise StepError(
+            f"Built image {current_ref} has sci.workload_group='{final_group}' "
+            f"(expected '{workload_group}'). Something went wrong."
+        )
 
     info(f"Docker image ready: {current_ref}")
     return 0
@@ -4282,6 +4381,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Remove containers and state for json/<DESCRIPTOR>.json.",
     )
     parser.add_argument(
+        "--finish-trace",
+        dest="finish_trace",
+        metavar="DESCRIPTOR",
+        help="Post-process completed traces: copy to traces_dir and update workloads_db.json.",
+    )
+    parser.add_argument(
         "--debug-level",
         dest="debug_level",
         type=int,
@@ -4452,6 +4557,13 @@ def main() -> int:
     if args.clean:
         try:
             handle_descriptor_action(args.clean, "clean", dbg_override=args.debug_level)
+            return 0
+        except (StepError, RuntimeError) as exc:
+            print(exc)
+            return 1
+    if args.finish_trace:
+        try:
+            handle_descriptor_action(args.finish_trace, "finish", dbg_override=args.debug_level)
             return 0
         except (StepError, RuntimeError) as exc:
             print(exc)

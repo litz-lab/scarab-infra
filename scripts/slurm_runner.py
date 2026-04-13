@@ -24,7 +24,7 @@ MEM_HEADROOM_MB = 1024   # fixed +1 GiB on top of workloads_db base_memory_mb fo
 # workload RSS; `overhead` covers the fixed DR runtime + per-cluster raw2trace
 # buffers. See discussion in run_perf / cluster_then_trace design notes.
 TRACE_MEM_OVERHEAD_MB = 2000
-TRACE_MEM_MIN_MB = 8000
+TRACE_MEM_MIN_MB = 16000
 TRACE_MEM_FALLBACK_MB = 16000  # used only if perf never ran for this workload
 TRACE_MEM_FACTOR = {
     "cluster_then_trace": 2.5,   # parallel drraw2trace across clusters
@@ -69,6 +69,89 @@ def estimate_trace_mem_mb(wl_entry, trace_type, descriptor_data=None):
 
     est = int(round(peak_rss_mb * factor)) + overhead
     return max(est, min_mb), peak_rss_mb
+
+
+OOM_HEADROOM_FACTOR = 1.5  # request 1.5x the peak RSS of the last OOM-killed job
+
+def _parse_maxrss_kb(maxrss_str):
+    """Parse a sacct MaxRSS string like '9489220K', '4036M', '8G' to KB."""
+    if not maxrss_str:
+        return 0
+    try:
+        if maxrss_str.endswith("K"):
+            return int(maxrss_str[:-1])
+        elif maxrss_str.endswith("M"):
+            return int(maxrss_str[:-1]) * 1024
+        elif maxrss_str.endswith("G"):
+            return int(maxrss_str[:-1]) * 1024 * 1024
+        else:
+            return int(maxrss_str)
+    except ValueError:
+        return 0
+
+def get_oom_mem_mb(user, job_name_pattern):
+    """Query sacct for the most recent OOM-killed job matching the pattern.
+
+    Returns (mem_mb_to_request, actual_maxrss_mb) or (None, None) if no OOM found.
+    The returned mem_mb includes headroom so the resubmission won't OOM again.
+
+    sacct reports MaxRSS only on the .batch step (not the job-level row), so we
+    first collect job IDs whose name matches and state is FAILED/CANCELLED, then
+    look up the .batch step's MaxRSS for each.
+    """
+    try:
+        result = subprocess.run(
+            ["sacct", "-u", user,
+             "--format=JobID%12,JobName%120,MaxRSS,State%20",
+             "--parsable2", "--noheader", "-S", "now-2days"],
+            capture_output=True, text=True, timeout=15,
+        )
+        if result.returncode != 0:
+            return None, None
+
+        # Two passes: 1) collect failed job IDs by name, 2) find their .batch MaxRSS
+        failed_job_ids = set()
+        batch_rss = {}  # job_id -> maxrss_kb
+
+        for line in result.stdout.strip().split("\n"):
+            if not line:
+                continue
+            parts = line.split("|")
+            if len(parts) < 4:
+                continue
+            job_id, jname, maxrss_str, state = (
+                parts[0].strip(), parts[1].strip(),
+                parts[2].strip(), parts[3].strip(),
+            )
+
+            # Job-level row (no dot in job_id): collect failed IDs by name
+            if "." not in job_id and job_name_pattern in jname:
+                if "CANCEL" in state or "FAILED" in state or "OUT_OF_ME" in state:
+                    failed_job_ids.add(job_id)
+
+            # .batch step row: record MaxRSS
+            if ".batch" in job_id:
+                base_id = job_id.split(".")[0]
+                rss_kb = _parse_maxrss_kb(maxrss_str)
+                if rss_kb > 0:
+                    batch_rss[base_id] = max(batch_rss.get(base_id, 0), rss_kb)
+
+        # Find the highest MaxRSS among failed jobs for this workload
+        best_rss_kb = 0
+        for jid in failed_job_ids:
+            rss = batch_rss.get(jid, 0)
+            if rss > best_rss_kb:
+                best_rss_kb = rss
+
+        if best_rss_kb == 0:
+            return None, None
+
+        actual_mb = best_rss_kb // 1024
+        request_mb = int(actual_mb * OOM_HEADROOM_FACTOR)
+        return request_mb, actual_mb
+    except Exception:
+        return None, None
+
 
 from .utilities import (
         err,
@@ -422,22 +505,44 @@ def print_trace_status(user, job_name, docker_prefix_list, dbg_lvl = 1):
     completed = []
     failed = []
     in_progress = []
+
+    # Extract workload names from slurm job names so we can count jobs
+    # that haven't created their trace directory yet as in-progress.
+    # Container name format: {image}_{workload}_{trace_name}_{simpoint_mode}_{user}
+    # e.g. "agent_langchain_short_250iter_trace_agent_cluster_then_trace_surim"
+    all_slurm_workloads = set()
+    for task_name in running + queued:
+        for mode in ("cluster_then_trace", "trace_then_post_process", "iterative_trace"):
+            suffix = f"_{job_name}_{mode}_{user}"
+            for prefix in unique_prefixes:
+                prefix_str = f"{prefix}_"
+                if task_name.startswith(prefix_str) and task_name.endswith(suffix):
+                    wl_name = task_name[len(prefix_str):-len(suffix)]
+                    all_slurm_workloads.add(wl_name)
+
+    # Scan trace directories on disk
+    disk_workloads = set()
     if os.path.isdir(trace_dir):
         for wl_dir in sorted(os.listdir(trace_dir)):
             wl_path = os.path.join(trace_dir, wl_dir)
             if not os.path.isdir(wl_path) or wl_dir in ("logs", "scarab"):
                 continue
+            disk_workloads.add(wl_dir)
             fp_file = os.path.join(wl_path, "fingerprint", "segment_size")
             if os.path.isfile(fp_file):
                 completed.append(wl_dir)
             else:
-                # Check if any slurm job is still running for this workload
                 is_running = any(wl_dir in t for t in running)
                 is_queued = any(wl_dir in t for t in queued)
                 if is_running or is_queued:
                     in_progress.append(wl_dir)
                 else:
                     failed.append(wl_dir)
+
+    # Count running/queued slurm jobs that haven't created a trace dir yet
+    for wl_name in sorted(all_slurm_workloads):
+        if wl_name not in disk_workloads:
+            in_progress.append(wl_name)
 
     total = len(completed) + len(in_progress) + len(failed)
     print(f"\nTrace job: {job_name}")
@@ -907,6 +1012,14 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
                 else:
                     mem_source = (f"fallback (no peak_rss_mb in workloads_db for "
                                   f"{suite}/{subsuite}/{workload}; run --perf first)")
+
+                # Check if a prior run OOM'd — if so, use the actual peak + headroom
+                oom_mem_mb, oom_actual_mb = get_oom_mem_mb(user, workload)
+                if oom_mem_mb is not None and oom_mem_mb > trace_mem_mb:
+                    info(f"Prior OOM detected for {workload}: actual peak was {oom_actual_mb}MB, "
+                         f"bumping request from {trace_mem_mb}MB to {oom_mem_mb}MB", dbg_lvl)
+                    trace_mem_mb = oom_mem_mb
+                    mem_source = f"auto-scaled from prior OOM (peak={oom_actual_mb}MB × {OOM_HEADROOM_FACTOR})"
             info(f"Trace mem for {workload}: --mem {trace_mem_mb}M ({mem_source})", dbg_lvl)
 
             sbatch_cmd = generate_sbatch_command(
@@ -1045,11 +1158,13 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
                 info(f"Removing temporary run script {tmp}", dbg_lvl)
                 os.remove(tmp)
 
-        # NOTE: finish_trace is NOT called here because sbatch jobs are
-        # asynchronous.  Call `./sci --trace agent_trace` again after all
-        # slurm jobs have completed to run finish_trace (the jobs will be
-        # skipped and only the post-processing step will execute).
-        info("Slurm trace jobs submitted. Run finish_trace after all jobs complete.", dbg_lvl)
+        # If all traces are completed (nothing submitted, nothing running),
+        # automatically run finish_trace to copy traces and update workloads_db.
+        if submitted == 0 and len(running_workloads) == 0 and len(completed_traces) > 0:
+            info("All traces completed. Running finish_trace to post-process...", dbg_lvl)
+            finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl)
+        elif submitted > 0:
+            info(f"Slurm trace jobs submitted. Run './sci --trace {trace_name.replace('trace_', '')}' again after all jobs complete to finalize.", dbg_lvl)
     except Exception as e:
         print("An exception occurred:", e)
         traceback.print_exc()  # Print the full stack trace
