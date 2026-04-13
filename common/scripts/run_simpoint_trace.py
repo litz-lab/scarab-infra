@@ -329,17 +329,32 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
         bbfp_files = glob.glob(os.path.join(f"{workload_home}/fingerprint", "bbfp.*"))
         bbfp_files = [f for f in bbfp_files if not f.endswith('.inscount')]
         num_bbfp = len(bbfp_files)
-        if num_bbfp == 1:
-            bbfp_file = bbfp_files[0]
-            clustering_cmd = f"/bin/bash /usr/local/bin/run_clustering.sh {bbfp_file} {workload_home}"
-            if clustering_userk != None:
-                clustering_cmd = f"{clustering_cmd} {clustering_userk}"
-            subprocess.run([clustering_cmd], check=True, shell=True, stdin=open(os.devnull, 'r'))
-        else:
-            trace_clustering_info["err"] = "There are multiple or no bbfp files. This simpoint flow would not work."
+        if num_bbfp == 0:
+            trace_clustering_info["err"] = "No bbfp files found."
             with open(os.path.join(workload_home, "trace_clustering_info.json"), "w") as json_file:
                 json.dump(trace_clustering_info, json_file, indent=2, separators=(",", ":"))
             exit(1)
+        if num_bbfp > 1:
+            # Multi-threaded workload: pick the main thread's fingerprint
+            # (the file with the most lines = most segments). Helper threads
+            # (GC, import, signal) contribute negligible instructions.
+            # This mirrors get_largest_trace() used by trace_then_cluster.
+            best_file = None
+            best_lines = -1
+            for f in bbfp_files:
+                with open(f, 'r') as fh:
+                    n = sum(1 for line in fh if line.strip())
+                if n > best_lines:
+                    best_lines = n
+                    best_file = f
+            print(f"  Multi-threaded: {num_bbfp} bbfp files, using {os.path.basename(best_file)} ({best_lines} segments)")
+            bbfp_file = best_file
+        else:
+            bbfp_file = bbfp_files[0]
+        clustering_cmd = f"/bin/bash /usr/local/bin/run_clustering.sh {bbfp_file} {workload_home}"
+        if clustering_userk != None:
+            clustering_cmd = f"{clustering_cmd} {clustering_userk}"
+        subprocess.run([clustering_cmd], check=True, shell=True, stdin=open(os.devnull, 'r'))
 
         print("adjusting oversized simpoints..")
         replace_cmd = f"python3 /usr/local/bin/replace_oversized_simpoints.py {workload_home}"
@@ -396,11 +411,21 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
             trace_path = f"{workload_home}/traces_simp/{segment_id}"
             trace_files, dr_folders = find_trace_files(trace_path)
             num_dr_folder = len(dr_folders)
-            if num_dr_folder != 1:
-                trace_clustering_info["err"] = "There are multiple or no bbfp files. This simpoint flow would not work."
+            if num_dr_folder == 0:
+                trace_clustering_info["err"] = f"No drmemtrace directories found in {trace_path}."
                 with open(os.path.join(workload_home, "trace_clustering_info.json"), "w") as json_file:
                     json.dump(trace_clustering_info, json_file, indent=2, separators=(",", ":"))
                 exit(1)
+            if num_dr_folder > 1:
+                # Multi-process edge case: pick the folder with the largest raw data
+                best_folder = max(dr_folders, key=lambda d: sum(
+                    os.path.getsize(os.path.join(dp, f))
+                    for dp, _, fns in os.walk(d) for f in fns))
+                print(f"  Multiple drmemtrace dirs ({num_dr_folder}), using {os.path.basename(best_folder)}")
+                for d in dr_folders:
+                    if d != best_folder:
+                        import shutil
+                        shutil.rmtree(d)
 
             subprocess.run(f"mv {trace_path}/dr*/raw/ {trace_path}/raw/", check=True, shell=True)
             os.makedirs(f"{trace_path}/bin", exist_ok=True)
