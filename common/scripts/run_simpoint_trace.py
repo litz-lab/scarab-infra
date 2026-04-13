@@ -284,14 +284,37 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
             subprocess.Popen("exec " + client_bincmd, stdout=subprocess.PIPE, shell=True)
         start_time = time.perf_counter()
         drio_extra = drio_args if drio_args else ""
-        fp_cmd = f"{dynamorio_home}/bin64/drrun -max_bb_instrs 4095 -opt_cleancall 2 {drio_extra} -c $tmpdir/libfpg.so -no_use_bb_pc -segment_size {seg_size} -output {workload_home}/fingerprint/bbfp -pcmap_output {workload_home}/fingerprint/pcmap -- {bincmd}"
-        result = subprocess.run([fp_cmd], capture_output=True, text=True, shell=True)
-        if result.returncode != 0:
-            print(f"Fingerprint command failed (exit {result.returncode}):")
-            print(f"  cmd: {fp_cmd}")
-            if result.stdout: print(f"  stdout: {result.stdout[-2000:]}")
-            if result.stderr: print(f"  stderr: {result.stderr[-2000:]}")
-            result.check_returncode()
+        # Force single-threaded execution during fingerprinting to avoid
+        # DynamoRIO crashes from concurrent module loads in multi-threaded
+        # Python workloads (torch/faiss/sentence-transformers). The crash
+        # is in DR's d_r_strcmp called with a corrupted module-name pointer
+        # when multiple threads dlopen/dlclose simultaneously. Single-threaded
+        # fingerprinting is also more deterministic for SimPoint.
+        thread_limit_prefix = "OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1 TOKENIZERS_PARALLELISM=false"
+        fp_cmd = f"{thread_limit_prefix} {dynamorio_home}/bin64/drrun -max_bb_instrs 4095 -opt_cleancall 2 {drio_extra} -c $tmpdir/libfpg.so -no_use_bb_pc -segment_size {seg_size} -output {workload_home}/fingerprint/bbfp -pcmap_output {workload_home}/fingerprint/pcmap -- {bincmd}"
+        # DynamoRIO has a non-deterministic crash in d_r_strcmp when
+        # multi-threaded Python apps do concurrent dlopen/dlclose during
+        # fingerprinting. Retry up to 3 times on failure.
+        max_retries = 3
+        for attempt in range(1, max_retries + 1):
+            # Clean partial fingerprint output from any prior failed attempt
+            if attempt > 1:
+                import glob as _glob
+                for stale in _glob.glob(os.path.join(workload_home, "fingerprint", "bbfp.*")):
+                    os.remove(stale)
+                for stale in _glob.glob(os.path.join(workload_home, "fingerprint", "pcmap.*")):
+                    os.remove(stale)
+            result = subprocess.run([fp_cmd], capture_output=True, text=True, shell=True)
+            if result.returncode == 0:
+                break
+            print(f"Fingerprint attempt {attempt}/{max_retries} failed (exit {result.returncode}):")
+            if result.stderr:
+                print(f"  stderr: {result.stderr[-500:]}")
+            if attempt == max_retries:
+                print(f"  cmd: {fp_cmd}")
+                if result.stdout: print(f"  stdout: {result.stdout[-2000:]}")
+                if result.stderr: print(f"  stderr: {result.stderr[-2000:]}")
+                result.check_returncode()
         end_time = time.perf_counter()
 
         fingerprint_dir = os.path.join(workload_home, "fingerprint")

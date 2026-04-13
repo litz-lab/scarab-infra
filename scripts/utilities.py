@@ -1481,7 +1481,7 @@ def generate_single_trace_run_command(user, workload, image_name, trace_name, bi
     if client_bincmd != None:
         command = f"{command} --client_bincmd \\\"{client_bincmd}\\\""
     if drio_args != None:
-        command = f"{command} --drio_args \\\"{drio_args}\\\""
+        command = f"{command} --drio_args=\\\"{drio_args}\\\""
     if clustering_k != None:
         command = f"{command} -userk {clustering_k}"
     return command

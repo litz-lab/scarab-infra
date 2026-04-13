@@ -182,7 +182,7 @@
             "binary_cmd": "python3 \\$tmpdir/agent/run_autogen.py --task-id ag-short-250 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size short --iterations 250",
             "client_bincmd": null,
             "trace_type": "cluster_then_trace",
-            "dynamorio_args": "-thread_private",
+            "dynamorio_args": null,
             "clustering_k": null,
             "slurm_options": ""
         },
@@ -195,7 +195,7 @@
             "binary_cmd": "python3 \\$tmpdir/agent/run_autogen.py --task-id ag-short-750 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size short --iterations 750",
             "client_bincmd": null,
             "trace_type": "cluster_then_trace",
-            "dynamorio_args": "-thread_private",
+            "dynamorio_args": null,
             "clustering_k": null,
             "slurm_options": ""
         },
@@ -208,7 +208,7 @@
             "binary_cmd": "python3 \\$tmpdir/agent/run_autogen.py --task-id ag-medium-100 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size medium --iterations 100",
             "client_bincmd": null,
             "trace_type": "cluster_then_trace",
-            "dynamorio_args": "-thread_private",
+            "dynamorio_args": null,
             "clustering_k": null,
             "slurm_options": ""
         },
@@ -221,7 +221,7 @@
             "binary_cmd": "python3 \\$tmpdir/agent/run_autogen.py --task-id ag-medium-300 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size medium --iterations 300",
             "client_bincmd": null,
             "trace_type": "cluster_then_trace",
-            "dynamorio_args": "-thread_private",
+            "dynamorio_args": null,
             "clustering_k": null,
             "slurm_options": ""
         },
@@ -234,7 +234,7 @@
             "binary_cmd": "python3 \\$tmpdir/agent/run_autogen.py --task-id ag-long-50 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size long --iterations 50",
             "client_bincmd": null,
             "trace_type": "cluster_then_trace",
-            "dynamorio_args": "-thread_private",
+            "dynamorio_args": null,
             "clustering_k": null,
             "slurm_options": ""
         },
@@ -247,7 +247,7 @@
             "binary_cmd": "python3 \\$tmpdir/agent/run_autogen.py --task-id ag-long-150 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size long --iterations 150",
             "client_bincmd": null,
             "trace_type": "cluster_then_trace",
-            "dynamorio_args": "-thread_private",
+            "dynamorio_args": null,
             "clustering_k": null,
             "slurm_options": ""
         },
@@ -260,7 +260,7 @@
             "binary_cmd": "python3 \\$tmpdir/agent/run_haystack.py --task-id hs-short-100 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size short --iterations 100",
             "client_bincmd": null,
             "trace_type": "cluster_then_trace",
-            "dynamorio_args": "-thread_private",
+            "dynamorio_args": null,
             "clustering_k": null,
             "slurm_options": ""
         },
@@ -273,7 +273,7 @@
             "binary_cmd": "python3 \\$tmpdir/agent/run_haystack.py --task-id hs-short-300 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size short --iterations 300",
             "client_bincmd": null,
             "trace_type": "cluster_then_trace",
-            "dynamorio_args": "-thread_private",
+            "dynamorio_args": null,
             "clustering_k": null,
             "slurm_options": ""
         },
@@ -286,7 +286,7 @@
             "binary_cmd": "python3 \\$tmpdir/agent/run_haystack.py --task-id hs-medium-30 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size medium --iterations 30",
             "client_bincmd": null,
             "trace_type": "cluster_then_trace",
-            "dynamorio_args": "-thread_private",
+            "dynamorio_args": null,
             "clustering_k": null,
             "slurm_options": ""
         },
@@ -299,7 +299,7 @@
             "binary_cmd": "python3 \\$tmpdir/agent/run_haystack.py --task-id hs-medium-80 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size medium --iterations 80",
             "client_bincmd": null,
             "trace_type": "cluster_then_trace",
-            "dynamorio_args": "-thread_private",
+            "dynamorio_args": null,
             "clustering_k": null,
             "slurm_options": ""
         },
@@ -312,7 +312,7 @@
             "binary_cmd": "python3 \\$tmpdir/agent/run_haystack.py --task-id hs-long-10 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size long --iterations 10",
             "client_bincmd": null,
             "trace_type": "cluster_then_trace",
-            "dynamorio_args": "-thread_private",
+            "dynamorio_args": null,
             "clustering_k": null,
             "slurm_options": ""
         },
@@ -325,7 +325,7 @@
             "binary_cmd": "python3 \\$tmpdir/agent/run_haystack.py --task-id hs-long-30 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size long --iterations 30",
             "client_bincmd": null,
             "trace_type": "cluster_then_trace",
-            "dynamorio_args": "-thread_private",
+            "dynamorio_args": null,
             "clustering_k": null,
             "slurm_options": ""
         },
@@ -338,7 +338,7 @@
             "binary_cmd": "python3 \\$tmpdir/agent/run_swe_agent.py --task-id swe-short-150 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size short --iterations 150",
             "client_bincmd": null,
             "trace_type": "cluster_then_trace",
-            "dynamorio_args": "-thread_private",
+            "dynamorio_args": null,
             "clustering_k": null,
             "slurm_options": ""
         },
@@ -351,7 +351,7 @@
             "binary_cmd": "python3 \\$tmpdir/agent/run_swe_agent.py --task-id swe-short-300 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size short --iterations 300",
             "client_bincmd": null,
             "trace_type": "cluster_then_trace",
-            "dynamorio_args": "-thread_private",
+            "dynamorio_args": null,
             "clustering_k": null,
             "slurm_options": ""
         },
@@ -364,7 +364,7 @@
             "binary_cmd": "python3 \\$tmpdir/agent/run_swe_agent.py --task-id swe-medium-100 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size medium --iterations 100",
             "client_bincmd": null,
             "trace_type": "cluster_then_trace",
-            "dynamorio_args": "-thread_private",
+            "dynamorio_args": null,
             "clustering_k": null,
             "slurm_options": ""
         },
@@ -377,7 +377,7 @@
             "binary_cmd": "python3 \\$tmpdir/agent/run_swe_agent.py --task-id swe-medium-200 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size medium --iterations 200",
             "client_bincmd": null,
             "trace_type": "cluster_then_trace",
-            "dynamorio_args": "-thread_private",
+            "dynamorio_args": null,
             "clustering_k": null,
             "slurm_options": ""
         },
@@ -390,7 +390,7 @@
             "binary_cmd": "python3 \\$tmpdir/agent/run_swe_agent.py --task-id swe-long-50 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size long --iterations 50",
             "client_bincmd": null,
             "trace_type": "cluster_then_trace",
-            "dynamorio_args": "-thread_private",
+            "dynamorio_args": null,
             "clustering_k": null,
             "slurm_options": ""
         },
@@ -403,7 +403,7 @@
             "binary_cmd": "python3 \\$tmpdir/agent/run_swe_agent.py --task-id swe-long-150 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size long --iterations 150",
             "client_bincmd": null,
             "trace_type": "cluster_then_trace",
-            "dynamorio_args": "-thread_private",
+            "dynamorio_args": null,
             "clustering_k": null,
             "slurm_options": ""
         }

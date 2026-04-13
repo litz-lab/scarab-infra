@@ -278,7 +278,10 @@ def run_trace_command(descriptor_path, action, dbg_lvl=2, infra_dir=None):
             return 0
 
         if action == "clean":
-            remove_docker_containers(docker_image_list, trace_name, user, dbg_lvl)
+            if workload_manager == "slurm":
+                slurm_runner.clean_containers(user, trace_name, docker_image_list, dbg_lvl)
+            else:
+                remove_docker_containers(docker_image_list, trace_name, user, dbg_lvl)
             return 0
 
         if action == "finish":
