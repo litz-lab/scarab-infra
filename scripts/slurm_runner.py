@@ -534,20 +534,27 @@ def print_trace_status(user, job_name, docker_prefix_list, dbg_lvl = 1):
             else:
                 is_running = any(wl_dir in t for t in running)
                 is_queued = any(wl_dir in t for t in queued)
-                if is_running or is_queued:
+                if is_running:
+                    in_progress.append(wl_dir)
+                elif is_queued:
                     in_progress.append(wl_dir)
                 else:
                     failed.append(wl_dir)
 
     # Count running/queued slurm jobs that haven't created a trace dir yet
+    pending = []
     for wl_name in sorted(all_slurm_workloads):
         if wl_name not in disk_workloads:
-            in_progress.append(wl_name)
+            is_queued = any(wl_name in t for t in queued)
+            if is_queued:
+                pending.append(wl_name)
+            else:
+                in_progress.append(wl_name)
 
-    total = len(completed) + len(in_progress) + len(failed)
+    total = len(completed) + len(in_progress) + len(pending) + len(failed)
     print(f"\nTrace job: {job_name}")
     print(f"Slurm jobs — Running: {len(running)}  |  Queued: {len(queued)}")
-    print(f"Traces    — Completed: {len(completed)}  |  In-progress: {len(in_progress)}  |  Failed: {len(failed)}  |  Total: {total}")
+    print(f"Traces    — Completed: {len(completed)}  |  In-progress: {len(in_progress)}  |  Pending: {len(pending)}  |  Failed: {len(failed)}  |  Total: {total}")
 
     if by_node:
         print(f"\nRunning jobs by node:")
@@ -564,6 +571,10 @@ def print_trace_status(user, job_name, docker_prefix_list, dbg_lvl = 1):
         print(f"\nIn-progress ({len(in_progress)}):")
         for wl in in_progress:
             print(f"  \033[93m{wl}\033[0m")
+    if pending:
+        print(f"\nPending ({len(pending)}):")
+        for wl in pending:
+            print(f"  \033[36m{wl}\033[0m")
     if failed:
         print(f"\nFailed ({len(failed)}):")
         for wl in failed:
