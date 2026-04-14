@@ -279,16 +279,14 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
         os.makedirs(os.path.join(simpoint_home, workload, "traces_simp"), exist_ok=True)
         workload_home = f"{simpoint_home}/{workload}"
         dynamorio_home = os.environ.get('DYNAMORIO_HOME')
-        # Give this job its own DynamoRIO config directory. DR caches
+        # Isolate DynamoRIO config directory per workload. DR caches
         # per-process configs in ~/.dynamorio/ keyed by binary name + PID.
         # When multiple jobs run concurrently on the same node sharing NFS
         # home, one job's config gets picked up by another job's python
         # process, causing libfpg.so to load with the wrong output path or
-        # fail to load entirely. A per-workload config dir avoids this.
-        import tempfile
-        dr_config_dir = os.path.join(workload_home, ".dynamorio")
-        os.makedirs(dr_config_dir, exist_ok=True)
-        os.environ["DYNAMORIO_CONFIGDIR"] = dr_config_dir
+        # fail to load entirely. Setting HOME for the drrun command makes
+        # ~/.dynamorio resolve to a per-workload directory.
+        dr_home = workload_home
 
         print("generate fingerprint..")
         if client_bincmd:
@@ -302,7 +300,7 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
         # when multiple threads dlopen/dlclose simultaneously. Single-threaded
         # fingerprinting is also more deterministic for SimPoint.
         thread_limit_prefix = "OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1 TOKENIZERS_PARALLELISM=false"
-        fp_cmd = f"{thread_limit_prefix} {dynamorio_home}/bin64/drrun -max_bb_instrs 4095 -opt_cleancall 2 {drio_extra} -c $tmpdir/libfpg.so -no_use_bb_pc -segment_size {seg_size} -output {workload_home}/fingerprint/bbfp -pcmap_output {workload_home}/fingerprint/pcmap -- {bincmd}"
+        fp_cmd = f"HOME={dr_home} {thread_limit_prefix} {dynamorio_home}/bin64/drrun -max_bb_instrs 4095 -opt_cleancall 2 {drio_extra} -c $tmpdir/libfpg.so -no_use_bb_pc -segment_size {seg_size} -output {workload_home}/fingerprint/bbfp -pcmap_output {workload_home}/fingerprint/pcmap -- {bincmd}"
         # DynamoRIO has a non-deterministic crash in d_r_strcmp when
         # multi-threaded Python apps do concurrent dlopen/dlclose during
         # fingerprinting. Retry up to 3 times on failure.
@@ -403,9 +401,9 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
 
             drio_trace_extra = drio_args if drio_args else ""
             if roi_start == 0:
-                trace_cmd = f"{dynamorio_home}/bin64/drrun -max_bb_instrs 4095 -opt_cleancall 2 {drio_trace_extra} -t drcachesim -jobs {DR_JOBS} -outdir {seg_dir} -offline -count_fetched_instrs -trace_for_instrs {roi_length} -- {bincmd}"
+                trace_cmd = f"HOME={dr_home} {dynamorio_home}/bin64/drrun -max_bb_instrs 4095 -opt_cleancall 2 {drio_trace_extra} -t drcachesim -jobs {DR_JOBS} -outdir {seg_dir} -offline -count_fetched_instrs -trace_for_instrs {roi_length} -- {bincmd}"
             else:
-                trace_cmd = f"{dynamorio_home}/bin64/drrun -max_bb_instrs 4095 -opt_cleancall 2 {drio_trace_extra} -t drcachesim -jobs {DR_JOBS} -outdir {seg_dir} -offline -count_fetched_instrs -trace_after_instrs {roi_start} -trace_for_instrs {roi_length} -- {bincmd}"
+                trace_cmd = f"HOME={dr_home} {dynamorio_home}/bin64/drrun -max_bb_instrs 4095 -opt_cleancall 2 {drio_trace_extra} -t drcachesim -jobs {DR_JOBS} -outdir {seg_dir} -offline -count_fetched_instrs -trace_after_instrs {roi_start} -trace_for_instrs {roi_length} -- {bincmd}"
 
             process = subprocess.Popen("exec " + trace_cmd, stdout=subprocess.DEVNULL, shell=True)
             cluster_tracing_processes.add(process)
