@@ -14,8 +14,12 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
 
 WORKDIR $tmpdir
 
-# Clone the AgentCPU benchmark repo (workload scripts live there).
-RUN git clone https://github.com/5surim/AgentCPU.git /tmp_home/AgentCPU
+# Clone the AgentCPU benchmark repo (private).
+# --mount=type=ssh forwards the host SSH agent for this RUN only; no keys
+# or SSH config are baked into the final image layer.
+RUN mkdir -p -m 0700 ~/.ssh && ssh-keyscan github.com >> ~/.ssh/known_hosts
+RUN --mount=type=ssh git clone git@github.com:5surim/AgentCPU.git /tmp_home/AgentCPU && \
+    rm -rf /tmp_home/AgentCPU/.git
 
 # Upgrade pip first. Ubuntu jammy ships pip 22 which has a known
 # AssertionError in resolvelib.get_topological_weights on complex graphs.

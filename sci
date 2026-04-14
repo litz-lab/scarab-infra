@@ -1868,20 +1868,20 @@ def run_build_image(workload_group: str) -> int:
 
     if rebuild_required:
         info("Changes detected or no base image available; building from source.")
-        run_command(
-            [
-                "docker",
-                "build",
-                str(REPO_ROOT),
-                "-f",
-                str(dockerfile_path),
-                "--no-cache",
-                "--label",
-                f"sci.workload_group={workload_group}",
-                "-t",
-                current_ref,
-            ],
-        )
+        build_cmd = [
+            "docker",
+            "build",
+            str(REPO_ROOT),
+            "-f",
+            str(dockerfile_path),
+            "--no-cache",
+            "--ssh", "default",
+            "--label",
+            f"sci.workload_group={workload_group}",
+            "-t",
+            current_ref,
+        ]
+        run_command(build_cmd)
     else:
         base_group = image_group_label(base_ref)
         if base_group and base_group != workload_group:
