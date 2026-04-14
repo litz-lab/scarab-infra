@@ -440,25 +440,27 @@ add_body_text(slide, "Two problems with DynamoRIO on multi-threaded Python workl
               L_MARGIN, Inches(1.2), CONTENT_W, Inches(0.5), font_size=16, color=RED)
 
 add_bullet_list(slide, [
-    "Root Cause 1: SIGSEGV crash — race in module_list_remove() (core/module_list.c)",
-    ("module_list_remove() released write lock for client callback, module still in vmvector", 1),
-    ("Another thread gets module name pointer via vmvector_lookup during this window", 1),
-    ("First thread re-acquires lock, frees module data → second thread's pointer is stale → SIGSEGV", 1),
+    "Root Cause 1: SIGSEGV crash — stale module name pointers in multi-threaded workloads",
+    ("Thread A frees module data via module_list_remove() while Thread B holds a stale pointer", 1),
+    ("Thread B calls d_r_strcmp on freed memory → SIGSEGV", 1),
+    ("Multiple race windows: module_list_remove lock release, and read-lock-then-release patterns", 1),
     "",
     "Root Cause 2: libfpg.so not loading — DR config cross-contamination on shared NFS",
     ("DR caches per-process configs in ~/.dynamorio/ keyed by binary+PID", 1),
     ("Concurrent slurm jobs on same NFS home pick up each other's config files", 1),
-    ("Wrong config → libfpg.so client not loaded → empty fingerprint output", 1),
     "",
-    "Fix 1 (for RC1): Root cause fix in module_list_remove() (core/module_list.c)",
-    ("Move module_area_delete() + vmvector removal before releasing write lock", 1),
-    ("Client callback only uses client_data (a copy), does not need original module_area_t", 1),
-    ("Eliminates the race window entirely — no thread can get a stale pointer", 1),
+    "Fix 1 (for RC1): d_r_strcmp safe_read guard, gated on dynamo_initialized (core/string.c)",
+    ("d_r_safe_read() probe before dereferencing — returns 0 (equal) on stale pointers", 1),
+    ("Gated on dynamo_initialized: safe_read uses signal handlers, not available during early init", 1),
+    ("Before init: direct comparison (no guard). After init: safe_read guard active", 1),
     "",
-    "Fix 2 (for RC1): strhash_key_cmp safe_read guard (core/hashtable.c)",
-    ("Defense-in-depth: safe_read check on hash table key pointers before strcmp", 1),
+    "Fix 2 (for RC1): Root cause fix in module_list_remove() (core/module_list.c)",
+    ("Move module_area_delete() before releasing write lock — closes one race window", 1),
     "",
-    "Fix 3 (for RC2): Per-job HOME override (scarab-infra, run_simpoint_trace.py)",
+    "Fix 3 (for RC1): strhash_key_cmp safe_read guard (core/hashtable.c)",
+    ("Defense-in-depth: safe_read on hash table key pointers before strcmp", 1),
+    "",
+    "Fix 4 (for RC2): Per-job HOME override (scarab-infra, run_simpoint_trace.py)",
     ("HOME={workload_dir} on drrun commands — isolates ~/.dynamorio/ per job", 1),
 ], L_MARGIN, Inches(1.7), CONTENT_W, Inches(5.2), font_size=13)
 
@@ -506,7 +508,7 @@ status_table = [
     ["Trace collection\n(SimPoint fingerprint)", "In progress", "30 jobs running on slurm cluster\n(cluster_then_trace mode with libfpg.so)"],
     ["Trace collection\n(SimPoint clustering + tracing)", "Pending", "Runs after fingerprinting completes"],
     ["Scarab simulation", "Pending", "Will run after traces are collected"],
-    ["DynamoRIO fork", "Fixed", "Root cause fix in module_list_remove()\n+ strhash_key_cmp guard + HOME isolation"],
+    ["DynamoRIO fork", "Fixed", "d_r_strcmp safe_read guard (gated on dynamo_initialized)\n+ module_list_remove fix + strhash_key_cmp guard + HOME isolation"],
     ["Scarab fork", "Fixed", "GCC 11 build fix for cbp_tagescl_64k.h"],
 ]
 add_table(slide, status_table, L_MARGIN, Inches(1.3), Inches(12), Inches(5))
