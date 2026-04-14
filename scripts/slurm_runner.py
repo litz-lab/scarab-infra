@@ -465,6 +465,53 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
         prep_failed_label="Failed - Slurm",
     )
 
+def _get_trace_stage(trace_dir, workload):
+    """Read the job log to determine the current stage of a trace job."""
+    logs_dir = os.path.join(trace_dir, "logs")
+    if not os.path.isdir(logs_dir):
+        return None
+    # Find the log file containing this workload (search newest first)
+    import glob as _glob
+    log_files = sorted(_glob.glob(os.path.join(logs_dir, "job_*.out")), reverse=True)
+    for log_file in log_files:
+        try:
+            with open(log_file, 'r') as f:
+                first_line = f.readline()
+                if workload not in first_line:
+                    continue
+                # Found the right log — scan for stage markers
+                content = first_line + f.read()
+                # Ordered from latest to earliest stage
+                stages = [
+                    ("minimize traces done", "done"),
+                    ("minimize traces..", "minimizing traces"),
+                    ("clustered traces raw2trace done", "done"),
+                    ("clustered traces raw2trace..", "raw2trace"),
+                    ("cluster tracing done", "tracing done"),
+                    ("clustering tracing..", "tracing simpoints"),
+                    ("adjusting oversized simpoints..", "adjusting simpoints"),
+                    ("clustering..", "clustering"),
+                    ("generate fingerprint done", "fingerprint done"),
+                    ("generate fingerprint..", "fingerprinting"),
+                    ("running run_simpoint_trace.py", "starting"),
+                    ("prepare_docker_image", "building image"),
+                ]
+                last_stage = None
+                for marker, label in stages:
+                    if marker in content:
+                        last_stage = label
+                        break
+                # Also extract runtime from the last "Runtime:" line
+                import re
+                runtimes = re.findall(r'Runtime: (\d+:\d+:\d+)', content)
+                if last_stage and last_stage == "done" and runtimes:
+                    return f"completed (last step: {runtimes[-1]})"
+                return last_stage
+        except (OSError, UnicodeDecodeError):
+            continue
+    return None
+
+
 def print_trace_status(user, job_name, docker_prefix_list, dbg_lvl = 1):
     """Print status of slurm trace jobs: node availability, running/queued/completed counts."""
     try:
@@ -570,7 +617,11 @@ def print_trace_status(user, job_name, docker_prefix_list, dbg_lvl = 1):
     if in_progress:
         print(f"\nIn-progress ({len(in_progress)}):")
         for wl in in_progress:
-            print(f"  \033[93m{wl}\033[0m")
+            stage = _get_trace_stage(trace_dir, wl)
+            if stage:
+                print(f"  \033[93m{wl}\033[0m  — {stage}")
+            else:
+                print(f"  \033[93m{wl}\033[0m")
     if pending:
         print(f"\nPending ({len(pending)}):")
         for wl in pending:
@@ -607,6 +658,24 @@ def kill_jobs(user, job_name, docker_prefix_list, dbg_lvl = 2):
                     subprocess.check_call(["scancel", "-u", user, str(id)])
                 except subprocess.CalledProcessError as e:
                     err(f"Couldn't cancel job with id {id}. Return code: {e.returncode}", dbg_lvl)
+
+            # Wait for all cancelled jobs to actually finish
+            print("Waiting for jobs to terminate...", end="", flush=True)
+            for _ in range(60):  # up to 60 seconds
+                try:
+                    response = subprocess.check_output(
+                        ["squeue", "-u", user, "--Format=JobID,Name:90"],
+                    ).decode("utf-8")
+                    remaining = [l.split() for l in response.strip().split('\n')[1:] if l.strip()]
+                    remaining = [r for r in remaining if job_name in r[1]]
+                    if not remaining:
+                        break
+                    print(".", end="", flush=True)
+                    import time as _time
+                    _time.sleep(1)
+                except subprocess.CalledProcessError:
+                    break
+            print(" done.")
             return True
         else:
             print("Operation canceled.")

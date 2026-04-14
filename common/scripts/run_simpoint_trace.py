@@ -279,6 +279,17 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
         os.makedirs(os.path.join(simpoint_home, workload, "traces_simp"), exist_ok=True)
         workload_home = f"{simpoint_home}/{workload}"
         dynamorio_home = os.environ.get('DYNAMORIO_HOME')
+        # Clean stale DynamoRIO config files from ~/.dynamorio/.
+        # DR caches per-process configs keyed by binary name + PID. Since
+        # workloads share the same home directory (NFS), a config from a prior
+        # job (possibly for a different workload) gets reused, causing the
+        # client (libfpg.so) to write to the wrong output path or fail to
+        # load entirely.
+        dr_config_dir = os.path.expanduser("~/.dynamorio")
+        if os.path.isdir(dr_config_dir):
+            for cfg in glob.glob(os.path.join(dr_config_dir, "*config64")):
+                os.remove(cfg)
+
         print("generate fingerprint..")
         if client_bincmd:
             subprocess.Popen("exec " + client_bincmd, stdout=subprocess.PIPE, shell=True)
@@ -366,6 +377,10 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
         cluster_map = get_cluster_map(workload_home)
 
         print("clustering tracing..")
+        # Clean stale DR configs before tracing (same reason as fingerprinting)
+        if os.path.isdir(dr_config_dir):
+            for cfg in glob.glob(os.path.join(dr_config_dir, "*config64")):
+                os.remove(cfg)
         start_time = time.perf_counter()
         cluster_tracing_processes = set()
         for cluster_id, segment_id in cluster_map.items():
