@@ -2808,6 +2808,24 @@ def run_collect_mem(descriptor_name: str) -> int:
     print(f"Per-config memory data written to {memory_stats_path}.")
     return 0
 
+def resolve_stat_name(stat_name: str, available_stats: List[str]) -> Tuple[str, bool]:
+    """
+    Resolve a requested stat to the name present in the aggregated stats.
+    Returns a tuple of (resolved_name, used_count_fallback).
+    """
+    normalized = str(stat_name)
+    if not available_stats:
+        return normalized, False
+    if normalized in available_stats or normalized.endswith("_count") or normalized.endswith("_total_count") \
+                                     or normalized.endswith("_value") or normalized.endswith("_total_value"):
+        return normalized, False
+    count_candidate = f"{normalized}_count"
+    if count_candidate in available_stats:
+        return count_candidate, True
+    float_candidate = f"{normalized}_value"
+    if float_candidate in available_stats:
+        return float_candidate, True
+    return normalized, False
 
 def run_visualize(descriptor_name: str) -> int:
     loaded = load_simulation_experiment(descriptor_name, action_label="Visualization")
@@ -2990,27 +3008,12 @@ def run_visualize(descriptor_name: str) -> int:
     except Exception:
         pass
 
-    def resolve_stat_name(stat_name: str) -> Tuple[str, bool]:
-        """
-        Resolve a requested stat to the name present in the aggregated stats.
-        Returns a tuple of (resolved_name, used_count_fallback).
-        """
-        normalized = str(stat_name)
-        if not available_stats:
-            return normalized, False
-        if normalized in available_stats or normalized.endswith("_count") or normalized.endswith("_total_count"):
-            return normalized, False
-        candidate = f"{normalized}_count"
-        if candidate in available_stats:
-            return candidate, True
-        return normalized, False
-
     for request in plot_requests:
         stats_list = [str(stat) for stat in request["stats"]]  # type: ignore[index]
         resolved_stats: List[str] = []
         fallback_stats: Dict[str, str] = {}
         for stat in stats_list:
-            resolved, used_fallback = resolve_stat_name(stat)
+            resolved, used_fallback = resolve_stat_name(stat, available_stats)
             resolved_stats.append(resolved)
             if used_fallback:
                 fallback_stats[stat] = resolved
@@ -3183,17 +3186,6 @@ def run_perf_analyze(descriptor_name: str) -> int:
     except Exception:
         pass
 
-    def resolve_stat_name(stat_name: str) -> Tuple[str, bool]:
-        normalized = str(stat_name)
-        if not available_stats:
-            return normalized, False
-        if normalized in available_stats or normalized.endswith("_count") or normalized.endswith("_total_count"):
-            return normalized, False
-        candidate = f"{normalized}_count"
-        if candidate in available_stats:
-            return candidate, True
-        return normalized, False
-
     valid_group_names = {
         "bp",
         "core",
@@ -3287,7 +3279,7 @@ def run_perf_analyze(descriptor_name: str) -> int:
 
     resolved_counters: List[Tuple[str, str]] = []
     for requested in requested_counters:
-        resolved, used_fallback = resolve_stat_name(requested)
+        resolved, used_fallback = resolve_stat_name(requested, available_stats)
         if used_fallback and not compare_all_stats:
             print(f"Using '{resolved}' for requested stat '{requested}'.")
         if available_stats and resolved not in available_stats:
