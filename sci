@@ -3038,7 +3038,8 @@ def run_visualize(descriptor_name: str) -> int:
         failed_sps = experiment.data[experiment.data["stats"] == "Collect Failed"]
         failed_sps = failed_sps.drop(columns=["stats", "write_protect", "groups"])
         if any(failed_sps):
-            print("WARN: Simpoints with missing data detected. NaN values will be used")
+            print("WARN: Simpoints with missing data detected. NaN values will be used if ALL simpoints are missing.")
+            print("      Otherwise, missing simpoints will be omitted from aggregation.")
 
         if plot_type != "stacked" or len(stats_list) == 1:
             print_markdown_table(resolved_stats[0], display_name=stats_list[0])
