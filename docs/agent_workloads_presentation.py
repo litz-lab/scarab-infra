@@ -6,8 +6,7 @@ from pptx import Presentation
 from pptx.util import Inches, Pt, Emu
 from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
-from pptx.enum.chart import XL_CHART_TYPE
-from pptx.chart.data import CategoryChartData
+from pptx.enum.shapes import MSO_SHAPE
 
 # ── Helpers ──────────────────────────────────────────────────────────────
 WHITE = RGBColor(0xFF, 0xFF, 0xFF)
@@ -99,6 +98,12 @@ def add_table(slide, data, left, top, width, height, header_color=None):
     rows, cols = len(data), len(data[0])
     table_shape = slide.shapes.add_table(rows, cols, left, top, width, height)
     table = table_shape.table
+    # Remove default blue table style
+    from lxml import etree
+    tbl = table._tbl
+    tblPr = tbl.find('{http://schemas.openxmlformats.org/drawingml/2006/main}tblPr')
+    if tblPr is not None:
+        tblPr.attrib.clear()
 
     for col_idx in range(cols):
         for row_idx in range(rows):
@@ -309,7 +314,7 @@ set_slide_bg(slide, WHITE)
 add_title_shape(slide, "Top-Down L1 Breakdown by Workload (Average Across Variants)",
                 L_MARGIN, Inches(0.3), CONTENT_W, Inches(0.8), font_size=28, color=HEADER_BG)
 
-chart_data = CategoryChartData()
+# Build data for shape-based stacked bar chart (Google Slides compatible)
 categories = []
 retiring_vals, bad_vals, fe_vals, be_vals = [], [], [], []
 for fw_name, display in [("langchain", "LangChain"), ("langgraph", "LangGraph"),
@@ -329,25 +334,74 @@ for fw_name, display in [("langchain", "LangChain"), ("langgraph", "LangGraph"),
     fe_vals.append(sum(fes)/n)
     be_vals.append(sum(bes)/n)
 
-chart_data.categories = categories
-chart_data.add_series('Retiring', retiring_vals)
-chart_data.add_series('Bad Speculation', bad_vals)
-chart_data.add_series('Frontend Bound', fe_vals)
-chart_data.add_series('Backend Bound', be_vals)
+# Draw stacked bars using rectangle shapes (compatible with Google Slides)
+bar_colors = [
+    ("Retiring", RGBColor(0x2C,0xA0,0x2C)),
+    ("Bad Speculation", RGBColor(0xFF,0x7F,0x0E)),
+    ("Frontend Bound", RGBColor(0x1F,0x77,0xB4)),
+    ("Backend Bound", RGBColor(0xD6,0x27,0x28)),
+]
+all_vals = list(zip(retiring_vals, bad_vals, fe_vals, be_vals))
 
-chart_frame = slide.shapes.add_chart(
-    XL_CHART_TYPE.COLUMN_STACKED, Inches(1.5), Inches(1.3), Inches(10), Inches(5.5),
-    chart_data
-)
-chart = chart_frame.chart
-chart.has_legend = True
-chart.legend.include_in_layout = False
+chart_left = Inches(2.0)
+chart_top = Inches(1.5)
+chart_height = Inches(4.5)
+bar_width = Inches(1.4)
+bar_gap = Inches(0.5)
+max_val = 100.0  # percentages sum to ~100
 
-# Color the series
-colors = [RGBColor(0x2C,0xA0,0x2C), RGBColor(0xFF,0x7F,0x0E), RGBColor(0x1F,0x77,0xB4), RGBColor(0xD6,0x27,0x28)]
-for i, color in enumerate(colors):
-    chart.series[i].format.fill.solid()
-    chart.series[i].format.fill.fore_color.rgb = color
+# Y-axis labels (0%, 25%, 50%, 75%, 100%)
+for pct in [0, 25, 50, 75, 100]:
+    y = chart_top + chart_height - (pct / max_val) * chart_height
+    add_body_text(slide, f"{pct}%", Inches(1.2), y - Pt(7), Inches(0.7), Inches(0.3),
+                  font_size=10, color=GRAY)
+    # Gridline
+    line = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE,
+        chart_left, int(y), Inches(9.5), Pt(0.5))
+    line.fill.solid()
+    line.fill.fore_color.rgb = LIGHT_GRAY
+    line.line.fill.background()
+
+for i, (cat, vals) in enumerate(zip(categories, all_vals)):
+    x = chart_left + i * (bar_width + bar_gap)
+    y_bottom = chart_top + chart_height
+    for j, (val, (name, color)) in enumerate(zip(vals, bar_colors)):
+        seg_height = (val / max_val) * chart_height
+        if seg_height < Pt(1):
+            continue
+        y_top = y_bottom - seg_height
+        rect = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, x, int(y_top), bar_width, int(seg_height))
+        rect.fill.solid()
+        rect.fill.fore_color.rgb = color
+        rect.line.color.rgb = WHITE
+        rect.line.width = Pt(0.5)
+        # Add percentage label inside segment if tall enough
+        if seg_height > Pt(16):
+            tf = rect.text_frame
+            tf.word_wrap = False
+            p = tf.paragraphs[0]
+            p.text = f"{val:.0f}%"
+            p.font.size = Pt(9)
+            p.font.color.rgb = WHITE
+            p.font.bold = True
+            p.alignment = PP_ALIGN.CENTER
+            tf.paragraphs[0].space_before = Pt(0)
+        y_bottom = y_top
+    # Category label below bar
+    add_body_text(slide, cat, x, chart_top + chart_height + Inches(0.1),
+                  bar_width, Inches(0.4), font_size=12, color=DARK)
+
+# Legend
+legend_top = Inches(1.3)
+legend_left = Inches(10.0)
+for j, (name, color) in enumerate(bar_colors):
+    ly = legend_top + j * Inches(0.35)
+    swatch = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, legend_left, ly, Inches(0.25), Inches(0.2))
+    swatch.fill.solid()
+    swatch.fill.fore_color.rgb = color
+    swatch.line.fill.background()
+    add_body_text(slide, name, legend_left + Inches(0.35), ly - Pt(2),
+                  Inches(2), Inches(0.3), font_size=11, color=DARK)
 
 # ═══════════════════════════════════════════════════════════════════════
 # SLIDE 9: Framework Updates - scarab-infra
@@ -382,28 +436,30 @@ set_slide_bg(slide, WHITE)
 add_title_shape(slide, "DynamoRIO Fixes (fork: 5surim/dynamorio)",
                 L_MARGIN, Inches(0.3), CONTENT_W, Inches(0.8), font_size=28, color=HEADER_BG)
 
-add_body_text(slide, "Problem: SIGSEGV crash in d_r_strcmp during multi-threaded Python workloads",
+add_body_text(slide, "Two problems with DynamoRIO on multi-threaded Python workloads",
               L_MARGIN, Inches(1.2), CONTENT_W, Inches(0.5), font_size=16, color=RED)
 
 add_bullet_list(slide, [
-    "Root Cause: Race condition in module_list_remove() (core/module_list.c:290-342)",
-    ("Thread A: releases write lock (line 322) for client callback, module still in vmvector", 1),
-    ("Thread B: gets module name pointer via vmvector lookup, releases read lock", 1),
-    ("Thread A: reacquires lock, frees module data (line 338) — Thread B's pointer is now stale", 1),
-    ("Thread B: calls d_r_strcmp with freed pointer → SIGSEGV or garbage data", 1),
+    "Root Cause 1: SIGSEGV crash — race in module_list_remove() (core/module_list.c)",
+    ("module_list_remove() released write lock for client callback, module still in vmvector", 1),
+    ("Another thread gets module name pointer via vmvector_lookup during this window", 1),
+    ("First thread re-acquires lock, frees module data → second thread's pointer is stale → SIGSEGV", 1),
     "",
-    "Fix 1: d_r_strcmp safe_read guard (core/string.c + core/drlibc/drlibc.c)",
-    ("Added d_r_safe_read() probe before dereferencing; returns 0 (equal) on bad pointers", 1),
-    ("Returning 0 breaks callers out of open-addressing hash table loops", 1),
-    "",
-    "Fix 2: strhash_key_cmp guard (core/hashtable.c)",
-    ("Added safe_read in hash table key comparator; returns true (match) on bad pointers", 1),
-    ("Prevents infinite loops in open-addressing lookup when keys are stale", 1),
-    "",
-    "Fix 3: DYNAMORIO_CONFIGDIR isolation (scarab-infra side)",
+    "Root Cause 2: libfpg.so not loading — DR config cross-contamination on shared NFS",
     ("DR caches per-process configs in ~/.dynamorio/ keyed by binary+PID", 1),
-    ("Concurrent jobs on same NFS home caused config cross-contamination", 1),
-    ("Solution: per-workload config directory via DYNAMORIO_CONFIGDIR env var", 1),
+    ("Concurrent slurm jobs on same NFS home pick up each other's config files", 1),
+    ("Wrong config → libfpg.so client not loaded → empty fingerprint output", 1),
+    "",
+    "Fix 1 (for RC1): Root cause fix in module_list_remove() (core/module_list.c)",
+    ("Move module_area_delete() + vmvector removal before releasing write lock", 1),
+    ("Client callback only uses client_data (a copy), does not need original module_area_t", 1),
+    ("Eliminates the race window entirely — no thread can get a stale pointer", 1),
+    "",
+    "Fix 2 (for RC1): strhash_key_cmp safe_read guard (core/hashtable.c)",
+    ("Defense-in-depth: safe_read check on hash table key pointers before strcmp", 1),
+    "",
+    "Fix 3 (for RC2): Per-job HOME override (scarab-infra, run_simpoint_trace.py)",
+    ("HOME={workload_dir} on drrun commands — isolates ~/.dynamorio/ per job", 1),
 ], L_MARGIN, Inches(1.7), CONTENT_W, Inches(5.2), font_size=13)
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -433,7 +489,7 @@ add_bullet_list(slide, [
     "cluster_then_trace expected exactly 1 bbfp file — failed with multiple",
     "Fix: pick the main thread's fingerprint (file with most segments)",
     "CPython GIL ensures main thread dominates instruction execution",
-    "Scarab is single-core: simulating main thread is representative",
+    "Simulating the dominant thread on a single core is representative",
 ], Inches(7), Inches(1.7), Inches(5.5), Inches(3), font_size=13)
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -450,7 +506,7 @@ status_table = [
     ["Trace collection\n(SimPoint fingerprint)", "In progress", "30 jobs running on slurm cluster\n(cluster_then_trace mode with libfpg.so)"],
     ["Trace collection\n(SimPoint clustering + tracing)", "Pending", "Runs after fingerprinting completes"],
     ["Scarab simulation", "Pending", "Will run after traces are collected"],
-    ["DynamoRIO fork", "Deployed", "3 fixes on 5surim/dynamorio:release_10.0.0\nWorkaround for module_list_remove race"],
+    ["DynamoRIO fork", "Fixed", "Root cause fix in module_list_remove()\n+ strhash_key_cmp guard + HOME isolation"],
     ["Scarab fork", "Fixed", "GCC 11 build fix for cbp_tagescl_64k.h"],
 ]
 add_table(slide, status_table, L_MARGIN, Inches(1.3), Inches(12), Inches(5))
@@ -460,8 +516,8 @@ add_table(slide, status_table, L_MARGIN, Inches(1.3), Inches(12), Inches(5))
 # ═══════════════════════════════════════════════════════════════════════
 slide = prs.slides.add_slide(prs.slide_layouts[6])
 set_slide_bg(slide, WHITE)
-add_title_shape(slide, "Next Steps", L_MARGIN, Inches(0.3), CONTENT_W, Inches(0.8),
-                font_size=30, color=HEADER_BG)
+add_title_shape(slide, "Next Steps (1/2): Trace Collection & Analysis",
+                L_MARGIN, Inches(0.3), CONTENT_W, Inches(0.8), font_size=30, color=HEADER_BG)
 
 add_bullet_list(slide, [
     "1. Complete SimPoint trace collection (30 workload variants)",
@@ -477,17 +533,43 @@ add_bullet_list(slide, [
     ("Identify bottlenecks: i-cache misses, d-cache pressure, branch misprediction", 1),
     ("Characterize per-workload signatures: RAG (backend/SIMD) vs framework (frontend)", 1),
     "",
-    "4. Architecture sensitivity studies",
-    ("Sweep cache sizes, branch predictor configs, prefetcher policies", 1),
-    ("Identify which microarchitectural knobs matter most for agent workloads", 1),
-    "",
-    "5. Upstream DynamoRIO fix",
-    ("Proper fix: remove module from vmvector before releasing write lock in module_list_remove()", 1),
-    ("Submit PR to DynamoRIO upstream repo", 1),
+    "4. Control flow graph (CFG) analysis",
+    ("Extract CFGs from traces: basic block size distribution, branch type breakdown", 1),
+    ("Compare loop depth, fan-out, indirect branch density across workloads", 1),
+    ("Hot code footprint: what fraction of unique PCs covers 90%/99% of execution?", 1),
 ], L_MARGIN, Inches(1.2), CONTENT_W, Inches(5.5), font_size=15)
 
 # ═══════════════════════════════════════════════════════════════════════
-# SLIDE 14: SimPoint Methodology
+# SLIDE 14: Next Steps (2/2) — Architecture Sensitivity Studies
+# ═══════════════════════════════════════════════════════════════════════
+slide = prs.slides.add_slide(prs.slide_layouts[6])
+set_slide_bg(slide, WHITE)
+add_title_shape(slide, "Next Steps (2/2): Architecture Sensitivity Studies",
+                L_MARGIN, Inches(0.3), CONTENT_W, Inches(0.8), font_size=30, color=HEADER_BG)
+
+add_bullet_list(slide, [
+    "5. Frontend-bound studies",
+    ("I-cache size sweep (32/64/128KB) — Python's large code footprint likely causes high i-miss", 1),
+    ("BTB size sensitivity — many indirect branch targets from polymorphic dispatch", 1),
+    ("Fetch/decode width sensitivity — wider frontend vs capacity-bound?", 1),
+    "",
+    "6. Backend-bound studies",
+    ("D-cache hierarchy sweep: L1D (32/48/64KB), L2 (256/512KB/1MB), LLC (2/4/8MB)", 1),
+    ("Reuse distance analysis — quantify temporal locality in dict/JSON/hash table accesses", 1),
+    ("ROB size sensitivity (256/384/512) — larger ROB to extract MLP and hide cache misses", 1),
+    ("Prefetcher effectiveness — stride vs complex; irregular access patterns may defeat stride", 1),
+    "",
+    "7. Cross-cutting studies",
+    ("Core width sweep (4/6/8-wide) — are agent workloads ILP-limited?", 1),
+    ("Branch predictor config sweep — TAGE history length, indirect predictor sizing", 1),
+    ("Haystack (FP/SIMD) vs framework (branchy/string) — quantify architectural divergence", 1),
+    "",
+    "8. Upstream DynamoRIO fix",
+    ("Submit PR with module_list_remove() race fix to DynamoRIO upstream", 1),
+], L_MARGIN, Inches(1.2), CONTENT_W, Inches(5.5), font_size=15)
+
+# ═══════════════════════════════════════════════════════════════════════
+# SLIDE 15: SimPoint Methodology
 # ═══════════════════════════════════════════════════════════════════════
 slide = prs.slides.add_slide(prs.slide_layouts[6])
 set_slide_bg(slide, WHITE)

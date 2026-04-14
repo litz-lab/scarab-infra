@@ -494,7 +494,9 @@ def _get_trace_stage(trace_dir, workload):
                     ("generate fingerprint done", "fingerprint done"),
                     ("generate fingerprint..", "fingerprinting"),
                     ("running run_simpoint_trace.py", "starting"),
-                    ("prepare_docker_image", "building image"),
+                    ("END prepare_docker_image", "image ready"),
+                    ("Invoking", "building image"),
+                    ("BEGIN prepare_docker_image", "waiting for image build"),
                 ]
                 last_stage = None
                 for marker, label in stages:
