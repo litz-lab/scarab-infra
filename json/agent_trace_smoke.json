@@ -1,0 +1,35 @@
+{
+  "_descriptor_type": "A type of descriptor. One of 'simulation', 'trace', and 'perf'.",
+  "descriptor_type": "trace",
+  "_workload_manager": "manual: run each exp scenario with all the simpoints at a time, slurm: Slurm schedules simulations based on its policy",
+  "workload_manager": "manual",
+  "_root_dir": "Root directory mounted into the docker container home, for instance, $tmp_dir as a root home directory",
+  "root_dir": "/soe/surim",
+  "_application_dir": "Optional host application directory mounted at /tmp_home/application. Use null when the workload is fully contained in the image.",
+  "application_dir": null,
+  "_scarab_path": "The path to the scarab repository that contains the scarab binary used to run the experiment.",
+  "scarab_path": "/soe/surim/src/scarab_ll",
+  "_scarab_build": "scarab build mode. 'opt', 'dbg', or null",
+  "scarab_build": "opt",
+  "_traces_dir": "A directory to place the collected traces.",
+  "traces_dir": "/soe/surim/traces",
+  "_trace_name": "The name of the tracing run.",
+  "trace_name": "trace_agent_smoke",
+  "_trace_configurations": "SMOKE: single variant (langchain_short_25iter) on cluster_then_trace to verify pass-2 tracing works with the redesigned real-computation workloads. Runs one slurm job. Delete / rename after smoke passes.",
+  "trace_configurations": [
+    {
+      "workload": "langchain_short_25iter",
+      "image_name": "agent",
+      "suite": "agent",
+      "subsuite": "langchain",
+      "_env_vars": "PYTHONHASHSEED=0 tightens startup determinism so pass-1 fingerprints and pass-2 traces walk the same bbs. See determinism test: /tmp/fpg_det_test.",
+      "env_vars": "PYTHONHASHSEED=0",
+      "binary_cmd": "python3 \\$tmpdir/AgentCPU/workloads/run_langchain.py --task-id lc-short-25 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size short --iterations 25",
+      "client_bincmd": null,
+      "trace_type": "cluster_then_trace",
+      "dynamorio_args": null,
+      "clustering_k": null,
+      "slurm_options": ""
+    }
+  ]
+}

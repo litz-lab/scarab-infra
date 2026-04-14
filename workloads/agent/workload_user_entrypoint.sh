@@ -1,2 +1,2 @@
 #!/bin/bash
-cd /tmp_home/agent
+cd /tmp_home/AgentCPU/workloads
