@@ -154,9 +154,11 @@ def extract_descriptor_expectations(descriptor: Dict[str, Any]) -> Tuple[Set[str
 
             # If workload is explicitly listed, include suite/subsuite in the expected name.
             if workload:
-                workloads.add(canon(str(suite) if suite else None,
-                                    str(subsuite) if subsuite else None,
-                                    str(workload)))
+                wl_list = workload if isinstance(workload, list) else [workload]
+                for w in wl_list:
+                    workloads.add(canon(str(suite) if suite else None,
+                                        str(subsuite) if subsuite else None,
+                                        str(w)))
                 continue
 
             # If only suite/subsuite given (or just suite), expand from workloads_db.json.
@@ -645,7 +647,6 @@ def build_gdown_command(file_id: str, output_path: Path, *, use_conda: bool) -> 
     else:
         cmd.append("gdown")
 
-    cmd.append("--fuzzy")
     cmd.extend([url, "-O", str(output_path)])
     return cmd
 
@@ -1985,6 +1986,46 @@ def maybe_check_claude_cli_auth(_: argparse.Namespace) -> Tuple[bool, str]:
     )
 
 
+def ensure_aslr_disabled(_: argparse.Namespace) -> Tuple[bool, str]:
+    aslr_path = "/proc/sys/kernel/randomize_va_space"
+    aslr_file = Path(aslr_path)
+
+    all_nodes = []
+    try:
+        node_output = subprocess.check_output(['sinfo', '-h', '-o', '%N'], 
+                                              universal_newlines=True, stderr=subprocess.DEVNULL).strip()
+        if node_output:
+            all_nodes = subprocess.check_output(['scontrol', 'show', 'hostnames', node_output], 
+                                                universal_newlines=True).splitlines()
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        pass
+
+    if all_nodes:
+        print(f"Detected Slurm cluster. Checking ASLR on {len(all_nodes)} nodes...")
+        for node in all_nodes:
+            try:
+                node_aslr = subprocess.check_output(
+                    ['srun', '-w', node, '-N1', '-n1', 'cat', aslr_path],
+                    universal_newlines=True, stderr=subprocess.DEVNULL, timeout=3
+                ).strip()
+                
+                if node_aslr != '0':
+                    print(f"\n[!] ERROR: ASLR is enabled on Slurm node [{node}] (value: {node_aslr}).")
+                    print(f"    Please run: srun -w {node} sudo sh -c 'echo 0 > {aslr_path}'")
+                    sys.exit(1)
+            except Exception:
+                continue
+        return True, f"ASLR is disabled across all {len(all_nodes)} Slurm nodes."
+    
+    else:
+        content = aslr_file.read_text().strip()
+        if content != "0":
+            print(f"\n[!] ERROR: ASLR is currently enabled on local host (value: {content}).")
+            print(f"    Please run: echo 0 | sudo tee {aslr_path}")
+            sys.exit(1)
+        return True, "ASLR is disabled on local host (0)."
+    
+
 def run_init(args: argparse.Namespace) -> int:
     if sys.stdin.isatty():
         print_heading("Prepare Google Drive cookies.txt")
@@ -2005,6 +2046,7 @@ def run_init(args: argparse.Namespace) -> int:
             print("Re-run `./sci --init` after cookies.txt is uploaded.")
             return 0
     steps = [
+        ("Check ASLR setting", ensure_aslr_disabled),
         ("Install Docker", ensure_docker),
         ("Start Docker daemon", ensure_docker_running),
         ("Configure Docker permissions", configure_docker_permissions),

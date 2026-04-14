@@ -40,6 +40,7 @@ from multiprocessing import shared_memory
 from pathlib import Path
 
 from scripts import utilities  # Descriptor parsing + simpoint metadata helpers
+from scripts.utilities import normalize_simulations
 
 def _cleanup_shared_memory(name: str) -> None:
     """Best-effort cleanup for SharedMemory segments (avoids resource_tracker warnings on crashes)."""
@@ -827,9 +828,10 @@ class stat_aggregator:
 
 
         tasks = []
+        normalized_simulations = normalize_simulations(json_data["simulations"])
         for config in json_data["configurations"]:
             config = config.replace("/", "-")
-            for simulation in json_data["simulations"]:
+            for simulation in normalized_simulations:
                 found_suite = simulation["suite"]
                 found_subsuite = simulation["subsuite"]
                 found_workload = simulation["workload"]

@@ -26,6 +26,7 @@ from .utilities import (
         check_can_skip,
         remove_old_job_logs,
         print_simulation_status_summary,
+        normalize_simulations,
         )
 
 # Check if a container is running on local
@@ -275,6 +276,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
 
         print("Submitting jobs...")
         # Iterate over each workload and config combo
+        simulations = normalize_simulations(simulations)
         for simulation in simulations:
             suite = simulation["suite"]
             subsuite = simulation["subsuite"]
@@ -474,5 +476,3 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
 
         kill_jobs(user, "trace", trace_name, docker_prefix_list, infra_dir, dbg_lvl)
 
-        print("Recover the ASLR setting with sudo. Provide password..")
-        os.system("echo 2 | sudo tee /proc/sys/kernel/randomize_va_space")

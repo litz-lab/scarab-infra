@@ -162,6 +162,7 @@ def run_on_node(cmd, node=None, immediate=5, **kwargs):
     return subprocess.run(command, **kwargs)
 
 def validate_simulation(workloads_data, simulations, dbg_lvl = 2):
+    simulations = normalize_simulations(simulations)
     for simulation in simulations:
         suite = simulation["suite"]
         subsuite = simulation["subsuite"]
@@ -1561,6 +1562,8 @@ def get_image_name(workloads_data, simulation):
     cluster_id = simulation["cluster_id"]
     sim_mode = simulation["simulation_type"]
 
+    if isinstance(workload, list):
+        workload = workload[0]
     if workload != None:
         if subsuite == None:
             subsuite = next(iter(workloads_data[suite]))
@@ -1583,10 +1586,30 @@ def get_image_name(workloads_data, simulation):
 
     return workloads_data[suite][subsuite][workload]["simulation"][sim_mode]["image_name"]
 
+def normalize_simulations(simulations):
+    """Expand simulation entries where 'workload' is a list into individual entries."""
+    expanded = []
+    for sim in simulations:
+        workload = sim.get("workload")
+        if isinstance(workload, list):
+            if len(workload) > 1 and sim.get("cluster_id") is not None:
+                raise ValueError(
+                    f"cluster_id must be null when workload is a list with multiple entries, "
+                    f"got cluster_id={sim['cluster_id']} with workload={workload}"
+                )
+            if len(workload) == 0:
+                expanded.append({**sim, "workload": None})
+            else:
+                for w in workload:
+                    expanded.append({**sim, "workload": w})
+        else:
+            expanded.append(sim)
+    return expanded
+
 def get_simulation_jobs(descriptor_data, workloads_data, docker_prefix, user, dbg_lvl = 1):
     experiment_name = descriptor_data["experiment"]
     configs = descriptor_data["configurations"]
-    simulations = descriptor_data["simulations"]
+    simulations = normalize_simulations(descriptor_data["simulations"])
 
     def get_simpoints_wrapper(suite, subsuite, workload, exp_cluster_id, sim_mode):
         if "simpoints" not in workloads_data[suite][subsuite][workload].keys():
@@ -1655,6 +1678,71 @@ def get_simulation_jobs(descriptor_data, workloads_data, docker_prefix, user, db
             ]
 
     return set(all_jobs)
+
+# Returns (config, suite, subsuite, workload_, cluster_id) for all jobs in config
+def get_simulation_job_identifiers(descriptor_data, workloads_data, dbg_lvl = 1):
+    experiment_name = descriptor_data["experiment"]
+    configs = descriptor_data["configurations"]
+    simulations = descriptor_data["simulations"]
+
+    def get_simpoints_wrapper(suite, subsuite, workload, exp_cluster_id, sim_mode):
+        if "simpoints" not in workloads_data[suite][subsuite][workload].keys():
+            return [0]
+        if exp_cluster_id == None:
+            return list(map(int, get_simpoints(workloads_data[suite][subsuite][workload], sim_mode, dbg_lvl).keys()))
+        if exp_cluster_id > 0:
+            assert isinstance(exp_cluster_id, int), f"exp_cluster_id must be of type int, but got {type(exp_cluster_id)}"
+            return [exp_cluster_id]
+        return [0]
+
+    all_jobs = []
+
+    for simulation in simulations:
+        suite = simulation["suite"]
+        subsuite = simulation["subsuite"]
+        workload = simulation["workload"]
+        exp_cluster_id = simulation["cluster_id"]
+        sim_mode = simulation["simulation_type"]
+
+        if workload == None and subsuite == None:
+            for subsuite_ in workloads_data[suite].keys():
+                for workload_ in workloads_data[suite][subsuite_].keys():
+                    if not isinstance(workloads_data[suite][subsuite_][workload_], dict):
+                        continue
+                    sim_mode_ = sim_mode
+                    if sim_mode_ == None:
+                        sim_mode_ = workloads_data[suite][subsuite_][workload_]["simulation"]["prioritized_mode"]
+                    simpoint_ids = get_simpoints_wrapper(suite, subsuite_, workload_, exp_cluster_id, sim_mode_) * len(configs)
+                    all_jobs += [
+                        (config, suite, subsuite_, workload_, cluster_id)
+                        for config in configs.keys()
+                        for cluster_id in simpoint_ids
+                    ]
+        elif workload == None and subsuite != None:
+            for workload_ in workloads_data[suite][subsuite].keys():
+                if not isinstance(workloads_data[suite][subsuite][workload_], dict):
+                    continue
+                sim_mode_ = sim_mode
+                if sim_mode_ == None:
+                    sim_mode_ = workloads_data[suite][subsuite][workload_]["simulation"]["prioritized_mode"]
+                simpoint_ids = get_simpoints_wrapper(suite, subsuite, workload_, exp_cluster_id, sim_mode_) * len(configs)
+                all_jobs += [
+                    (config, suite, subsuite, workload_, cluster_id)
+                    for config in configs.keys()
+                    for cluster_id in simpoint_ids
+                ]
+        else:
+            sim_mode_ = sim_mode
+            if sim_mode_ == None:
+                sim_mode_ = workloads_data[suite][subsuite][workload]["simulation"]["prioritized_mode"]
+            simpoint_ids = get_simpoints_wrapper(suite, subsuite, workload, exp_cluster_id, sim_mode_) * len(configs)
+            all_jobs += [
+                (config, suite, subsuite, workload, cluster_id)
+                for config in configs.keys()
+                for cluster_id in simpoint_ids
+            ]
+
+    return all_jobs
 
 def parse_job_log_header(first_line: str) -> Optional[Tuple[str, str, str, str, str]]:
     """Parse the first line of a Slurm job log.
@@ -1907,10 +1995,17 @@ def print_simulation_status_summary(
         conf = max(matches, key=len)
         pending[conf] += 1
 
+    all_job_ids = get_simulation_job_identifiers(descriptor_data, workloads_data, dbg_lvl=dbg_lvl)
+
     not_in_experiment = []
     oom_killed = []
     oom_killed_sps = 0
+    descriptor_aligned_log_count = 0
     for _job_id, log_path, config, suite, subsuite, workload, cluster_id in latest_logs:
+        if not (config, suite, subsuite, workload, int(cluster_id)) in all_job_ids:
+            continue
+
+        descriptor_aligned_log_count += 1
         workload_path = f"{suite}/{subsuite}/{workload}"
         with open(log_path, 'r') as f:
             contents = f.read()
@@ -2047,10 +2142,9 @@ def print_simulation_status_summary(
         data["Non-existant"].append(total_per_conf - total_found)
 
     if len(not_in_experiment) == 0:
-        expected_log_count = total_log_count - log_count_offset
         if strict_log_count:
-            assert calculated_logfile_count == expected_log_count, "ERR: Assert Failed: Log file count doesn't match number of accounted jobs"
-        elif calculated_logfile_count != expected_log_count:
+            assert calculated_logfile_count == descriptor_aligned_log_count, "ERR: Assert Failed: Log file count doesn't match number of accounted jobs"
+        elif calculated_logfile_count != descriptor_aligned_log_count:
             warn("Log file count doesn't match number of accounted jobs.", dbg_lvl)
 
     print("PRINTING SUMMARY TABLE:")
@@ -2148,6 +2242,7 @@ def remove_tmp_run_scripts(base_path, job_name, user, dbg_lvl):
 
 def get_image_list(simulations, workloads_data):
     image_list = []
+    simulations = normalize_simulations(simulations)
     for simulation in simulations:
         suite = simulation["suite"]
         subsuite = simulation["subsuite"]
@@ -2432,8 +2527,6 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
         extract_top_simpoints.modify_simpoints_in_place(workload_db_data)
         write_json_descriptor(f"{infra_dir}/workloads/workloads_top_simp.json", workload_db_data, dbg_lvl)
 
-        print("Recover the ASLR setting with sudo. Provide password..")
-        os.system("echo 2 | sudo tee /proc/sys/kernel/randomize_va_space")
 
     except Exception as e:
         raise e

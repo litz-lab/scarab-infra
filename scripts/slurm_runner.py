@@ -34,7 +34,8 @@ from .utilities import (
         check_can_skip,
         remove_old_job_logs,
         print_simulation_status_summary,
-        run_on_node
+        run_on_node,
+        normalize_simulations,
         )
 
 # Check if the docker image exists on available slurm nodes
@@ -650,6 +651,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
 
         print("Submitting jobs...")
         # Iterate over each workload and config combo
+        simulations = normalize_simulations(simulations)
         tmp_files = []
         for simulation in simulations:
             suite = simulation["suite"]
@@ -833,6 +835,3 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
             os.remove(tmp)
 
         kill_jobs(user, trace_name, docker_prefix_list, dbg_lvl)
-
-        print("Recover the ASLR setting with sudo. Provide password..")
-        os.system("echo 2 | sudo tee /proc/sys/kernel/randomize_va_space")
