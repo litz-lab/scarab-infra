@@ -293,6 +293,9 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
             subprocess.Popen("exec " + client_bincmd, stdout=subprocess.PIPE, shell=True)
         start_time = time.perf_counter()
         drio_extra = drio_args if drio_args else ""
+        # Disable restartable sequences — DR doesn't fully support rseq on
+        # newer glibc, causing "entries are not in a loaded segment" errors.
+        drio_extra += " -disable_rseq"
         # Force single-threaded execution during fingerprinting to avoid
         # DynamoRIO crashes from concurrent module loads in multi-threaded
         # Python workloads (torch/faiss/sentence-transformers). The crash
@@ -400,6 +403,7 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
             roi_length = roi_end - roi_start
 
             drio_trace_extra = drio_args if drio_args else ""
+            drio_trace_extra += " -disable_rseq"
             if roi_start == 0:
                 trace_cmd = f"HOME={dr_home} {dynamorio_home}/bin64/drrun -max_bb_instrs 4095 -opt_cleancall 2 {drio_trace_extra} -t drcachesim -jobs {DR_JOBS} -outdir {seg_dir} -offline -count_fetched_instrs -trace_for_instrs {roi_length} -- {bincmd}"
             else:
