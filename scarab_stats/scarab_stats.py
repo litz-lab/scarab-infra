@@ -129,7 +129,14 @@ class Experiment:
                         weights = list(self.data[selected_simpoints][self.data["stats"] == "Weight"].iloc[0])
                         values = list(map(float, values))
                         weights = list(map(float, weights))
-                        results[f"{c} {w} {stat}"] = sum([v*w for v, w in zip(values, weights)])
+                        n_nans = len(list(filter(math.isnan, values)))
+                        if n_nans == 0:
+                            results[f"{c} {w} {stat}"] = sum([v*w for v, w in zip(values, weights)])
+                        elif n_nans == len(values):
+                            results[f"{c} {w} {stat}"] = float('NaN')
+                        else:
+                            values = [v if not math.isnan(v) else 0 for v in values]
+                            results[f"{c} {w} {stat}"] = sum([v*w for v, w in zip(values, weights)])
 
         elif aggregation_level == "Simpoint":
             for c in config:
