@@ -158,13 +158,13 @@ add_title_shape(slide, "Motivation", L_MARGIN, Inches(0.3), CONTENT_W, Inches(0.
 
 add_bullet_list(slide, [
     "Agentic AI is an emerging CPU workload class — orchestration, tool calling, state management",
-    "Current CPU benchmarks (SPEC, GeekBench) don't capture agent execution patterns",
+    "Current CPU benchmarks (SPEC, Datacenter) don't capture agent execution patterns",
     "Agent workloads have distinct microarchitectural signatures:",
     ("Frontend-bound: deep call stacks, polymorphic dispatch, large code footprints", 1),
     ("Backend-bound: JSON/string processing, hash table lookups, dict manipulation", 1),
     ("Branch-heavy: conditional tool selection, state-machine transitions", 1),
     "Goal: characterize 5 agent workloads spanning frameworks and application archetypes",
-    "Method: perf stat (real HW) + SimPoint traces → Scarab cycle-accurate simulation",
+    "Method: perf stat (real HW) + SimPoint traces → Scarab simulation",
 ], L_MARGIN, Inches(1.2), CONTENT_W, Inches(5.5), font_size=16)
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -524,8 +524,8 @@ add_bullet_list(slide, [
     ("Fingerprinting → clustering → representative segment tracing", 1),
     ("Expected: ~10-20 simpoints per workload variant", 1),
     "",
-    "2. Run Scarab cycle-accurate simulation on collected traces",
-    ("Simulate each simpoint segment with detailed microarchitecture model", 1),
+    "2. Run Scarab simulation on collected traces",
+    ("Simulate each simpoint segment with detailed microarchitecture model (add missing insts)", 1),
     ("Collect IPC, cache miss rates, branch misprediction rates, pipeline utilization", 1),
     "",
     "3. Detailed microarchitectural analysis",
