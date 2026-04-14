@@ -4437,6 +4437,7 @@ def main() -> int:
         args.kill,
         args.status,
         args.clean,
+        args.finish_trace,
     ])
     if needs_env:
         reexec_in_conda_env()

@@ -101,14 +101,23 @@ def minimize_simpoint_traces(cluster_map, workload_home, warmup_chunks):
         for cluster_id, segment_id in cluster_map.items():
             trace_dir = os.path.join(workload_home, "traces_simp", str(segment_id))
             trace_files = subprocess.getoutput(f"find {trace_dir} -name 'dr*.trace.zip' | grep 'drmemtrace.*.trace.zip'").splitlines()
+            trace_files = [f for f in trace_files if f.strip()]
             num_traces = len(trace_files)
-            if num_traces != 1:
+            if num_traces == 0:
                 trace_clustering_info = {}
-                trace_clustering_info["err"] = "There are multiple or no bbfp files. This simpoint flow would not work."
+                trace_clustering_info["err"] = f"No trace.zip files found in {trace_dir}."
                 with open(os.path.join(workload_home, "trace_clustering_info.json"), "w") as json_file:
                     json.dump(trace_clustering_info, json_file, indent=2, separators=(",", ":"))
                 exit(1)
-            trace_file = trace_files[0]
+            if num_traces > 1:
+                # Multi-threaded: pick the largest trace (dominant thread)
+                trace_file = max(trace_files, key=lambda f: os.path.getsize(f))
+                print(f"  Multiple trace.zip files ({num_traces}) for segment {segment_id}, using largest: {os.path.basename(trace_file)}")
+                for f in trace_files:
+                    if f != trace_file:
+                        os.remove(f)
+            else:
+                trace_file = trace_files[0]
             big_zip_file = os.path.join(trace_dir, "trace", f"{segment_id}.big.zip")
             subprocess.run(f"mv {trace_file} {big_zip_file}", check=True, shell=True)
             unzip_output = subprocess.getoutput(f"unzip -l {big_zip_file}")

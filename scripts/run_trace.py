@@ -296,7 +296,8 @@ def run_trace_command(descriptor_path, action, dbg_lvl=2, infra_dir=None):
         if workload_manager == "manual":
             local_runner.run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl)
         else:
-            slurm_runner.run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl)
+            slurm_runner.run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl,
+                                        descriptor_path=str(descriptor_path))
         return 0
     except Exception as exc:
         raise exc

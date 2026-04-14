@@ -4,6 +4,7 @@
 # 01/27/2025 | Surim Oh | slurm_runner.py
 
 import os
+import shlex
 import shutil
 import subprocess
 import re
@@ -1079,7 +1080,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
 
         kill_jobs(user, experiment_name, docker_prefix_list, dbg_lvl)
 
-def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2):
+def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2, descriptor_path = None):
     trace_name = descriptor_data["trace_name"]
     docker_home = descriptor_data["root_dir"]
     scarab_path = descriptor_data["scarab_path"]
@@ -1095,6 +1096,7 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
             docker_prefix_list.append(image_name)
 
     tmp_files = []
+    slurm_ids = []
 
     def run_single_trace(workload, suite, subsuite, image_name, trace_name, env_vars, binary_cmd, client_bincmd, trace_type, drio_args, clustering_k, application_dir, slurm_options, config_mem_override):
         try:
@@ -1153,6 +1155,9 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
 
             result = subprocess.run((sbatch_cmd + filename).split(" "), capture_output=True, text=True)
             _print_sbatch_output(result)
+            if result.returncode == 0:
+                job_id = result.stdout.strip().split()[-1]
+                slurm_ids.append(job_id)
         except Exception as e:
             raise e
 
@@ -1271,6 +1276,25 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
         if submitted == 0 and len(running_workloads) == 0 and len(completed_traces) > 0:
             info("All traces completed. Running finish_trace to post-process...", dbg_lvl)
             finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl)
+        elif submitted > 0 and slurm_ids and descriptor_path:
+            # Submit a dependent finalization job that runs after all trace jobs complete
+            finalize_cmd = f"cd {infra_dir} && python -m scripts.run_trace -d {descriptor_path} -f -si {infra_dir}"
+            dep_str = ':'.join(slurm_ids)
+            log_path = os.path.join(trace_dir, "logs", "finalize_job_%j.out")
+            os.makedirs(os.path.dirname(log_path), exist_ok=True)
+            sbatch_finalize = (
+                f"sbatch --dependency=afterany:{dep_str} "
+                f"-o {log_path} "
+                f"--wrap={shlex.quote(finalize_cmd)}"
+            )
+            result = subprocess.run(sbatch_finalize, shell=True, capture_output=True, text=True)
+            _print_sbatch_output(result)
+            if result.returncode == 0:
+                info(f"Finalization job submitted (dependency on {len(slurm_ids)} trace jobs). "
+                     f"Will run automatically when all jobs complete.", dbg_lvl)
+            else:
+                warn(f"Failed to submit finalization job. Run './sci --trace {trace_name.replace('trace_', '')}' "
+                     f"manually after all jobs complete.", dbg_lvl)
         elif submitted > 0:
             info(f"Slurm trace jobs submitted. Run './sci --trace {trace_name.replace('trace_', '')}' again after all jobs complete to finalize.", dbg_lvl)
     except Exception as e:
