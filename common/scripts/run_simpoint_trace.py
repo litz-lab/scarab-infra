@@ -405,11 +405,13 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
             drio_trace_extra = drio_args if drio_args else ""
             drio_trace_extra += " -disable_rseq"
             if roi_start == 0:
-                trace_cmd = f"HOME={dr_home} {dynamorio_home}/bin64/drrun -max_bb_instrs 4095 -opt_cleancall 2 {drio_trace_extra} -t drcachesim -jobs {DR_JOBS} -outdir {seg_dir} -offline -count_fetched_instrs -trace_for_instrs {roi_length} -- {bincmd}"
+                trace_cmd = f"{dynamorio_home}/bin64/drrun -max_bb_instrs 4095 -opt_cleancall 2 {drio_trace_extra} -t drcachesim -jobs {DR_JOBS} -outdir {seg_dir} -offline -count_fetched_instrs -trace_for_instrs {roi_length} -- {bincmd}"
             else:
-                trace_cmd = f"HOME={dr_home} {dynamorio_home}/bin64/drrun -max_bb_instrs 4095 -opt_cleancall 2 {drio_trace_extra} -t drcachesim -jobs {DR_JOBS} -outdir {seg_dir} -offline -count_fetched_instrs -trace_after_instrs {roi_start} -trace_for_instrs {roi_length} -- {bincmd}"
+                trace_cmd = f"{dynamorio_home}/bin64/drrun -max_bb_instrs 4095 -opt_cleancall 2 {drio_trace_extra} -t drcachesim -jobs {DR_JOBS} -outdir {seg_dir} -offline -count_fetched_instrs -trace_after_instrs {roi_start} -trace_for_instrs {roi_length} -- {bincmd}"
 
-            process = subprocess.Popen("exec " + trace_cmd, stdout=subprocess.DEVNULL, shell=True)
+            trace_env = os.environ.copy()
+            trace_env["HOME"] = dr_home
+            process = subprocess.Popen("exec " + trace_cmd, stdout=subprocess.DEVNULL, shell=True, env=trace_env)
             cluster_tracing_processes.add(process)
 
         for p in cluster_tracing_processes:
