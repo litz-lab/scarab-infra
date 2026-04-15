@@ -242,7 +242,6 @@ def collect_stats_for_visualization(descriptor_path: Path, stats_path: Path) -> 
         "-o",
         str(stats_path),
         "--postprocess",
-        "--skip-incomplete",
     ]
     print("Refreshing collected stats via stat_collector.py...")
     try:
@@ -3036,6 +3035,15 @@ def run_visualize(descriptor_name: str) -> int:
         custom_stem = request.get("name") if isinstance(request, dict) else None
         if not custom_stem:
             custom_stem = "_".join(stats_list)
+
+        # Check if any "Collect Failed"
+        did_sp_fail = experiment.data[experiment.data["stats"] == "Collect Failed"]
+        did_sp_fail = did_sp_fail.drop(columns=["stats", "write_protect", "groups"]).iloc[0]
+        failed_sps = did_sp_fail[did_sp_fail.values == "True"]
+        if any(failed_sps):
+            print("WARN: Simpoints with missing data detected. NaN values will be used if ALL simpoints are missing.")
+            print("      Otherwise, missing simpoints will be omitted from aggregation.")
+            print("      First 5 missing/failed sps (config suite/subsuite/workload simpoint_id):", ', '.join(failed_sps[:5].index))
 
         if plot_type != "stacked" or len(stats_list) == 1:
             print_markdown_table(resolved_stats[0], display_name=stats_list[0])

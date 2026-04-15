@@ -129,7 +129,14 @@ class Experiment:
                         weights = list(self.data[selected_simpoints][self.data["stats"] == "Weight"].iloc[0])
                         values = list(map(float, values))
                         weights = list(map(float, weights))
-                        results[f"{c} {w} {stat}"] = sum([v*w for v, w in zip(values, weights)])
+                        n_nans = len(list(filter(math.isnan, values)))
+                        if n_nans == 0:
+                            results[f"{c} {w} {stat}"] = sum([v*w for v, w in zip(values, weights)])
+                        elif n_nans == len(values):
+                            results[f"{c} {w} {stat}"] = float('NaN')
+                        else:
+                            values = [v if not math.isnan(v) else 0 for v in values]
+                            results[f"{c} {w} {stat}"] = sum([v*w for v, w in zip(values, weights)])
 
         elif aggregation_level == "Simpoint":
             for c in config:
@@ -247,6 +254,7 @@ class stat_aggregator:
     def __init__(self) -> None:
         self.experiments = {}
         self.simpoint_info = {}
+        self.files_not_found = []
 
     def colorwheel(self, x):
         print ((math.cos(2*math.pi*x)+1.5)/2.5, (math.cos(2*math.pi*x+(math.pi/1.5))+1.5)/2.5, (math.cos(2*math.pi*x+2*(math.pi/4))+1.5)/2.5)
@@ -284,7 +292,7 @@ class stat_aggregator:
         return all_stats
 
     # Load simpoint from csv file as pandas dataframe
-    def load_simpoint(self, path, load_ramulator=True, ignore_duplicates = True, return_stats = False, order = None, return_stats_and_data: bool = False):
+    def load_simpoint(self, path, identifier, load_ramulator=True, ignore_duplicates = True, return_stats = False, order = None, return_stats_and_data: bool = False):
         """Load stats for a single simpoint directory.
 
         PERFORMANCE: This method previously parsed each *.stat.0.csv using pandas and
@@ -326,53 +334,57 @@ class stat_aggregator:
             per_file_order = []
             dup_stats = set()
 
-            with open(filename, newline="") as f:
-                reader = csv.reader(f)
+            try:
+                with open(filename, newline="") as f:
+                    reader = csv.reader(f)
 
-                # Old pandas path used the first line as a header; skip it.
-                try:
-                    next(reader)
-                except StopIteration:
-                    continue
-
-                for row in reader:
-                    if not row:
-                        continue
-                    if all((c is None) or (str(c).strip() == "") for c in row):
-                        continue
-                    if len(row) < 3:
-                        continue
-
-                    stat = str(row[0]).strip()
-                    grp_raw = str(row[1]).strip()
-                    val_raw = str(row[2]).strip()
-
-                    # Match old behavior: drop duplicates against previously-collected stats
-                    # when ignore_duplicates=True.
-                    if ignore_duplicates and stat in values_by_stat:
-                        continue
-
+                    # Old pandas path used the first line as a header; skip it.
                     try:
-                        grp = int(grp_raw)
-                    except Exception:
-                        try:
-                            grp = int(float(grp_raw))
-                        except Exception:
-                            grp = 0
-
-                    val = _to_float(val_raw)
-
-                    if stat in per_file:
-                        dup_stats.add(stat)
-                        prev_grp, prev_val = per_file[stat]
-                        # Resolvable only if duplicates are equivalent.
-                        if (prev_grp != grp) or (prev_val != val and not (math.isnan(prev_val) and math.isnan(val))):
-                            print(f"ERR: Unable to resolve duplicates. Duplicate columns have unique values. File:{filename}")
-                            exit(1)
+                        next(reader)
+                    except StopIteration:
                         continue
 
-                    per_file[stat] = (grp, val)
-                    per_file_order.append(stat)
+                    for row in reader:
+                        if not row:
+                            continue
+                        if all((c is None) or (str(c).strip() == "") for c in row):
+                            continue
+                        if len(row) < 3:
+                            continue
+
+                        stat = str(row[0]).strip()
+                        grp_raw = str(row[1]).strip()
+                        val_raw = str(row[2]).strip()
+
+                        # Match old behavior: drop duplicates against previously-collected stats
+                        # when ignore_duplicates=True.
+                        if ignore_duplicates and stat in values_by_stat:
+                            continue
+
+                        try:
+                            grp = int(grp_raw)
+                        except Exception:
+                            try:
+                                grp = int(float(grp_raw))
+                            except Exception:
+                                grp = 0
+
+                        val = _to_float(val_raw)
+
+                        if stat in per_file:
+                            dup_stats.add(stat)
+                            prev_grp, prev_val = per_file[stat]
+                            # Resolvable only if duplicates are equivalent.
+                            if (prev_grp != grp) or (prev_val != val and not (math.isnan(prev_val) and math.isnan(val))):
+                                print(f"ERR: Unable to resolve duplicates. Duplicate columns have unique values. File:{filename}")
+                                exit(1)
+                            continue
+
+                        per_file[stat] = (grp, val)
+                        per_file_order.append(stat)
+            except FileNotFoundError:
+                self.files_not_found.append(identifier)
+                continue
 
             if dup_stats:
                 print("WARN: CSV file contains duplicates")
@@ -899,21 +911,27 @@ class stat_aggregator:
         config0, suite0, subsuite0, workload0, cid0 = tasks[0]
         sim_dir0 = f"{simulations_path}{experiment_name}/{config0}/{suite0}/{subsuite0}/{workload0}/{cid0}/"
         task_sim_dirs = [
-            f"{simulations_path}{experiment_name}/{conf}/{suite}/{subsuite}/{workload}/{cid}/"
+            (f"{simulations_path}{experiment_name}/{conf}/{suite}/{subsuite}/{workload}/{cid}/", (conf, suite, subsuite, workload, cid))
             for (conf, suite, subsuite, workload, cid) in tasks
         ]
 
         known_stats = []
         known_stats_set = set()
         groups_by_stat = {}
-        for sim_dir in task_sim_dirs:
-            stats_i, _, groups_i = self.load_simpoint(sim_dir, return_stats_and_data=True)
+        for sim_dir, identifier in task_sim_dirs:
+            stats_i, _, groups_i = self.load_simpoint(sim_dir, identifier, return_stats_and_data=True)
             for stat_name, group_id in zip(stats_i, groups_i):
                 if stat_name in known_stats_set:
                     continue
                 known_stats_set.add(stat_name)
                 known_stats.append(stat_name)
                 groups_by_stat[stat_name] = int(group_id)
+
+        if len(self.files_not_found) > 0:
+            print("WARN: Stat file(s) were not found. They will be replaced by NaN.")
+            to_str = lambda x: f"{x[0]} {x[1]}/{x[2]}/{x[3]} {x[4]}"
+            print("Missing simpoints:", '; '.join(list(map( to_str, self.files_not_found))[:5]), 'and more' if len(self.files_not_found) > 5 else '')
+
 
         if not known_stats:
             raise RuntimeError("No stats found while collecting simpoints; cannot build experiment CSV.")
@@ -982,7 +1000,7 @@ class stat_aggregator:
 
 
 
-        meta_names = ["Experiment", "Architecture", "Configuration", "Workload", "Segment Id", "Cluster Id", "Weight"]
+        meta_names = ["Experiment", "Architecture", "Configuration", "Workload", "Segment Id", "Cluster Id", "Weight", "Collect Failed"]
         meta = {k: [None] * n_cols for k in meta_names}
 
         # Cache simpoint (weight, segment_id) lookup per (suite, subsuite, workload)
@@ -996,13 +1014,15 @@ class stat_aggregator:
         meta["Segment Id"][0] = s0
         meta["Cluster Id"][0] = cid0
         meta["Weight"][0] = w0
+        meta["Collect Failed"][0] = (config0, suite0, subsuite0, workload0, cid0) in self.files_not_found
+
 
         # Precompute simpoint directory paths for all columns and fill metadata (cheap, keep in main process).
         sim_dirs = [None] * n_cols
         sim_dirs[0] = sim_dir0
 
         for j, (conf, suite, subsuite, workload, cid) in enumerate(tasks[1:], start=1):
-            sim_dirs[j] = task_sim_dirs[j]
+            sim_dirs[j] = task_sim_dirs[j][0]
 
             w, s = self.get_simpoint_info(
                 cid,
@@ -1020,13 +1040,13 @@ class stat_aggregator:
             meta["Segment Id"][j] = s
             meta["Cluster Id"][j] = cid
             meta["Weight"][j] = w
+            meta["Collect Failed"][j] = (conf, suite, subsuite, workload, cid) in self.files_not_found
         # ---------------------------------------------------------------------
         # Step 7: Fill the matrix with all remaining simpoint columns.
         #
         # Serial mode: parse each simpoint in the main process.
         # Parallel mode: worker processes attach to SharedMemory and fill columns concurrently.
         # ---------------------------------------------------------------------
-
 
         # Fill values matrix: serial or parallel
         if jobs_int > 1 and n_cols > 1:
