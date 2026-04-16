@@ -214,15 +214,18 @@ def _parse_peak_rss_mb(stderr_text):
 
 TOPLEV_PATH = "/tmp_home/pmu-tools/toplev.py"
 PERF_CORE = 10  # Pin workloads to a high-numbered core to reduce interference
-PERF_REPEAT = 15  # Re-run the entire workload binary this many times per measurement
+PERF_REPEAT_DEFAULT = 15  # Re-run the entire workload binary this many times per measurement
+PERF_TARGET_SECONDS = 600  # Target total measurement time; scale repeats to stay near this
 
 
 PERF_SCRIPT = "/tmp/_perf_repeat.sh"
 
 
-def _write_repeat_script(container_name, binary_cmd):
+
+def _write_repeat_script(container_name, binary_cmd, repeat_count=None):
     """Write a repeat-loop script into the container to avoid quoting issues."""
-    script = f"#!/bin/bash\nfor i in $(seq 1 {PERF_REPEAT}); do\n  {binary_cmd}\ndone\n"
+    n = repeat_count if repeat_count is not None else PERF_REPEAT_DEFAULT
+    script = f"#!/bin/bash\nfor i in $(seq 1 {n}); do\n  {binary_cmd}\ndone\n"
     subprocess.run(
         ["docker", "exec", container_name, "/bin/bash", "-c",
          f"cat > {PERF_SCRIPT} << 'PERF_EOF'\n{script}PERF_EOF\nchmod +x {PERF_SCRIPT}"],
@@ -230,10 +233,10 @@ def _write_repeat_script(container_name, binary_cmd):
     )
 
 
-def run_toplev_for_config(container_name, config):
+def run_toplev_for_config(container_name, config, repeat_count=None):
     """Run toplev.py -l1 --single-thread on a pinned core via docker exec --privileged."""
     binary_cmd = config["binary_cmd"]
-    _write_repeat_script(container_name, binary_cmd)
+    _write_repeat_script(container_name, binary_cmd, repeat_count)
     env_str = ""
     if config.get("env_vars"):
         env_str = " ".join(f"{k}={v}" for k, v in config["env_vars"].items()) + " "
@@ -244,7 +247,7 @@ def run_toplev_for_config(container_name, config):
         f" --no-desc --verbose"
         f" -- taskset -c {PERF_CORE} {PERF_SCRIPT}"
     ]
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=1800)
     if result.returncode != 0:
         print(f"    [toplev] returncode={result.returncode}")
         if result.stderr:
@@ -256,10 +259,10 @@ def run_toplev_for_config(container_name, config):
     return topdown
 
 
-def run_perf_stat_for_config(container_name, config):
+def run_perf_stat_for_config(container_name, config, repeat_count=None):
     """Run perf stat on a pinned core via docker exec --privileged."""
     binary_cmd = config["binary_cmd"]
-    _write_repeat_script(container_name, binary_cmd)
+    _write_repeat_script(container_name, binary_cmd, repeat_count)
     env_str = ""
     if config.get("env_vars"):
         env_str = " ".join(f"{k}={v}" for k, v in config["env_vars"].items()) + " "
@@ -268,7 +271,7 @@ def run_perf_stat_for_config(container_name, config):
         "/bin/bash", "-c",
         f"{env_str}perf stat -C {PERF_CORE} -- taskset -c {PERF_CORE} {PERF_SCRIPT}"
     ]
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=1800)
     if result.returncode != 0:
         print(f"    [perf stat] returncode={result.returncode}")
         if result.stderr:
@@ -335,7 +338,7 @@ def collect_perf_data(user, root_dir, image_name, infra_dir, perf_configs, dbg_l
                 f"Check PERF_CORE setting or container --cpuset-cpus. "
                 f"stderr: {core_check.stderr.strip()}"
             )
-        print(f"  Pinning all workloads to core {PERF_CORE}, repeating {PERF_REPEAT}x per measurement")
+        print(f"  Pinning all workloads to core {PERF_CORE}, target ~{PERF_TARGET_SECONDS}s per measurement")
 
         # Load workloads_db.json
         workload_db_path = os.path.join(infra_dir, "workloads", "workloads_db.json")
@@ -372,16 +375,27 @@ def collect_perf_data(user, root_dir, image_name, infra_dir, perf_configs, dbg_l
                 "sys.exit(r.returncode)' "
                 f'"taskset -c {PERF_CORE} {binary_cmd}"'
             )
+            import time as _time
+            warmup_t0 = _time.monotonic()
             warmup_res = subprocess.run(
                 ["docker", "exec", "--privileged", docker_container_name,
                  "/bin/bash", "-c", rss_wrapper],
-                capture_output=True, text=True, timeout=300,
+                capture_output=True, text=True, timeout=3600,
             )
+            warmup_secs = _time.monotonic() - warmup_t0
             peak_rss_mb = _parse_peak_rss_mb(warmup_res.stderr)
 
-            topdown = run_toplev_for_config(docker_container_name, config)
-            elapsed = run_perf_stat_for_config(docker_container_name, config)
+            # Scale repeat count so total measurement time stays near PERF_TARGET_SECONDS
+            single_run = max(1.0, warmup_secs)
+            repeat_count = max(1, min(PERF_REPEAT_DEFAULT, int(PERF_TARGET_SECONDS / single_run)))
+            print(f"    single-run ~{single_run:.0f}s, using {repeat_count}x repeats")
 
+            topdown = run_toplev_for_config(docker_container_name, config, repeat_count)
+            elapsed = run_perf_stat_for_config(docker_container_name, config, repeat_count)
+
+            # Convert total elapsed to per-run average
+            if elapsed is not None:
+                elapsed = round(elapsed / repeat_count, 2)
             elapsed_min = 0
             elapsed_sec = elapsed
             if elapsed is not None and elapsed >= 60:

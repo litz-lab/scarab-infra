@@ -7,216 +7,216 @@
   "root_dir": "/soe/surim",
   "_image_name": "A docker image name required to run a benchmark with Perf.",
   "image_name": "agent",
-  "_perf_configurations": "30 variants: 5 frameworks x 6 size/iter combos. Shared image 'agent'. suite='agent', subsuite=framework name. Iteration counts reduced ~10-20x from trivial-tool era because each iteration now does real CPU-heavy computation (LexRank, SVD/FFT, sympy, numpy sort/matmul, sentence-transformers). Target ~5-10s native per run.",
+  "_perf_configurations": "30 variants: 5 frameworks x 6 size/iter combos. Shared image 'agent'. suite='agent', subsuite=framework name. Iteration counts calibrated with orchestration overhead (JSON API ser/deser, gzip, HTTP parsing, growing context, file I/O, multi-agent exchange). Target ~5s and ~10s native per run.",
   "perf_configurations": [
+    {
+      "workload": "langchain_short_12iter",
+      "suite": "agent",
+      "subsuite": "langchain",
+      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run.py langchain --task-id lc-short-12 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size short --iterations 12",
+      "env_vars": null
+    },
     {
       "workload": "langchain_short_25iter",
       "suite": "agent",
       "subsuite": "langchain",
-      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run_langchain.py --task-id lc-short-25 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size short --iterations 25",
+      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run.py langchain --task-id lc-short-25 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size short --iterations 25",
       "env_vars": null
     },
     {
-      "workload": "langchain_short_75iter",
+      "workload": "langchain_medium_11iter",
       "suite": "agent",
       "subsuite": "langchain",
-      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run_langchain.py --task-id lc-short-75 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size short --iterations 75",
+      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run.py langchain --task-id lc-medium-11 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size medium --iterations 11",
       "env_vars": null
     },
     {
-      "workload": "langchain_medium_10iter",
+      "workload": "langchain_medium_22iter",
       "suite": "agent",
       "subsuite": "langchain",
-      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run_langchain.py --task-id lc-medium-10 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size medium --iterations 10",
+      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run.py langchain --task-id lc-medium-22 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size medium --iterations 22",
       "env_vars": null
     },
     {
-      "workload": "langchain_medium_30iter",
+      "workload": "langchain_long_12iter",
       "suite": "agent",
       "subsuite": "langchain",
-      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run_langchain.py --task-id lc-medium-30 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size medium --iterations 30",
+      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run.py langchain --task-id lc-long-12 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size long --iterations 12",
       "env_vars": null
     },
     {
-      "workload": "langchain_long_5iter",
+      "workload": "langchain_long_25iter",
       "suite": "agent",
       "subsuite": "langchain",
-      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run_langchain.py --task-id lc-long-5 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size long --iterations 5",
+      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run.py langchain --task-id lc-long-25 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size long --iterations 25",
       "env_vars": null
     },
     {
-      "workload": "langchain_long_15iter",
-      "suite": "agent",
-      "subsuite": "langchain",
-      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run_langchain.py --task-id lc-long-15 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size long --iterations 15",
-      "env_vars": null
-    },
-    {
-      "workload": "langgraph_short_40iter",
+      "workload": "langgraph_short_17iter",
       "suite": "agent",
       "subsuite": "langgraph",
-      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run_langgraph.py --task-id lg-short-40 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size short --iterations 40",
+      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run.py langgraph --task-id lg-short-17 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size short --iterations 17",
       "env_vars": null
     },
     {
-      "workload": "langgraph_short_120iter",
+      "workload": "langgraph_short_33iter",
       "suite": "agent",
       "subsuite": "langgraph",
-      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run_langgraph.py --task-id lg-short-120 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size short --iterations 120",
+      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run.py langgraph --task-id lg-short-33 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size short --iterations 33",
       "env_vars": null
     },
     {
       "workload": "langgraph_medium_15iter",
       "suite": "agent",
       "subsuite": "langgraph",
-      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run_langgraph.py --task-id lg-medium-15 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size medium --iterations 15",
+      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run.py langgraph --task-id lg-medium-15 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size medium --iterations 15",
       "env_vars": null
     },
     {
-      "workload": "langgraph_medium_40iter",
+      "workload": "langgraph_medium_30iter",
       "suite": "agent",
       "subsuite": "langgraph",
-      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run_langgraph.py --task-id lg-medium-40 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size medium --iterations 40",
+      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run.py langgraph --task-id lg-medium-30 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size medium --iterations 30",
       "env_vars": null
     },
     {
-      "workload": "langgraph_long_5iter",
+      "workload": "langgraph_long_10iter",
       "suite": "agent",
       "subsuite": "langgraph",
-      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run_langgraph.py --task-id lg-long-5 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size long --iterations 5",
+      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run.py langgraph --task-id lg-long-10 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size long --iterations 10",
       "env_vars": null
     },
     {
-      "workload": "langgraph_long_15iter",
+      "workload": "langgraph_long_19iter",
       "suite": "agent",
       "subsuite": "langgraph",
-      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run_langgraph.py --task-id lg-long-15 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size long --iterations 15",
+      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run.py langgraph --task-id lg-long-19 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size long --iterations 19",
       "env_vars": null
     },
     {
-      "workload": "autogen_short_20iter",
+      "workload": "autogen_short_10iter",
       "suite": "agent",
       "subsuite": "autogen",
-      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run_autogen.py --task-id ag-short-20 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size short --iterations 20",
+      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run.py autogen --task-id ag-short-10 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size short --iterations 10",
       "env_vars": null
     },
     {
-      "workload": "autogen_short_60iter",
+      "workload": "autogen_short_19iter",
       "suite": "agent",
       "subsuite": "autogen",
-      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run_autogen.py --task-id ag-short-60 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size short --iterations 60",
+      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run.py autogen --task-id ag-short-19 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size short --iterations 19",
       "env_vars": null
     },
     {
-      "workload": "autogen_medium_8iter",
+      "workload": "autogen_medium_7iter",
       "suite": "agent",
       "subsuite": "autogen",
-      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run_autogen.py --task-id ag-medium-8 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size medium --iterations 8",
+      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run.py autogen --task-id ag-medium-7 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size medium --iterations 7",
       "env_vars": null
     },
     {
-      "workload": "autogen_medium_25iter",
+      "workload": "autogen_medium_13iter",
       "suite": "agent",
       "subsuite": "autogen",
-      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run_autogen.py --task-id ag-medium-25 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size medium --iterations 25",
+      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run.py autogen --task-id ag-medium-13 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size medium --iterations 13",
       "env_vars": null
     },
     {
-      "workload": "autogen_long_3iter",
+      "workload": "autogen_long_4iter",
       "suite": "agent",
       "subsuite": "autogen",
-      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run_autogen.py --task-id ag-long-3 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size long --iterations 3",
+      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run.py autogen --task-id ag-long-4 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size long --iterations 4",
       "env_vars": null
     },
     {
       "workload": "autogen_long_8iter",
       "suite": "agent",
       "subsuite": "autogen",
-      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run_autogen.py --task-id ag-long-8 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size long --iterations 8",
+      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run.py autogen --task-id ag-long-8 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size long --iterations 8",
       "env_vars": null
     },
     {
-      "workload": "haystack_short_20iter",
+      "workload": "haystack_short_2iter",
       "suite": "agent",
       "subsuite": "haystack",
-      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run_haystack.py --task-id hs-short-20 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size short --iterations 20",
+      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run.py haystack --task-id hs-short-2 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size short --iterations 2",
       "env_vars": null
     },
     {
-      "workload": "haystack_short_50iter",
+      "workload": "haystack_short_3iter",
       "suite": "agent",
       "subsuite": "haystack",
-      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run_haystack.py --task-id hs-short-50 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size short --iterations 50",
+      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run.py haystack --task-id hs-short-3 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size short --iterations 3",
       "env_vars": null
     },
     {
-      "workload": "haystack_medium_8iter",
+      "workload": "haystack_medium_1iter",
       "suite": "agent",
       "subsuite": "haystack",
-      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run_haystack.py --task-id hs-medium-8 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size medium --iterations 8",
+      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run.py haystack --task-id hs-medium-1 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size medium --iterations 1",
       "env_vars": null
     },
     {
-      "workload": "haystack_medium_20iter",
+      "workload": "haystack_medium_2iter",
       "suite": "agent",
       "subsuite": "haystack",
-      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run_haystack.py --task-id hs-medium-20 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size medium --iterations 20",
+      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run.py haystack --task-id hs-medium-2 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size medium --iterations 2",
       "env_vars": null
     },
     {
-      "workload": "haystack_long_3iter",
+      "workload": "haystack_long_1iter",
       "suite": "agent",
       "subsuite": "haystack",
-      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run_haystack.py --task-id hs-long-3 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size long --iterations 3",
+      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run.py haystack --task-id hs-long-1a --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size long --iterations 1",
       "env_vars": null
     },
     {
-      "workload": "haystack_long_8iter",
+      "workload": "haystack_long_2iter",
       "suite": "agent",
       "subsuite": "haystack",
-      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run_haystack.py --task-id hs-long-8 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size long --iterations 8",
+      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run.py haystack --task-id hs-long-2 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size long --iterations 2",
       "env_vars": null
     },
     {
-      "workload": "swe_agent_short_15iter",
+      "workload": "swe_agent_short_13iter",
       "suite": "agent",
       "subsuite": "swe_agent",
-      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run_swe_agent.py --task-id swe-short-15 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size short --iterations 15",
+      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run.py swe_agent --task-id swe-short-13 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size short --iterations 13",
       "env_vars": null
     },
     {
-      "workload": "swe_agent_short_40iter",
+      "workload": "swe_agent_short_26iter",
       "suite": "agent",
       "subsuite": "swe_agent",
-      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run_swe_agent.py --task-id swe-short-40 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size short --iterations 40",
+      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run.py swe_agent --task-id swe-short-26 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size short --iterations 26",
       "env_vars": null
     },
     {
-      "workload": "swe_agent_medium_5iter",
+      "workload": "swe_agent_medium_10iter",
       "suite": "agent",
       "subsuite": "swe_agent",
-      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run_swe_agent.py --task-id swe-medium-5 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size medium --iterations 5",
+      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run.py swe_agent --task-id swe-medium-10 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size medium --iterations 10",
       "env_vars": null
     },
     {
-      "workload": "swe_agent_medium_15iter",
+      "workload": "swe_agent_medium_21iter",
       "suite": "agent",
       "subsuite": "swe_agent",
-      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run_swe_agent.py --task-id swe-medium-15 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size medium --iterations 15",
+      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run.py swe_agent --task-id swe-medium-21 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size medium --iterations 21",
       "env_vars": null
     },
     {
-      "workload": "swe_agent_long_2iter",
+      "workload": "swe_agent_long_4iter",
       "suite": "agent",
       "subsuite": "swe_agent",
-      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run_swe_agent.py --task-id swe-long-2 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size long --iterations 2",
+      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run.py swe_agent --task-id swe-long-4 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size long --iterations 4",
       "env_vars": null
     },
     {
-      "workload": "swe_agent_long_5iter",
+      "workload": "swe_agent_long_7iter",
       "suite": "agent",
       "subsuite": "swe_agent",
-      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run_swe_agent.py --task-id swe-long-5 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size long --iterations 5",
+      "binary_cmd": "python3 /tmp_home/AgentCPU/workloads/run.py swe_agent --task-id swe-long-7 --trace-output /tmp/trace.json --summary-output /tmp/summary.json --context-size long --iterations 7",
       "env_vars": null
     }
   ]

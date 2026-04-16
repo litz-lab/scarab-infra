@@ -24,7 +24,7 @@
       "subsuite": "langchain",
       "_env_vars": "PYTHONHASHSEED=0 tightens startup determinism so pass-1 fingerprints and pass-2 traces walk the same bbs. See determinism test: /tmp/fpg_det_test.",
       "env_vars": "PYTHONHASHSEED=0",
-      "binary_cmd": "python3 \\$tmpdir/AgentCPU/workloads/run_langchain.py --task-id lc-short-25 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size short --iterations 25",
+      "binary_cmd": "python3 \\$tmpdir/AgentCPU/workloads/run.py langchain --task-id lc-short-25 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size short --iterations 25",
       "client_bincmd": null,
       "trace_type": "cluster_then_trace",
       "dynamorio_args": null,
