@@ -40,9 +40,11 @@ RUN python3 -c "from sentence_transformers import SentenceTransformer; \
                 SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')"
 
 # Pre-download NLTK tokenizer data for sumy LexRank (langchain workload).
-RUN python3 -c "import nltk; nltk.download('punkt'); nltk.download('punkt_tab')"
-# Pin NLTK_DATA so data is found even when HOME is overridden (e.g. DynamoRIO tracing).
-ENV NLTK_DATA=/root/nltk_data
+# Download to a world-readable path so non-root users (e.g. DynamoRIO tracing
+# which runs as the host user) can access the data.
+ENV NLTK_DATA=/usr/local/share/nltk_data
+RUN python3 -c "import nltk; nltk.download('punkt', download_dir='/usr/local/share/nltk_data'); \
+                nltk.download('punkt_tab', download_dir='/usr/local/share/nltk_data')"
 
 # Pre-download GPT-2 BPE tokenizer for agent_common (all workloads).
 RUN python3 -c "from transformers import AutoTokenizer; AutoTokenizer.from_pretrained('gpt2')"
