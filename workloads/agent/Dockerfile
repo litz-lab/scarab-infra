@@ -41,6 +41,8 @@ RUN python3 -c "from sentence_transformers import SentenceTransformer; \
 
 # Pre-download NLTK tokenizer data for sumy LexRank (langchain workload).
 RUN python3 -c "import nltk; nltk.download('punkt'); nltk.download('punkt_tab')"
+# Pin NLTK_DATA so data is found even when HOME is overridden (e.g. DynamoRIO tracing).
+ENV NLTK_DATA=/root/nltk_data
 
 # Pre-download GPT-2 BPE tokenizer for agent_common (all workloads).
 RUN python3 -c "from transformers import AutoTokenizer; AutoTokenizer.from_pretrained('gpt2')"
