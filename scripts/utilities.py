@@ -482,7 +482,9 @@ def lint_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_pref
         "\n"
         f"BUILD_DIR=build/{build_mode}\n"
         "if [ ! -f \"$BUILD_DIR/compile_commands.json\" ]; then\n"
-        "  echo \"ERROR: $BUILD_DIR/compile_commands.json missing; ensure CMakeLists.txt has set(CMAKE_EXPORT_COMPILE_COMMANDS ON)\" >&2\n"
+        "  echo \"ERROR: $BUILD_DIR/compile_commands.json missing.\" >&2\n"
+        "  echo 'Run `./sci --build-scarab <descriptor>` first; CMakeLists.txt has' >&2\n"
+        "  echo 'CMAKE_EXPORT_COMPILE_COMMANDS ON so any build emits the compile DB.' >&2\n"
         "  exit 2\n"
         "fi\n"
         "\n"
@@ -517,7 +519,19 @@ def lint_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_pref
         "echo 'clang-tidy clean.'\n"
     )
 
-    info(f"Linting scarab with image {docker_prefix}:{githash}...", dbg_lvl)
+    # Preflight: if the image isn't present we want a clear message pointing
+    # at --build-scarab, not a cryptic `docker run` failure. We deliberately
+    # do NOT rebuild the image here: --lint-scarab is supposed to be a fast
+    # linter, not a stealth image builder.
+    image_ref = f"{docker_prefix}:{githash}"
+    if not image_exist(image_ref):
+        raise RuntimeError(
+            f"Docker image '{image_ref}' not found locally. "
+            "Run `./sci --build-scarab <descriptor>` first to build scarab "
+            "and prepare this image."
+        )
+
+    info(f"Linting scarab with image {image_ref}...", dbg_lvl)
     exception = None
     try:
         subprocess.run(
@@ -528,7 +542,7 @@ def lint_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_pref
              "-dit", "--name", f"{docker_container_name}",
              "--mount", f"type=bind,source={docker_home},target=/home/{user},readonly=false",
              "--mount", f"type=bind,source={scarab_path},target=/scarab,readonly=false",
-             f"{docker_prefix}:{githash}", "/bin/bash"],
+             image_ref, "/bin/bash"],
             check=True, capture_output=True, text=True)
         subprocess.run(
             ["docker", "cp", f"{infra_dir}/common/scripts/root_entrypoint.sh",

@@ -1693,23 +1693,24 @@ def run_build_scarab(descriptor_name: str) -> int:
 
 
 def run_lint_scarab(descriptor_name: str) -> int:
-    """Build scarab and then run clang-tidy inside the same container image.
+    """Run clang-tidy inside the scarab container against an existing build.
 
-    Rationale: clang-tidy needs the full set of -I/-D flags used by the real
-    build to parse every TU. The scarab build container already has PIN's
-    XED, boost, gtest, etc. installed, and produces
-    build/<mode>/compile_commands.json (via
-    `set(CMAKE_EXPORT_COMPILE_COMMANDS ON)` in src/CMakeLists.txt).
-    We reuse that exact environment so CI and local lint runs produce
-    identical diagnostics.
+    This command does NOT build scarab; run `./sci --build-scarab <descriptor>`
+    first (or as a prior CI step). We deliberately keep the two commands
+    separate so linting does not redundantly re-validate / re-link artifacts
+    on every invocation.
+
+    Prereqs:
+      - `build/<mode>/compile_commands.json` exists under scarab_path/src
+        (enabled by `set(CMAKE_EXPORT_COMPILE_COMMANDS ON)` in
+        src/CMakeLists.txt). Produced by --build-scarab.
+      - The docker image tagged `<prefix>:<scarab-infra-githash>` is already
+        available locally (also guaranteed by --build-scarab).
+
+    If the compile DB is missing the container-side script fails fast with
+    a clear error; if the image is missing docker run will fail. Both error
+    paths explicitly point the user at `--build-scarab`.
     """
-    # Step 1: run the normal build, producing compile_commands.json.
-    rc = run_build_scarab(descriptor_name)
-    if rc != 0:
-        return rc
-
-    # Step 2: resolve descriptor fields needed to start a container with the
-    # same image.
     infra_utils = load_infra_utilities()
     descriptor_path, descriptor = read_descriptor(descriptor_name)
     if descriptor.get("descriptor_type") != "simulation":
