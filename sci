@@ -1692,6 +1692,92 @@ def run_build_scarab(descriptor_name: str) -> int:
     return 0
 
 
+def run_lint_scarab(descriptor_name: str) -> int:
+    """Run clang-tidy inside the scarab container against an existing build.
+
+    This command does NOT build scarab; run `./sci --build-scarab <descriptor>`
+    first (or as a prior CI step). We deliberately keep the two commands
+    separate so linting does not redundantly re-validate / re-link artifacts
+    on every invocation.
+
+    Prereqs:
+      - `build/<mode>/compile_commands.json` exists under scarab_path/src
+        (enabled by `set(CMAKE_EXPORT_COMPILE_COMMANDS ON)` in
+        src/CMakeLists.txt). Produced by --build-scarab.
+      - The docker image tagged `<prefix>:<scarab-infra-githash>` is already
+        available locally (also guaranteed by --build-scarab).
+
+    If the compile DB is missing the container-side script fails fast with
+    a clear error; if the image is missing docker run will fail. Both error
+    paths explicitly point the user at `--build-scarab`.
+    """
+    infra_utils = load_infra_utilities()
+    descriptor_path, descriptor = read_descriptor(descriptor_name)
+    if descriptor.get("descriptor_type") != "simulation":
+        raise StepError("`--lint-scarab` currently supports simulation descriptors only.")
+
+    scarab_path = descriptor.get("scarab_path")
+    if not scarab_path or not Path(scarab_path).exists():
+        raise StepError(f"scarab_path '{scarab_path}' does not exist.")
+    docker_home = descriptor.get("root_dir")
+    if not docker_home or not Path(docker_home).exists():
+        raise StepError(f"root_dir '{docker_home}' does not exist.")
+
+    simulations = descriptor.get("simulations") or []
+    if not simulations:
+        raise StepError("Descriptor contains no simulations to derive docker image.")
+    workloads_path = REPO_ROOT / "workloads" / "workloads_db.json"
+    workloads = infra_utils.read_descriptor_from_json(str(workloads_path))
+    if workloads is None:
+        raise StepError("Failed to read workloads/workloads_db.json.")
+    docker_prefix_list = infra_utils.get_image_list(simulations, workloads)
+    if not docker_prefix_list:
+        raise StepError("Unable to determine docker image from descriptor simulations.")
+    docker_prefix = docker_prefix_list[0]
+
+    build_mode: str = descriptor.get("scarab_build") or "opt"
+
+    try:
+        githash = run_command(
+            ["git", "rev-parse", "--short", "HEAD"],
+            capture=True, check=True, input_data=None,
+        )
+    except StepError as exc:
+        raise StepError("Failed to obtain scarab-infra git hash.") from exc
+    if githash is None:
+        raise StepError("Git hash query returned no output.")
+    githash = githash.strip()
+
+    user = getpass.getuser()
+
+    print_heading("Lint Scarab")
+    info(f"Descriptor: {descriptor_path.name}")
+    info(f"Image: {docker_prefix}:{githash}")
+    info(f"Build mode: {build_mode}")
+    info(f"Scarab path: {scarab_path}")
+
+    try:
+        infra_utils.lint_scarab_binary(
+            user, scarab_path, build_mode, docker_home, docker_prefix,
+            githash, str(REPO_ROOT), dbg_lvl=2,
+        )
+    except RuntimeError as exc:
+        # lint_scarab_binary raises RuntimeError when findings exist or the
+        # docker workflow fails; surface a clean exit code rather than a
+        # traceback.
+        info(str(exc))
+        return 1
+    except subprocess.CalledProcessError as exc:
+        raise StepError(
+            f"clang-tidy lint failed (exit {exc.returncode}).\nSTDOUT:{exc.stdout}\nSTDERR:{exc.stderr}"
+        ) from exc
+    except Exception as exc:  # noqa: BLE001
+        raise StepError(f"clang-tidy lint failed: {exc}") from exc
+
+    info("clang-tidy lint completed successfully.")
+    return 0
+
+
 def run_build_image(workload_group: str) -> int:
     if not workload_group:
         raise StepError("Provide a workload group name (see ./sci --list).")
@@ -4205,6 +4291,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Build scarab sources defined in json/<DESCRIPTOR>.json.",
     )
     parser.add_argument(
+        "--lint-scarab",
+        dest="lint_scarab",
+        metavar="DESCRIPTOR",
+        help="Build scarab and run clang-tidy against the resulting "
+             "compile_commands.json inside the same container image. "
+             "Exits non-zero on any enabled-check finding.",
+    )
+    parser.add_argument(
         "--build-image",
         dest="build_image",
         metavar="WORKLOAD_GROUP",
@@ -4292,6 +4386,7 @@ def main() -> int:
         bool(args.init),
         bool(args.ci_init),
         bool(args.build_scarab),
+        bool(args.lint_scarab),
         bool(args.build_image),
         bool(args.list),
         bool(args.interactive),
@@ -4312,6 +4407,7 @@ def main() -> int:
 
     needs_env = any([
         args.build_scarab,
+        args.lint_scarab,
         args.build_image,
         args.interactive,
         args.trace,
@@ -4331,6 +4427,12 @@ def main() -> int:
     if args.build_scarab:
         try:
             return run_build_scarab(args.build_scarab)
+        except StepError as exc:
+            print(exc)
+            return 1
+    if args.lint_scarab:
+        try:
+            return run_lint_scarab(args.lint_scarab)
         except StepError as exc:
             print(exc)
             return 1

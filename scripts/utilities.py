@@ -434,6 +434,151 @@ def build_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_pre
         raise exception
 
 
+def lint_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_prefix, githash, infra_dir, dbg_lvl=1):
+    """Run clang-tidy inside the scarab build container against the compile DB
+    produced by the latest scarab build.
+
+    Enabled checks, excluded directories, and the clang-tidy version itself
+    are defined here so every caller (CI, local dev) sees identical results.
+
+    Prerequisites:
+    - The caller has already built scarab (e.g. via build_scarab_binary), so
+      {scarab_path}/src/build/{scarab_build}/compile_commands.json exists.
+      This is guaranteed when src/CMakeLists.txt contains
+      `set(CMAKE_EXPORT_COMPILE_COMMANDS ON)`.
+
+    Returns: 0 on clean, 1 on any finding or infra failure.
+    """
+    local_uid = os.getuid()
+    local_gid = os.getgid()
+    build_mode = scarab_build if scarab_build else "opt"
+    docker_container_name = f"{docker_prefix}_{user}_scarab_lint"
+
+    # Keep the enabled check set narrow. Expand intentionally by editing this
+    # list; every consumer of --lint-scarab picks up the change automatically.
+    checks = "-*,cppcoreguidelines-pro-type-member-init"
+    # Directories we never lint (vendored third-party / external toolchain).
+    exclude_re = r"^(deps|ramulator|pin)/"
+    # Same regex, expressed so that paths from clang-tidy diagnostics (which
+    # are absolute, e.g. /scarab/src/ramulator/...) are also filtered out
+    # when they leak in via transitive #includes.
+    diag_exclude_re = r"/(deps|ramulator|pin)/"
+
+    lint_script = (
+        "set -o pipefail\n"
+        "cd /scarab/src\n"
+        "\n"
+        "# Fail fast if the image doesn't have clang-tidy: otherwise xargs\n"
+        "# silently emits 'command not found' for every TU and the grep for\n"
+        "# findings yields zero results, making the step appear green when in\n"
+        "# reality no linting ran.\n"
+        "if ! command -v clang-tidy >/dev/null 2>&1; then\n"
+        "  echo 'ERROR: clang-tidy not available in this container image.' >&2\n"
+        "  echo 'Rebuild the scarab-infra docker image (e.g. remove the cached' >&2\n"
+        "  echo 'tag and rerun --build-scarab) so the Dockerfile.common changes' >&2\n"
+        "  echo 'that install clang-tidy-18 take effect.' >&2\n"
+        "  exit 127\n"
+        "fi\n"
+        "\n"
+        f"BUILD_DIR=build/{build_mode}\n"
+        "if [ ! -f \"$BUILD_DIR/compile_commands.json\" ]; then\n"
+        "  echo \"ERROR: $BUILD_DIR/compile_commands.json missing.\" >&2\n"
+        "  echo 'Run `./sci --build-scarab <descriptor>` first; CMakeLists.txt has' >&2\n"
+        "  echo 'CMAKE_EXPORT_COMPILE_COMMANDS ON so any build emits the compile DB.' >&2\n"
+        "  exit 2\n"
+        "fi\n"
+        "\n"
+        "LOG=/tmp/clang-tidy.log\n"
+        "FINDINGS=/tmp/clang-tidy-findings.txt\n"
+        ": > \"$LOG\"\n"
+        "\n"
+        f"mapfile -t FILES < <(git ls-files '*.cc' | grep -vE '{exclude_re}' | sort)\n"
+        "echo \"Linting ${#FILES[@]} translation units with $(clang-tidy --version | head -n1)...\"\n"
+        "\n"
+        "printf '%s\\n' \"${FILES[@]}\" \\\n"
+        "  | xargs -P \"$(nproc)\" -I{} -n 1 \\\n"
+        "      clang-tidy \\\n"
+        "        -p \"$BUILD_DIR\" \\\n"
+        "        -quiet \\\n"
+        f"        -checks='{checks}' \\\n"
+        "        --header-filter='.*' \\\n"
+        "        {} 2>&1 | tee -a \"$LOG\" || true\n"
+        "\n"
+        "{ grep -E 'warning:.*\\[cppcoreguidelines-pro-type-member-init\\]' \"$LOG\" \\\n"
+        f"    | grep -vE '{diag_exclude_re}' \\\n"
+        "    | sort -u; } > \"$FINDINGS\" || true\n"
+        "\n"
+        "echo '=== member-init findings (post-filter) ==='\n"
+        "if [ -s \"$FINDINGS\" ]; then\n"
+        "  cat \"$FINDINGS\"\n"
+        "  echo '=========================================='\n"
+        "  exit 1\n"
+        "fi\n"
+        "echo '<none>'\n"
+        "echo '=========================================='\n"
+        "echo 'clang-tidy clean.'\n"
+    )
+
+    # Preflight: if the image isn't present we want a clear message pointing
+    # at --build-scarab, not a cryptic `docker run` failure. We deliberately
+    # do NOT rebuild the image here: --lint-scarab is supposed to be a fast
+    # linter, not a stealth image builder.
+    image_ref = f"{docker_prefix}:{githash}"
+    if not image_exist(image_ref):
+        raise RuntimeError(
+            f"Docker image '{image_ref}' not found locally. "
+            "Run `./sci --build-scarab <descriptor>` first to build scarab "
+            "and prepare this image."
+        )
+
+    info(f"Linting scarab with image {image_ref}...", dbg_lvl)
+    exception = None
+    try:
+        subprocess.run(
+            ["docker", "run",
+             "-e", f"user_id={local_uid}",
+             "-e", f"group_id={local_gid}",
+             "-e", f"username={user}",
+             "-dit", "--name", f"{docker_container_name}",
+             "--mount", f"type=bind,source={docker_home},target=/home/{user},readonly=false",
+             "--mount", f"type=bind,source={scarab_path},target=/scarab,readonly=false",
+             image_ref, "/bin/bash"],
+            check=True, capture_output=True, text=True)
+        subprocess.run(
+            ["docker", "cp", f"{infra_dir}/common/scripts/root_entrypoint.sh",
+             f"{docker_container_name}:/usr/local/bin"],
+            check=True, capture_output=True, text=True)
+        subprocess.run(
+            ["docker", "cp", f"{infra_dir}/common/scripts/user_entrypoint.sh",
+             f"{docker_container_name}:/usr/local/bin"],
+            check=True, capture_output=True, text=True)
+        subprocess.run(
+            ["docker", "exec", "--privileged", f"{docker_container_name}",
+             "/bin/bash", "-c", "/usr/local/bin/root_entrypoint.sh"],
+            check=True, capture_output=True, text=True)
+
+        # Stream output so the step log reflects progress in real time.
+        lint_result = subprocess.run(
+            ["docker", "exec",
+             f"--user={user}", f"--workdir=/home/{user}",
+             f"{docker_container_name}",
+             "/bin/bash", "-c", lint_script],
+            text=True)
+        if lint_result.returncode != 0:
+            exception = RuntimeError(
+                f"clang-tidy lint failed (exit {lint_result.returncode})"
+            )
+    except Exception as e:
+        exception = e
+    finally:
+        subprocess.run(
+            ["docker", "rm", "-f", f"{docker_container_name}"],
+            check=False, capture_output=True, text=True)
+
+    if exception is not None:
+        raise exception
+
+
 def _scarab_repo_clean(scarab_path: str) -> bool:
     try:
         status_output = subprocess.check_output(
