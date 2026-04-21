@@ -457,12 +457,50 @@ def lint_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_pref
     # Keep the enabled check set narrow. Expand intentionally by editing this
     # list; every consumer of --lint-scarab picks up the change automatically.
     checks = "-*,cppcoreguidelines-pro-type-member-init"
-    # Directories we never lint (vendored third-party / external toolchain).
-    exclude_re = r"^(deps|ramulator|pin)/"
-    # Same regex, expressed so that paths from clang-tidy diagnostics (which
-    # are absolute, e.g. /scarab/src/ramulator/...) are also filtered out
-    # when they leak in via transitive #includes.
-    diag_exclude_re = r"/(deps|ramulator|pin)/"
+    # Directories/files we never lint. We keep this list as narrow as
+    # possible so that scarab-owned code is always checked.
+    #
+    #   - deps, ramulator: vendored third-party sources.
+    #   - pin/pin_exec, pin/pin_trace: Intel-PIN tools built with the PIN
+    #     toolchain. They have their own CMakeLists.txt with nonstandard
+    #     flags (pin.H etc.) and are NOT part of scarab's main
+    #     compile_commands.json.
+    #   - pin/pin_lib/decoder.{cc,h}: the one file in pin_lib that is also
+    #     PIN-only (it #include "pin.H"). The rest of pin_lib IS in the main
+    #     compile DB and is linted.
+    #   - test: standalone gtest Makefile-driven tests; not in the CMake
+    #     target, so they don't appear in compile_commands.json and
+    #     clang-tidy would flag every #include <gtest/gtest.h> as missing.
+    exclude_re = (
+        r"^(deps|ramulator|pin/pin_exec|pin/pin_trace|test)/"
+        r"|^pin/pin_lib/decoder\.(cc|h)$"
+    )
+    # Positive-list of scarab-owned top-level dirs that we DO want header
+    # diagnostics from. We use a positive list rather than a negative one
+    # because clang-tidy 18 does not yet support --exclude-header-filter
+    # (added in clang-tidy 19) and llvm::Regex lacks negative lookahead.
+    #
+    # Matches either:
+    #   /scarab/src/<allowed_subdir>/...   (headers inside scarab source trees)
+    #   /scarab/src/pin/pin_lib/...        (scarab-authored PIN glue; pin_exec/
+    #                                       is the PIN tool and stays excluded)
+    #   /scarab/src/<top_level_file>       (headers directly under src/, e.g.
+    #                                       decoupled_frontend.h, ft.h, …)
+    #
+    # If a new top-level source dir is added to scarab, append it here.
+    scarab_owned_dirs = "bp|confidence|debug|dvfs|frontend|globals|isa|libs|memory|power|prefetcher|support"
+    header_filter_re = (
+        rf"^/scarab/src/({scarab_owned_dirs})/"
+        r"|^/scarab/src/pin/pin_lib/"
+        r"|^/scarab/src/[^/]+$"
+    )
+    # Defense-in-depth: even though we positive-filter via --header-filter,
+    # also drop any vendored-tree path (or PIN-only pin_lib/decoder.h) that
+    # somehow makes it into the log before the pass/fail grep.
+    header_exclude_re = (
+        r"/scarab/src/(deps|ramulator|pin/pin_exec|pin/pin_trace|test)/"
+        r"|/scarab/src/pin/pin_lib/decoder\.h"
+    )
 
     lint_script = (
         "set -o pipefail\n"
@@ -501,11 +539,20 @@ def lint_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_pref
         "        -p \"$BUILD_DIR\" \\\n"
         "        -quiet \\\n"
         f"        -checks='{checks}' \\\n"
-        "        --header-filter='.*' \\\n"
+        # Positive-list scarab-owned headers only. Headers transitively
+        # pulled in from deps/ / ramulator/ / pin/ / test/ will not match
+        # this regex and clang-tidy will therefore suppress diagnostics
+        # that originate inside them (diagnostics from the main TU file
+        # itself are always shown regardless of --header-filter).
+        f"        --header-filter='{header_filter_re}' \\\n"
         "        {} 2>&1 | tee -a \"$LOG\" || true\n"
         "\n"
+        # Post-filter on findings is (mostly) redundant with --header-filter
+        # now, but we keep it as defense-in-depth in case a diagnostic from
+        # a vendored tree slips through (e.g. if a new top-level dir gets
+        # added to scarab_owned_dirs and someone forgets to update the list).
         "{ grep -E 'warning:.*\\[cppcoreguidelines-pro-type-member-init\\]' \"$LOG\" \\\n"
-        f"    | grep -vE '{diag_exclude_re}' \\\n"
+        f"    | grep -vE '{header_exclude_re}' \\\n"
         "    | sort -u; } > \"$FINDINGS\" || true\n"
         "\n"
         "echo '=== member-init findings (post-filter) ==='\n"
