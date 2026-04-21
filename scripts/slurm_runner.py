@@ -25,13 +25,22 @@ MEM_HEADROOM_MB = 1024   # fixed +1 GiB on top of workloads_db base_memory_mb fo
 # workload RSS; `overhead` covers the fixed DR runtime + per-cluster raw2trace
 # buffers. See discussion in run_perf / cluster_then_trace design notes.
 TRACE_MEM_OVERHEAD_MB = 2000
-TRACE_MEM_MIN_MB = 16000
-TRACE_MEM_FALLBACK_MB = 16000  # used only if perf never ran for this workload
+TRACE_MEM_MIN_MB = 32000
+TRACE_MEM_FALLBACK_MB = 32000  # used only if perf never ran for this workload
 TRACE_MEM_FACTOR = {
     "cluster_then_trace": 2.5,   # parallel drraw2trace across clusters
     "trace_then_cluster": 1.8,   # sequential raw2trace post-process
     "iterative_trace":    2.0,
 }
+
+# Per-segment memory scheduling constants (parallel_segments mode).
+# Each segment runs 1 drrun then 1 raw2trace sequentially, so memory is
+# much less than the full-pipeline job that processes all segments at once.
+# Formula: segment_mem_mb = max(SEGMENT_MEM_MIN_MB, peak_rss_mb * SEGMENT_MEM_FACTOR + SEGMENT_MEM_OVERHEAD_MB)
+SEGMENT_MEM_MIN_MB = 10000       # 10 GB minimum per segment job
+SEGMENT_MEM_OVERHEAD_MB = 1500
+SEGMENT_MEM_FACTOR = 1.5
+SEGMENT_MEM_FALLBACK_MB = 10000  # used if perf never ran
 
 
 def estimate_trace_mem_mb(wl_entry, trace_type, descriptor_data=None):
@@ -67,6 +76,27 @@ def estimate_trace_mem_mb(wl_entry, trace_type, descriptor_data=None):
 
     if peak_rss_mb is None:
         return fallback, None  # (mem_mb, measured_rss_mb)
+
+    est = int(round(peak_rss_mb * factor)) + overhead
+    return max(est, min_mb), peak_rss_mb
+
+
+def estimate_segment_mem_mb(wl_entry, descriptor_data=None):
+    """Return the slurm --mem (MB) for a single-segment trace job (parallel_segments mode)."""
+    mem_cfg = (descriptor_data or {}).get("mem") or {}
+    overhead = int(mem_cfg.get("segment_overhead_mb", SEGMENT_MEM_OVERHEAD_MB))
+    min_mb = int(mem_cfg.get("segment_min_mb", SEGMENT_MEM_MIN_MB))
+    fallback = int(mem_cfg.get("segment_fallback_mb", SEGMENT_MEM_FALLBACK_MB))
+    factor = float(mem_cfg.get("segment_factor", SEGMENT_MEM_FACTOR))
+
+    peak_rss_mb = None
+    try:
+        peak_rss_mb = ((wl_entry or {}).get("performance") or {}).get("peak_rss_mb")
+    except (AttributeError, TypeError):
+        peak_rss_mb = None
+
+    if peak_rss_mb is None:
+        return fallback, None
 
     est = int(round(peak_rss_mb * factor)) + overhead
     return max(est, min_mb), peak_rss_mb
@@ -168,6 +198,7 @@ from .utilities import (
         prepare_trace,
         finish_trace,
         write_trace_docker_command_to_file,
+        write_phase2_sbatch_tail,
         get_weight_by_cluster_id,
         image_exist,
         check_can_skip,
@@ -492,6 +523,8 @@ def _get_trace_stage(trace_dir, workload):
                     ("clustering tracing..", "tracing simpoints"),
                     ("adjusting oversized simpoints..", "adjusting simpoints"),
                     ("clustering..", "clustering"),
+                    ("cluster_only (mode 4) complete", "cluster done (parallel)"),
+                    ("Phase 2: submitted", "submitting segments"),
                     ("generate fingerprint done", "fingerprint done"),
                     ("generate fingerprint..", "fingerprinting"),
                     ("running run_simpoint_trace.py", "starting"),
@@ -513,6 +546,24 @@ def _get_trace_stage(trace_dir, workload):
         except (OSError, UnicodeDecodeError):
             continue
     return None
+
+
+def _is_trace_completed(wl_path):
+    """Check if a trace workload is fully completed (minimized traces exist for all simpoints)."""
+    trace_out = os.path.join(wl_path, "traces_simp", "trace")
+    if not os.path.isdir(trace_out):
+        return False
+    actual_zips = [f for f in os.listdir(trace_out) if f.endswith(".zip")]
+    if not actual_zips:
+        return False
+    # Check expected simpoint count
+    sp_file = os.path.join(wl_path, "simpoints", "opt.p.lpt0.99")
+    if os.path.isfile(sp_file):
+        with open(sp_file) as f:
+            expected = sum(1 for line in f if line.strip())
+        if len(actual_zips) < expected:
+            return False
+    return True
 
 
 def print_trace_status(user, job_name, docker_prefix_list, dbg_lvl = 1):
@@ -578,8 +629,7 @@ def print_trace_status(user, job_name, docker_prefix_list, dbg_lvl = 1):
             if not os.path.isdir(wl_path) or wl_dir in ("logs", "scarab"):
                 continue
             disk_workloads.add(wl_dir)
-            fp_file = os.path.join(wl_path, "fingerprint", "segment_size")
-            if os.path.isfile(fp_file):
+            if _is_trace_completed(wl_path):
                 completed.append(wl_dir)
             else:
                 is_running = any(wl_dir in t for t in running)
@@ -600,6 +650,22 @@ def print_trace_status(user, job_name, docker_prefix_list, dbg_lvl = 1):
                 pending.append(wl_name)
             else:
                 in_progress.append(wl_name)
+
+    # Scan log files for jobs that failed without creating a workload directory
+    log_dir = os.path.join(trace_dir, "logs")
+    known_workloads = set(completed + failed + in_progress + pending) | disk_workloads
+    if os.path.isdir(log_dir):
+        for log_path in sorted(Path(log_dir).glob("job_*.out")):
+            try:
+                with log_path.open(encoding="utf-8", errors="replace") as fh:
+                    first_line = fh.readline().strip()
+                if first_line.startswith("Tracing "):
+                    wl_name = first_line[len("Tracing "):]
+                    if wl_name not in known_workloads:
+                        known_workloads.add(wl_name)
+                        failed.append(wl_name)
+            except OSError:
+                continue
 
     total = len(completed) + len(in_progress) + len(pending) + len(failed)
     print(f"\nTrace job: {job_name}")
@@ -1108,6 +1174,28 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2,
                 wl_entry = workloads_db_data[suite][subsuite][workload]
             except (KeyError, TypeError):
                 wl_entry = None
+
+            parallel_segments = descriptor_data.get("parallel_segments", False)
+
+            if trace_type == "cluster_then_trace":
+                simpoint_mode = "cluster_then_trace"
+            elif trace_type == "trace_then_cluster":
+                simpoint_mode = "trace_then_post_process"
+            elif trace_type == "iterative_trace":
+                simpoint_mode = "iterative_trace"
+            else:
+                raise Exception(f"Invalid trace type: {trace_type}")
+
+            # --- parallel_segments mode: 3-phase pipeline ---
+            if parallel_segments and trace_type == "cluster_then_trace":
+                _run_parallel_segments_trace(
+                    workload, suite, subsuite, image_name, trace_name,
+                    env_vars, binary_cmd, client_bincmd, drio_args, clustering_k,
+                    application_dir, slurm_options, config_mem_override, wl_entry,
+                )
+                return
+
+            # --- Default single-job mode ---
             est_mem_mb, measured_rss_mb = estimate_trace_mem_mb(
                 wl_entry, trace_type, descriptor_data=descriptor_data,
             )
@@ -1136,21 +1224,16 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2,
                 trace_dir, slurm_options=slurm_options, mem_mb=trace_mem_mb,
             )
 
-            if trace_type == "cluster_then_trace":
-                simpoint_mode = "cluster_then_trace"
-            elif trace_type == "trace_then_cluster":
-                simpoint_mode = "trace_then_post_process"
-            elif trace_type == "iterative_trace":
-                simpoint_mode = "iterative_trace"
-            else:
-                raise Exception(f"Invalid trace type: {trace_type}")
             info(f"Using docker image with name {image_name}:{githash}", dbg_lvl)
             docker_container_name = f"{image_name}_{workload}_{trace_name}_{simpoint_mode}_{user}"
             filename = f"{docker_container_name}_tmp_run.sh"
+            trace_parallel = descriptor_data.get("trace_parallel")
+            raw2trace_parallel = descriptor_data.get("raw2trace_parallel")
             write_trace_docker_command_to_file(user, local_uid, local_gid, docker_container_name, githash,
                                                workload, image_name, trace_name, traces_dir, docker_home,
                                                env_vars, binary_cmd, client_bincmd, simpoint_mode, drio_args,
-                                               clustering_k, filename, infra_dir, application_dir, slurm=True)
+                                               clustering_k, filename, infra_dir, application_dir, slurm=True,
+                                               trace_parallel=trace_parallel, raw2trace_parallel=raw2trace_parallel)
             tmp_files.append(filename)
 
             result = subprocess.run((sbatch_cmd + filename).split(" "), capture_output=True, text=True)
@@ -1160,6 +1243,90 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2,
                 slurm_ids.append(job_id)
         except Exception as e:
             raise e
+
+    def _run_parallel_segments_trace(workload, suite, subsuite, image_name, trace_name,
+                                     env_vars, binary_cmd, client_bincmd, drio_args, clustering_k,
+                                     application_dir, slurm_options, config_mem_override, wl_entry):
+        """Submit 3-phase parallel-segment pipeline for a single workload.
+
+        Phase 1: fingerprint + cluster (mode 4) — 1 Slurm job.
+        Phase 2: per-segment trace+raw2trace+minimize (mode 5) — N Slurm jobs,
+                 submitted by bash code appended to Phase 1 script.
+        Phase 3: finalization — 1 Slurm job with --dependency=afterany.
+        """
+        # Memory for Phase 1 (fingerprinting + clustering only — no tracing)
+        est_mem_mb, measured_rss_mb = estimate_trace_mem_mb(
+            wl_entry, "cluster_then_trace", descriptor_data=descriptor_data,
+        )
+        if config_mem_override is not None:
+            phase1_mem_mb = int(config_mem_override)
+        else:
+            phase1_mem_mb = est_mem_mb
+            oom_mem_mb, oom_actual_mb = get_oom_mem_mb(user, workload)
+            if oom_mem_mb is not None and oom_mem_mb > phase1_mem_mb:
+                phase1_mem_mb = oom_mem_mb
+
+        # Memory for Phase 2 segments
+        seg_mem_mb, _ = estimate_segment_mem_mb(wl_entry, descriptor_data=descriptor_data)
+        info(f"Parallel segments for {workload}: Phase 1 mem={phase1_mem_mb}M, "
+             f"Phase 2 per-segment mem={seg_mem_mb}M", dbg_lvl)
+
+        # --- Generate Phase 2 template script ---
+        phase2_container_name = f"{image_name}_{workload}_{trace_name}_seg_$1_{user}"
+        phase2_filename = f"{image_name}_{workload}_{trace_name}_phase2_template_{user}_tmp_run.sh"
+        write_trace_docker_command_to_file(
+            user, local_uid, local_gid, phase2_container_name, githash,
+            workload, image_name, trace_name, traces_dir, docker_home,
+            env_vars, binary_cmd, client_bincmd,
+            "trace_single_segment",  # mode 5
+            drio_args, clustering_k, phase2_filename, infra_dir, application_dir,
+            slurm=True,
+            segment_id="$1", cluster_id="$2",
+        )
+        tmp_files.append(phase2_filename)
+        # Copy Phase 2 template to the trace directory so it persists after
+        # the host cleans up tmp files. Phase 1 runs asynchronously and needs
+        # this script to exist when it submits Phase 2 jobs.
+        phase2_persist_dir = os.path.join(trace_dir, workload)
+        os.makedirs(phase2_persist_dir, exist_ok=True)
+        phase2_persist_path = os.path.join(phase2_persist_dir, "phase2_template.sh")
+        import shutil as _shutil
+        _shutil.copy2(phase2_filename, phase2_persist_path)
+        phase2_script_path = os.path.abspath(phase2_persist_path)
+
+        # --- Generate Phase 1 script (mode 4 + Phase 2 submission tail) ---
+        phase1_container_name = f"{image_name}_{workload}_{trace_name}_cluster_only_{user}"
+        phase1_filename = f"{phase1_container_name}_tmp_run.sh"
+        write_trace_docker_command_to_file(
+            user, local_uid, local_gid, phase1_container_name, githash,
+            workload, image_name, trace_name, traces_dir, docker_home,
+            env_vars, binary_cmd, client_bincmd,
+            "cluster_only",  # mode 4
+            drio_args, clustering_k, phase1_filename, infra_dir, application_dir,
+            slurm=True,
+        )
+        tmp_files.append(phase1_filename)
+
+        # Append Phase 2 submission + Phase 3 finalization to Phase 1 script
+        finalize_cmd = f"cd {infra_dir} && python -m scripts.run_trace -d {descriptor_path} -f -si {infra_dir}"
+        finalize_log_path = os.path.join(trace_dir, "logs", "finalize_job_%j.out")
+        with open(phase1_filename, "a") as f:
+            write_phase2_sbatch_tail(
+                f, workload, trace_name, docker_home, phase2_script_path,
+                finalize_cmd, finalize_log_path, seg_mem_mb,
+            )
+
+        # Submit Phase 1
+        sbatch_cmd = generate_sbatch_command(
+            trace_dir, slurm_options=slurm_options, mem_mb=phase1_mem_mb,
+        )
+        result = subprocess.run((sbatch_cmd + phase1_filename).split(" "), capture_output=True, text=True)
+        _print_sbatch_output(result)
+        if result.returncode == 0:
+            job_id = result.stdout.strip().split()[-1]
+            slurm_ids.append(job_id)
+            info(f"Phase 1 (cluster_only) submitted for {workload}: job {job_id}. "
+                 f"Phase 2+3 will be auto-submitted on completion.", dbg_lvl)
 
     try:
         # Get user for commands
@@ -1205,8 +1372,8 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2,
         completed_traces = set()
         if os.path.isdir(trace_dir):
             for wl_dir in os.listdir(trace_dir):
-                fp_file = os.path.join(trace_dir, wl_dir, "fingerprint", "segment_size")
-                if os.path.isfile(fp_file):
+                wl_path = os.path.join(trace_dir, wl_dir)
+                if os.path.isdir(wl_path) and _is_trace_completed(wl_path):
                     completed_traces.add(wl_dir)
 
         unique_prefixes = list(dict.fromkeys(docker_prefix_list))
@@ -1240,11 +1407,11 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2,
                 skipped += 1
                 continue
 
-            # Clean stale partial state from prior failed runs
+            # Keep existing on-disk data so run_simpoint_trace.py can resume
+            # from the last completed stage (fingerprint → cluster → trace →
+            # raw2trace → minimize).  Prior approach deleted everything here,
+            # forcing each retry to redo hours of fingerprinting/tracing.
             wl_trace_dir = os.path.join(trace_dir, workload)
-            if os.path.isdir(wl_trace_dir):
-                info(f"Cleaning stale state for {workload}", dbg_lvl)
-                shutil.rmtree(wl_trace_dir)
 
             if config["env_vars"] != None:
                 env_vars = config["env_vars"].split()
@@ -1277,24 +1444,31 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2,
             info("All traces completed. Running finish_trace to post-process...", dbg_lvl)
             finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl)
         elif submitted > 0 and slurm_ids and descriptor_path:
-            # Submit a dependent finalization job that runs after all trace jobs complete
-            finalize_cmd = f"cd {infra_dir} && python -m scripts.run_trace -d {descriptor_path} -f -si {infra_dir}"
-            dep_str = ':'.join(slurm_ids)
-            log_path = os.path.join(trace_dir, "logs", "finalize_job_%j.out")
-            os.makedirs(os.path.dirname(log_path), exist_ok=True)
-            sbatch_finalize = (
-                f"sbatch --dependency=afterany:{dep_str} "
-                f"-o {log_path} "
-                f"--wrap={shlex.quote(finalize_cmd)}"
-            )
-            result = subprocess.run(sbatch_finalize, shell=True, capture_output=True, text=True)
-            _print_sbatch_output(result)
-            if result.returncode == 0:
-                info(f"Finalization job submitted (dependency on {len(slurm_ids)} trace jobs). "
-                     f"Will run automatically when all jobs complete.", dbg_lvl)
+            # In parallel_segments mode, Phase 1 scripts handle their own Phase 2+3
+            # submission, so skip host-side finalization for those workloads.
+            parallel_segments = descriptor_data.get("parallel_segments", False)
+            if parallel_segments:
+                info(f"Parallel segments mode: Phase 2+3 finalization handled by Phase 1 scripts. "
+                     f"No host-side finalization needed.", dbg_lvl)
             else:
-                warn(f"Failed to submit finalization job. Run './sci --trace {trace_name.replace('trace_', '')}' "
-                     f"manually after all jobs complete.", dbg_lvl)
+                # Submit a dependent finalization job that runs after all trace jobs complete
+                finalize_cmd = f"cd {infra_dir} && python -m scripts.run_trace -d {descriptor_path} -f -si {infra_dir}"
+                dep_str = ':'.join(slurm_ids)
+                log_path = os.path.join(trace_dir, "logs", "finalize_job_%j.out")
+                os.makedirs(os.path.dirname(log_path), exist_ok=True)
+                sbatch_finalize = (
+                    f"sbatch --dependency=afterany:{dep_str} "
+                    f"-o {log_path} "
+                    f"--wrap={shlex.quote(finalize_cmd)}"
+                )
+                result = subprocess.run(sbatch_finalize, shell=True, capture_output=True, text=True)
+                _print_sbatch_output(result)
+                if result.returncode == 0:
+                    info(f"Finalization job submitted (dependency on {len(slurm_ids)} trace jobs). "
+                         f"Will run automatically when all jobs complete.", dbg_lvl)
+                else:
+                    warn(f"Failed to submit finalization job. Run './sci --trace {trace_name.replace('trace_', '')}' "
+                         f"manually after all jobs complete.", dbg_lvl)
         elif submitted > 0:
             info(f"Slurm trace jobs submitted. Run './sci --trace {trace_name.replace('trace_', '')}' again after all jobs complete to finalize.", dbg_lvl)
     except Exception as e:

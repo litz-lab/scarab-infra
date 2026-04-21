@@ -22998,462 +22998,6497 @@
   "agent": {
     "langchain": {
       "langchain_short_12iter": {
-        "performance": {
-          "topdown": {
-            "retiring": 21.0,
-            "bad_speculation": 5.2,
-            "frontend_bound": 34.5,
-            "backend_bound": 39.4
+        "trace": {
+          "dynamorio_args": null,
+          "clustering_k": null
+        },
+        "simulation": {
+          "prioritized_mode": "memtrace",
+          "exec": {
+            "image_name": "agent",
+            "segment_size": 10000000,
+            "env_vars": null,
+            "binary_cmd": "python3 \\$tmpdir/AgentCPU/workloads/run.py langchain --task-id lc-short-12 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size short --iterations 12",
+            "client_bincmd": null
           },
-          "execution_time": {
-            "min": 0,
-            "sec": 6.26
+          "memtrace": {
+            "image_name": "allbench_traces",
+            "segment_size": 10000000,
+            "warmup": 50000000,
+            "whole_trace_file": null,
+            "trace_type": "cluster_then_trace"
+          }
+        },
+        "simpoints": [
+          {
+            "cluster_id": 2232,
+            "segment_id": 0,
+            "weight": 0.119351
           },
-          "peak_rss_mb": 391
-        }
+          {
+            "cluster_id": 399,
+            "segment_id": 1,
+            "weight": 0.0126969
+          },
+          {
+            "cluster_id": 1046,
+            "segment_id": 2,
+            "weight": 0.00338583
+          },
+          {
+            "cluster_id": 1735,
+            "segment_id": 3,
+            "weight": 0.00338583
+          },
+          {
+            "cluster_id": 787,
+            "segment_id": 4,
+            "weight": 0.0359744
+          },
+          {
+            "cluster_id": 611,
+            "segment_id": 5,
+            "weight": 0.0110039
+          },
+          {
+            "cluster_id": 1515,
+            "segment_id": 6,
+            "weight": 0.0385138
+          },
+          {
+            "cluster_id": 633,
+            "segment_id": 7,
+            "weight": 0.00846457
+          },
+          {
+            "cluster_id": 173,
+            "segment_id": 8,
+            "weight": 0.0744883
+          },
+          {
+            "cluster_id": 495,
+            "segment_id": 10,
+            "weight": 0.0101575
+          },
+          {
+            "cluster_id": 1764,
+            "segment_id": 11,
+            "weight": 0.0121841
+          },
+          {
+            "cluster_id": 163,
+            "segment_id": 13,
+            "weight": 0.0313189
+          },
+          {
+            "cluster_id": 880,
+            "segment_id": 14,
+            "weight": 0.137126
+          },
+          {
+            "cluster_id": 1933,
+            "segment_id": 15,
+            "weight": 0.0152362
+          },
+          {
+            "cluster_id": 320,
+            "segment_id": 16,
+            "weight": 0.0165059
+          },
+          {
+            "cluster_id": 752,
+            "segment_id": 18,
+            "weight": 0.0664469
+          },
+          {
+            "cluster_id": 1061,
+            "segment_id": 19,
+            "weight": 0.0630611
+          },
+          {
+            "cluster_id": 1584,
+            "segment_id": 20,
+            "weight": 0.0114272
+          },
+          {
+            "cluster_id": 1489,
+            "segment_id": 21,
+            "weight": 0.0131201
+          },
+          {
+            "cluster_id": 1545,
+            "segment_id": 23,
+            "weight": 0.00677166
+          },
+          {
+            "cluster_id": 487,
+            "segment_id": 24,
+            "weight": 0.0105807
+          },
+          {
+            "cluster_id": 261,
+            "segment_id": 25,
+            "weight": 0.0207382
+          },
+          {
+            "cluster_id": 2279,
+            "segment_id": 26,
+            "weight": 0.0321654
+          },
+          {
+            "cluster_id": 2161,
+            "segment_id": 27,
+            "weight": 0.0414764
+          },
+          {
+            "cluster_id": 1247,
+            "segment_id": 28,
+            "weight": 0.0545965
+          },
+          {
+            "cluster_id": 1338,
+            "segment_id": 31,
+            "weight": 0.0330118
+          },
+          {
+            "cluster_id": 1373,
+            "segment_id": 32,
+            "weight": 0.0313189
+          },
+          {
+            "cluster_id": 493,
+            "segment_id": 33,
+            "weight": 0.00973426
+          },
+          {
+            "cluster_id": 1676,
+            "segment_id": 34,
+            "weight": 0.0122736
+          },
+          {
+            "cluster_id": 1706,
+            "segment_id": 35,
+            "weight": 0.00380906
+          },
+          {
+            "cluster_id": 974,
+            "segment_id": 36,
+            "weight": 0.0596753
+          }
+        ]
       },
       "langchain_short_25iter": {
-        "performance": {
-          "topdown": {
-            "retiring": 16.6,
-            "bad_speculation": 3.8,
-            "frontend_bound": 24.5,
-            "backend_bound": 55.1
+        "trace": {
+          "dynamorio_args": null,
+          "clustering_k": null
+        },
+        "simulation": {
+          "prioritized_mode": "memtrace",
+          "exec": {
+            "image_name": "agent",
+            "segment_size": 10000000,
+            "env_vars": null,
+            "binary_cmd": "python3 \\$tmpdir/AgentCPU/workloads/run.py langchain --task-id lc-short-25 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size short --iterations 25",
+            "client_bincmd": null
           },
-          "execution_time": {
-            "min": 0,
-            "sec": 6.08
+          "memtrace": {
+            "image_name": "allbench_traces",
+            "segment_size": 10000000,
+            "warmup": 50000000,
+            "whole_trace_file": null,
+            "trace_type": "cluster_then_trace"
+          }
+        },
+        "simpoints": [
+          {
+            "cluster_id": 2132,
+            "segment_id": 1,
+            "weight": 0.00482426
           },
-          "peak_rss_mb": 392
-        }
+          {
+            "cluster_id": 1662,
+            "segment_id": 2,
+            "weight": 0.0110269
+          },
+          {
+            "cluster_id": 1013,
+            "segment_id": 3,
+            "weight": 0.0561682
+          },
+          {
+            "cluster_id": 895,
+            "segment_id": 4,
+            "weight": 0.0492764
+          },
+          {
+            "cluster_id": 2331,
+            "segment_id": 5,
+            "weight": 0.00585803
+          },
+          {
+            "cluster_id": 581,
+            "segment_id": 6,
+            "weight": 0.0227429
+          },
+          {
+            "cluster_id": 263,
+            "segment_id": 7,
+            "weight": 0.0168849
+          },
+          {
+            "cluster_id": 2771,
+            "segment_id": 8,
+            "weight": 0.0265334
+          },
+          {
+            "cluster_id": 470,
+            "segment_id": 9,
+            "weight": 0.0103377
+          },
+          {
+            "cluster_id": 1680,
+            "segment_id": 10,
+            "weight": 0.00930393
+          },
+          {
+            "cluster_id": 2555,
+            "segment_id": 11,
+            "weight": 0.12164
+          },
+          {
+            "cluster_id": 2074,
+            "segment_id": 13,
+            "weight": 0.00413508
+          },
+          {
+            "cluster_id": 1481,
+            "segment_id": 14,
+            "weight": 0.0651275
+          },
+          {
+            "cluster_id": 731,
+            "segment_id": 16,
+            "weight": 0.0544452
+          },
+          {
+            "cluster_id": 1213,
+            "segment_id": 18,
+            "weight": 0.0254997
+          },
+          {
+            "cluster_id": 2770,
+            "segment_id": 19,
+            "weight": 0.0189524
+          },
+          {
+            "cluster_id": 315,
+            "segment_id": 21,
+            "weight": 0.0234321
+          },
+          {
+            "cluster_id": 879,
+            "segment_id": 22,
+            "weight": 0.150586
+          },
+          {
+            "cluster_id": 397,
+            "segment_id": 23,
+            "weight": 0.0103377
+          },
+          {
+            "cluster_id": 2447,
+            "segment_id": 24,
+            "weight": 0.0627154
+          },
+          {
+            "cluster_id": 1711,
+            "segment_id": 25,
+            "weight": 0.00310131
+          },
+          {
+            "cluster_id": 1735,
+            "segment_id": 27,
+            "weight": 0.00275672
+          },
+          {
+            "cluster_id": 1124,
+            "segment_id": 28,
+            "weight": 0.0354928
+          },
+          {
+            "cluster_id": 1725,
+            "segment_id": 29,
+            "weight": 0.00930393
+          },
+          {
+            "cluster_id": 1290,
+            "segment_id": 30,
+            "weight": 0.0254997
+          },
+          {
+            "cluster_id": 2211,
+            "segment_id": 31,
+            "weight": 0.0248105
+          },
+          {
+            "cluster_id": 2075,
+            "segment_id": 32,
+            "weight": 0.026878
+          },
+          {
+            "cluster_id": 2722,
+            "segment_id": 33,
+            "weight": 0.0702963
+          },
+          {
+            "cluster_id": 1536,
+            "segment_id": 34,
+            "weight": 0.0379049
+          },
+          {
+            "cluster_id": 2481,
+            "segment_id": 35,
+            "weight": 0.00723639
+          },
+          {
+            "cluster_id": 625,
+            "segment_id": 36,
+            "weight": 0.0068918
+          }
+        ]
       },
       "langchain_medium_11iter": {
-        "performance": {
-          "topdown": {
-            "retiring": 16.0,
-            "bad_speculation": 3.9,
-            "frontend_bound": 25.9,
-            "backend_bound": 54.2
+        "trace": {
+          "dynamorio_args": null,
+          "clustering_k": null
+        },
+        "simulation": {
+          "prioritized_mode": "memtrace",
+          "exec": {
+            "image_name": "agent",
+            "segment_size": 10000000,
+            "env_vars": null,
+            "binary_cmd": "python3 \\$tmpdir/AgentCPU/workloads/run.py langchain --task-id lc-medium-11 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size medium --iterations 11",
+            "client_bincmd": null
           },
-          "execution_time": {
-            "min": 0,
-            "sec": 6.14
+          "memtrace": {
+            "image_name": "allbench_traces",
+            "segment_size": 10000000,
+            "warmup": 50000000,
+            "whole_trace_file": null,
+            "trace_type": "cluster_then_trace"
+          }
+        },
+        "simpoints": [
+          {
+            "cluster_id": 1054,
+            "segment_id": 0,
+            "weight": 0.0851625
           },
-          "peak_rss_mb": 392
-        }
+          {
+            "cluster_id": 1694,
+            "segment_id": 1,
+            "weight": 0.124502
+          },
+          {
+            "cluster_id": 788,
+            "segment_id": 3,
+            "weight": 0.0402036
+          },
+          {
+            "cluster_id": 1878,
+            "segment_id": 4,
+            "weight": 0.0155627
+          },
+          {
+            "cluster_id": 1605,
+            "segment_id": 5,
+            "weight": 0.0311254
+          },
+          {
+            "cluster_id": 2151,
+            "segment_id": 6,
+            "weight": 0.0155627
+          },
+          {
+            "cluster_id": 717,
+            "segment_id": 7,
+            "weight": 0.0691675
+          },
+          {
+            "cluster_id": 1240,
+            "segment_id": 8,
+            "weight": 0.0242086
+          },
+          {
+            "cluster_id": 1726,
+            "segment_id": 9,
+            "weight": 0.00864594
+          },
+          {
+            "cluster_id": 1757,
+            "segment_id": 10,
+            "weight": 0.00778134
+          },
+          {
+            "cluster_id": 1677,
+            "segment_id": 11,
+            "weight": 0.0122016
+          },
+          {
+            "cluster_id": 1424,
+            "segment_id": 14,
+            "weight": 0.0112397
+          },
+          {
+            "cluster_id": 1040,
+            "segment_id": 15,
+            "weight": 0.00389067
+          },
+          {
+            "cluster_id": 622,
+            "segment_id": 16,
+            "weight": 0.00864594
+          },
+          {
+            "cluster_id": 2150,
+            "segment_id": 18,
+            "weight": 0.00951053
+          },
+          {
+            "cluster_id": 9,
+            "segment_id": 19,
+            "weight": 0.0250732
+          },
+          {
+            "cluster_id": 1445,
+            "segment_id": 20,
+            "weight": 0.0549017
+          },
+          {
+            "cluster_id": 259,
+            "segment_id": 21,
+            "weight": 0.0216148
+          },
+          {
+            "cluster_id": 1563,
+            "segment_id": 22,
+            "weight": 0.0190211
+          },
+          {
+            "cluster_id": 1248,
+            "segment_id": 23,
+            "weight": 0.0475527
+          },
+          {
+            "cluster_id": 321,
+            "segment_id": 24,
+            "weight": 0.0263701
+          },
+          {
+            "cluster_id": 1710,
+            "segment_id": 25,
+            "weight": 0.00432297
+          },
+          {
+            "cluster_id": 488,
+            "segment_id": 26,
+            "weight": 0.015995
+          },
+          {
+            "cluster_id": 1929,
+            "segment_id": 27,
+            "weight": 0.0324223
+          },
+          {
+            "cluster_id": 845,
+            "segment_id": 28,
+            "weight": 0.00389067
+          },
+          {
+            "cluster_id": 840,
+            "segment_id": 30,
+            "weight": 0.00864594
+          },
+          {
+            "cluster_id": 294,
+            "segment_id": 31,
+            "weight": 0.0142658
+          },
+          {
+            "cluster_id": 1488,
+            "segment_id": 32,
+            "weight": 0.00475527
+          },
+          {
+            "cluster_id": 166,
+            "segment_id": 33,
+            "weight": 0.118017
+          },
+          {
+            "cluster_id": 1916,
+            "segment_id": 34,
+            "weight": 0.135741
+          }
+        ]
       },
       "langchain_medium_22iter": {
-        "performance": {
-          "topdown": {
-            "retiring": 17.3,
-            "bad_speculation": 3.7,
-            "frontend_bound": 27.8,
-            "backend_bound": 51.2
+        "trace": {
+          "dynamorio_args": null,
+          "clustering_k": null
+        },
+        "simulation": {
+          "prioritized_mode": "memtrace",
+          "exec": {
+            "image_name": "agent",
+            "segment_size": 10000000,
+            "env_vars": null,
+            "binary_cmd": "python3 \\$tmpdir/AgentCPU/workloads/run.py langchain --task-id lc-medium-22 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size medium --iterations 22",
+            "client_bincmd": null
           },
-          "execution_time": {
-            "min": 0,
-            "sec": 6.1
+          "memtrace": {
+            "image_name": "allbench_traces",
+            "segment_size": 10000000,
+            "warmup": 50000000,
+            "whole_trace_file": null,
+            "trace_type": "cluster_then_trace"
+          }
+        },
+        "simpoints": [
+          {
+            "cluster_id": 1755,
+            "segment_id": 0,
+            "weight": 0.00653719
           },
-          "peak_rss_mb": 392
-        }
+          {
+            "cluster_id": 2160,
+            "segment_id": 1,
+            "weight": 0.00653719
+          },
+          {
+            "cluster_id": 999,
+            "segment_id": 2,
+            "weight": 0.0283278
+          },
+          {
+            "cluster_id": 2280,
+            "segment_id": 3,
+            "weight": 0.00907944
+          },
+          {
+            "cluster_id": 840,
+            "segment_id": 4,
+            "weight": 0.0079899
+          },
+          {
+            "cluster_id": 2398,
+            "segment_id": 5,
+            "weight": 0.00399495
+          },
+          {
+            "cluster_id": 630,
+            "segment_id": 6,
+            "weight": 0.00726355
+          },
+          {
+            "cluster_id": 352,
+            "segment_id": 7,
+            "weight": 0.0138007
+          },
+          {
+            "cluster_id": 1555,
+            "segment_id": 8,
+            "weight": 0.0472131
+          },
+          {
+            "cluster_id": 2323,
+            "segment_id": 9,
+            "weight": 0.00690037
+          },
+          {
+            "cluster_id": 1676,
+            "segment_id": 10,
+            "weight": 0.0103414
+          },
+          {
+            "cluster_id": 857,
+            "segment_id": 11,
+            "weight": 0.0453972
+          },
+          {
+            "cluster_id": 501,
+            "segment_id": 12,
+            "weight": 0.016343
+          },
+          {
+            "cluster_id": 2583,
+            "segment_id": 13,
+            "weight": 0.0257856
+          },
+          {
+            "cluster_id": 1661,
+            "segment_id": 15,
+            "weight": 0.012348
+          },
+          {
+            "cluster_id": 1349,
+            "segment_id": 16,
+            "weight": 0.0308701
+          },
+          {
+            "cluster_id": 163,
+            "segment_id": 17,
+            "weight": 0.0177957
+          },
+          {
+            "cluster_id": 1722,
+            "segment_id": 18,
+            "weight": 0.00653719
+          },
+          {
+            "cluster_id": 1698,
+            "segment_id": 19,
+            "weight": 0.0199748
+          },
+          {
+            "cluster_id": 2538,
+            "segment_id": 20,
+            "weight": 0.0493921
+          },
+          {
+            "cluster_id": 261,
+            "segment_id": 21,
+            "weight": 0.0177957
+          },
+          {
+            "cluster_id": 414,
+            "segment_id": 22,
+            "weight": 0.0130744
+          },
+          {
+            "cluster_id": 325,
+            "segment_id": 24,
+            "weight": 0.0181589
+          },
+          {
+            "cluster_id": 1629,
+            "segment_id": 25,
+            "weight": 0.0079899
+          },
+          {
+            "cluster_id": 933,
+            "segment_id": 26,
+            "weight": 0.071546
+          },
+          {
+            "cluster_id": 1971,
+            "segment_id": 27,
+            "weight": 0.00617402
+          },
+          {
+            "cluster_id": 1436,
+            "segment_id": 29,
+            "weight": 0.0119849
+          },
+          {
+            "cluster_id": 1453,
+            "segment_id": 30,
+            "weight": 0.0138007
+          },
+          {
+            "cluster_id": 2118,
+            "segment_id": 31,
+            "weight": 0.0334123
+          },
+          {
+            "cluster_id": 787,
+            "segment_id": 32,
+            "weight": 0.0243329
+          },
+          {
+            "cluster_id": 397,
+            "segment_id": 33,
+            "weight": 0.0108953
+          },
+          {
+            "cluster_id": 113,
+            "segment_id": 34,
+            "weight": 0.0468499
+          },
+          {
+            "cluster_id": 1107,
+            "segment_id": 35,
+            "weight": 0.0461235
+          },
+          {
+            "cluster_id": 2342,
+            "segment_id": 36,
+            "weight": 0.0152535
+          },
+          {
+            "cluster_id": 1708,
+            "segment_id": 37,
+            "weight": 0.0032686
+          },
+          {
+            "cluster_id": 1246,
+            "segment_id": 38,
+            "weight": 0.0508448
+          },
+          {
+            "cluster_id": 1882,
+            "segment_id": 39,
+            "weight": 0.0359546
+          },
+          {
+            "cluster_id": 734,
+            "segment_id": 40,
+            "weight": 0.0562925
+          },
+          {
+            "cluster_id": 2297,
+            "segment_id": 41,
+            "weight": 0.114764
+          },
+          {
+            "cluster_id": 1445,
+            "segment_id": 42,
+            "weight": 0.00726355
+          },
+          {
+            "cluster_id": 1039,
+            "segment_id": 43,
+            "weight": 0.00290542
+          },
+          {
+            "cluster_id": 2312,
+            "segment_id": 44,
+            "weight": 0.0188852
+          }
+        ]
       },
       "langchain_long_12iter": {
-        "performance": {
-          "topdown": {
-            "retiring": 24.5,
-            "bad_speculation": 4.3,
-            "frontend_bound": 32.4,
-            "backend_bound": 38.8
+        "trace": {
+          "dynamorio_args": null,
+          "clustering_k": null
+        },
+        "simulation": {
+          "prioritized_mode": "memtrace",
+          "exec": {
+            "image_name": "agent",
+            "segment_size": 10000000,
+            "env_vars": null,
+            "binary_cmd": "python3 \\$tmpdir/AgentCPU/workloads/run.py langchain --task-id lc-long-12 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size long --iterations 12",
+            "client_bincmd": null
           },
-          "execution_time": {
-            "min": 0,
-            "sec": 6.2
+          "memtrace": {
+            "image_name": "allbench_traces",
+            "segment_size": 10000000,
+            "warmup": 50000000,
+            "whole_trace_file": null,
+            "trace_type": "cluster_then_trace"
+          }
+        },
+        "simpoints": [
+          {
+            "cluster_id": 737,
+            "segment_id": 0,
+            "weight": 0.0241381
           },
-          "peak_rss_mb": 392
-        }
+          {
+            "cluster_id": 2235,
+            "segment_id": 1,
+            "weight": 0.016092
+          },
+          {
+            "cluster_id": 1319,
+            "segment_id": 2,
+            "weight": 0.0808837
+          },
+          {
+            "cluster_id": 1735,
+            "segment_id": 4,
+            "weight": 0.00381127
+          },
+          {
+            "cluster_id": 1380,
+            "segment_id": 5,
+            "weight": 0.00423475
+          },
+          {
+            "cluster_id": 1300,
+            "segment_id": 6,
+            "weight": 0.050817
+          },
+          {
+            "cluster_id": 1680,
+            "segment_id": 7,
+            "weight": 0.0120329
+          },
+          {
+            "cluster_id": 1424,
+            "segment_id": 8,
+            "weight": 0.0211737
+          },
+          {
+            "cluster_id": 1999,
+            "segment_id": 9,
+            "weight": 0.0182094
+          },
+          {
+            "cluster_id": 1350,
+            "segment_id": 10,
+            "weight": 0.0283728
+          },
+          {
+            "cluster_id": 624,
+            "segment_id": 11,
+            "weight": 0.0084695
+          },
+          {
+            "cluster_id": 2033,
+            "segment_id": 12,
+            "weight": 0.127042
+          },
+          {
+            "cluster_id": 2127,
+            "segment_id": 14,
+            "weight": 0.0372658
+          },
+          {
+            "cluster_id": 1814,
+            "segment_id": 15,
+            "weight": 0.0165155
+          },
+          {
+            "cluster_id": 29,
+            "segment_id": 16,
+            "weight": 0.0313371
+          },
+          {
+            "cluster_id": 347,
+            "segment_id": 17,
+            "weight": 0.0173625
+          },
+          {
+            "cluster_id": 2345,
+            "segment_id": 18,
+            "weight": 0.0105869
+          },
+          {
+            "cluster_id": 362,
+            "segment_id": 19,
+            "weight": 0.00762255
+          },
+          {
+            "cluster_id": 1932,
+            "segment_id": 21,
+            "weight": 0.0114338
+          },
+          {
+            "cluster_id": 1061,
+            "segment_id": 22,
+            "weight": 0.0410771
+          },
+          {
+            "cluster_id": 1655,
+            "segment_id": 23,
+            "weight": 0.0084695
+          },
+          {
+            "cluster_id": 294,
+            "segment_id": 24,
+            "weight": 0.00465822
+          },
+          {
+            "cluster_id": 1232,
+            "segment_id": 25,
+            "weight": 0.00804602
+          },
+          {
+            "cluster_id": 787,
+            "segment_id": 26,
+            "weight": 0.0271024
+          },
+          {
+            "cluster_id": 880,
+            "segment_id": 27,
+            "weight": 0.143558
+          },
+          {
+            "cluster_id": 153,
+            "segment_id": 28,
+            "weight": 0.0584395
+          },
+          {
+            "cluster_id": 643,
+            "segment_id": 29,
+            "weight": 0.0440414
+          },
+          {
+            "cluster_id": 974,
+            "segment_id": 30,
+            "weight": 0.0525109
+          },
+          {
+            "cluster_id": 487,
+            "segment_id": 31,
+            "weight": 0.0122808
+          },
+          {
+            "cluster_id": 263,
+            "segment_id": 32,
+            "weight": 0.0211737
+          },
+          {
+            "cluster_id": 218,
+            "segment_id": 33,
+            "weight": 0.0105869
+          },
+          {
+            "cluster_id": 320,
+            "segment_id": 34,
+            "weight": 0.0207503
+          },
+          {
+            "cluster_id": 1752,
+            "segment_id": 35,
+            "weight": 0.0067756
+          },
+          {
+            "cluster_id": 293,
+            "segment_id": 36,
+            "weight": 0.0131277
+          }
+        ]
       },
       "langchain_long_25iter": {
-        "performance": {
-          "topdown": {
-            "retiring": 20.4,
-            "bad_speculation": 4.1,
-            "frontend_bound": 27.9,
-            "backend_bound": 47.6
+        "trace": {
+          "dynamorio_args": null,
+          "clustering_k": null
+        },
+        "simulation": {
+          "prioritized_mode": "memtrace",
+          "exec": {
+            "image_name": "agent",
+            "segment_size": 10000000,
+            "env_vars": null,
+            "binary_cmd": "python3 \\$tmpdir/AgentCPU/workloads/run.py langchain --task-id lc-long-25 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size long --iterations 25",
+            "client_bincmd": null
           },
-          "execution_time": {
-            "min": 0,
-            "sec": 6.05
+          "memtrace": {
+            "image_name": "allbench_traces",
+            "segment_size": 10000000,
+            "warmup": 50000000,
+            "whole_trace_file": null,
+            "trace_type": "cluster_then_trace"
+          }
+        },
+        "simpoints": [
+          {
+            "cluster_id": 787,
+            "segment_id": 0,
+            "weight": 0.039571
           },
-          "peak_rss_mb": 392
-        }
+          {
+            "cluster_id": 611,
+            "segment_id": 1,
+            "weight": 0.0127315
+          },
+          {
+            "cluster_id": 86,
+            "segment_id": 2,
+            "weight": 0.0264954
+          },
+          {
+            "cluster_id": 1708,
+            "segment_id": 3,
+            "weight": 0.00344096
+          },
+          {
+            "cluster_id": 2133,
+            "segment_id": 4,
+            "weight": 0.00791421
+          },
+          {
+            "cluster_id": 1831,
+            "segment_id": 5,
+            "weight": 0.124907
+          },
+          {
+            "cluster_id": 395,
+            "segment_id": 6,
+            "weight": 0.010667
+          },
+          {
+            "cluster_id": 1160,
+            "segment_id": 7,
+            "weight": 0.0375065
+          },
+          {
+            "cluster_id": 2409,
+            "segment_id": 8,
+            "weight": 0.0447325
+          },
+          {
+            "cluster_id": 462,
+            "segment_id": 11,
+            "weight": 0.0147961
+          },
+          {
+            "cluster_id": 1214,
+            "segment_id": 12,
+            "weight": 0.00481734
+          },
+          {
+            "cluster_id": 2012,
+            "segment_id": 13,
+            "weight": 0.00757011
+          },
+          {
+            "cluster_id": 1580,
+            "segment_id": 14,
+            "weight": 0.0206458
+          },
+          {
+            "cluster_id": 2328,
+            "segment_id": 15,
+            "weight": 0.00653782
+          },
+          {
+            "cluster_id": 2670,
+            "segment_id": 16,
+            "weight": 0.053679
+          },
+          {
+            "cluster_id": 2855,
+            "segment_id": 17,
+            "weight": 0.00378506
+          },
+          {
+            "cluster_id": 1652,
+            "segment_id": 18,
+            "weight": 0.0743247
+          },
+          {
+            "cluster_id": 2326,
+            "segment_id": 19,
+            "weight": 0.0168607
+          },
+          {
+            "cluster_id": 2454,
+            "segment_id": 20,
+            "weight": 0.00516144
+          },
+          {
+            "cluster_id": 293,
+            "segment_id": 21,
+            "weight": 0.0110111
+          },
+          {
+            "cluster_id": 633,
+            "segment_id": 22,
+            "weight": 0.00688192
+          },
+          {
+            "cluster_id": 2817,
+            "segment_id": 24,
+            "weight": 0.00894649
+          },
+          {
+            "cluster_id": 2376,
+            "segment_id": 25,
+            "weight": 0.017893
+          },
+          {
+            "cluster_id": 261,
+            "segment_id": 26,
+            "weight": 0.0165166
+          },
+          {
+            "cluster_id": 1325,
+            "segment_id": 27,
+            "weight": 0.0375065
+          },
+          {
+            "cluster_id": 2273,
+            "segment_id": 28,
+            "weight": 0.0271836
+          },
+          {
+            "cluster_id": 1588,
+            "segment_id": 29,
+            "weight": 0.0406033
+          },
+          {
+            "cluster_id": 1696,
+            "segment_id": 30,
+            "weight": 0.0120434
+          },
+          {
+            "cluster_id": 2239,
+            "segment_id": 31,
+            "weight": 0.0478293
+          },
+          {
+            "cluster_id": 1677,
+            "segment_id": 32,
+            "weight": 0.0093478
+          },
+          {
+            "cluster_id": 1000,
+            "segment_id": 33,
+            "weight": 0.0388828
+          },
+          {
+            "cluster_id": 879,
+            "segment_id": 34,
+            "weight": 0.144864
+          },
+          {
+            "cluster_id": 2894,
+            "segment_id": 35,
+            "weight": 0.00757011
+          },
+          {
+            "cluster_id": 699,
+            "segment_id": 37,
+            "weight": 0.0567758
+          }
+        ]
       }
     },
     "langgraph": {
       "langgraph_short_17iter": {
-        "performance": {
-          "topdown": {
-            "retiring": 17.0,
-            "bad_speculation": 4.0,
-            "frontend_bound": 24.2,
-            "backend_bound": 54.8
+        "trace": {
+          "dynamorio_args": null,
+          "clustering_k": null
+        },
+        "simulation": {
+          "prioritized_mode": "memtrace",
+          "exec": {
+            "image_name": "agent",
+            "segment_size": 10000000,
+            "env_vars": null,
+            "binary_cmd": "python3 \\$tmpdir/AgentCPU/workloads/run.py langgraph --task-id lg-short-17 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size short --iterations 17",
+            "client_bincmd": null
           },
-          "execution_time": {
-            "min": 0,
-            "sec": 6.66
+          "memtrace": {
+            "image_name": "allbench_traces",
+            "segment_size": 10000000,
+            "warmup": 50000000,
+            "whole_trace_file": null,
+            "trace_type": "cluster_then_trace"
+          }
+        },
+        "simpoints": [
+          {
+            "cluster_id": 1873,
+            "segment_id": 1,
+            "weight": 0.0335554
           },
-          "peak_rss_mb": 383
-        }
+          {
+            "cluster_id": 1829,
+            "segment_id": 2,
+            "weight": 0.0491173
+          },
+          {
+            "cluster_id": 1255,
+            "segment_id": 3,
+            "weight": 0.0632203
+          },
+          {
+            "cluster_id": 1719,
+            "segment_id": 4,
+            "weight": 0.00729465
+          },
+          {
+            "cluster_id": 827,
+            "segment_id": 5,
+            "weight": 0.139085
+          },
+          {
+            "cluster_id": 1731,
+            "segment_id": 6,
+            "weight": 0.00583572
+          },
+          {
+            "cluster_id": 674,
+            "segment_id": 7,
+            "weight": 0.00437679
+          },
+          {
+            "cluster_id": 2068,
+            "segment_id": 8,
+            "weight": 0.0048631
+          },
+          {
+            "cluster_id": 414,
+            "segment_id": 9,
+            "weight": 0.0102125
+          },
+          {
+            "cluster_id": 1728,
+            "segment_id": 10,
+            "weight": 0.00632203
+          },
+          {
+            "cluster_id": 1187,
+            "segment_id": 11,
+            "weight": 0.0680834
+          },
+          {
+            "cluster_id": 538,
+            "segment_id": 13,
+            "weight": 0.0695423
+          },
+          {
+            "cluster_id": 1066,
+            "segment_id": 14,
+            "weight": 0.0175072
+          },
+          {
+            "cluster_id": 1103,
+            "segment_id": 15,
+            "weight": 0.0481447
+          },
+          {
+            "cluster_id": 1658,
+            "segment_id": 16,
+            "weight": 0.146379
+          },
+          {
+            "cluster_id": 1571,
+            "segment_id": 17,
+            "weight": 0.0160482
+          },
+          {
+            "cluster_id": 1991,
+            "segment_id": 18,
+            "weight": 0.0126441
+          },
+          {
+            "cluster_id": 134,
+            "segment_id": 19,
+            "weight": 0.0243155
+          },
+          {
+            "cluster_id": 1688,
+            "segment_id": 20,
+            "weight": 0.0116714
+          },
+          {
+            "cluster_id": 1130,
+            "segment_id": 21,
+            "weight": 0.020425
+          },
+          {
+            "cluster_id": 560,
+            "segment_id": 22,
+            "weight": 0.0335554
+          },
+          {
+            "cluster_id": 637,
+            "segment_id": 23,
+            "weight": 0.00389048
+          },
+          {
+            "cluster_id": 1637,
+            "segment_id": 24,
+            "weight": 0.0137639
+          },
+          {
+            "cluster_id": 237,
+            "segment_id": 27,
+            "weight": 0.151729
+          },
+          {
+            "cluster_id": 166,
+            "segment_id": 28,
+            "weight": 0.0335554
+          },
+          {
+            "cluster_id": 1674,
+            "segment_id": 29,
+            "weight": 0.0048631
+          }
+        ]
       },
       "langgraph_short_33iter": {
-        "performance": {
-          "topdown": {
-            "retiring": 20.3,
-            "bad_speculation": 4.1,
-            "frontend_bound": 33.3,
-            "backend_bound": 42.3
+        "trace": {
+          "dynamorio_args": null,
+          "clustering_k": null
+        },
+        "simulation": {
+          "prioritized_mode": "memtrace",
+          "exec": {
+            "image_name": "agent",
+            "segment_size": 10000000,
+            "env_vars": null,
+            "binary_cmd": "python3 \\$tmpdir/AgentCPU/workloads/run.py langgraph --task-id lg-short-33 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size short --iterations 33",
+            "client_bincmd": null
           },
-          "execution_time": {
-            "min": 0,
-            "sec": 8.76
+          "memtrace": {
+            "image_name": "allbench_traces",
+            "segment_size": 10000000,
+            "warmup": 50000000,
+            "whole_trace_file": null,
+            "trace_type": "cluster_then_trace"
+          }
+        },
+        "simpoints": [
+          {
+            "cluster_id": 1904,
+            "segment_id": 1,
+            "weight": 0.0356102
           },
-          "peak_rss_mb": 383
-        }
+          {
+            "cluster_id": 1485,
+            "segment_id": 2,
+            "weight": 0.0117396
+          },
+          {
+            "cluster_id": 1331,
+            "segment_id": 3,
+            "weight": 0.0727857
+          },
+          {
+            "cluster_id": 109,
+            "segment_id": 4,
+            "weight": 0.0199574
+          },
+          {
+            "cluster_id": 321,
+            "segment_id": 5,
+            "weight": 0.0821774
+          },
+          {
+            "cluster_id": 769,
+            "segment_id": 6,
+            "weight": 0.042654
+          },
+          {
+            "cluster_id": 675,
+            "segment_id": 8,
+            "weight": 0.00665245
+          },
+          {
+            "cluster_id": 1689,
+            "segment_id": 9,
+            "weight": 0.00547849
+          },
+          {
+            "cluster_id": 158,
+            "segment_id": 10,
+            "weight": 0.0273925
+          },
+          {
+            "cluster_id": 2179,
+            "segment_id": 11,
+            "weight": 0.0320883
+          },
+          {
+            "cluster_id": 1348,
+            "segment_id": 13,
+            "weight": 0.0583068
+          },
+          {
+            "cluster_id": 92,
+            "segment_id": 15,
+            "weight": 0.00430453
+          },
+          {
+            "cluster_id": 238,
+            "segment_id": 16,
+            "weight": 0.0759162
+          },
+          {
+            "cluster_id": 2146,
+            "segment_id": 17,
+            "weight": 0.0450019
+          },
+          {
+            "cluster_id": 2177,
+            "segment_id": 18,
+            "weight": 0.0277838
+          },
+          {
+            "cluster_id": 2428,
+            "segment_id": 19,
+            "weight": 0.0176094
+          },
+          {
+            "cluster_id": 2105,
+            "segment_id": 20,
+            "weight": 0.0254359
+          },
+          {
+            "cluster_id": 1031,
+            "segment_id": 21,
+            "weight": 0.04148
+          },
+          {
+            "cluster_id": 690,
+            "segment_id": 22,
+            "weight": 0.0798294
+          },
+          {
+            "cluster_id": 2245,
+            "segment_id": 23,
+            "weight": 0.030523
+          },
+          {
+            "cluster_id": 534,
+            "segment_id": 24,
+            "weight": 0.0176094
+          },
+          {
+            "cluster_id": 1522,
+            "segment_id": 25,
+            "weight": 0.0105657
+          },
+          {
+            "cluster_id": 1806,
+            "segment_id": 26,
+            "weight": 0.0320883
+          },
+          {
+            "cluster_id": 1646,
+            "segment_id": 27,
+            "weight": 0.0111324
+          },
+          {
+            "cluster_id": 2576,
+            "segment_id": 28,
+            "weight": 0.00391321
+          },
+          {
+            "cluster_id": 334,
+            "segment_id": 29,
+            "weight": 0.0187834
+          },
+          {
+            "cluster_id": 493,
+            "segment_id": 30,
+            "weight": 0.0438279
+          },
+          {
+            "cluster_id": 416,
+            "segment_id": 31,
+            "weight": 0.0074351
+          },
+          {
+            "cluster_id": 1568,
+            "segment_id": 32,
+            "weight": 0.0113483
+          },
+          {
+            "cluster_id": 1673,
+            "segment_id": 33,
+            "weight": 0.00391321
+          },
+          {
+            "cluster_id": 904,
+            "segment_id": 34,
+            "weight": 0.0164355
+          },
+          {
+            "cluster_id": 556,
+            "segment_id": 35,
+            "weight": 0.0215226
+          },
+          {
+            "cluster_id": 1997,
+            "segment_id": 36,
+            "weight": 0.0344362
+          },
+          {
+            "cluster_id": 839,
+            "segment_id": 37,
+            "weight": 0.0242619
+          }
+        ]
       },
       "langgraph_medium_15iter": {
-        "performance": {
-          "topdown": {
-            "retiring": 24.5,
-            "bad_speculation": 7.3,
-            "frontend_bound": 29.4,
-            "backend_bound": 38.8
+        "trace": {
+          "dynamorio_args": null,
+          "clustering_k": null
+        },
+        "simulation": {
+          "prioritized_mode": "memtrace",
+          "exec": {
+            "image_name": "agent",
+            "segment_size": 10000000,
+            "env_vars": null,
+            "binary_cmd": "python3 \\$tmpdir/AgentCPU/workloads/run.py langgraph --task-id lg-medium-15 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size medium --iterations 15",
+            "client_bincmd": null
           },
-          "execution_time": {
-            "min": 0,
-            "sec": 7.22
+          "memtrace": {
+            "image_name": "allbench_traces",
+            "segment_size": 10000000,
+            "warmup": 50000000,
+            "whole_trace_file": null,
+            "trace_type": "cluster_then_trace"
+          }
+        },
+        "simpoints": [
+          {
+            "cluster_id": 1013,
+            "segment_id": 0,
+            "weight": 0.0442464
           },
-          "peak_rss_mb": 389
-        }
+          {
+            "cluster_id": 1338,
+            "segment_id": 1,
+            "weight": 0.0178974
+          },
+          {
+            "cluster_id": 1675,
+            "segment_id": 2,
+            "weight": 0.00497151
+          },
+          {
+            "cluster_id": 652,
+            "segment_id": 3,
+            "weight": 0.123791
+          },
+          {
+            "cluster_id": 1663,
+            "segment_id": 4,
+            "weight": 0.134231
+          },
+          {
+            "cluster_id": 1472,
+            "segment_id": 5,
+            "weight": 0.0169031
+          },
+          {
+            "cluster_id": 1578,
+            "segment_id": 6,
+            "weight": 0.00994301
+          },
+          {
+            "cluster_id": 1557,
+            "segment_id": 7,
+            "weight": 0.016406
+          },
+          {
+            "cluster_id": 329,
+            "segment_id": 9,
+            "weight": 0.00596581
+          },
+          {
+            "cluster_id": 327,
+            "segment_id": 10,
+            "weight": 0.00894871
+          },
+          {
+            "cluster_id": 1267,
+            "segment_id": 11,
+            "weight": 0.0333091
+          },
+          {
+            "cluster_id": 1804,
+            "segment_id": 12,
+            "weight": 0.0387778
+          },
+          {
+            "cluster_id": 1817,
+            "segment_id": 13,
+            "weight": 0.0422578
+          },
+          {
+            "cluster_id": 818,
+            "segment_id": 14,
+            "weight": 0.134728
+          },
+          {
+            "cluster_id": 1642,
+            "segment_id": 15,
+            "weight": 0.0146474
+          },
+          {
+            "cluster_id": 428,
+            "segment_id": 16,
+            "weight": 0.00845156
+          },
+          {
+            "cluster_id": 990,
+            "segment_id": 17,
+            "weight": 0.00944586
+          },
+          {
+            "cluster_id": 649,
+            "segment_id": 18,
+            "weight": 0.0258518
+          },
+          {
+            "cluster_id": 41,
+            "segment_id": 19,
+            "weight": 0.00447436
+          },
+          {
+            "cluster_id": 1093,
+            "segment_id": 21,
+            "weight": 0.0457379
+          },
+          {
+            "cluster_id": 539,
+            "segment_id": 22,
+            "weight": 0.076064
+          },
+          {
+            "cluster_id": 115,
+            "segment_id": 23,
+            "weight": 0.0248575
+          },
+          {
+            "cluster_id": 1987,
+            "segment_id": 24,
+            "weight": 0.0144174
+          },
+          {
+            "cluster_id": 554,
+            "segment_id": 25,
+            "weight": 0.0318176
+          },
+          {
+            "cluster_id": 1947,
+            "segment_id": 26,
+            "weight": 0.0129259
+          },
+          {
+            "cluster_id": 167,
+            "segment_id": 27,
+            "weight": 0.0273433
+          },
+          {
+            "cluster_id": 1125,
+            "segment_id": 28,
+            "weight": 0.0357948
+          },
+          {
+            "cluster_id": 1067,
+            "segment_id": 29,
+            "weight": 0.0149145
+          },
+          {
+            "cluster_id": 1316,
+            "segment_id": 31,
+            "weight": 0.0208803
+          }
+        ]
       },
       "langgraph_medium_30iter": {
-        "performance": {
-          "topdown": {
-            "retiring": 17.0,
-            "bad_speculation": 4.1,
-            "frontend_bound": 23.4,
-            "backend_bound": 55.4
+        "trace": {
+          "dynamorio_args": null,
+          "clustering_k": null
+        },
+        "simulation": {
+          "prioritized_mode": "memtrace",
+          "exec": {
+            "image_name": "agent",
+            "segment_size": 10000000,
+            "env_vars": null,
+            "binary_cmd": "python3 \\$tmpdir/AgentCPU/workloads/run.py langgraph --task-id lg-medium-30 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size medium --iterations 30",
+            "client_bincmd": null
           },
-          "execution_time": {
-            "min": 0,
-            "sec": 8.9
+          "memtrace": {
+            "image_name": "allbench_traces",
+            "segment_size": 10000000,
+            "warmup": 50000000,
+            "whole_trace_file": null,
+            "trace_type": "cluster_then_trace"
+          }
+        },
+        "simpoints": [
+          {
+            "cluster_id": 1672,
+            "segment_id": 0,
+            "weight": 0.00368409
           },
-          "peak_rss_mb": 389
-        }
+          {
+            "cluster_id": 1129,
+            "segment_id": 2,
+            "weight": 0.0094149
+          },
+          {
+            "cluster_id": 2034,
+            "segment_id": 3,
+            "weight": 0.0311101
+          },
+          {
+            "cluster_id": 166,
+            "segment_id": 4,
+            "weight": 0.0278354
+          },
+          {
+            "cluster_id": 675,
+            "segment_id": 5,
+            "weight": 0.00695884
+          },
+          {
+            "cluster_id": 556,
+            "segment_id": 6,
+            "weight": 0.027426
+          },
+          {
+            "cluster_id": 1947,
+            "segment_id": 7,
+            "weight": 0.0364316
+          },
+          {
+            "cluster_id": 416,
+            "segment_id": 8,
+            "weight": 0.00736818
+          },
+          {
+            "cluster_id": 1637,
+            "segment_id": 9,
+            "weight": 0.0114616
+          },
+          {
+            "cluster_id": 1698,
+            "segment_id": 10,
+            "weight": 0.00327475
+          },
+          {
+            "cluster_id": 862,
+            "segment_id": 11,
+            "weight": 0.00327475
+          },
+          {
+            "cluster_id": 1088,
+            "segment_id": 12,
+            "weight": 0.0139177
+          },
+          {
+            "cluster_id": 825,
+            "segment_id": 13,
+            "weight": 0.078594
+          },
+          {
+            "cluster_id": 1658,
+            "segment_id": 14,
+            "weight": 0.0626296
+          },
+          {
+            "cluster_id": 1234,
+            "segment_id": 15,
+            "weight": 0.0573081
+          },
+          {
+            "cluster_id": 1267,
+            "segment_id": 16,
+            "weight": 0.0630389
+          },
+          {
+            "cluster_id": 2021,
+            "segment_id": 17,
+            "weight": 0.0409344
+          },
+          {
+            "cluster_id": 1995,
+            "segment_id": 18,
+            "weight": 0.0474839
+          },
+          {
+            "cluster_id": 1925,
+            "segment_id": 19,
+            "weight": 0.0339755
+          },
+          {
+            "cluster_id": 677,
+            "segment_id": 20,
+            "weight": 0.0110523
+          },
+          {
+            "cluster_id": 136,
+            "segment_id": 22,
+            "weight": 0.0331568
+          },
+          {
+            "cluster_id": 1363,
+            "segment_id": 23,
+            "weight": 0.039297
+          },
+          {
+            "cluster_id": 283,
+            "segment_id": 24,
+            "weight": 0.0998798
+          },
+          {
+            "cluster_id": 868,
+            "segment_id": 26,
+            "weight": 0.00286541
+          },
+          {
+            "cluster_id": 1729,
+            "segment_id": 27,
+            "weight": 0.00611374
+          },
+          {
+            "cluster_id": 1880,
+            "segment_id": 28,
+            "weight": 0.0364316
+          },
+          {
+            "cluster_id": 493,
+            "segment_id": 29,
+            "weight": 0.0642669
+          },
+          {
+            "cluster_id": 694,
+            "segment_id": 30,
+            "weight": 0.092921
+          },
+          {
+            "cluster_id": 1568,
+            "segment_id": 33,
+            "weight": 0.014327
+          },
+          {
+            "cluster_id": 1761,
+            "segment_id": 34,
+            "weight": 0.0335662
+          }
+        ]
       },
       "langgraph_long_10iter": {
-        "performance": {
-          "topdown": {
-            "retiring": 18.2,
-            "bad_speculation": 3.9,
-            "frontend_bound": 24.2,
-            "backend_bound": 53.8
+        "trace": {
+          "dynamorio_args": null,
+          "clustering_k": null
+        },
+        "simulation": {
+          "prioritized_mode": "memtrace",
+          "exec": {
+            "image_name": "agent",
+            "segment_size": 10000000,
+            "env_vars": null,
+            "binary_cmd": "python3 \\$tmpdir/AgentCPU/workloads/run.py langgraph --task-id lg-long-10 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size long --iterations 10",
+            "client_bincmd": null
           },
-          "execution_time": {
-            "min": 0,
-            "sec": 8.78
+          "memtrace": {
+            "image_name": "allbench_traces",
+            "segment_size": 10000000,
+            "warmup": 50000000,
+            "whole_trace_file": null,
+            "trace_type": "cluster_then_trace"
+          }
+        },
+        "simpoints": [
+          {
+            "cluster_id": 1399,
+            "segment_id": 0,
+            "weight": 0.0114284
           },
-          "peak_rss_mb": 404
-        }
+          {
+            "cluster_id": 1854,
+            "segment_id": 1,
+            "weight": 0.0155842
+          },
+          {
+            "cluster_id": 768,
+            "segment_id": 2,
+            "weight": 0.0332464
+          },
+          {
+            "cluster_id": 592,
+            "segment_id": 3,
+            "weight": 0.0124787
+          },
+          {
+            "cluster_id": 675,
+            "segment_id": 4,
+            "weight": 0.0103895
+          },
+          {
+            "cluster_id": 1143,
+            "segment_id": 5,
+            "weight": 0.0467527
+          },
+          {
+            "cluster_id": 1295,
+            "segment_id": 6,
+            "weight": 0.115323
+          },
+          {
+            "cluster_id": 1700,
+            "segment_id": 7,
+            "weight": 0.0041558
+          },
+          {
+            "cluster_id": 1872,
+            "segment_id": 8,
+            "weight": 0.0041558
+          },
+          {
+            "cluster_id": 1494,
+            "segment_id": 9,
+            "weight": 0.0150648
+          },
+          {
+            "cluster_id": 1572,
+            "segment_id": 10,
+            "weight": 0.0166232
+          },
+          {
+            "cluster_id": 1932,
+            "segment_id": 11,
+            "weight": 0.00467527
+          },
+          {
+            "cluster_id": 428,
+            "segment_id": 12,
+            "weight": 0.00831159
+          },
+          {
+            "cluster_id": 554,
+            "segment_id": 14,
+            "weight": 0.0270127
+          },
+          {
+            "cluster_id": 1159,
+            "segment_id": 15,
+            "weight": 0.00571422
+          },
+          {
+            "cluster_id": 847,
+            "segment_id": 16,
+            "weight": 0.0535059
+          },
+          {
+            "cluster_id": 1638,
+            "segment_id": 19,
+            "weight": 0.0145453
+          },
+          {
+            "cluster_id": 1906,
+            "segment_id": 20,
+            "weight": 0.0161037
+          },
+          {
+            "cluster_id": 1508,
+            "segment_id": 21,
+            "weight": 0.0202595
+          },
+          {
+            "cluster_id": 474,
+            "segment_id": 23,
+            "weight": 0.0607785
+          },
+          {
+            "cluster_id": 75,
+            "segment_id": 24,
+            "weight": 0.0353243
+          },
+          {
+            "cluster_id": 1048,
+            "segment_id": 25,
+            "weight": 0.0155842
+          },
+          {
+            "cluster_id": 134,
+            "segment_id": 26,
+            "weight": 0.0259737
+          },
+          {
+            "cluster_id": 343,
+            "segment_id": 27,
+            "weight": 0.117401
+          },
+          {
+            "cluster_id": 1868,
+            "segment_id": 28,
+            "weight": 0.00519475
+          },
+          {
+            "cluster_id": 1759,
+            "segment_id": 29,
+            "weight": 0.0301295
+          },
+          {
+            "cluster_id": 1787,
+            "segment_id": 30,
+            "weight": 0.0119479
+          },
+          {
+            "cluster_id": 1076,
+            "segment_id": 31,
+            "weight": 0.0550643
+          },
+          {
+            "cluster_id": 746,
+            "segment_id": 32,
+            "weight": 0.0883107
+          },
+          {
+            "cluster_id": 1610,
+            "segment_id": 33,
+            "weight": 0.113765
+          },
+          {
+            "cluster_id": 1671,
+            "segment_id": 34,
+            "weight": 0.00519475
+          }
+        ]
       },
       "langgraph_long_19iter": {
-        "performance": {
-          "topdown": {
-            "retiring": 17.0,
-            "bad_speculation": 4.1,
-            "frontend_bound": 24.8,
-            "backend_bound": 54.0
+        "trace": {
+          "dynamorio_args": null,
+          "clustering_k": null
+        },
+        "simulation": {
+          "prioritized_mode": "memtrace",
+          "exec": {
+            "image_name": "agent",
+            "segment_size": 10000000,
+            "env_vars": null,
+            "binary_cmd": "python3 \\$tmpdir/AgentCPU/workloads/run.py langgraph --task-id lg-long-19 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size long --iterations 19",
+            "client_bincmd": null
           },
-          "execution_time": {
-            "min": 0,
-            "sec": 11.22
+          "memtrace": {
+            "image_name": "allbench_traces",
+            "segment_size": 10000000,
+            "warmup": 50000000,
+            "whole_trace_file": null,
+            "trace_type": "cluster_then_trace"
+          }
+        },
+        "simpoints": [
+          {
+            "cluster_id": 625,
+            "segment_id": 0,
+            "weight": 0.0421871
           },
-          "peak_rss_mb": 402
-        }
+          {
+            "cluster_id": 1700,
+            "segment_id": 1,
+            "weight": 0.0037921
+          },
+          {
+            "cluster_id": 1484,
+            "segment_id": 3,
+            "weight": 0.0137464
+          },
+          {
+            "cluster_id": 2078,
+            "segment_id": 4,
+            "weight": 0.00426612
+          },
+          {
+            "cluster_id": 416,
+            "segment_id": 5,
+            "weight": 0.00948026
+          },
+          {
+            "cluster_id": 1111,
+            "segment_id": 6,
+            "weight": 0.118029
+          },
+          {
+            "cluster_id": 1921,
+            "segment_id": 7,
+            "weight": 0.0109023
+          },
+          {
+            "cluster_id": 1067,
+            "segment_id": 8,
+            "weight": 0.0298628
+          },
+          {
+            "cluster_id": 1760,
+            "segment_id": 9,
+            "weight": 0.0298628
+          },
+          {
+            "cluster_id": 1516,
+            "segment_id": 10,
+            "weight": 0.00331809
+          },
+          {
+            "cluster_id": 2122,
+            "segment_id": 11,
+            "weight": 0.0037921
+          },
+          {
+            "cluster_id": 406,
+            "segment_id": 12,
+            "weight": 0.0132724
+          },
+          {
+            "cluster_id": 1671,
+            "segment_id": 13,
+            "weight": 0.00474013
+          },
+          {
+            "cluster_id": 1621,
+            "segment_id": 14,
+            "weight": 0.119925
+          },
+          {
+            "cluster_id": 1221,
+            "segment_id": 15,
+            "weight": 0.00948026
+          },
+          {
+            "cluster_id": 582,
+            "segment_id": 16,
+            "weight": 0.0426612
+          },
+          {
+            "cluster_id": 1951,
+            "segment_id": 17,
+            "weight": 0.0037921
+          },
+          {
+            "cluster_id": 863,
+            "segment_id": 18,
+            "weight": 0.0075842
+          },
+          {
+            "cluster_id": 167,
+            "segment_id": 19,
+            "weight": 0.0237006
+          },
+          {
+            "cluster_id": 2091,
+            "segment_id": 20,
+            "weight": 0.00805822
+          },
+          {
+            "cluster_id": 677,
+            "segment_id": 22,
+            "weight": 0.0113763
+          },
+          {
+            "cluster_id": 1579,
+            "segment_id": 24,
+            "weight": 0.0118503
+          },
+          {
+            "cluster_id": 539,
+            "segment_id": 25,
+            "weight": 0.0715759
+          },
+          {
+            "cluster_id": 1503,
+            "segment_id": 26,
+            "weight": 0.0161164
+          },
+          {
+            "cluster_id": 1859,
+            "segment_id": 27,
+            "weight": 0.037921
+          },
+          {
+            "cluster_id": 1609,
+            "segment_id": 29,
+            "weight": 0.220416
+          },
+          {
+            "cluster_id": 1875,
+            "segment_id": 30,
+            "weight": 0.0203825
+          },
+          {
+            "cluster_id": 1375,
+            "segment_id": 31,
+            "weight": 0.0545115
+          },
+          {
+            "cluster_id": 1632,
+            "segment_id": 32,
+            "weight": 0.0140534
+          },
+          {
+            "cluster_id": 110,
+            "segment_id": 33,
+            "weight": 0.0237006
+          },
+          {
+            "cluster_id": 717,
+            "segment_id": 34,
+            "weight": 0.0156424
+          }
+        ]
       }
     },
     "autogen": {
       "autogen_short_10iter": {
-        "performance": {
-          "topdown": {
-            "retiring": 17.3,
-            "bad_speculation": 4.1,
-            "frontend_bound": 25.2,
-            "backend_bound": 53.4
+        "trace": {
+          "dynamorio_args": null,
+          "clustering_k": null
+        },
+        "simulation": {
+          "prioritized_mode": "memtrace",
+          "exec": {
+            "image_name": "agent",
+            "segment_size": 10000000,
+            "env_vars": null,
+            "binary_cmd": "python3 \\$tmpdir/AgentCPU/workloads/run.py autogen --task-id ag-short-10 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size short --iterations 10",
+            "client_bincmd": null
           },
-          "execution_time": {
-            "min": 0,
-            "sec": 7.59
+          "memtrace": {
+            "image_name": "allbench_traces",
+            "segment_size": 10000000,
+            "warmup": 50000000,
+            "whole_trace_file": null,
+            "trace_type": "cluster_then_trace"
+          }
+        },
+        "simpoints": [
+          {
+            "cluster_id": 1903,
+            "segment_id": 1,
+            "weight": 0.0498493
           },
-          "peak_rss_mb": 394
-        }
+          {
+            "cluster_id": 2313,
+            "segment_id": 3,
+            "weight": 0.00724306
+          },
+          {
+            "cluster_id": 1289,
+            "segment_id": 4,
+            "weight": 0.0562403
+          },
+          {
+            "cluster_id": 1687,
+            "segment_id": 5,
+            "weight": 0.00553881
+          },
+          {
+            "cluster_id": 1112,
+            "segment_id": 6,
+            "weight": 0.104811
+          },
+          {
+            "cluster_id": 1790,
+            "segment_id": 7,
+            "weight": 0.0153383
+          },
+          {
+            "cluster_id": 373,
+            "segment_id": 8,
+            "weight": 0.0664658
+          },
+          {
+            "cluster_id": 2336,
+            "segment_id": 9,
+            "weight": 0.00599588
+          },
+          {
+            "cluster_id": 1502,
+            "segment_id": 10,
+            "weight": 0.0127819
+          },
+          {
+            "cluster_id": 237,
+            "segment_id": 11,
+            "weight": 0.0839343
+          },
+          {
+            "cluster_id": 1341,
+            "segment_id": 12,
+            "weight": 0.00468669
+          },
+          {
+            "cluster_id": 707,
+            "segment_id": 13,
+            "weight": 0.0315286
+          },
+          {
+            "cluster_id": 2011,
+            "segment_id": 14,
+            "weight": 0.17426
+          },
+          {
+            "cluster_id": 467,
+            "segment_id": 15,
+            "weight": 0.0451626
+          },
+          {
+            "cluster_id": 1370,
+            "segment_id": 18,
+            "weight": 0.0034085
+          },
+          {
+            "cluster_id": 338,
+            "segment_id": 19,
+            "weight": 0.00852125
+          },
+          {
+            "cluster_id": 1206,
+            "segment_id": 20,
+            "weight": 0.0293983
+          },
+          {
+            "cluster_id": 110,
+            "segment_id": 21,
+            "weight": 0.114611
+          },
+          {
+            "cluster_id": 1427,
+            "segment_id": 22,
+            "weight": 0.0208771
+          },
+          {
+            "cluster_id": 1641,
+            "segment_id": 23,
+            "weight": 0.0123558
+          },
+          {
+            "cluster_id": 1675,
+            "segment_id": 24,
+            "weight": 0.00468669
+          },
+          {
+            "cluster_id": 740,
+            "segment_id": 25,
+            "weight": 0.0898992
+          },
+          {
+            "cluster_id": 1314,
+            "segment_id": 26,
+            "weight": 0.00937338
+          },
+          {
+            "cluster_id": 1437,
+            "segment_id": 27,
+            "weight": 0.0255638
+          },
+          {
+            "cluster_id": 1569,
+            "segment_id": 28,
+            "weight": 0.0174686
+          }
+        ]
       },
       "autogen_short_19iter": {
-        "performance": {
-          "topdown": {
-            "retiring": 16.7,
-            "bad_speculation": 4.1,
-            "frontend_bound": 25.1,
-            "backend_bound": 54.1
+        "trace": {
+          "dynamorio_args": null,
+          "clustering_k": null
+        },
+        "simulation": {
+          "prioritized_mode": "memtrace",
+          "exec": {
+            "image_name": "agent",
+            "segment_size": 10000000,
+            "env_vars": null,
+            "binary_cmd": "python3 \\$tmpdir/AgentCPU/workloads/run.py autogen --task-id ag-short-19 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size short --iterations 19",
+            "client_bincmd": null
           },
-          "execution_time": {
-            "min": 0,
-            "sec": 8.67
+          "memtrace": {
+            "image_name": "allbench_traces",
+            "segment_size": 10000000,
+            "warmup": 50000000,
+            "whole_trace_file": null,
+            "trace_type": "cluster_then_trace"
+          }
+        },
+        "simpoints": [
+          {
+            "cluster_id": 1208,
+            "segment_id": 0,
+            "weight": 0.0136159
           },
-          "peak_rss_mb": 395
-        }
+          {
+            "cluster_id": 1523,
+            "segment_id": 1,
+            "weight": 0.0121439
+          },
+          {
+            "cluster_id": 1267,
+            "segment_id": 2,
+            "weight": 0.0091999
+          },
+          {
+            "cluster_id": 457,
+            "segment_id": 3,
+            "weight": 0.0596154
+          },
+          {
+            "cluster_id": 2172,
+            "segment_id": 5,
+            "weight": 0.0780152
+          },
+          {
+            "cluster_id": 1459,
+            "segment_id": 6,
+            "weight": 0.0231838
+          },
+          {
+            "cluster_id": 2313,
+            "segment_id": 7,
+            "weight": 0.0548314
+          },
+          {
+            "cluster_id": 1317,
+            "segment_id": 9,
+            "weight": 0.00772792
+          },
+          {
+            "cluster_id": 1430,
+            "segment_id": 10,
+            "weight": 0.0228158
+          },
+          {
+            "cluster_id": 2711,
+            "segment_id": 11,
+            "weight": 0.00809591
+          },
+          {
+            "cluster_id": 1506,
+            "segment_id": 12,
+            "weight": 0.0106719
+          },
+          {
+            "cluster_id": 688,
+            "segment_id": 13,
+            "weight": 0.0139839
+          },
+          {
+            "cluster_id": 201,
+            "segment_id": 14,
+            "weight": 0.0426875
+          },
+          {
+            "cluster_id": 588,
+            "segment_id": 15,
+            "weight": 0.00846391
+          },
+          {
+            "cluster_id": 1276,
+            "segment_id": 16,
+            "weight": 0.0217118
+          },
+          {
+            "cluster_id": 1584,
+            "segment_id": 17,
+            "weight": 0.0136159
+          },
+          {
+            "cluster_id": 2138,
+            "segment_id": 19,
+            "weight": 0.0301757
+          },
+          {
+            "cluster_id": 1164,
+            "segment_id": 20,
+            "weight": 0.0537274
+          },
+          {
+            "cluster_id": 1365,
+            "segment_id": 21,
+            "weight": 0.0430555
+          },
+          {
+            "cluster_id": 469,
+            "segment_id": 22,
+            "weight": 0.0257597
+          },
+          {
+            "cluster_id": 774,
+            "segment_id": 23,
+            "weight": 0.00367996
+          },
+          {
+            "cluster_id": 1764,
+            "segment_id": 24,
+            "weight": 0.00551994
+          },
+          {
+            "cluster_id": 339,
+            "segment_id": 25,
+            "weight": 0.00625593
+          },
+          {
+            "cluster_id": 1018,
+            "segment_id": 27,
+            "weight": 0.0279677
+          },
+          {
+            "cluster_id": 1377,
+            "segment_id": 28,
+            "weight": 0.0125119
+          },
+          {
+            "cluster_id": 971,
+            "segment_id": 29,
+            "weight": 0.0379036
+          },
+          {
+            "cluster_id": 1336,
+            "segment_id": 30,
+            "weight": 0.00404796
+          },
+          {
+            "cluster_id": 2053,
+            "segment_id": 31,
+            "weight": 0.138735
+          },
+          {
+            "cluster_id": 179,
+            "segment_id": 32,
+            "weight": 0.0717592
+          },
+          {
+            "cluster_id": 2030,
+            "segment_id": 33,
+            "weight": 0.0577754
+          },
+          {
+            "cluster_id": 789,
+            "segment_id": 34,
+            "weight": 0.0478395
+          },
+          {
+            "cluster_id": 1645,
+            "segment_id": 36,
+            "weight": 0.0104584
+          },
+          {
+            "cluster_id": 610,
+            "segment_id": 37,
+            "weight": 0.0224478
+          }
+        ]
       },
       "autogen_medium_7iter": {
-        "performance": {
-          "topdown": {
-            "retiring": 16.7,
-            "bad_speculation": 3.8,
-            "frontend_bound": 24.7,
-            "backend_bound": 54.8
+        "trace": {
+          "dynamorio_args": null,
+          "clustering_k": null
+        },
+        "simulation": {
+          "prioritized_mode": "memtrace",
+          "exec": {
+            "image_name": "agent",
+            "segment_size": 10000000,
+            "env_vars": null,
+            "binary_cmd": "python3 \\$tmpdir/AgentCPU/workloads/run.py autogen --task-id ag-medium-7 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size medium --iterations 7",
+            "client_bincmd": null
           },
-          "execution_time": {
-            "min": 0,
-            "sec": 8.82
+          "memtrace": {
+            "image_name": "allbench_traces",
+            "segment_size": 10000000,
+            "warmup": 50000000,
+            "whole_trace_file": null,
+            "trace_type": "cluster_then_trace"
+          }
+        },
+        "simpoints": [
+          {
+            "cluster_id": 466,
+            "segment_id": 0,
+            "weight": 0.056257
           },
-          "peak_rss_mb": 395
-        }
+          {
+            "cluster_id": 501,
+            "segment_id": 1,
+            "weight": 0.0312136
+          },
+          {
+            "cluster_id": 781,
+            "segment_id": 2,
+            "weight": 0.00362949
+          },
+          {
+            "cluster_id": 570,
+            "segment_id": 4,
+            "weight": 0.148809
+          },
+          {
+            "cluster_id": 1507,
+            "segment_id": 6,
+            "weight": 0.0108885
+          },
+          {
+            "cluster_id": 1638,
+            "segment_id": 7,
+            "weight": 0.0102391
+          },
+          {
+            "cluster_id": 1675,
+            "segment_id": 9,
+            "weight": 0.00326654
+          },
+          {
+            "cluster_id": 1271,
+            "segment_id": 10,
+            "weight": 0.0410132
+          },
+          {
+            "cluster_id": 1450,
+            "segment_id": 11,
+            "weight": 0.0239546
+          },
+          {
+            "cluster_id": 955,
+            "segment_id": 12,
+            "weight": 0.0508128
+          },
+          {
+            "cluster_id": 2713,
+            "segment_id": 13,
+            "weight": 0.00834782
+          },
+          {
+            "cluster_id": 1967,
+            "segment_id": 14,
+            "weight": 0.063879
+          },
+          {
+            "cluster_id": 657,
+            "segment_id": 15,
+            "weight": 0.0413761
+          },
+          {
+            "cluster_id": 2542,
+            "segment_id": 17,
+            "weight": 0.00798487
+          },
+          {
+            "cluster_id": 1581,
+            "segment_id": 18,
+            "weight": 0.0105255
+          },
+          {
+            "cluster_id": 1281,
+            "segment_id": 19,
+            "weight": 0.0323024
+          },
+          {
+            "cluster_id": 1343,
+            "segment_id": 20,
+            "weight": 0.00326654
+          },
+          {
+            "cluster_id": 347,
+            "segment_id": 21,
+            "weight": 0.00617013
+          },
+          {
+            "cluster_id": 2018,
+            "segment_id": 22,
+            "weight": 0.0330283
+          },
+          {
+            "cluster_id": 1700,
+            "segment_id": 23,
+            "weight": 0.00290359
+          },
+          {
+            "cluster_id": 2131,
+            "segment_id": 24,
+            "weight": 0.19454
+          },
+          {
+            "cluster_id": 2744,
+            "segment_id": 25,
+            "weight": 0.00544423
+          },
+          {
+            "cluster_id": 1428,
+            "segment_id": 26,
+            "weight": 0.0188733
+          },
+          {
+            "cluster_id": 1862,
+            "segment_id": 27,
+            "weight": 0.0983591
+          },
+          {
+            "cluster_id": 1194,
+            "segment_id": 28,
+            "weight": 0.0206881
+          },
+          {
+            "cluster_id": 961,
+            "segment_id": 29,
+            "weight": 0.0170586
+          },
+          {
+            "cluster_id": 1071,
+            "segment_id": 30,
+            "weight": 0.00689602
+          },
+          {
+            "cluster_id": 780,
+            "segment_id": 31,
+            "weight": 0.0127032
+          },
+          {
+            "cluster_id": 1318,
+            "segment_id": 32,
+            "weight": 0.00943666
+          },
+          {
+            "cluster_id": 544,
+            "segment_id": 34,
+            "weight": 0.0261323
+          }
+        ]
       },
       "autogen_medium_13iter": {
-        "performance": {
-          "topdown": {
-            "retiring": 21.4,
-            "bad_speculation": 4.1,
-            "frontend_bound": 28.6,
-            "backend_bound": 45.8
+        "trace": {
+          "dynamorio_args": null,
+          "clustering_k": null
+        },
+        "simulation": {
+          "prioritized_mode": "memtrace",
+          "exec": {
+            "image_name": "agent",
+            "segment_size": 10000000,
+            "env_vars": null,
+            "binary_cmd": "python3 \\$tmpdir/AgentCPU/workloads/run.py autogen --task-id ag-medium-13 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size medium --iterations 13",
+            "client_bincmd": null
           },
-          "execution_time": {
-            "min": 0,
-            "sec": 10.51
+          "memtrace": {
+            "image_name": "allbench_traces",
+            "segment_size": 10000000,
+            "warmup": 50000000,
+            "whole_trace_file": null,
+            "trace_type": "cluster_then_trace"
+          }
+        },
+        "simpoints": [
+          {
+            "cluster_id": 1655,
+            "segment_id": 0,
+            "weight": 0.00831829
           },
-          "peak_rss_mb": 395
-        }
+          {
+            "cluster_id": 1070,
+            "segment_id": 2,
+            "weight": 0.00505039
+          },
+          {
+            "cluster_id": 695,
+            "segment_id": 3,
+            "weight": 0.0225782
+          },
+          {
+            "cluster_id": 3050,
+            "segment_id": 5,
+            "weight": 0.00772412
+          },
+          {
+            "cluster_id": 339,
+            "segment_id": 6,
+            "weight": 0.00505039
+          },
+          {
+            "cluster_id": 742,
+            "segment_id": 7,
+            "weight": 0.0424827
+          },
+          {
+            "cluster_id": 1919,
+            "segment_id": 8,
+            "weight": 0.0166366
+          },
+          {
+            "cluster_id": 1584,
+            "segment_id": 9,
+            "weight": 0.0098037
+          },
+          {
+            "cluster_id": 613,
+            "segment_id": 10,
+            "weight": 0.106355
+          },
+          {
+            "cluster_id": 363,
+            "segment_id": 11,
+            "weight": 0.0347586
+          },
+          {
+            "cluster_id": 2472,
+            "segment_id": 12,
+            "weight": 0.131904
+          },
+          {
+            "cluster_id": 1451,
+            "segment_id": 13,
+            "weight": 0.0196074
+          },
+          {
+            "cluster_id": 477,
+            "segment_id": 14,
+            "weight": 0.0199045
+          },
+          {
+            "cluster_id": 2186,
+            "segment_id": 16,
+            "weight": 0.0513951
+          },
+          {
+            "cluster_id": 1317,
+            "segment_id": 17,
+            "weight": 0.00623872
+          },
+          {
+            "cluster_id": 1506,
+            "segment_id": 18,
+            "weight": 0.00861537
+          },
+          {
+            "cluster_id": 2193,
+            "segment_id": 19,
+            "weight": 0.0490185
+          },
+          {
+            "cluster_id": 2256,
+            "segment_id": 20,
+            "weight": 0.0751617
+          },
+          {
+            "cluster_id": 3368,
+            "segment_id": 21,
+            "weight": 0.0112891
+          },
+          {
+            "cluster_id": 1789,
+            "segment_id": 23,
+            "weight": 0.00683288
+          },
+          {
+            "cluster_id": 2043,
+            "segment_id": 24,
+            "weight": 0.0246578
+          },
+          {
+            "cluster_id": 1175,
+            "segment_id": 25,
+            "weight": 0.0870449
+          },
+          {
+            "cluster_id": 779,
+            "segment_id": 26,
+            "weight": 0.0098037
+          },
+          {
+            "cluster_id": 2538,
+            "segment_id": 27,
+            "weight": 0.0148541
+          },
+          {
+            "cluster_id": 203,
+            "segment_id": 28,
+            "weight": 0.0445623
+          },
+          {
+            "cluster_id": 1730,
+            "segment_id": 29,
+            "weight": 0.00685589
+          },
+          {
+            "cluster_id": 1716,
+            "segment_id": 30,
+            "weight": 0.00505039
+          },
+          {
+            "cluster_id": 64,
+            "segment_id": 31,
+            "weight": 0.0139628
+          },
+          {
+            "cluster_id": 938,
+            "segment_id": 32,
+            "weight": 0.0317877
+          },
+          {
+            "cluster_id": 2165,
+            "segment_id": 34,
+            "weight": 0.0772412
+          },
+          {
+            "cluster_id": 1699,
+            "segment_id": 35,
+            "weight": 0.00237665
+          },
+          {
+            "cluster_id": 2236,
+            "segment_id": 37,
+            "weight": 0.0124774
+          },
+          {
+            "cluster_id": 1429,
+            "segment_id": 38,
+            "weight": 0.0279257
+          },
+          {
+            "cluster_id": 1674,
+            "segment_id": 39,
+            "weight": 0.00267374
+          }
+        ]
       },
       "autogen_long_4iter": {
-        "performance": {
-          "topdown": {
-            "retiring": 21.2,
-            "bad_speculation": 5.0,
-            "frontend_bound": 29.2,
-            "backend_bound": 44.6
+        "trace": {
+          "dynamorio_args": null,
+          "clustering_k": null
+        },
+        "simulation": {
+          "prioritized_mode": "memtrace",
+          "exec": {
+            "image_name": "agent",
+            "segment_size": 10000000,
+            "env_vars": null,
+            "binary_cmd": "python3 \\$tmpdir/AgentCPU/workloads/run.py autogen --task-id ag-long-4 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size long --iterations 4",
+            "client_bincmd": null
           },
-          "execution_time": {
-            "min": 0,
-            "sec": 11.0
+          "memtrace": {
+            "image_name": "allbench_traces",
+            "segment_size": 10000000,
+            "warmup": 50000000,
+            "whole_trace_file": null,
+            "trace_type": "cluster_then_trace"
+          }
+        },
+        "simpoints": [
+          {
+            "cluster_id": 747,
+            "segment_id": 0,
+            "weight": 0.0772602
           },
-          "peak_rss_mb": 395
-        }
+          {
+            "cluster_id": 2268,
+            "segment_id": 1,
+            "weight": 0.0155129
+          },
+          {
+            "cluster_id": 1976,
+            "segment_id": 2,
+            "weight": 0.097944
+          },
+          {
+            "cluster_id": 396,
+            "segment_id": 3,
+            "weight": 0.0325466
+          },
+          {
+            "cluster_id": 1647,
+            "segment_id": 4,
+            "weight": 0.00869691
+          },
+          {
+            "cluster_id": 1622,
+            "segment_id": 5,
+            "weight": 0.0136878
+          },
+          {
+            "cluster_id": 940,
+            "segment_id": 6,
+            "weight": 0.0276798
+          },
+          {
+            "cluster_id": 1718,
+            "segment_id": 7,
+            "weight": 0.0112544
+          },
+          {
+            "cluster_id": 501,
+            "segment_id": 8,
+            "weight": 0.0219005
+          },
+          {
+            "cluster_id": 1597,
+            "segment_id": 9,
+            "weight": 0.0258548
+          },
+          {
+            "cluster_id": 929,
+            "segment_id": 11,
+            "weight": 0.0869938
+          },
+          {
+            "cluster_id": 2700,
+            "segment_id": 12,
+            "weight": 0.0270715
+          },
+          {
+            "cluster_id": 1422,
+            "segment_id": 13,
+            "weight": 0.0155129
+          },
+          {
+            "cluster_id": 591,
+            "segment_id": 14,
+            "weight": 0.0109503
+          },
+          {
+            "cluster_id": 327,
+            "segment_id": 15,
+            "weight": 0.0574889
+          },
+          {
+            "cluster_id": 2092,
+            "segment_id": 16,
+            "weight": 0.0590098
+          },
+          {
+            "cluster_id": 2601,
+            "segment_id": 18,
+            "weight": 0.163646
+          },
+          {
+            "cluster_id": 3285,
+            "segment_id": 19,
+            "weight": 0.00942939
+          },
+          {
+            "cluster_id": 1509,
+            "segment_id": 21,
+            "weight": 0.00882105
+          },
+          {
+            "cluster_id": 3196,
+            "segment_id": 22,
+            "weight": 0.00517096
+          },
+          {
+            "cluster_id": 392,
+            "segment_id": 23,
+            "weight": 0.0106461
+          },
+          {
+            "cluster_id": 1319,
+            "segment_id": 25,
+            "weight": 0.00638765
+          },
+          {
+            "cluster_id": 1778,
+            "segment_id": 26,
+            "weight": 0.00456261
+          },
+          {
+            "cluster_id": 689,
+            "segment_id": 27,
+            "weight": 0.0136878
+          },
+          {
+            "cluster_id": 203,
+            "segment_id": 28,
+            "weight": 0.0614431
+          },
+          {
+            "cluster_id": 1066,
+            "segment_id": 29,
+            "weight": 0.0212922
+          },
+          {
+            "cluster_id": 1344,
+            "segment_id": 30,
+            "weight": 0.00273757
+          },
+          {
+            "cluster_id": 3268,
+            "segment_id": 31,
+            "weight": 0.00304174
+          },
+          {
+            "cluster_id": 2304,
+            "segment_id": 32,
+            "weight": 0.0942939
+          },
+          {
+            "cluster_id": 349,
+            "segment_id": 33,
+            "weight": 0.00547513
+          }
+        ]
       },
       "autogen_long_8iter": {
-        "performance": {
-          "topdown": {
-            "retiring": 22.1,
-            "bad_speculation": 5.8,
-            "frontend_bound": 25.3,
-            "backend_bound": 46.8
+        "trace": {
+          "dynamorio_args": null,
+          "clustering_k": null
+        },
+        "simulation": {
+          "prioritized_mode": "memtrace",
+          "exec": {
+            "image_name": "agent",
+            "segment_size": 10000000,
+            "env_vars": null,
+            "binary_cmd": "python3 \\$tmpdir/AgentCPU/workloads/run.py autogen --task-id ag-long-8 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size long --iterations 8",
+            "client_bincmd": null
           },
-          "execution_time": {
-            "min": 0,
-            "sec": 13.46
+          "memtrace": {
+            "image_name": "allbench_traces",
+            "segment_size": 10000000,
+            "warmup": 50000000,
+            "whole_trace_file": null,
+            "trace_type": "cluster_then_trace"
+          }
+        },
+        "simpoints": [
+          {
+            "cluster_id": 888,
+            "segment_id": 0,
+            "weight": 0.0137458
           },
-          "peak_rss_mb": 395
-        }
+          {
+            "cluster_id": 1400,
+            "segment_id": 1,
+            "weight": 0.0115288
+          },
+          {
+            "cluster_id": 1781,
+            "segment_id": 2,
+            "weight": 0.00332561
+          },
+          {
+            "cluster_id": 2908,
+            "segment_id": 3,
+            "weight": 0.0700594
+          },
+          {
+            "cluster_id": 3452,
+            "segment_id": 4,
+            "weight": 0.071168
+          },
+          {
+            "cluster_id": 4522,
+            "segment_id": 6,
+            "weight": 0.00399073
+          },
+          {
+            "cluster_id": 179,
+            "segment_id": 8,
+            "weight": 0.0638516
+          },
+          {
+            "cluster_id": 1103,
+            "segment_id": 9,
+            "weight": 0.0286002
+          },
+          {
+            "cluster_id": 2638,
+            "segment_id": 11,
+            "weight": 0.0339212
+          },
+          {
+            "cluster_id": 2092,
+            "segment_id": 12,
+            "weight": 0.047667
+          },
+          {
+            "cluster_id": 1506,
+            "segment_id": 13,
+            "weight": 0.00687292
+          },
+          {
+            "cluster_id": 572,
+            "segment_id": 14,
+            "weight": 0.0121939
+          },
+          {
+            "cluster_id": 2454,
+            "segment_id": 16,
+            "weight": 0.0532097
+          },
+          {
+            "cluster_id": 1532,
+            "segment_id": 17,
+            "weight": 0.00687292
+          },
+          {
+            "cluster_id": 4501,
+            "segment_id": 18,
+            "weight": 0.00199536
+          },
+          {
+            "cluster_id": 2585,
+            "segment_id": 19,
+            "weight": 0.0159629
+          },
+          {
+            "cluster_id": 1177,
+            "segment_id": 22,
+            "weight": 0.0274917
+          },
+          {
+            "cluster_id": 2204,
+            "segment_id": 23,
+            "weight": 0.0359165
+          },
+          {
+            "cluster_id": 2728,
+            "segment_id": 24,
+            "weight": 0.0556485
+          },
+          {
+            "cluster_id": 2554,
+            "segment_id": 25,
+            "weight": 0.0977728
+          },
+          {
+            "cluster_id": 2624,
+            "segment_id": 26,
+            "weight": 0.0376902
+          },
+          {
+            "cluster_id": 2660,
+            "segment_id": 27,
+            "weight": 0.0399073
+          },
+          {
+            "cluster_id": 2828,
+            "segment_id": 28,
+            "weight": 0.0407941
+          },
+          {
+            "cluster_id": 688,
+            "segment_id": 29,
+            "weight": 0.00886828
+          },
+          {
+            "cluster_id": 742,
+            "segment_id": 30,
+            "weight": 0.0538748
+          },
+          {
+            "cluster_id": 591,
+            "segment_id": 31,
+            "weight": 0.00820316
+          },
+          {
+            "cluster_id": 918,
+            "segment_id": 32,
+            "weight": 0.00997682
+          },
+          {
+            "cluster_id": 1674,
+            "segment_id": 33,
+            "weight": 0.00199536
+          },
+          {
+            "cluster_id": 448,
+            "segment_id": 34,
+            "weight": 0.0334778
+          },
+          {
+            "cluster_id": 2892,
+            "segment_id": 35,
+            "weight": 0.00709463
+          },
+          {
+            "cluster_id": 501,
+            "segment_id": 36,
+            "weight": 0.0188451
+          },
+          {
+            "cluster_id": 347,
+            "segment_id": 38,
+            "weight": 0.00443414
+          },
+          {
+            "cluster_id": 3512,
+            "segment_id": 40,
+            "weight": 0.00399073
+          },
+          {
+            "cluster_id": 1256,
+            "segment_id": 41,
+            "weight": 0.0195102
+          },
+          {
+            "cluster_id": 1586,
+            "segment_id": 42,
+            "weight": 0.00687292
+          },
+          {
+            "cluster_id": 2901,
+            "segment_id": 43,
+            "weight": 0.00399073
+          },
+          {
+            "cluster_id": 325,
+            "segment_id": 44,
+            "weight": 0.00554268
+          },
+          {
+            "cluster_id": 1452,
+            "segment_id": 45,
+            "weight": 0.0148544
+          },
+          {
+            "cluster_id": 1639,
+            "segment_id": 46,
+            "weight": 0.006309
+          },
+          {
+            "cluster_id": 2284,
+            "segment_id": 47,
+            "weight": 0.00487756
+          },
+          {
+            "cluster_id": 295,
+            "segment_id": 48,
+            "weight": 0.00177366
+          },
+          {
+            "cluster_id": 4472,
+            "segment_id": 49,
+            "weight": 0.00532097
+          }
+        ]
       }
     },
     "haystack": {
       "haystack_short_2iter": {
-        "performance": {
-          "topdown": {
-            "retiring": 16.7,
-            "bad_speculation": 3.6,
-            "frontend_bound": 25.5,
-            "backend_bound": 54.2
+        "trace": {
+          "dynamorio_args": null,
+          "clustering_k": null
+        },
+        "simulation": {
+          "prioritized_mode": "memtrace",
+          "exec": {
+            "image_name": "agent",
+            "segment_size": 10000000,
+            "env_vars": null,
+            "binary_cmd": "python3 \\$tmpdir/AgentCPU/workloads/run.py haystack --task-id hs-short-2 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size short --iterations 2",
+            "client_bincmd": null
           },
-          "execution_time": {
-            "min": 0,
-            "sec": 14.33
+          "memtrace": {
+            "image_name": "allbench_traces",
+            "segment_size": 10000000,
+            "warmup": 50000000,
+            "whole_trace_file": null,
+            "trace_type": "cluster_then_trace"
+          }
+        },
+        "simpoints": [
+          {
+            "cluster_id": 587,
+            "segment_id": 0,
+            "weight": 0.00638191
           },
-          "peak_rss_mb": 552
-        }
+          {
+            "cluster_id": 3319,
+            "segment_id": 1,
+            "weight": 0.051528
+          },
+          {
+            "cluster_id": 3733,
+            "segment_id": 2,
+            "weight": 0.0278913
+          },
+          {
+            "cluster_id": 2940,
+            "segment_id": 4,
+            "weight": 0.0165457
+          },
+          {
+            "cluster_id": 59,
+            "segment_id": 5,
+            "weight": 0.00543644
+          },
+          {
+            "cluster_id": 3569,
+            "segment_id": 6,
+            "weight": 0.00330914
+          },
+          {
+            "cluster_id": 1055,
+            "segment_id": 7,
+            "weight": 0.0125274
+          },
+          {
+            "cluster_id": 3940,
+            "segment_id": 8,
+            "weight": 0.0524735
+          },
+          {
+            "cluster_id": 3956,
+            "segment_id": 9,
+            "weight": 0.0236367
+          },
+          {
+            "cluster_id": 762,
+            "segment_id": 11,
+            "weight": 0.0359278
+          },
+          {
+            "cluster_id": 1397,
+            "segment_id": 12,
+            "weight": 0.0709101
+          },
+          {
+            "cluster_id": 3664,
+            "segment_id": 14,
+            "weight": 0.00685464
+          },
+          {
+            "cluster_id": 3003,
+            "segment_id": 15,
+            "weight": 0.0624009
+          },
+          {
+            "cluster_id": 377,
+            "segment_id": 16,
+            "weight": 0.0276549
+          },
+          {
+            "cluster_id": 3037,
+            "segment_id": 17,
+            "weight": 0.0527098
+          },
+          {
+            "cluster_id": 1035,
+            "segment_id": 18,
+            "weight": 0.00898194
+          },
+          {
+            "cluster_id": 1697,
+            "segment_id": 19,
+            "weight": 0.146311
+          },
+          {
+            "cluster_id": 227,
+            "segment_id": 20,
+            "weight": 0.0439642
+          },
+          {
+            "cluster_id": 4070,
+            "segment_id": 21,
+            "weight": 0.0136408
+          },
+          {
+            "cluster_id": 3006,
+            "segment_id": 22,
+            "weight": 0.051528
+          },
+          {
+            "cluster_id": 3905,
+            "segment_id": 23,
+            "weight": 0.0312004
+          },
+          {
+            "cluster_id": 2093,
+            "segment_id": 24,
+            "weight": 0.00567281
+          },
+          {
+            "cluster_id": 2156,
+            "segment_id": 25,
+            "weight": 0.0333277
+          },
+          {
+            "cluster_id": 2356,
+            "segment_id": 27,
+            "weight": 0.014182
+          },
+          {
+            "cluster_id": 2688,
+            "segment_id": 28,
+            "weight": 0.00307277
+          },
+          {
+            "cluster_id": 3151,
+            "segment_id": 29,
+            "weight": 0.0028364
+          },
+          {
+            "cluster_id": 4115,
+            "segment_id": 31,
+            "weight": 0.00685464
+          },
+          {
+            "cluster_id": 2020,
+            "segment_id": 32,
+            "weight": 0.0460916
+          },
+          {
+            "cluster_id": 1972,
+            "segment_id": 33,
+            "weight": 0.0375823
+          },
+          {
+            "cluster_id": 141,
+            "segment_id": 34,
+            "weight": 0.0368732
+          },
+          {
+            "cluster_id": 4092,
+            "segment_id": 35,
+            "weight": 0.0616918
+          }
+        ]
       },
       "haystack_short_3iter": {
-        "performance": {
-          "topdown": {
-            "retiring": 18.5,
-            "bad_speculation": 3.9,
-            "frontend_bound": 28.7,
-            "backend_bound": 48.8
+        "trace": {
+          "dynamorio_args": null,
+          "clustering_k": null
+        },
+        "simulation": {
+          "prioritized_mode": "memtrace",
+          "exec": {
+            "image_name": "agent",
+            "segment_size": 10000000,
+            "env_vars": null,
+            "binary_cmd": "python3 \\$tmpdir/AgentCPU/workloads/run.py haystack --task-id hs-short-3 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size short --iterations 3",
+            "client_bincmd": null
           },
-          "execution_time": {
-            "min": 0,
-            "sec": 15.49
+          "memtrace": {
+            "image_name": "allbench_traces",
+            "segment_size": 10000000,
+            "warmup": 50000000,
+            "whole_trace_file": null,
+            "trace_type": "cluster_then_trace"
+          }
+        },
+        "simpoints": [
+          {
+            "cluster_id": 1149,
+            "segment_id": 0,
+            "weight": 0.00802798
           },
-          "peak_rss_mb": 520
-        }
+          {
+            "cluster_id": 3206,
+            "segment_id": 1,
+            "weight": 0.0410844
+          },
+          {
+            "cluster_id": 3593,
+            "segment_id": 2,
+            "weight": 0.00425011
+          },
+          {
+            "cluster_id": 246,
+            "segment_id": 3,
+            "weight": 0.0245562
+          },
+          {
+            "cluster_id": 2803,
+            "segment_id": 4,
+            "weight": 0.00425011
+          },
+          {
+            "cluster_id": 2628,
+            "segment_id": 5,
+            "weight": 0.0172366
+          },
+          {
+            "cluster_id": 136,
+            "segment_id": 7,
+            "weight": 0.0394316
+          },
+          {
+            "cluster_id": 1008,
+            "segment_id": 8,
+            "weight": 0.0165282
+          },
+          {
+            "cluster_id": 3970,
+            "segment_id": 9,
+            "weight": 0.00283341
+          },
+          {
+            "cluster_id": 847,
+            "segment_id": 11,
+            "weight": 0.0694184
+          },
+          {
+            "cluster_id": 1749,
+            "segment_id": 12,
+            "weight": 0.0708351
+          },
+          {
+            "cluster_id": 3655,
+            "segment_id": 13,
+            "weight": 0.0340009
+          },
+          {
+            "cluster_id": 3096,
+            "segment_id": 14,
+            "weight": 0.00613905
+          },
+          {
+            "cluster_id": 4134,
+            "segment_id": 15,
+            "weight": 0.00283341
+          },
+          {
+            "cluster_id": 3297,
+            "segment_id": 16,
+            "weight": 0.00472234
+          },
+          {
+            "cluster_id": 3936,
+            "segment_id": 17,
+            "weight": 0.0229034
+          },
+          {
+            "cluster_id": 4079,
+            "segment_id": 18,
+            "weight": 0.0137387
+          },
+          {
+            "cluster_id": 3828,
+            "segment_id": 19,
+            "weight": 0.0250284
+          },
+          {
+            "cluster_id": 4000,
+            "segment_id": 20,
+            "weight": 0.0184171
+          },
+          {
+            "cluster_id": 3898,
+            "segment_id": 21,
+            "weight": 0.0273896
+          },
+          {
+            "cluster_id": 2944,
+            "segment_id": 22,
+            "weight": 0.00708351
+          },
+          {
+            "cluster_id": 2950,
+            "segment_id": 24,
+            "weight": 0.0396677
+          },
+          {
+            "cluster_id": 2833,
+            "segment_id": 25,
+            "weight": 0.0311675
+          },
+          {
+            "cluster_id": 1241,
+            "segment_id": 26,
+            "weight": 0.0429733
+          },
+          {
+            "cluster_id": 3544,
+            "segment_id": 27,
+            "weight": 0.0113336
+          },
+          {
+            "cluster_id": 1776,
+            "segment_id": 28,
+            "weight": 0.0068474
+          },
+          {
+            "cluster_id": 322,
+            "segment_id": 29,
+            "weight": 0.16056
+          },
+          {
+            "cluster_id": 2318,
+            "segment_id": 30,
+            "weight": 0.00236117
+          },
+          {
+            "cluster_id": 65,
+            "segment_id": 31,
+            "weight": 0.00401399
+          },
+          {
+            "cluster_id": 3388,
+            "segment_id": 32,
+            "weight": 0.0389593
+          },
+          {
+            "cluster_id": 3000,
+            "segment_id": 34,
+            "weight": 0.0552514
+          },
+          {
+            "cluster_id": 901,
+            "segment_id": 35,
+            "weight": 0.00283341
+          },
+          {
+            "cluster_id": 2194,
+            "segment_id": 37,
+            "weight": 0.056432
+          },
+          {
+            "cluster_id": 2260,
+            "segment_id": 39,
+            "weight": 0.0153476
+          },
+          {
+            "cluster_id": 1032,
+            "segment_id": 40,
+            "weight": 0.00519458
+          },
+          {
+            "cluster_id": 3749,
+            "segment_id": 41,
+            "weight": 0.0514735
+          },
+          {
+            "cluster_id": 1731,
+            "segment_id": 42,
+            "weight": 0.00779187
+          },
+          {
+            "cluster_id": 3495,
+            "segment_id": 43,
+            "weight": 0.00708351
+          }
+        ]
       },
       "haystack_medium_1iter": {
-        "performance": {
-          "topdown": {
-            "retiring": 26.7,
-            "bad_speculation": 5.1,
-            "frontend_bound": 29.4,
-            "backend_bound": 38.8
+        "trace": {
+          "dynamorio_args": null,
+          "clustering_k": null
+        },
+        "simulation": {
+          "prioritized_mode": "memtrace",
+          "exec": {
+            "image_name": "agent",
+            "segment_size": 10000000,
+            "env_vars": null,
+            "binary_cmd": "python3 \\$tmpdir/AgentCPU/workloads/run.py haystack --task-id hs-medium-1 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size medium --iterations 1",
+            "client_bincmd": null
           },
-          "execution_time": {
-            "min": 0,
-            "sec": 35.59
+          "memtrace": {
+            "image_name": "allbench_traces",
+            "segment_size": 10000000,
+            "warmup": 50000000,
+            "whole_trace_file": null,
+            "trace_type": "cluster_then_trace"
+          }
+        },
+        "simpoints": [
+          {
+            "cluster_id": 119,
+            "segment_id": 0,
+            "weight": 0.0143769
           },
-          "peak_rss_mb": 525
-        }
+          {
+            "cluster_id": 733,
+            "segment_id": 1,
+            "weight": 0.0394696
+          },
+          {
+            "cluster_id": 4969,
+            "segment_id": 3,
+            "weight": 0.00196455
+          },
+          {
+            "cluster_id": 6944,
+            "segment_id": 4,
+            "weight": 0.00258963
+          },
+          {
+            "cluster_id": 3475,
+            "segment_id": 5,
+            "weight": 0.0568826
+          },
+          {
+            "cluster_id": 10447,
+            "segment_id": 6,
+            "weight": 0.00741171
+          },
+          {
+            "cluster_id": 4316,
+            "segment_id": 7,
+            "weight": 0.00446488
+          },
+          {
+            "cluster_id": 8735,
+            "segment_id": 8,
+            "weight": 0.00669733
+          },
+          {
+            "cluster_id": 3198,
+            "segment_id": 10,
+            "weight": 0.0435773
+          },
+          {
+            "cluster_id": 8132,
+            "segment_id": 11,
+            "weight": 0.00446488
+          },
+          {
+            "cluster_id": 2546,
+            "segment_id": 12,
+            "weight": 0.00500067
+          },
+          {
+            "cluster_id": 4283,
+            "segment_id": 14,
+            "weight": 0.0106264
+          },
+          {
+            "cluster_id": 989,
+            "segment_id": 15,
+            "weight": 0.00482208
+          },
+          {
+            "cluster_id": 469,
+            "segment_id": 16,
+            "weight": 0.0420592
+          },
+          {
+            "cluster_id": 634,
+            "segment_id": 17,
+            "weight": 0.00357191
+          },
+          {
+            "cluster_id": 9614,
+            "segment_id": 19,
+            "weight": 0.0501853
+          },
+          {
+            "cluster_id": 2463,
+            "segment_id": 20,
+            "weight": 0.00732241
+          },
+          {
+            "cluster_id": 5661,
+            "segment_id": 21,
+            "weight": 0.0135732
+          },
+          {
+            "cluster_id": 628,
+            "segment_id": 22,
+            "weight": 0.0508997
+          },
+          {
+            "cluster_id": 8599,
+            "segment_id": 23,
+            "weight": 0.0131268
+          },
+          {
+            "cluster_id": 8380,
+            "segment_id": 24,
+            "weight": 0.00178595
+          },
+          {
+            "cluster_id": 11057,
+            "segment_id": 25,
+            "weight": 0.011698
+          },
+          {
+            "cluster_id": 2771,
+            "segment_id": 26,
+            "weight": 0.0845649
+          },
+          {
+            "cluster_id": 7032,
+            "segment_id": 28,
+            "weight": 0.027593
+          },
+          {
+            "cluster_id": 4243,
+            "segment_id": 29,
+            "weight": 0.0110729
+          },
+          {
+            "cluster_id": 3938,
+            "segment_id": 30,
+            "weight": 0.0838505
+          },
+          {
+            "cluster_id": 6113,
+            "segment_id": 31,
+            "weight": 0.0188418
+          },
+          {
+            "cluster_id": 4781,
+            "segment_id": 32,
+            "weight": 0.0133054
+          },
+          {
+            "cluster_id": 1831,
+            "segment_id": 33,
+            "weight": 0.0111622
+          },
+          {
+            "cluster_id": 10788,
+            "segment_id": 34,
+            "weight": 0.0172345
+          },
+          {
+            "cluster_id": 7811,
+            "segment_id": 35,
+            "weight": 0.0438452
+          },
+          {
+            "cluster_id": 8973,
+            "segment_id": 36,
+            "weight": 0.00428629
+          },
+          {
+            "cluster_id": 6325,
+            "segment_id": 37,
+            "weight": 0.00866188
+          },
+          {
+            "cluster_id": 5680,
+            "segment_id": 38,
+            "weight": 0.0295575
+          },
+          {
+            "cluster_id": 7516,
+            "segment_id": 39,
+            "weight": 0.00196455
+          },
+          {
+            "cluster_id": 227,
+            "segment_id": 40,
+            "weight": 0.0129482
+          },
+          {
+            "cluster_id": 4410,
+            "segment_id": 41,
+            "weight": 0.0113408
+          },
+          {
+            "cluster_id": 7814,
+            "segment_id": 43,
+            "weight": 0.00187525
+          },
+          {
+            "cluster_id": 10454,
+            "segment_id": 45,
+            "weight": 0.0365228
+          },
+          {
+            "cluster_id": 2658,
+            "segment_id": 46,
+            "weight": 0.0817967
+          },
+          {
+            "cluster_id": 4250,
+            "segment_id": 47,
+            "weight": 0.0285753
+          },
+          {
+            "cluster_id": 1476,
+            "segment_id": 48,
+            "weight": 0.00513443
+          },
+          {
+            "cluster_id": 6977,
+            "segment_id": 49,
+            "weight": 0.0587579
+          },
+          {
+            "cluster_id": 59,
+            "segment_id": 50,
+            "weight": 0.00214314
+          },
+          {
+            "cluster_id": 377,
+            "segment_id": 52,
+            "weight": 0.00839398
+          }
+        ]
       },
       "haystack_medium_2iter": {
-        "performance": {
-          "topdown": {
-            "retiring": 17.2,
-            "bad_speculation": 3.9,
-            "frontend_bound": 23.3,
-            "backend_bound": 55.6
+        "trace": {
+          "dynamorio_args": null,
+          "clustering_k": null
+        },
+        "simulation": {
+          "prioritized_mode": "memtrace",
+          "exec": {
+            "image_name": "agent",
+            "segment_size": 10000000,
+            "env_vars": null,
+            "binary_cmd": "python3 \\$tmpdir/AgentCPU/workloads/run.py haystack --task-id hs-medium-2 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size medium --iterations 2",
+            "client_bincmd": null
           },
-          "execution_time": {
-            "min": 0,
-            "sec": 35.56
+          "memtrace": {
+            "image_name": "allbench_traces",
+            "segment_size": 10000000,
+            "warmup": 50000000,
+            "whole_trace_file": null,
+            "trace_type": "cluster_then_trace"
+          }
+        },
+        "simpoints": [
+          {
+            "cluster_id": 1170,
+            "segment_id": 0,
+            "weight": 0.00891784
           },
-          "peak_rss_mb": 522
-        }
+          {
+            "cluster_id": 1472,
+            "segment_id": 1,
+            "weight": 0.00512603
+          },
+          {
+            "cluster_id": 2324,
+            "segment_id": 2,
+            "weight": 0.0212245
+          },
+          {
+            "cluster_id": 6495,
+            "segment_id": 3,
+            "weight": 0.0238106
+          },
+          {
+            "cluster_id": 1055,
+            "segment_id": 4,
+            "weight": 0.00374549
+          },
+          {
+            "cluster_id": 10534,
+            "segment_id": 5,
+            "weight": 0.0335311
+          },
+          {
+            "cluster_id": 5528,
+            "segment_id": 6,
+            "weight": 0.0098988
+          },
+          {
+            "cluster_id": 6344,
+            "segment_id": 7,
+            "weight": 0.00338878
+          },
+          {
+            "cluster_id": 4312,
+            "segment_id": 8,
+            "weight": 0.0139118
+          },
+          {
+            "cluster_id": 7519,
+            "segment_id": 9,
+            "weight": 0.00597495
+          },
+          {
+            "cluster_id": 6335,
+            "segment_id": 10,
+            "weight": 0.00677756
+          },
+          {
+            "cluster_id": 11059,
+            "segment_id": 11,
+            "weight": 0.00900702
+          },
+          {
+            "cluster_id": 552,
+            "segment_id": 13,
+            "weight": 0.0614439
+          },
+          {
+            "cluster_id": 2011,
+            "segment_id": 15,
+            "weight": 0.0102555
+          },
+          {
+            "cluster_id": 9874,
+            "segment_id": 16,
+            "weight": 0.00365631
+          },
+          {
+            "cluster_id": 8259,
+            "segment_id": 17,
+            "weight": 0.0760692
+          },
+          {
+            "cluster_id": 8210,
+            "segment_id": 18,
+            "weight": 0.00811523
+          },
+          {
+            "cluster_id": 4280,
+            "segment_id": 19,
+            "weight": 0.00713427
+          },
+          {
+            "cluster_id": 11275,
+            "segment_id": 20,
+            "weight": 0.00463728
+          },
+          {
+            "cluster_id": 8086,
+            "segment_id": 21,
+            "weight": 0.0103447
+          },
+          {
+            "cluster_id": 8986,
+            "segment_id": 22,
+            "weight": 0.00722345
+          },
+          {
+            "cluster_id": 2120,
+            "segment_id": 23,
+            "weight": 0.0032996
+          },
+          {
+            "cluster_id": 4471,
+            "segment_id": 24,
+            "weight": 0.0294289
+          },
+          {
+            "cluster_id": 10528,
+            "segment_id": 25,
+            "weight": 0.00945291
+          },
+          {
+            "cluster_id": 11021,
+            "segment_id": 26,
+            "weight": 0.00231864
+          },
+          {
+            "cluster_id": 7757,
+            "segment_id": 27,
+            "weight": 0.00214028
+          },
+          {
+            "cluster_id": 4905,
+            "segment_id": 28,
+            "weight": 0.0114148
+          },
+          {
+            "cluster_id": 2639,
+            "segment_id": 29,
+            "weight": 0.0107906
+          },
+          {
+            "cluster_id": 9656,
+            "segment_id": 30,
+            "weight": 0.00222946
+          },
+          {
+            "cluster_id": 1523,
+            "segment_id": 31,
+            "weight": 0.00338878
+          },
+          {
+            "cluster_id": 4049,
+            "segment_id": 32,
+            "weight": 0.0165872
+          },
+          {
+            "cluster_id": 1352,
+            "segment_id": 33,
+            "weight": 0.00954209
+          },
+          {
+            "cluster_id": 7121,
+            "segment_id": 34,
+            "weight": 0.0277345
+          },
+          {
+            "cluster_id": 1314,
+            "segment_id": 35,
+            "weight": 0.0206894
+          },
+          {
+            "cluster_id": 8948,
+            "segment_id": 36,
+            "weight": 0.0836493
+          },
+          {
+            "cluster_id": 183,
+            "segment_id": 37,
+            "weight": 0.00606413
+          },
+          {
+            "cluster_id": 8319,
+            "segment_id": 38,
+            "weight": 0.0280912
+          },
+          {
+            "cluster_id": 7234,
+            "segment_id": 39,
+            "weight": 0.00392385
+          },
+          {
+            "cluster_id": 5104,
+            "segment_id": 40,
+            "weight": 0.0313016
+          },
+          {
+            "cluster_id": 4656,
+            "segment_id": 42,
+            "weight": 0.00633166
+          },
+          {
+            "cluster_id": 6470,
+            "segment_id": 43,
+            "weight": 0.00945291
+          },
+          {
+            "cluster_id": 3192,
+            "segment_id": 44,
+            "weight": 0.0248808
+          },
+          {
+            "cluster_id": 5894,
+            "segment_id": 46,
+            "weight": 0.00222946
+          },
+          {
+            "cluster_id": 9356,
+            "segment_id": 47,
+            "weight": 0.0275561
+          },
+          {
+            "cluster_id": 8103,
+            "segment_id": 48,
+            "weight": 0.00606413
+          },
+          {
+            "cluster_id": 8577,
+            "segment_id": 50,
+            "weight": 0.00445892
+          },
+          {
+            "cluster_id": 3741,
+            "segment_id": 51,
+            "weight": 0.0442325
+          },
+          {
+            "cluster_id": 10523,
+            "segment_id": 53,
+            "weight": 0.0273778
+          },
+          {
+            "cluster_id": 7621,
+            "segment_id": 54,
+            "weight": 0.0193517
+          },
+          {
+            "cluster_id": 11129,
+            "segment_id": 55,
+            "weight": 0.0217595
+          },
+          {
+            "cluster_id": 1334,
+            "segment_id": 56,
+            "weight": 0.0103447
+          },
+          {
+            "cluster_id": 7037,
+            "segment_id": 57,
+            "weight": 0.077496
+          },
+          {
+            "cluster_id": 10500,
+            "segment_id": 58,
+            "weight": 0.0290722
+          },
+          {
+            "cluster_id": 237,
+            "segment_id": 59,
+            "weight": 0.00829359
+          },
+          {
+            "cluster_id": 9871,
+            "segment_id": 60,
+            "weight": 0.00321042
+          },
+          {
+            "cluster_id": 6141,
+            "segment_id": 61,
+            "weight": 0.00303206
+          },
+          {
+            "cluster_id": 83,
+            "segment_id": 62,
+            "weight": 0.0078477
+          },
+          {
+            "cluster_id": 59,
+            "segment_id": 63,
+            "weight": 0.00214028
+          },
+          {
+            "cluster_id": 5527,
+            "segment_id": 64,
+            "weight": 0.0286263
+          }
+        ]
       },
       "haystack_long_1iter": {
-        "performance": {
-          "topdown": {
-            "retiring": 17.6,
-            "bad_speculation": 3.9,
-            "frontend_bound": 25.6,
-            "backend_bound": 52.8
+        "trace": {
+          "dynamorio_args": null,
+          "clustering_k": null
+        },
+        "simulation": {
+          "prioritized_mode": "memtrace",
+          "exec": {
+            "image_name": "agent",
+            "segment_size": 10000000,
+            "env_vars": null,
+            "binary_cmd": "python3 \\$tmpdir/AgentCPU/workloads/run.py haystack --task-id hs-long-1a --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size long --iterations 1",
+            "client_bincmd": null
           },
-          "execution_time": {
-            "min": 0,
-            "sec": 31.39
+          "memtrace": {
+            "image_name": "allbench_traces",
+            "segment_size": 10000000,
+            "warmup": 50000000,
+            "whole_trace_file": null,
+            "trace_type": "cluster_then_trace"
+          }
+        },
+        "simpoints": [
+          {
+            "cluster_id": 18523,
+            "segment_id": 0,
+            "weight": 0.0021696
           },
-          "peak_rss_mb": 567
-        }
+          {
+            "cluster_id": 6872,
+            "segment_id": 1,
+            "weight": 0.00173977
+          },
+          {
+            "cluster_id": 31381,
+            "segment_id": 2,
+            "weight": 0.00869886
+          },
+          {
+            "cluster_id": 31229,
+            "segment_id": 3,
+            "weight": 0.00923102
+          },
+          {
+            "cluster_id": 26946,
+            "segment_id": 4,
+            "weight": 0.00192398
+          },
+          {
+            "cluster_id": 7416,
+            "segment_id": 5,
+            "weight": 0.0257691
+          },
+          {
+            "cluster_id": 29476,
+            "segment_id": 6,
+            "weight": 0.076816
+          },
+          {
+            "cluster_id": 25476,
+            "segment_id": 8,
+            "weight": 0.0503101
+          },
+          {
+            "cluster_id": 43126,
+            "segment_id": 10,
+            "weight": 0.00757312
+          },
+          {
+            "cluster_id": 15681,
+            "segment_id": 11,
+            "weight": 0.0105205
+          },
+          {
+            "cluster_id": 38406,
+            "segment_id": 12,
+            "weight": 0.00358188
+          },
+          {
+            "cluster_id": 31934,
+            "segment_id": 13,
+            "weight": 0.00526025
+          },
+          {
+            "cluster_id": 34405,
+            "segment_id": 14,
+            "weight": 0.0342223
+          },
+          {
+            "cluster_id": 28886,
+            "segment_id": 15,
+            "weight": 0.0257281
+          },
+          {
+            "cluster_id": 35011,
+            "segment_id": 16,
+            "weight": 0.00601756
+          },
+          {
+            "cluster_id": 27085,
+            "segment_id": 17,
+            "weight": 0.00945617
+          },
+          {
+            "cluster_id": 24990,
+            "segment_id": 18,
+            "weight": 0.0094971
+          },
+          {
+            "cluster_id": 3131,
+            "segment_id": 20,
+            "weight": 0.00169884
+          },
+          {
+            "cluster_id": 4994,
+            "segment_id": 21,
+            "weight": 0.00247662
+          },
+          {
+            "cluster_id": 21334,
+            "segment_id": 22,
+            "weight": 0.0296784
+          },
+          {
+            "cluster_id": 29271,
+            "segment_id": 23,
+            "weight": 0.00722517
+          },
+          {
+            "cluster_id": 13281,
+            "segment_id": 24,
+            "weight": 0.00579241
+          },
+          {
+            "cluster_id": 34185,
+            "segment_id": 25,
+            "weight": 0.0488364
+          },
+          {
+            "cluster_id": 7088,
+            "segment_id": 26,
+            "weight": 0.0285527
+          },
+          {
+            "cluster_id": 21707,
+            "segment_id": 27,
+            "weight": 0.0105
+          },
+          {
+            "cluster_id": 16427,
+            "segment_id": 28,
+            "weight": 0.0177661
+          },
+          {
+            "cluster_id": 37790,
+            "segment_id": 29,
+            "weight": 0.0250527
+          },
+          {
+            "cluster_id": 44678,
+            "segment_id": 30,
+            "weight": 0.0151462
+          },
+          {
+            "cluster_id": 4943,
+            "segment_id": 31,
+            "weight": 0.0066316
+          },
+          {
+            "cluster_id": 25716,
+            "segment_id": 32,
+            "weight": 0.0144503
+          },
+          {
+            "cluster_id": 8066,
+            "segment_id": 33,
+            "weight": 0.00702049
+          },
+          {
+            "cluster_id": 11686,
+            "segment_id": 35,
+            "weight": 0.0132223
+          },
+          {
+            "cluster_id": 28883,
+            "segment_id": 37,
+            "weight": 0.0038889
+          },
+          {
+            "cluster_id": 39147,
+            "segment_id": 38,
+            "weight": 0.00521931
+          },
+          {
+            "cluster_id": 4593,
+            "segment_id": 39,
+            "weight": 0.002231
+          },
+          {
+            "cluster_id": 25723,
+            "segment_id": 40,
+            "weight": 0.0125264
+          },
+          {
+            "cluster_id": 650,
+            "segment_id": 42,
+            "weight": 0.00687721
+          },
+          {
+            "cluster_id": 385,
+            "segment_id": 43,
+            "weight": 0.0170088
+          },
+          {
+            "cluster_id": 17076,
+            "segment_id": 44,
+            "weight": 0.0438832
+          },
+          {
+            "cluster_id": 44850,
+            "segment_id": 45,
+            "weight": 0.0313159
+          },
+          {
+            "cluster_id": 1944,
+            "segment_id": 46,
+            "weight": 0.0280205
+          },
+          {
+            "cluster_id": 39791,
+            "segment_id": 47,
+            "weight": 0.0521727
+          },
+          {
+            "cluster_id": 39191,
+            "segment_id": 48,
+            "weight": 0.00184211
+          },
+          {
+            "cluster_id": 19312,
+            "segment_id": 49,
+            "weight": 0.00790061
+          },
+          {
+            "cluster_id": 4183,
+            "segment_id": 50,
+            "weight": 0.00261989
+          },
+          {
+            "cluster_id": 28717,
+            "segment_id": 51,
+            "weight": 0.00552633
+          },
+          {
+            "cluster_id": 30150,
+            "segment_id": 52,
+            "weight": 0.00415498
+          },
+          {
+            "cluster_id": 14487,
+            "segment_id": 55,
+            "weight": 0.00208773
+          },
+          {
+            "cluster_id": 377,
+            "segment_id": 56,
+            "weight": 0.00196492
+          },
+          {
+            "cluster_id": 37127,
+            "segment_id": 57,
+            "weight": 0.00272223
+          },
+          {
+            "cluster_id": 13077,
+            "segment_id": 58,
+            "weight": 0.024848
+          },
+          {
+            "cluster_id": 11715,
+            "segment_id": 59,
+            "weight": 0.00311112
+          },
+          {
+            "cluster_id": 14150,
+            "segment_id": 60,
+            "weight": 0.00873979
+          },
+          {
+            "cluster_id": 790,
+            "segment_id": 61,
+            "weight": 0.00914915
+          },
+          {
+            "cluster_id": 39729,
+            "segment_id": 62,
+            "weight": 0.00202632
+          },
+          {
+            "cluster_id": 44235,
+            "segment_id": 63,
+            "weight": 0.00566961
+          },
+          {
+            "cluster_id": 26723,
+            "segment_id": 65,
+            "weight": 0.00982459
+          },
+          {
+            "cluster_id": 24374,
+            "segment_id": 66,
+            "weight": 0.00249708
+          },
+          {
+            "cluster_id": 40841,
+            "segment_id": 67,
+            "weight": 0.00833043
+          },
+          {
+            "cluster_id": 17591,
+            "segment_id": 68,
+            "weight": 0.00186258
+          },
+          {
+            "cluster_id": 25905,
+            "segment_id": 69,
+            "weight": 0.00665207
+          },
+          {
+            "cluster_id": 29971,
+            "segment_id": 70,
+            "weight": 0.00366375
+          },
+          {
+            "cluster_id": 44357,
+            "segment_id": 71,
+            "weight": 0.0254621
+          },
+          {
+            "cluster_id": 19203,
+            "segment_id": 72,
+            "weight": 0.0104386
+          },
+          {
+            "cluster_id": 1805,
+            "segment_id": 73,
+            "weight": 0.00153509
+          },
+          {
+            "cluster_id": 10881,
+            "segment_id": 74,
+            "weight": 0.00294738
+          },
+          {
+            "cluster_id": 13811,
+            "segment_id": 75,
+            "weight": 0.00247662
+          },
+          {
+            "cluster_id": 48476,
+            "segment_id": 76,
+            "weight": 0.00214913
+          },
+          {
+            "cluster_id": 14125,
+            "segment_id": 77,
+            "weight": 0.00214913
+          },
+          {
+            "cluster_id": 33035,
+            "segment_id": 78,
+            "weight": 0.00538306
+          },
+          {
+            "cluster_id": 35001,
+            "segment_id": 79,
+            "weight": 0.0163129
+          },
+          {
+            "cluster_id": 16539,
+            "segment_id": 80,
+            "weight": 0.00282457
+          },
+          {
+            "cluster_id": 40728,
+            "segment_id": 81,
+            "weight": 0.0239065
+          },
+          {
+            "cluster_id": 8958,
+            "segment_id": 82,
+            "weight": 0.0071433
+          },
+          {
+            "cluster_id": 13806,
+            "segment_id": 83,
+            "weight": 0.00953804
+          },
+          {
+            "cluster_id": 39950,
+            "segment_id": 84,
+            "weight": 0.0197515
+          },
+          {
+            "cluster_id": 44503,
+            "segment_id": 86,
+            "weight": 0.0083509
+          },
+          {
+            "cluster_id": 28242,
+            "segment_id": 87,
+            "weight": 0.0124854
+          },
+          {
+            "cluster_id": 113,
+            "segment_id": 88,
+            "weight": 0.00347954
+          },
+          {
+            "cluster_id": 43800,
+            "segment_id": 89,
+            "weight": 0.00276317
+          }
+        ]
       },
       "haystack_long_2iter": {
-        "performance": {
-          "topdown": {
-            "retiring": 16.4,
-            "bad_speculation": 3.5,
-            "frontend_bound": 23.3,
-            "backend_bound": 56.7
+        "trace": {
+          "dynamorio_args": null,
+          "clustering_k": null
+        },
+        "simulation": {
+          "prioritized_mode": "memtrace",
+          "exec": {
+            "image_name": "agent",
+            "segment_size": 10000000,
+            "env_vars": null,
+            "binary_cmd": "python3 \\$tmpdir/AgentCPU/workloads/run.py haystack --task-id hs-long-2 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size long --iterations 2",
+            "client_bincmd": null
           },
-          "execution_time": {
-            "min": 0,
-            "sec": 29.89
+          "memtrace": {
+            "image_name": "allbench_traces",
+            "segment_size": 10000000,
+            "warmup": 50000000,
+            "whole_trace_file": null,
+            "trace_type": "cluster_then_trace"
+          }
+        },
+        "simpoints": [
+          {
+            "cluster_id": 33682,
+            "segment_id": 1,
+            "weight": 0.00716202
           },
-          "peak_rss_mb": 565
-        }
+          {
+            "cluster_id": 30058,
+            "segment_id": 2,
+            "weight": 0.00137101
+          },
+          {
+            "cluster_id": 3888,
+            "segment_id": 3,
+            "weight": 0.00538174
+          },
+          {
+            "cluster_id": 25239,
+            "segment_id": 4,
+            "weight": 0.0126051
+          },
+          {
+            "cluster_id": 10361,
+            "segment_id": 5,
+            "weight": 0.00167796
+          },
+          {
+            "cluster_id": 7051,
+            "segment_id": 6,
+            "weight": 0.0118071
+          },
+          {
+            "cluster_id": 42744,
+            "segment_id": 7,
+            "weight": 0.0195216
+          },
+          {
+            "cluster_id": 22078,
+            "segment_id": 8,
+            "weight": 0.00773498
+          },
+          {
+            "cluster_id": 43973,
+            "segment_id": 9,
+            "weight": 0.0418671
+          },
+          {
+            "cluster_id": 132,
+            "segment_id": 10,
+            "weight": 0.00351962
+          },
+          {
+            "cluster_id": 31565,
+            "segment_id": 11,
+            "weight": 0.00849211
+          },
+          {
+            "cluster_id": 23407,
+            "segment_id": 12,
+            "weight": 0.00499295
+          },
+          {
+            "cluster_id": 24338,
+            "segment_id": 13,
+            "weight": 0.00658906
+          },
+          {
+            "cluster_id": 31941,
+            "segment_id": 14,
+            "weight": 0.0130349
+          },
+          {
+            "cluster_id": 21087,
+            "segment_id": 15,
+            "weight": 0.00644582
+          },
+          {
+            "cluster_id": 4054,
+            "segment_id": 16,
+            "weight": 0.00648674
+          },
+          {
+            "cluster_id": 39339,
+            "segment_id": 18,
+            "weight": 0.0252103
+          },
+          {
+            "cluster_id": 38851,
+            "segment_id": 19,
+            "weight": 0.00734618
+          },
+          {
+            "cluster_id": 41368,
+            "segment_id": 20,
+            "weight": 0.00139148
+          },
+          {
+            "cluster_id": 27568,
+            "segment_id": 21,
+            "weight": 0.00480878
+          },
+          {
+            "cluster_id": 23157,
+            "segment_id": 23,
+            "weight": 0.00167796
+          },
+          {
+            "cluster_id": 31090,
+            "segment_id": 24,
+            "weight": 0.0772884
+          },
+          {
+            "cluster_id": 247,
+            "segment_id": 25,
+            "weight": 0.00214687
+          },
+          {
+            "cluster_id": 23666,
+            "segment_id": 26,
+            "weight": 0.00660952
+          },
+          {
+            "cluster_id": 23779,
+            "segment_id": 27,
+            "weight": 0.00755081
+          },
+          {
+            "cluster_id": 33590,
+            "segment_id": 28,
+            "weight": 0.00953571
+          },
+          {
+            "cluster_id": 36469,
+            "segment_id": 29,
+            "weight": 0.0102928
+          },
+          {
+            "cluster_id": 9601,
+            "segment_id": 30,
+            "weight": 0.0154086
+          },
+          {
+            "cluster_id": 18681,
+            "segment_id": 31,
+            "weight": 0.00734618
+          },
+          {
+            "cluster_id": 11277,
+            "segment_id": 32,
+            "weight": 0.00188259
+          },
+          {
+            "cluster_id": 37468,
+            "segment_id": 33,
+            "weight": 0.00536128
+          },
+          {
+            "cluster_id": 43665,
+            "segment_id": 34,
+            "weight": 0.0150402
+          },
+          {
+            "cluster_id": 8449,
+            "segment_id": 35,
+            "weight": 0.00505434
+          },
+          {
+            "cluster_id": 20826,
+            "segment_id": 36,
+            "weight": 0.00225092
+          },
+          {
+            "cluster_id": 25342,
+            "segment_id": 37,
+            "weight": 0.00302851
+          },
+          {
+            "cluster_id": 4088,
+            "segment_id": 38,
+            "weight": 0.044425
+          },
+          {
+            "cluster_id": 38670,
+            "segment_id": 39,
+            "weight": 0.0272361
+          },
+          {
+            "cluster_id": 39484,
+            "segment_id": 40,
+            "weight": 0.00245555
+          },
+          {
+            "cluster_id": 37507,
+            "segment_id": 42,
+            "weight": 0.00298758
+          },
+          {
+            "cluster_id": 29442,
+            "segment_id": 43,
+            "weight": 0.0164931
+          },
+          {
+            "cluster_id": 6206,
+            "segment_id": 44,
+            "weight": 0.00722341
+          },
+          {
+            "cluster_id": 11864,
+            "segment_id": 45,
+            "weight": 0.0107021
+          },
+          {
+            "cluster_id": 9831,
+            "segment_id": 46,
+            "weight": 0.0092697
+          },
+          {
+            "cluster_id": 36201,
+            "segment_id": 47,
+            "weight": 0.00362193
+          },
+          {
+            "cluster_id": 20816,
+            "segment_id": 48,
+            "weight": 0.0245146
+          },
+          {
+            "cluster_id": 18501,
+            "segment_id": 49,
+            "weight": 0.00808285
+          },
+          {
+            "cluster_id": 1479,
+            "segment_id": 50,
+            "weight": 0.00118685
+          },
+          {
+            "cluster_id": 46678,
+            "segment_id": 53,
+            "weight": 0.0258242
+          },
+          {
+            "cluster_id": 21287,
+            "segment_id": 54,
+            "weight": 0.00239416
+          },
+          {
+            "cluster_id": 14682,
+            "segment_id": 55,
+            "weight": 0.0090446
+          },
+          {
+            "cluster_id": 1332,
+            "segment_id": 57,
+            "weight": 0.00378564
+          },
+          {
+            "cluster_id": 48819,
+            "segment_id": 58,
+            "weight": 0.0243304
+          },
+          {
+            "cluster_id": 33897,
+            "segment_id": 59,
+            "weight": 0.00239416
+          },
+          {
+            "cluster_id": 10164,
+            "segment_id": 61,
+            "weight": 0.0262744
+          },
+          {
+            "cluster_id": 29325,
+            "segment_id": 63,
+            "weight": 0.00149379
+          },
+          {
+            "cluster_id": 22082,
+            "segment_id": 64,
+            "weight": 0.00403119
+          },
+          {
+            "cluster_id": 22621,
+            "segment_id": 65,
+            "weight": 0.00229185
+          },
+          {
+            "cluster_id": 35405,
+            "segment_id": 66,
+            "weight": 0.00225092
+          },
+          {
+            "cluster_id": 48729,
+            "segment_id": 67,
+            "weight": 0.00257833
+          },
+          {
+            "cluster_id": 36363,
+            "segment_id": 68,
+            "weight": 0.016534
+          },
+          {
+            "cluster_id": 21464,
+            "segment_id": 69,
+            "weight": 0.00392888
+          },
+          {
+            "cluster_id": 1919,
+            "segment_id": 70,
+            "weight": 0.0282388
+          },
+          {
+            "cluster_id": 4160,
+            "segment_id": 71,
+            "weight": 0.00963803
+          },
+          {
+            "cluster_id": 14193,
+            "segment_id": 73,
+            "weight": 0.00793961
+          },
+          {
+            "cluster_id": 41625,
+            "segment_id": 74,
+            "weight": 0.0392479
+          },
+          {
+            "cluster_id": 36299,
+            "segment_id": 75,
+            "weight": 0.00116639
+          },
+          {
+            "cluster_id": 24689,
+            "segment_id": 76,
+            "weight": 0.00671183
+          },
+          {
+            "cluster_id": 10291,
+            "segment_id": 77,
+            "weight": 0.0228775
+          },
+          {
+            "cluster_id": 47769,
+            "segment_id": 78,
+            "weight": 0.00374471
+          },
+          {
+            "cluster_id": 45600,
+            "segment_id": 79,
+            "weight": 0.00550452
+          },
+          {
+            "cluster_id": 662,
+            "segment_id": 80,
+            "weight": 0.00548406
+          },
+          {
+            "cluster_id": 2039,
+            "segment_id": 81,
+            "weight": 0.00139148
+          },
+          {
+            "cluster_id": 33216,
+            "segment_id": 82,
+            "weight": 0.00511573
+          },
+          {
+            "cluster_id": 590,
+            "segment_id": 83,
+            "weight": 0.0197058
+          },
+          {
+            "cluster_id": 36597,
+            "segment_id": 84,
+            "weight": 0.0049111
+          },
+          {
+            "cluster_id": 19139,
+            "segment_id": 85,
+            "weight": 0.00192351
+          },
+          {
+            "cluster_id": 12027,
+            "segment_id": 86,
+            "weight": 0.00974034
+          },
+          {
+            "cluster_id": 1022,
+            "segment_id": 87,
+            "weight": 0.00354008
+          },
+          {
+            "cluster_id": 12447,
+            "segment_id": 90,
+            "weight": 0.00192351
+          },
+          {
+            "cluster_id": 42992,
+            "segment_id": 91,
+            "weight": 0.0061798
+          },
+          {
+            "cluster_id": 41213,
+            "segment_id": 92,
+            "weight": 0.0061798
+          },
+          {
+            "cluster_id": 36292,
+            "segment_id": 93,
+            "weight": 0.00290573
+          },
+          {
+            "cluster_id": 39130,
+            "segment_id": 94,
+            "weight": 0.00227138
+          },
+          {
+            "cluster_id": 2042,
+            "segment_id": 95,
+            "weight": 0.0100064
+          },
+          {
+            "cluster_id": 32071,
+            "segment_id": 96,
+            "weight": 0.00323314
+          },
+          {
+            "cluster_id": 33079,
+            "segment_id": 97,
+            "weight": 0.0257423
+          },
+          {
+            "cluster_id": 6102,
+            "segment_id": 98,
+            "weight": 0.0337843
+          },
+          {
+            "cluster_id": 5466,
+            "segment_id": 99,
+            "weight": 0.00538174
+          },
+          {
+            "cluster_id": 29959,
+            "segment_id": 100,
+            "weight": 0.00175981
+          },
+          {
+            "cluster_id": 43726,
+            "segment_id": 101,
+            "weight": 0.00141194
+          },
+          {
+            "cluster_id": 4101,
+            "segment_id": 102,
+            "weight": 0.0298145
+          },
+          {
+            "cluster_id": 23037,
+            "segment_id": 103,
+            "weight": 0.0314106
+          },
+          {
+            "cluster_id": 21213,
+            "segment_id": 104,
+            "weight": 0.00783729
+          }
+        ]
       }
     },
     "swe_agent": {
       "swe_agent_short_13iter": {
-        "performance": {
-          "topdown": {
-            "retiring": 17.0,
-            "bad_speculation": 3.7,
-            "frontend_bound": 24.0,
-            "backend_bound": 55.3
+        "trace": {
+          "dynamorio_args": null,
+          "clustering_k": null
+        },
+        "simulation": {
+          "prioritized_mode": "memtrace",
+          "exec": {
+            "image_name": "agent",
+            "segment_size": 10000000,
+            "env_vars": null,
+            "binary_cmd": "python3 \\$tmpdir/AgentCPU/workloads/run.py swe_agent --task-id swe-short-13 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size short --iterations 13",
+            "client_bincmd": null
           },
-          "execution_time": {
-            "min": 0,
-            "sec": 7.92
+          "memtrace": {
+            "image_name": "allbench_traces",
+            "segment_size": 10000000,
+            "warmup": 50000000,
+            "whole_trace_file": null,
+            "trace_type": "cluster_then_trace"
+          }
+        },
+        "simpoints": [
+          {
+            "cluster_id": 84,
+            "segment_id": 0,
+            "weight": 0.0282973
           },
-          "peak_rss_mb": 380
-        }
+          {
+            "cluster_id": 2070,
+            "segment_id": 1,
+            "weight": 0.0251531
+          },
+          {
+            "cluster_id": 435,
+            "segment_id": 2,
+            "weight": 0.0200439
+          },
+          {
+            "cluster_id": 2174,
+            "segment_id": 3,
+            "weight": 0.044018
+          },
+          {
+            "cluster_id": 2555,
+            "segment_id": 4,
+            "weight": 0.0117905
+          },
+          {
+            "cluster_id": 1313,
+            "segment_id": 5,
+            "weight": 0.00314414
+          },
+          {
+            "cluster_id": 2491,
+            "segment_id": 6,
+            "weight": 0.00314414
+          },
+          {
+            "cluster_id": 1185,
+            "segment_id": 7,
+            "weight": 0.0337995
+          },
+          {
+            "cluster_id": 1702,
+            "segment_id": 8,
+            "weight": 0.00628828
+          },
+          {
+            "cluster_id": 1412,
+            "segment_id": 10,
+            "weight": 0.0255461
+          },
+          {
+            "cluster_id": 672,
+            "segment_id": 11,
+            "weight": 0.0550225
+          },
+          {
+            "cluster_id": 1552,
+            "segment_id": 12,
+            "weight": 0.0141486
+          },
+          {
+            "cluster_id": 1655,
+            "segment_id": 13,
+            "weight": 0.00393018
+          },
+          {
+            "cluster_id": 1529,
+            "segment_id": 14,
+            "weight": 0.0117905
+          },
+          {
+            "cluster_id": 2480,
+            "segment_id": 15,
+            "weight": 0.00707432
+          },
+          {
+            "cluster_id": 1395,
+            "segment_id": 16,
+            "weight": 0.0200439
+          },
+          {
+            "cluster_id": 820,
+            "segment_id": 17,
+            "weight": 0.0510923
+          },
+          {
+            "cluster_id": 2456,
+            "segment_id": 18,
+            "weight": 0.00982544
+          },
+          {
+            "cluster_id": 824,
+            "segment_id": 19,
+            "weight": 0.0259392
+          },
+          {
+            "cluster_id": 1487,
+            "segment_id": 20,
+            "weight": 0.0133626
+          },
+          {
+            "cluster_id": 2101,
+            "segment_id": 21,
+            "weight": 0.0326205
+          },
+          {
+            "cluster_id": 1325,
+            "segment_id": 22,
+            "weight": 0.100219
+          },
+          {
+            "cluster_id": 2404,
+            "segment_id": 23,
+            "weight": 0.0212229
+          },
+          {
+            "cluster_id": 310,
+            "segment_id": 24,
+            "weight": 0.0503062
+          },
+          {
+            "cluster_id": 2543,
+            "segment_id": 25,
+            "weight": 0.00943242
+          },
+          {
+            "cluster_id": 1629,
+            "segment_id": 26,
+            "weight": 0.0111678
+          },
+          {
+            "cluster_id": 1469,
+            "segment_id": 27,
+            "weight": 0.0117905
+          },
+          {
+            "cluster_id": 525,
+            "segment_id": 28,
+            "weight": 0.111617
+          },
+          {
+            "cluster_id": 1684,
+            "segment_id": 29,
+            "weight": 0.00314414
+          },
+          {
+            "cluster_id": 1106,
+            "segment_id": 31,
+            "weight": 0.0479481
+          },
+          {
+            "cluster_id": 1985,
+            "segment_id": 33,
+            "weight": 0.0613107
+          },
+          {
+            "cluster_id": 269,
+            "segment_id": 34,
+            "weight": 0.00786035
+          },
+          {
+            "cluster_id": 847,
+            "segment_id": 35,
+            "weight": 0.0172928
+          },
+          {
+            "cluster_id": 1728,
+            "segment_id": 36,
+            "weight": 0.0385157
+          },
+          {
+            "cluster_id": 2213,
+            "segment_id": 38,
+            "weight": 0.0620968
+          }
+        ]
       },
       "swe_agent_short_26iter": {
-        "performance": {
-          "topdown": {
-            "retiring": 19.0,
-            "bad_speculation": 4.0,
-            "frontend_bound": 24.3,
-            "backend_bound": 52.7
+        "trace": {
+          "dynamorio_args": null,
+          "clustering_k": null
+        },
+        "simulation": {
+          "prioritized_mode": "memtrace",
+          "exec": {
+            "image_name": "agent",
+            "segment_size": 10000000,
+            "env_vars": null,
+            "binary_cmd": "python3 \\$tmpdir/AgentCPU/workloads/run.py swe_agent --task-id swe-short-26 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size short --iterations 26",
+            "client_bincmd": null
           },
-          "execution_time": {
-            "min": 0,
-            "sec": 10.35
+          "memtrace": {
+            "image_name": "allbench_traces",
+            "segment_size": 10000000,
+            "warmup": 50000000,
+            "whole_trace_file": null,
+            "trace_type": "cluster_then_trace"
+          }
+        },
+        "simpoints": [
+          {
+            "cluster_id": 1788,
+            "segment_id": 0,
+            "weight": 0.00940599
           },
-          "peak_rss_mb": 380
-        }
+          {
+            "cluster_id": 1254,
+            "segment_id": 1,
+            "weight": 0.102611
+          },
+          {
+            "cluster_id": 1630,
+            "segment_id": 2,
+            "weight": 0.00809584
+          },
+          {
+            "cluster_id": 1928,
+            "segment_id": 3,
+            "weight": 0.0122563
+          },
+          {
+            "cluster_id": 2475,
+            "segment_id": 4,
+            "weight": 0.0347737
+          },
+          {
+            "cluster_id": 497,
+            "segment_id": 7,
+            "weight": 0.00684072
+          },
+          {
+            "cluster_id": 2561,
+            "segment_id": 8,
+            "weight": 0.0116862
+          },
+          {
+            "cluster_id": 1501,
+            "segment_id": 9,
+            "weight": 0.0179569
+          },
+          {
+            "cluster_id": 885,
+            "segment_id": 11,
+            "weight": 0.0208072
+          },
+          {
+            "cluster_id": 2270,
+            "segment_id": 12,
+            "weight": 0.0501653
+          },
+          {
+            "cluster_id": 2139,
+            "segment_id": 13,
+            "weight": 0.0390491
+          },
+          {
+            "cluster_id": 2721,
+            "segment_id": 14,
+            "weight": 0.0210922
+          },
+          {
+            "cluster_id": 350,
+            "segment_id": 15,
+            "weight": 0.0447497
+          },
+          {
+            "cluster_id": 1464,
+            "segment_id": 16,
+            "weight": 0.0085509
+          },
+          {
+            "cluster_id": 1557,
+            "segment_id": 17,
+            "weight": 0.00798084
+          },
+          {
+            "cluster_id": 2245,
+            "segment_id": 18,
+            "weight": 0.0316383
+          },
+          {
+            "cluster_id": 775,
+            "segment_id": 19,
+            "weight": 0.0413293
+          },
+          {
+            "cluster_id": 993,
+            "segment_id": 21,
+            "weight": 0.0131114
+          },
+          {
+            "cluster_id": 2181,
+            "segment_id": 22,
+            "weight": 0.0370539
+          },
+          {
+            "cluster_id": 1523,
+            "segment_id": 23,
+            "weight": 0.0205222
+          },
+          {
+            "cluster_id": 2277,
+            "segment_id": 24,
+            "weight": 0.0652719
+          },
+          {
+            "cluster_id": 1168,
+            "segment_id": 25,
+            "weight": 0.0521605
+          },
+          {
+            "cluster_id": 2565,
+            "segment_id": 26,
+            "weight": 0.0128263
+          },
+          {
+            "cluster_id": 3507,
+            "segment_id": 27,
+            "weight": 0.00456048
+          },
+          {
+            "cluster_id": 3180,
+            "segment_id": 28,
+            "weight": 0.0464599
+          },
+          {
+            "cluster_id": 268,
+            "segment_id": 29,
+            "weight": 0.00627066
+          },
+          {
+            "cluster_id": 407,
+            "segment_id": 30,
+            "weight": 0.0171018
+          },
+          {
+            "cluster_id": 1243,
+            "segment_id": 31,
+            "weight": 0.0686922
+          },
+          {
+            "cluster_id": 2873,
+            "segment_id": 32,
+            "weight": 0.0493102
+          },
+          {
+            "cluster_id": 3405,
+            "segment_id": 33,
+            "weight": 0.0159617
+          },
+          {
+            "cluster_id": 1361,
+            "segment_id": 34,
+            "weight": 0.0142515
+          },
+          {
+            "cluster_id": 2714,
+            "segment_id": 35,
+            "weight": 0.0102611
+          },
+          {
+            "cluster_id": 666,
+            "segment_id": 37,
+            "weight": 0.037624
+          },
+          {
+            "cluster_id": 3105,
+            "segment_id": 38,
+            "weight": 0.0518754
+          },
+          {
+            "cluster_id": 1283,
+            "segment_id": 39,
+            "weight": 0.00769581
+          }
+        ]
       },
       "swe_agent_medium_10iter": {
-        "performance": {
-          "topdown": {
-            "retiring": 19.3,
-            "bad_speculation": 4.0,
-            "frontend_bound": 24.0,
-            "backend_bound": 52.7
+        "trace": {
+          "dynamorio_args": null,
+          "clustering_k": null
+        },
+        "simulation": {
+          "prioritized_mode": "memtrace",
+          "exec": {
+            "image_name": "agent",
+            "segment_size": 10000000,
+            "env_vars": null,
+            "binary_cmd": "python3 \\$tmpdir/AgentCPU/workloads/run.py swe_agent --task-id swe-medium-10 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size medium --iterations 10",
+            "client_bincmd": null
           },
-          "execution_time": {
-            "min": 0,
-            "sec": 8.51
+          "memtrace": {
+            "image_name": "allbench_traces",
+            "segment_size": 10000000,
+            "warmup": 50000000,
+            "whole_trace_file": null,
+            "trace_type": "cluster_then_trace"
+          }
+        },
+        "simpoints": [
+          {
+            "cluster_id": 2242,
+            "segment_id": 0,
+            "weight": 0.00728163
           },
-          "peak_rss_mb": 380
-        }
+          {
+            "cluster_id": 1298,
+            "segment_id": 1,
+            "weight": 0.0040049
+          },
+          {
+            "cluster_id": 1107,
+            "segment_id": 2,
+            "weight": 0.044782
+          },
+          {
+            "cluster_id": 84,
+            "segment_id": 3,
+            "weight": 0.103035
+          },
+          {
+            "cluster_id": 478,
+            "segment_id": 4,
+            "weight": 0.0378645
+          },
+          {
+            "cluster_id": 1567,
+            "segment_id": 5,
+            "weight": 0.0127429
+          },
+          {
+            "cluster_id": 1283,
+            "segment_id": 6,
+            "weight": 0.0109224
+          },
+          {
+            "cluster_id": 1756,
+            "segment_id": 7,
+            "weight": 0.0324033
+          },
+          {
+            "cluster_id": 2385,
+            "segment_id": 8,
+            "weight": 0.0098302
+          },
+          {
+            "cluster_id": 2007,
+            "segment_id": 9,
+            "weight": 0.0371363
+          },
+          {
+            "cluster_id": 269,
+            "segment_id": 10,
+            "weight": 0.00691755
+          },
+          {
+            "cluster_id": 2738,
+            "segment_id": 11,
+            "weight": 0.00873796
+          },
+          {
+            "cluster_id": 2544,
+            "segment_id": 12,
+            "weight": 0.00728163
+          },
+          {
+            "cluster_id": 2451,
+            "segment_id": 13,
+            "weight": 0.0109224
+          },
+          {
+            "cluster_id": 1423,
+            "segment_id": 14,
+            "weight": 0.0189322
+          },
+          {
+            "cluster_id": 2189,
+            "segment_id": 15,
+            "weight": 0.0305828
+          },
+          {
+            "cluster_id": 1348,
+            "segment_id": 16,
+            "weight": 0.00436898
+          },
+          {
+            "cluster_id": 318,
+            "segment_id": 17,
+            "weight": 0.0487869
+          },
+          {
+            "cluster_id": 2328,
+            "segment_id": 18,
+            "weight": 0.0276702
+          },
+          {
+            "cluster_id": 1956,
+            "segment_id": 19,
+            "weight": 0.0291265
+          },
+          {
+            "cluster_id": 2420,
+            "segment_id": 20,
+            "weight": 0.00728163
+          },
+          {
+            "cluster_id": 2661,
+            "segment_id": 21,
+            "weight": 0.00691755
+          },
+          {
+            "cluster_id": 1019,
+            "segment_id": 22,
+            "weight": 0.0338596
+          },
+          {
+            "cluster_id": 1470,
+            "segment_id": 23,
+            "weight": 0.0189322
+          },
+          {
+            "cluster_id": 1940,
+            "segment_id": 24,
+            "weight": 0.00728163
+          },
+          {
+            "cluster_id": 2417,
+            "segment_id": 27,
+            "weight": 0.0138351
+          },
+          {
+            "cluster_id": 1759,
+            "segment_id": 28,
+            "weight": 0.0342237
+          },
+          {
+            "cluster_id": 1215,
+            "segment_id": 29,
+            "weight": 0.0520637
+          },
+          {
+            "cluster_id": 1627,
+            "segment_id": 30,
+            "weight": 0.0100624
+          },
+          {
+            "cluster_id": 2206,
+            "segment_id": 31,
+            "weight": 0.00946612
+          },
+          {
+            "cluster_id": 1955,
+            "segment_id": 32,
+            "weight": 0.0473306
+          },
+          {
+            "cluster_id": 879,
+            "segment_id": 33,
+            "weight": 0.0138351
+          },
+          {
+            "cluster_id": 668,
+            "segment_id": 34,
+            "weight": 0.0935689
+          },
+          {
+            "cluster_id": 2450,
+            "segment_id": 35,
+            "weight": 0.0101943
+          },
+          {
+            "cluster_id": 1662,
+            "segment_id": 36,
+            "weight": 0.0425975
+          },
+          {
+            "cluster_id": 1659,
+            "segment_id": 37,
+            "weight": 0.00327673
+          },
+          {
+            "cluster_id": 435,
+            "segment_id": 38,
+            "weight": 0.0327673
+          },
+          {
+            "cluster_id": 947,
+            "segment_id": 39,
+            "weight": 0.0174759
+          },
+          {
+            "cluster_id": 2086,
+            "segment_id": 40,
+            "weight": 0.0116506
+          },
+          {
+            "cluster_id": 1672,
+            "segment_id": 42,
+            "weight": 0.00655347
+          },
+          {
+            "cluster_id": 1556,
+            "segment_id": 43,
+            "weight": 0.00946612
+          },
+          {
+            "cluster_id": 1907,
+            "segment_id": 44,
+            "weight": 0.0058253
+          },
+          {
+            "cluster_id": 1366,
+            "segment_id": 45,
+            "weight": 0.0182041
+          }
+        ]
       },
       "swe_agent_medium_21iter": {
-        "performance": {
-          "topdown": {
-            "retiring": 19.0,
-            "bad_speculation": 4.1,
-            "frontend_bound": 24.1,
-            "backend_bound": 52.7
+        "trace": {
+          "dynamorio_args": null,
+          "clustering_k": null
+        },
+        "simulation": {
+          "prioritized_mode": "memtrace",
+          "exec": {
+            "image_name": "agent",
+            "segment_size": 10000000,
+            "env_vars": null,
+            "binary_cmd": "python3 \\$tmpdir/AgentCPU/workloads/run.py swe_agent --task-id swe-medium-21 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size medium --iterations 21",
+            "client_bincmd": null
           },
-          "execution_time": {
-            "min": 0,
-            "sec": 11.68
+          "memtrace": {
+            "image_name": "allbench_traces",
+            "segment_size": 10000000,
+            "warmup": 50000000,
+            "whole_trace_file": null,
+            "trace_type": "cluster_then_trace"
+          }
+        },
+        "simpoints": [
+          {
+            "cluster_id": 3172,
+            "segment_id": 0,
+            "weight": 0.0147403
           },
-          "peak_rss_mb": 380
-        }
+          {
+            "cluster_id": 1939,
+            "segment_id": 1,
+            "weight": 0.00889498
+          },
+          {
+            "cluster_id": 2807,
+            "segment_id": 2,
+            "weight": 0.00559113
+          },
+          {
+            "cluster_id": 3218,
+            "segment_id": 3,
+            "weight": 0.00914912
+          },
+          {
+            "cluster_id": 411,
+            "segment_id": 4,
+            "weight": 0.0216021
+          },
+          {
+            "cluster_id": 1429,
+            "segment_id": 5,
+            "weight": 0.0139778
+          },
+          {
+            "cluster_id": 2881,
+            "segment_id": 6,
+            "weight": 0.0388838
+          },
+          {
+            "cluster_id": 2824,
+            "segment_id": 7,
+            "weight": 0.0221104
+          },
+          {
+            "cluster_id": 267,
+            "segment_id": 8,
+            "weight": 0.00584527
+          },
+          {
+            "cluster_id": 1445,
+            "segment_id": 9,
+            "weight": 0.00914912
+          },
+          {
+            "cluster_id": 2310,
+            "segment_id": 10,
+            "weight": 0.0109281
+          },
+          {
+            "cluster_id": 3874,
+            "segment_id": 11,
+            "weight": 0.00991155
+          },
+          {
+            "cluster_id": 3436,
+            "segment_id": 12,
+            "weight": 0.0147403
+          },
+          {
+            "cluster_id": 1768,
+            "segment_id": 14,
+            "weight": 0.0426959
+          },
+          {
+            "cluster_id": 2323,
+            "segment_id": 15,
+            "weight": 0.0353258
+          },
+          {
+            "cluster_id": 2266,
+            "segment_id": 16,
+            "weight": 0.0188065
+          },
+          {
+            "cluster_id": 618,
+            "segment_id": 17,
+            "weight": 0.0246518
+          },
+          {
+            "cluster_id": 91,
+            "segment_id": 18,
+            "weight": 0.0576903
+          },
+          {
+            "cluster_id": 2767,
+            "segment_id": 20,
+            "weight": 0.0452373
+          },
+          {
+            "cluster_id": 1123,
+            "segment_id": 21,
+            "weight": 0.0216021
+          },
+          {
+            "cluster_id": 3418,
+            "segment_id": 22,
+            "weight": 0.0454915
+          },
+          {
+            "cluster_id": 1375,
+            "segment_id": 24,
+            "weight": 0.012453
+          },
+          {
+            "cluster_id": 1064,
+            "segment_id": 25,
+            "weight": 0.0294805
+          },
+          {
+            "cluster_id": 659,
+            "segment_id": 26,
+            "weight": 0.0640439
+          },
+          {
+            "cluster_id": 2130,
+            "segment_id": 27,
+            "weight": 0.0180441
+          },
+          {
+            "cluster_id": 391,
+            "segment_id": 28,
+            "weight": 0.0378672
+          },
+          {
+            "cluster_id": 1463,
+            "segment_id": 29,
+            "weight": 0.00762427
+          },
+          {
+            "cluster_id": 2786,
+            "segment_id": 30,
+            "weight": 0.0101657
+          },
+          {
+            "cluster_id": 2920,
+            "segment_id": 31,
+            "weight": 0.0129613
+          },
+          {
+            "cluster_id": 2615,
+            "segment_id": 32,
+            "weight": 0.00737013
+          },
+          {
+            "cluster_id": 1657,
+            "segment_id": 33,
+            "weight": 0.00228728
+          },
+          {
+            "cluster_id": 1218,
+            "segment_id": 35,
+            "weight": 0.0162651
+          },
+          {
+            "cluster_id": 1536,
+            "segment_id": 36,
+            "weight": 0.00914912
+          },
+          {
+            "cluster_id": 2983,
+            "segment_id": 37,
+            "weight": 0.00787841
+          },
+          {
+            "cluster_id": 1094,
+            "segment_id": 39,
+            "weight": 0.0340551
+          },
+          {
+            "cluster_id": 2845,
+            "segment_id": 40,
+            "weight": 0.00686184
+          },
+          {
+            "cluster_id": 1529,
+            "segment_id": 42,
+            "weight": 0.00864084
+          },
+          {
+            "cluster_id": 1526,
+            "segment_id": 43,
+            "weight": 0.00635356
+          },
+          {
+            "cluster_id": 3096,
+            "segment_id": 44,
+            "weight": 0.0129613
+          },
+          {
+            "cluster_id": 2339,
+            "segment_id": 45,
+            "weight": 0.0406628
+          },
+          {
+            "cluster_id": 1631,
+            "segment_id": 46,
+            "weight": 0.00732014
+          },
+          {
+            "cluster_id": 1223,
+            "segment_id": 47,
+            "weight": 0.0121988
+          },
+          {
+            "cluster_id": 1787,
+            "segment_id": 48,
+            "weight": 0.0167734
+          },
+          {
+            "cluster_id": 2577,
+            "segment_id": 49,
+            "weight": 0.0444749
+          },
+          {
+            "cluster_id": 168,
+            "segment_id": 50,
+            "weight": 0.0551489
+          },
+          {
+            "cluster_id": 2483,
+            "segment_id": 51,
+            "weight": 0.0419335
+          }
+        ]
       },
       "swe_agent_long_4iter": {
-        "performance": {
-          "topdown": {
-            "retiring": 17.7,
-            "bad_speculation": 3.8,
-            "frontend_bound": 25.7,
-            "backend_bound": 52.9
+        "trace": {
+          "dynamorio_args": null,
+          "clustering_k": null
+        },
+        "simulation": {
+          "prioritized_mode": "memtrace",
+          "exec": {
+            "image_name": "agent",
+            "segment_size": 10000000,
+            "env_vars": null,
+            "binary_cmd": "python3 \\$tmpdir/AgentCPU/workloads/run.py swe_agent --task-id swe-long-4 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size long --iterations 4",
+            "client_bincmd": null
           },
-          "execution_time": {
-            "min": 0,
-            "sec": 10.21
+          "memtrace": {
+            "image_name": "allbench_traces",
+            "segment_size": 10000000,
+            "warmup": 50000000,
+            "whole_trace_file": null,
+            "trace_type": "cluster_then_trace"
+          }
+        },
+        "simpoints": [
+          {
+            "cluster_id": 1414,
+            "segment_id": 0,
+            "weight": 0.0205849
           },
-          "peak_rss_mb": 383
-        }
+          {
+            "cluster_id": 2263,
+            "segment_id": 3,
+            "weight": 0.00836263
+          },
+          {
+            "cluster_id": 2355,
+            "segment_id": 4,
+            "weight": 0.0270177
+          },
+          {
+            "cluster_id": 2672,
+            "segment_id": 5,
+            "weight": 0.00675444
+          },
+          {
+            "cluster_id": 2711,
+            "segment_id": 6,
+            "weight": 0.00932755
+          },
+          {
+            "cluster_id": 805,
+            "segment_id": 7,
+            "weight": 0.0157603
+          },
+          {
+            "cluster_id": 1748,
+            "segment_id": 8,
+            "weight": 0.134767
+          },
+          {
+            "cluster_id": 392,
+            "segment_id": 9,
+            "weight": 0.0504974
+          },
+          {
+            "cluster_id": 1106,
+            "segment_id": 10,
+            "weight": 0.0800883
+          },
+          {
+            "cluster_id": 1395,
+            "segment_id": 11,
+            "weight": 0.0167253
+          },
+          {
+            "cluster_id": 2740,
+            "segment_id": 12,
+            "weight": 0.00546788
+          },
+          {
+            "cluster_id": 2253,
+            "segment_id": 13,
+            "weight": 0.0212282
+          },
+          {
+            "cluster_id": 93,
+            "segment_id": 14,
+            "weight": 0.141843
+          },
+          {
+            "cluster_id": 2510,
+            "segment_id": 15,
+            "weight": 0.116434
+          },
+          {
+            "cluster_id": 1632,
+            "segment_id": 16,
+            "weight": 0.00900591
+          },
+          {
+            "cluster_id": 1552,
+            "segment_id": 17,
+            "weight": 0.0112574
+          },
+          {
+            "cluster_id": 2341,
+            "segment_id": 18,
+            "weight": 0.0032164
+          },
+          {
+            "cluster_id": 1180,
+            "segment_id": 19,
+            "weight": 0.00611116
+          },
+          {
+            "cluster_id": 2453,
+            "segment_id": 20,
+            "weight": 0.00450296
+          },
+          {
+            "cluster_id": 2372,
+            "segment_id": 21,
+            "weight": 0.00353804
+          },
+          {
+            "cluster_id": 737,
+            "segment_id": 23,
+            "weight": 0.0797667
+          },
+          {
+            "cluster_id": 2200,
+            "segment_id": 24,
+            "weight": 0.0064328
+          },
+          {
+            "cluster_id": 2820,
+            "segment_id": 25,
+            "weight": 0.0289476
+          },
+          {
+            "cluster_id": 265,
+            "segment_id": 26,
+            "weight": 0.00675444
+          },
+          {
+            "cluster_id": 1722,
+            "segment_id": 27,
+            "weight": 0.00774125
+          },
+          {
+            "cluster_id": 1457,
+            "segment_id": 28,
+            "weight": 0.0135089
+          },
+          {
+            "cluster_id": 1651,
+            "segment_id": 29,
+            "weight": 0.112574
+          },
+          {
+            "cluster_id": 1008,
+            "segment_id": 31,
+            "weight": 0.0414915
+          },
+          {
+            "cluster_id": 677,
+            "segment_id": 32,
+            "weight": 0.0102925
+          }
+        ]
       },
       "swe_agent_long_7iter": {
-        "performance": {
-          "topdown": {
-            "retiring": 17.7,
-            "bad_speculation": 3.8,
-            "frontend_bound": 24.9,
-            "backend_bound": 53.6
+        "trace": {
+          "dynamorio_args": null,
+          "clustering_k": null
+        },
+        "simulation": {
+          "prioritized_mode": "memtrace",
+          "exec": {
+            "image_name": "agent",
+            "segment_size": 10000000,
+            "env_vars": null,
+            "binary_cmd": "python3 \\$tmpdir/AgentCPU/workloads/run.py swe_agent --task-id swe-long-7 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size long --iterations 7",
+            "client_bincmd": null
           },
-          "execution_time": {
-            "min": 0,
-            "sec": 13.48
+          "memtrace": {
+            "image_name": "allbench_traces",
+            "segment_size": 10000000,
+            "warmup": 50000000,
+            "whole_trace_file": null,
+            "trace_type": "cluster_then_trace"
+          }
+        },
+        "simpoints": [
+          {
+            "cluster_id": 863,
+            "segment_id": 0,
+            "weight": 0.0469989
           },
-          "peak_rss_mb": 383
-        }
+          {
+            "cluster_id": 1872,
+            "segment_id": 1,
+            "weight": 0.00681849
+          },
+          {
+            "cluster_id": 265,
+            "segment_id": 2,
+            "weight": 0.00511387
+          },
+          {
+            "cluster_id": 952,
+            "segment_id": 3,
+            "weight": 0.0138805
+          },
+          {
+            "cluster_id": 1467,
+            "segment_id": 4,
+            "weight": 0.00754904
+          },
+          {
+            "cluster_id": 977,
+            "segment_id": 5,
+            "weight": 0.0165592
+          },
+          {
+            "cluster_id": 1540,
+            "segment_id": 6,
+            "weight": 0.0194814
+          },
+          {
+            "cluster_id": 2015,
+            "segment_id": 7,
+            "weight": 0.0102277
+          },
+          {
+            "cluster_id": 2397,
+            "segment_id": 8,
+            "weight": 0.00389628
+          },
+          {
+            "cluster_id": 3646,
+            "segment_id": 9,
+            "weight": 0.00389628
+          },
+          {
+            "cluster_id": 3928,
+            "segment_id": 10,
+            "weight": 0.0041398
+          },
+          {
+            "cluster_id": 1659,
+            "segment_id": 11,
+            "weight": 0.0825524
+          },
+          {
+            "cluster_id": 1283,
+            "segment_id": 15,
+            "weight": 0.00730552
+          },
+          {
+            "cluster_id": 2207,
+            "segment_id": 16,
+            "weight": 0.00389628
+          },
+          {
+            "cluster_id": 1860,
+            "segment_id": 17,
+            "weight": 0.00340924
+          },
+          {
+            "cluster_id": 1766,
+            "segment_id": 18,
+            "weight": 0.150007
+          },
+          {
+            "cluster_id": 3974,
+            "segment_id": 19,
+            "weight": 0.129795
+          },
+          {
+            "cluster_id": 3168,
+            "segment_id": 20,
+            "weight": 0.00803607
+          },
+          {
+            "cluster_id": 2829,
+            "segment_id": 21,
+            "weight": 0.00438331
+          },
+          {
+            "cluster_id": 2581,
+            "segment_id": 22,
+            "weight": 0.027274
+          },
+          {
+            "cluster_id": 795,
+            "segment_id": 23,
+            "weight": 0.0306832
+          },
+          {
+            "cluster_id": 3021,
+            "segment_id": 24,
+            "weight": 0.0231342
+          },
+          {
+            "cluster_id": 3036,
+            "segment_id": 25,
+            "weight": 0.0165592
+          },
+          {
+            "cluster_id": 2491,
+            "segment_id": 26,
+            "weight": 0.00389628
+          },
+          {
+            "cluster_id": 400,
+            "segment_id": 27,
+            "weight": 0.041398
+          },
+          {
+            "cluster_id": 3510,
+            "segment_id": 28,
+            "weight": 0.0097407
+          },
+          {
+            "cluster_id": 4015,
+            "segment_id": 29,
+            "weight": 0.0331184
+          },
+          {
+            "cluster_id": 1624,
+            "segment_id": 30,
+            "weight": 0.00717947
+          },
+          {
+            "cluster_id": 1834,
+            "segment_id": 31,
+            "weight": 0.0306832
+          },
+          {
+            "cluster_id": 3499,
+            "segment_id": 32,
+            "weight": 0.0345795
+          },
+          {
+            "cluster_id": 1782,
+            "segment_id": 34,
+            "weight": 0.00584442
+          },
+          {
+            "cluster_id": 3572,
+            "segment_id": 35,
+            "weight": 0.0187508
+          },
+          {
+            "cluster_id": 3112,
+            "segment_id": 36,
+            "weight": 0.00779256
+          },
+          {
+            "cluster_id": 525,
+            "segment_id": 37,
+            "weight": 0.158286
+          },
+          {
+            "cluster_id": 2651,
+            "segment_id": 38,
+            "weight": 0.00901014
+          },
+          {
+            "cluster_id": 414,
+            "segment_id": 39,
+            "weight": 0.014124
+          }
+        ]
       }
     }
   }

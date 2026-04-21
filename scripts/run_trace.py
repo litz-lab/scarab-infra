@@ -23,7 +23,7 @@ from . import slurm_runner, local_runner
 
 client = docker.from_env()
 
-def validate_tracing(trace_data, workload_db_path, dbg_lvl = 2):
+def validate_tracing(trace_data, workload_db_path, descriptor_data=None, dbg_lvl = 2):
     workload_data = read_descriptor_from_json(workload_db_path, dbg_lvl)
     for trace in trace_data:
         if trace["workload"] == None:
@@ -32,6 +32,19 @@ def validate_tracing(trace_data, workload_db_path, dbg_lvl = 2):
 
         if trace["suite"] in workload_data.keys() and trace["subsuite"] in workload_data[trace["suite"]].keys() and trace["workload"] in workload_data[trace["suite"]][trace["subsuite"]].keys():
             if "trace" in workload_data[trace["suite"]][trace["subsuite"]][trace["workload"]].keys():
+                # Allow re-submission when traces are not yet completed on disk
+                # (e.g. retrying after OOM).  Only block if minimized traces
+                # already exist, meaning the full pipeline finished.
+                if descriptor_data:
+                    trace_name = descriptor_data.get("trace_name", "")
+                    wl_path = os.path.join(descriptor_data["root_dir"], "simpoint_flow", trace_name,
+                                           trace["workload"])
+                    trace_out = os.path.join(wl_path, "traces_simp", "trace")
+                    if os.path.isdir(trace_out) and any(
+                        f.endswith(".zip") for f in os.listdir(trace_out)):
+                        continue
+                    # Not completed on disk — allow retry
+                    continue
                 err(f"{trace['workload']} already exists in workload database (workloads/workloads_db.json). Choose a different workload name.", dbg_lvl)
                 exit(1)
 
@@ -74,7 +87,7 @@ def verify_descriptor(descriptor_data, workload_db_path, open_shell=False, dbg_l
         exit(1)
 
     # Check if each trace scenario is valid
-    validate_tracing(descriptor_data["trace_configurations"], workload_db_path, dbg_lvl)
+    validate_tracing(descriptor_data["trace_configurations"], workload_db_path, descriptor_data, dbg_lvl)
 
     # Check the workload manager
     if descriptor_data["workload_manager"] != "manual" and descriptor_data["workload_manager"] != "slurm":

@@ -15,6 +15,12 @@
     "traces_dir": "/soe/surim/traces",
     "_trace_name": "The name of the tracing run.",
     "trace_name": "trace_agent",
+    "_trace_parallel": "Max concurrent segment traces inside the container (default 1).",
+    "trace_parallel": 1,
+    "_raw2trace_parallel": "Max concurrent raw2trace processes inside the container (default 1).",
+    "raw2trace_parallel": 1,
+    "_parallel_segments": "If true, each simpoint segment is traced as an independent Slurm job (3-phase pipeline). Only applies to cluster_then_trace workloads.",
+    "parallel_segments": true,
     "_trace_configurations": "30 variants: 5 frameworks x 6 size/iter combos. Shared image 'agent'. suite='agent', subsuite=framework name. Iteration counts calibrated with orchestration overhead (JSON API ser/deser, gzip, HTTP parsing, growing context, file I/O, multi-agent exchange). Target ~5s and ~10s native per run.",
     "trace_configurations": [
         {

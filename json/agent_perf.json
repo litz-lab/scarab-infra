@@ -7,6 +7,8 @@
   "root_dir": "/soe/surim",
   "_image_name": "A docker image name required to run a benchmark with Perf.",
   "image_name": "agent",
+  "_paper_output_dir": "If set, auto-generate LaTeX tables/macros in this directory's gen/ subdirectory after perf collection.",
+  "paper_output_dir": "/soe/surim/src/infra_thesis/papers/agentcpu/asplos_2027",
   "_perf_configurations": "30 variants: 5 frameworks x 6 size/iter combos. Shared image 'agent'. suite='agent', subsuite=framework name. Iteration counts calibrated with orchestration overhead (JSON API ser/deser, gzip, HTTP parsing, growing context, file I/O, multi-agent exchange). Target ~5s and ~10s native per run.",
   "perf_configurations": [
     {

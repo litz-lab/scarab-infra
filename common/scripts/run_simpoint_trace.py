@@ -89,6 +89,68 @@ def get_cluster_map(workload_home):
 
     return cluster_map
 
+EMPTY_TRACE_WEIGHT_THRESHOLD = 0.01  # auto-remove segments with weight < 1%
+
+def _remove_segment_from_simpoints(workload_home, cluster_id, segment_id, reason=""):
+    """Remove a segment from opt.p.lpt0.99 and opt.w.lpt0.99 by cluster_id.
+
+    Backs up originals to .bak (only on first call), removes the line,
+    and renormalizes opt.w.lpt0.99 so weights still sum to 1.0.
+    """
+    simpoints_dir = os.path.join(workload_home, "simpoints")
+    cid_str = str(cluster_id)
+
+    # --- opt.p.lpt0.99: just remove the line ---
+    for fname in ("opt.p.lpt0.99",):
+        fpath = os.path.join(simpoints_dir, fname)
+        bak = fpath + ".bak"
+        if not os.path.isfile(bak):
+            shutil.copy2(fpath, bak)
+        with open(fpath) as f:
+            lines = f.readlines()
+        kept = [l for l in lines if l.strip() and l.split()[1] != cid_str]
+        with open(fpath, "w") as f:
+            f.writelines(kept)
+
+    # --- opt.w.lpt0.99: remove the line and renormalize ---
+    wpath = os.path.join(simpoints_dir, "opt.w.lpt0.99")
+    bak = wpath + ".bak"
+    if not os.path.isfile(bak):
+        shutil.copy2(wpath, bak)
+    with open(wpath) as f:
+        lines = f.readlines()
+    kept = []
+    for l in lines:
+        parts = l.split()
+        if len(parts) == 2 and parts[1] != cid_str:
+            kept.append((float(parts[0]), parts[1]))
+    total = sum(w for w, _ in kept)
+    with open(wpath, "w") as f:
+        for w, cid in kept:
+            f.write(f"{w / total:.6f} {cid}\n")
+
+    tag = f" ({reason})" if reason else ""
+    print(f"  AUTO-REMOVED segment {segment_id} (cluster {cluster_id}) from simpoints{tag}")
+    print(f"  WARNING: workload may be non-deterministic (instruction count varies between runs). "
+          f"Consider using trace_then_cluster for guaranteed correctness.")
+
+
+def _get_weight_for_cluster(workload_home, cluster_id):
+    """Look up the weight of a cluster_id from opt.w.lpt0.99."""
+    wpath = os.path.join(workload_home, "simpoints", "opt.w.lpt0.99")
+    if not os.path.isfile(wpath):
+        return None
+    with open(wpath) as f:
+        for line in f:
+            parts = line.split()
+            if len(parts) == 2 and parts[1] == str(cluster_id):
+                try:
+                    return float(parts[0])
+                except ValueError:
+                    return None
+    return None
+
+
 def minimize_simpoint_traces(cluster_map, workload_home, warmup_chunks):
     ################################################################
     # minimize traces, rename traces
@@ -99,11 +161,25 @@ def minimize_simpoint_traces(cluster_map, workload_home, warmup_chunks):
         dest_trace_dir = os.path.join(workload_home, "traces_simp", "trace")
         subprocess.run(["mkdir", "-p", dest_trace_dir], check=True, capture_output=True, text=True)
         for cluster_id, segment_id in cluster_map.items():
+            # Skip segments already minimized
+            dest_zip = os.path.join(dest_trace_dir, f"{segment_id}.zip")
+            if os.path.isfile(dest_zip) and os.path.getsize(dest_zip) > 0:
+                continue
             trace_dir = os.path.join(workload_home, "traces_simp", str(segment_id))
             trace_files = subprocess.getoutput(f"find {trace_dir} -name 'dr*.trace.zip' | grep 'drmemtrace.*.trace.zip'").splitlines()
             trace_files = [f for f in trace_files if f.strip()]
             num_traces = len(trace_files)
             if num_traces == 0:
+                # raw2trace ran but produced no usable trace (e.g. segment past
+                # end-of-execution in non-deterministic workloads). Auto-remove
+                # if the weight is negligible; otherwise fail hard.
+                weight = _get_weight_for_cluster(workload_home, cluster_id)
+                if weight is not None and weight < EMPTY_TRACE_WEIGHT_THRESHOLD:
+                    _remove_segment_from_simpoints(
+                        workload_home, cluster_id, segment_id,
+                        reason=f"empty trace, weight={weight:.4f} < {EMPTY_TRACE_WEIGHT_THRESHOLD}",
+                    )
+                    continue
                 trace_clustering_info = {}
                 trace_clustering_info["err"] = f"No trace.zip files found in {trace_dir}."
                 with open(os.path.join(workload_home, "trace_clustering_info.json"), "w") as json_file:
@@ -274,6 +350,235 @@ def trace_then_cluster(workload, suite, simpoint_home, bincmd, client_bincmd, si
     except Exception as e:
         raise e
 
+def cluster_only(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mode, drio_args, clustering_userk):
+    """Mode 4: fingerprint + cluster only (Phase 1 of parallel segment pipeline)."""
+    chunk_size = 10000000
+    seg_size = 10000000
+    try:
+        os.makedirs(os.path.join(simpoint_home, workload, "fingerprint"), exist_ok=True)
+        os.makedirs(os.path.join(simpoint_home, workload, "traces_simp"), exist_ok=True)
+        workload_home = f"{simpoint_home}/{workload}"
+        dynamorio_home = os.environ.get('DYNAMORIO_HOME')
+        dr_home = workload_home
+
+        # --- Fingerprinting (same as cluster_then_trace) ---
+        fingerprint_dir = os.path.join(workload_home, "fingerprint")
+        segment_size_path = os.path.join(fingerprint_dir, "segment_size")
+        if os.path.isfile(segment_size_path) and glob.glob(os.path.join(fingerprint_dir, "bbfp.*")):
+            print("generate fingerprint.. skipped (already exists)")
+        else:
+            print("generate fingerprint..")
+            if client_bincmd:
+                subprocess.Popen("exec " + client_bincmd, stdout=subprocess.PIPE, shell=True)
+            start_time = time.perf_counter()
+            drio_extra = drio_args if drio_args else ""
+            drio_extra += " -disable_rseq"
+            thread_limit_prefix = "OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1 TOKENIZERS_PARALLELISM=false"
+            fp_cmd = f"HOME={dr_home} {thread_limit_prefix} {dynamorio_home}/bin64/drrun -max_bb_instrs 4095 -opt_cleancall 2 {drio_extra} -c $tmpdir/libfpg.so -no_use_bb_pc -segment_size {seg_size} -output {workload_home}/fingerprint/bbfp -pcmap_output {workload_home}/fingerprint/pcmap -- {bincmd}"
+            max_retries = 3
+            for attempt in range(1, max_retries + 1):
+                if attempt > 1:
+                    import glob as _glob
+                    for stale in _glob.glob(os.path.join(workload_home, "fingerprint", "bbfp.*")):
+                        os.remove(stale)
+                    for stale in _glob.glob(os.path.join(workload_home, "fingerprint", "pcmap.*")):
+                        os.remove(stale)
+                result = subprocess.run([fp_cmd], capture_output=True, text=True, shell=True)
+                if result.returncode == 0:
+                    break
+                print(f"Fingerprint attempt {attempt}/{max_retries} failed (exit {result.returncode}):")
+                if result.stderr:
+                    print(f"  stderr: {result.stderr[-500:]}")
+                if attempt == max_retries:
+                    print(f"  cmd: {fp_cmd}")
+                    if result.stdout: print(f"  stdout: {result.stdout[-2000:]}")
+                    if result.stderr: print(f"  stderr: {result.stderr[-2000:]}")
+                    result.check_returncode()
+            end_time = time.perf_counter()
+
+            with open(segment_size_path, "w") as f:
+                f.write(f"{chunk_size}\n")
+            report_time("generate fingerprint done", start_time, end_time)
+
+        # --- Clustering (same as cluster_then_trace) ---
+        simpoints_dir = os.path.join(workload_home, "simpoints")
+        if os.path.isdir(simpoints_dir) and os.path.isfile(os.path.join(simpoints_dir, "opt.p")):
+            print("clustering.. skipped (already exists)")
+        else:
+            print("clustering..")
+            start_time = time.perf_counter()
+            trace_clustering_info = {}
+            bbfp_files = glob.glob(os.path.join(f"{workload_home}/fingerprint", "bbfp.*"))
+            bbfp_files = [f for f in bbfp_files if not f.endswith('.inscount')]
+            num_bbfp = len(bbfp_files)
+            if num_bbfp == 0:
+                trace_clustering_info["err"] = "No bbfp files found."
+                with open(os.path.join(workload_home, "trace_clustering_info.json"), "w") as json_file:
+                    json.dump(trace_clustering_info, json_file, indent=2, separators=(",", ":"))
+                exit(1)
+            if num_bbfp > 1:
+                best_file = None
+                best_lines = -1
+                for f in bbfp_files:
+                    with open(f, 'r') as fh:
+                        n = sum(1 for line in fh if line.strip())
+                    if n > best_lines:
+                        best_lines = n
+                        best_file = f
+                print(f"  Multi-threaded: {num_bbfp} bbfp files, using {os.path.basename(best_file)} ({best_lines} segments)")
+                bbfp_file = best_file
+            else:
+                bbfp_file = bbfp_files[0]
+            clustering_cmd = f"/bin/bash /usr/local/bin/run_clustering.sh {bbfp_file} {workload_home}"
+            if clustering_userk != None:
+                clustering_cmd = f"{clustering_cmd} {clustering_userk}"
+            subprocess.run([clustering_cmd], check=True, shell=True, stdin=open(os.devnull, 'r'))
+
+            print("adjusting oversized simpoints..")
+            replace_cmd = f"python3 /usr/local/bin/replace_oversized_simpoints.py {workload_home}"
+            subprocess.run([replace_cmd], check=True, shell=True)
+
+            end_time = time.perf_counter()
+            report_time("clustering", start_time, end_time)
+
+        print("cluster_only (mode 4) complete. Simpoints ready for parallel segment tracing.")
+    except Exception as e:
+        raise e
+
+
+def trace_single_segment(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mode, drio_args, segment_id, cluster_id):
+    """Mode 5: trace + raw2trace + minimize a single segment (Phase 2 of parallel pipeline)."""
+    chunk_size = 10000000
+    seg_size = 10000000
+    warmup_chunks = 5
+    try:
+        workload_home = f"{simpoint_home}/{workload}"
+        dynamorio_home = os.environ.get('DYNAMORIO_HOME')
+        dr_home = workload_home
+
+        # Read segment_size from fingerprint (should already exist from Phase 1)
+        segment_size_path = os.path.join(workload_home, "fingerprint", "segment_size")
+        if os.path.isfile(segment_size_path):
+            with open(segment_size_path) as f:
+                seg_size = int(f.read().strip())
+                chunk_size = seg_size
+
+        seg_dir = os.path.join(workload_home, "traces_simp", str(segment_id))
+        os.makedirs(seg_dir, exist_ok=True)
+
+        # --- Check if already fully minimized ---
+        dest_trace_dir = os.path.join(workload_home, "traces_simp", "trace")
+        dest_zip = os.path.join(dest_trace_dir, f"{segment_id}.zip")
+        if os.path.isfile(dest_zip) and os.path.getsize(dest_zip) > 0:
+            print(f"segment {segment_id}: already minimized, skipping")
+            return
+
+        # --- 1. Trace this segment ---
+        raw_dir = os.path.join(seg_dir, "raw")
+        if os.path.isdir(raw_dir) and any(
+            f.endswith(".raw.lz4")
+            for dp, _, fns in os.walk(raw_dir) for f in fns
+        ):
+            print(f"segment {segment_id}: raw trace exists, skipping trace")
+        else:
+            print(f"segment {segment_id}: tracing..")
+            start_time = time.perf_counter()
+            roi_start = segment_id * seg_size
+            roi_end = roi_start + seg_size
+            warmup = seg_size * warmup_chunks
+            if roi_start > warmup:
+                roi_start -= warmup
+            else:
+                roi_start = 0
+            roi_length = roi_end - roi_start
+
+            drio_trace_extra = drio_args if drio_args else ""
+            drio_trace_extra += " -disable_rseq"
+            if roi_start == 0:
+                trace_cmd = f"{dynamorio_home}/bin64/drrun -opt_cleancall 2 {drio_trace_extra} -t drcachesim -jobs {DR_JOBS} -outdir {seg_dir} -offline -count_fetched_instrs -trace_for_instrs {roi_length} -- {bincmd}"
+            else:
+                trace_cmd = f"{dynamorio_home}/bin64/drrun -opt_cleancall 2 {drio_trace_extra} -t drcachesim -jobs {DR_JOBS} -outdir {seg_dir} -offline -count_fetched_instrs -trace_after_instrs {roi_start} -trace_for_instrs {roi_length} -- {bincmd}"
+
+            trace_env = os.environ.copy()
+            trace_env["HOME"] = dr_home
+            result = subprocess.run(trace_cmd, shell=True, stdout=subprocess.DEVNULL, env=trace_env)
+            end_time = time.perf_counter()
+            report_time(f"segment {segment_id} tracing done", start_time, end_time)
+
+        # --- 2. Portabilize + thread filter + raw2trace ---
+        trace_path = f"{workload_home}/traces_simp/{segment_id}"
+        trace_out = os.path.join(trace_path, "trace")
+        if os.path.isdir(trace_out) and any(
+            f.endswith(".trace.zip")
+            for _, _, fns in os.walk(trace_out) for f in fns
+        ):
+            print(f"segment {segment_id}: trace output exists, skipping raw2trace")
+        else:
+            print(f"segment {segment_id}: raw2trace..")
+            start_time = time.perf_counter()
+
+            # Move raw/ out of drmemtrace dir
+            raw_path = os.path.join(trace_path, "raw")
+            dr_raw_dirs = glob.glob(os.path.join(trace_path, "dr*/raw"))
+            fresh_dr_raw = [d for d in dr_raw_dirs if any(
+                f.endswith(".raw.lz4") for _, _, fns in os.walk(d) for f in fns)]
+            if fresh_dr_raw:
+                if os.path.isdir(raw_path):
+                    shutil.rmtree(raw_path)
+                subprocess.run(f"mv {fresh_dr_raw[0]}/../raw/ {trace_path}/raw/", check=True, shell=True)
+            elif not os.path.isdir(raw_path):
+                subprocess.run(f"mv {trace_path}/dr*/raw/ {trace_path}/raw/", check=True, shell=True)
+
+            os.makedirs(f"{trace_path}/bin", exist_ok=True)
+            bin_path = os.path.join(trace_path, "bin")
+            os.chmod(bin_path, 0o777)
+            os.chmod(raw_path, 0o777)
+
+            # Portabilize
+            bin_files = [f for f in os.listdir(bin_path) if f.endswith('.so') or f.endswith('.so.1')]
+            if len(bin_files) > 10:
+                print(f"  segment {segment_id}: portabilize skipped (bin/ has {len(bin_files)} libs)")
+            else:
+                bak_path = os.path.join(raw_path, "modules.log.bak")
+                if os.path.isfile(bak_path):
+                    subprocess.run(f"cp {bak_path} {bin_path}/modules.log", check=True, shell=True)
+                else:
+                    subprocess.run(f"cp {raw_path}/modules.log {bin_path}/modules.log", check=True, shell=True)
+                    subprocess.run(f"cp {raw_path}/modules.log {raw_path}/modules.log.bak", check=True, shell=True)
+                subprocess.run(["python2", f"{simpoint_home}/scarab/utils/memtrace/portabilize_trace.py", f"{trace_path}"], capture_output=True, text=True, check=True)
+                subprocess.run(f"cp {bin_path}/modules.log {raw_path}/modules.log", check=True, shell=True)
+
+            # Thread filter: keep only the main thread
+            win_dir = os.path.join(raw_path, "window.0000")
+            if os.path.isdir(win_dir):
+                raw_files = [f for f in os.listdir(win_dir) if f.endswith(".raw.lz4")]
+                if len(raw_files) > 1:
+                    main_file = max(raw_files, key=lambda f: os.path.getsize(os.path.join(win_dir, f)))
+                    removed = 0
+                    for f in raw_files:
+                        if f != main_file:
+                            os.remove(os.path.join(win_dir, f))
+                            removed += 1
+                    if removed:
+                        print(f"  segment {segment_id}: kept main thread, removed {removed} helper thread raw files")
+
+            raw2trace_cmd = f"{dynamorio_home}/tools/bin64/drraw2trace -jobs 1 -indir {raw_path} -chunk_instr_count {chunk_size}"
+            subprocess.run(raw2trace_cmd, shell=True, stdout=subprocess.PIPE)
+            end_time = time.perf_counter()
+            report_time(f"segment {segment_id} raw2trace done", start_time, end_time)
+
+        # --- 3. Minimize this segment ---
+        print(f"segment {segment_id}: minimizing..")
+        start_time = time.perf_counter()
+        single_cluster_map = {cluster_id: segment_id}
+        minimize_simpoint_traces(single_cluster_map, workload_home, warmup_chunks + 1)
+        end_time = time.perf_counter()
+        report_time(f"segment {segment_id} minimize done", start_time, end_time)
+
+    except Exception as e:
+        raise e
+
+
 def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mode, drio_args, clustering_userk, manual_trace=False):
     # 1. collect fingerprints
     # 2. clustering
@@ -297,100 +602,125 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
         # ~/.dynamorio resolve to a per-workload directory.
         dr_home = workload_home
 
-        print("generate fingerprint..")
-        if client_bincmd:
-            subprocess.Popen("exec " + client_bincmd, stdout=subprocess.PIPE, shell=True)
-        start_time = time.perf_counter()
-        drio_extra = drio_args if drio_args else ""
-        # Disable restartable sequences — DR doesn't fully support rseq on
-        # newer glibc, causing "entries are not in a loaded segment" errors.
-        drio_extra += " -disable_rseq"
-        # Force single-threaded execution during fingerprinting to avoid
-        # DynamoRIO crashes from concurrent module loads in multi-threaded
-        # Python workloads (torch/faiss/sentence-transformers). The crash
-        # is in DR's d_r_strcmp called with a corrupted module-name pointer
-        # when multiple threads dlopen/dlclose simultaneously. Single-threaded
-        # fingerprinting is also more deterministic for SimPoint.
-        thread_limit_prefix = "OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1 TOKENIZERS_PARALLELISM=false"
-        fp_cmd = f"HOME={dr_home} {thread_limit_prefix} {dynamorio_home}/bin64/drrun -max_bb_instrs 4095 -opt_cleancall 2 {drio_extra} -c $tmpdir/libfpg.so -no_use_bb_pc -segment_size {seg_size} -output {workload_home}/fingerprint/bbfp -pcmap_output {workload_home}/fingerprint/pcmap -- {bincmd}"
-        # DynamoRIO has a non-deterministic crash in d_r_strcmp when
-        # multi-threaded Python apps do concurrent dlopen/dlclose during
-        # fingerprinting. Retry up to 3 times on failure.
-        max_retries = 3
-        for attempt in range(1, max_retries + 1):
-            # Clean partial fingerprint output from any prior failed attempt
-            if attempt > 1:
-                import glob as _glob
-                for stale in _glob.glob(os.path.join(workload_home, "fingerprint", "bbfp.*")):
-                    os.remove(stale)
-                for stale in _glob.glob(os.path.join(workload_home, "fingerprint", "pcmap.*")):
-                    os.remove(stale)
-            result = subprocess.run([fp_cmd], capture_output=True, text=True, shell=True)
-            if result.returncode == 0:
-                break
-            print(f"Fingerprint attempt {attempt}/{max_retries} failed (exit {result.returncode}):")
-            if result.stderr:
-                print(f"  stderr: {result.stderr[-500:]}")
-            if attempt == max_retries:
-                print(f"  cmd: {fp_cmd}")
-                if result.stdout: print(f"  stdout: {result.stdout[-2000:]}")
-                if result.stderr: print(f"  stderr: {result.stderr[-2000:]}")
-                result.check_returncode()
-        end_time = time.perf_counter()
-
+        # Resume support: skip fingerprinting if already done
         fingerprint_dir = os.path.join(workload_home, "fingerprint")
         segment_size_path = os.path.join(fingerprint_dir, "segment_size")
-        with open(segment_size_path, "w") as f:
-            f.write(f"{chunk_size}\n")
-        report_time("generate fingerprint done", start_time, end_time)
-
-        print("clustering..")
-        start_time = time.perf_counter()
-        trace_clustering_info = {}
-        bbfp_files = glob.glob(os.path.join(f"{workload_home}/fingerprint", "bbfp.*"))
-        bbfp_files = [f for f in bbfp_files if not f.endswith('.inscount')]
-        num_bbfp = len(bbfp_files)
-        if num_bbfp == 0:
-            trace_clustering_info["err"] = "No bbfp files found."
-            with open(os.path.join(workload_home, "trace_clustering_info.json"), "w") as json_file:
-                json.dump(trace_clustering_info, json_file, indent=2, separators=(",", ":"))
-            exit(1)
-        if num_bbfp > 1:
-            # Multi-threaded workload: pick the main thread's fingerprint
-            # (the file with the most lines = most segments). Helper threads
-            # (GC, import, signal) contribute negligible instructions.
-            # This mirrors get_largest_trace() used by trace_then_cluster.
-            best_file = None
-            best_lines = -1
-            for f in bbfp_files:
-                with open(f, 'r') as fh:
-                    n = sum(1 for line in fh if line.strip())
-                if n > best_lines:
-                    best_lines = n
-                    best_file = f
-            print(f"  Multi-threaded: {num_bbfp} bbfp files, using {os.path.basename(best_file)} ({best_lines} segments)")
-            bbfp_file = best_file
+        if os.path.isfile(segment_size_path) and glob.glob(os.path.join(fingerprint_dir, "bbfp.*")):
+            print("generate fingerprint.. skipped (already exists)")
         else:
-            bbfp_file = bbfp_files[0]
-        clustering_cmd = f"/bin/bash /usr/local/bin/run_clustering.sh {bbfp_file} {workload_home}"
-        if clustering_userk != None:
-            clustering_cmd = f"{clustering_cmd} {clustering_userk}"
-        subprocess.run([clustering_cmd], check=True, shell=True, stdin=open(os.devnull, 'r'))
+            print("generate fingerprint..")
+            if client_bincmd:
+                subprocess.Popen("exec " + client_bincmd, stdout=subprocess.PIPE, shell=True)
+            start_time = time.perf_counter()
+            drio_extra = drio_args if drio_args else ""
+            # Disable restartable sequences — DR doesn't fully support rseq on
+            # newer glibc, causing "entries are not in a loaded segment" errors.
+            drio_extra += " -disable_rseq"
+            # Force single-threaded execution during fingerprinting to avoid
+            # DynamoRIO crashes from concurrent module loads in multi-threaded
+            # Python workloads (torch/faiss/sentence-transformers). The crash
+            # is in DR's d_r_strcmp called with a corrupted module-name pointer
+            # when multiple threads dlopen/dlclose simultaneously. Single-threaded
+            # fingerprinting is also more deterministic for SimPoint.
+            thread_limit_prefix = "OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1 TOKENIZERS_PARALLELISM=false"
+            fp_cmd = f"HOME={dr_home} {thread_limit_prefix} {dynamorio_home}/bin64/drrun -max_bb_instrs 4095 -opt_cleancall 2 {drio_extra} -c $tmpdir/libfpg.so -no_use_bb_pc -segment_size {seg_size} -output {workload_home}/fingerprint/bbfp -pcmap_output {workload_home}/fingerprint/pcmap -- {bincmd}"
+            # DynamoRIO has a non-deterministic crash in d_r_strcmp when
+            # multi-threaded Python apps do concurrent dlopen/dlclose during
+            # fingerprinting. Retry up to 3 times on failure.
+            max_retries = 3
+            for attempt in range(1, max_retries + 1):
+                # Clean partial fingerprint output from any prior failed attempt
+                if attempt > 1:
+                    import glob as _glob
+                    for stale in _glob.glob(os.path.join(workload_home, "fingerprint", "bbfp.*")):
+                        os.remove(stale)
+                    for stale in _glob.glob(os.path.join(workload_home, "fingerprint", "pcmap.*")):
+                        os.remove(stale)
+                result = subprocess.run([fp_cmd], capture_output=True, text=True, shell=True)
+                if result.returncode == 0:
+                    break
+                print(f"Fingerprint attempt {attempt}/{max_retries} failed (exit {result.returncode}):")
+                if result.stderr:
+                    print(f"  stderr: {result.stderr[-500:]}")
+                if attempt == max_retries:
+                    print(f"  cmd: {fp_cmd}")
+                    if result.stdout: print(f"  stdout: {result.stdout[-2000:]}")
+                    if result.stderr: print(f"  stderr: {result.stderr[-2000:]}")
+                    result.check_returncode()
+            end_time = time.perf_counter()
 
-        print("adjusting oversized simpoints..")
-        replace_cmd = f"python3 /usr/local/bin/replace_oversized_simpoints.py {workload_home}"
-        subprocess.run([replace_cmd], check=True, shell=True)
+            with open(segment_size_path, "w") as f:
+                f.write(f"{chunk_size}\n")
+            report_time("generate fingerprint done", start_time, end_time)
 
-        end_time = time.perf_counter()
-        report_time("clustering", start_time, end_time)
+        # Resume support: skip clustering if simpoints already exist
+        simpoints_dir = os.path.join(workload_home, "simpoints")
+        if os.path.isdir(simpoints_dir) and os.path.isfile(os.path.join(simpoints_dir, "opt.p")):
+            print("clustering.. skipped (already exists)")
+        else:
+            print("clustering..")
+            start_time = time.perf_counter()
+            trace_clustering_info = {}
+            bbfp_files = glob.glob(os.path.join(f"{workload_home}/fingerprint", "bbfp.*"))
+            bbfp_files = [f for f in bbfp_files if not f.endswith('.inscount')]
+            num_bbfp = len(bbfp_files)
+            if num_bbfp == 0:
+                trace_clustering_info["err"] = "No bbfp files found."
+                with open(os.path.join(workload_home, "trace_clustering_info.json"), "w") as json_file:
+                    json.dump(trace_clustering_info, json_file, indent=2, separators=(",", ":"))
+                exit(1)
+            if num_bbfp > 1:
+                # Multi-threaded workload: pick the main thread's fingerprint
+                # (the file with the most lines = most segments). Helper threads
+                # (GC, import, signal) contribute negligible instructions.
+                # This mirrors get_largest_trace() used by trace_then_cluster.
+                best_file = None
+                best_lines = -1
+                for f in bbfp_files:
+                    with open(f, 'r') as fh:
+                        n = sum(1 for line in fh if line.strip())
+                    if n > best_lines:
+                        best_lines = n
+                        best_file = f
+                print(f"  Multi-threaded: {num_bbfp} bbfp files, using {os.path.basename(best_file)} ({best_lines} segments)")
+                bbfp_file = best_file
+            else:
+                bbfp_file = bbfp_files[0]
+            clustering_cmd = f"/bin/bash /usr/local/bin/run_clustering.sh {bbfp_file} {workload_home}"
+            if clustering_userk != None:
+                clustering_cmd = f"{clustering_cmd} {clustering_userk}"
+            subprocess.run([clustering_cmd], check=True, shell=True, stdin=open(os.devnull, 'r'))
 
+            print("adjusting oversized simpoints..")
+            replace_cmd = f"python3 /usr/local/bin/replace_oversized_simpoints.py {workload_home}"
+            subprocess.run([replace_cmd], check=True, shell=True)
+
+            end_time = time.perf_counter()
+            report_time("clustering", start_time, end_time)
+
+        trace_clustering_info = {}
         cluster_map = get_cluster_map(workload_home)
 
         print("clustering tracing..")
         start_time = time.perf_counter()
-        cluster_tracing_processes = set()
+        # Batch segment traces to avoid OOM: each drrun process runs the full
+        # workload under DynamoRIO (~500MB-1GB each).  Launching all segments
+        # in parallel (e.g. 30+) easily exceeds the slurm memory limit.
+        max_parallel = int(os.environ.get("TRACE_PARALLEL", "1"))
+        trace_cmds = []
+        skipped_segments = 0
         for cluster_id, segment_id in cluster_map.items():
             seg_dir = os.path.join(workload_home, "traces_simp", str(segment_id))
+
+            # Resume support: skip segments that already have raw trace data
+            raw_dir = os.path.join(seg_dir, "raw")
+            if os.path.isdir(raw_dir) and any(
+                f.endswith(".raw.lz4")
+                for dp, _, fns in os.walk(raw_dir) for f in fns
+            ):
+                skipped_segments += 1
+                continue
+
             os.makedirs(seg_dir, exist_ok=True)
             # the simulation region, in the unit of chunks
             roi_start = segment_id * seg_size
@@ -413,33 +743,58 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
 
             drio_trace_extra = drio_args if drio_args else ""
             drio_trace_extra += " -disable_rseq"
+            # Note: do NOT use -max_bb_instrs here. With drcachesim -offline,
+            # hitting the BB size limit is fatal (exit 255, empty output).
+            # The fingerprint client (libfpg.so) tolerates it as a warning,
+            # but drcachesim does not.
             if roi_start == 0:
-                trace_cmd = f"{dynamorio_home}/bin64/drrun -max_bb_instrs 4095 -opt_cleancall 2 {drio_trace_extra} -t drcachesim -jobs {DR_JOBS} -outdir {seg_dir} -offline -count_fetched_instrs -trace_for_instrs {roi_length} -- {bincmd}"
+                trace_cmd = f"{dynamorio_home}/bin64/drrun -opt_cleancall 2 {drio_trace_extra} -t drcachesim -jobs {DR_JOBS} -outdir {seg_dir} -offline -count_fetched_instrs -trace_for_instrs {roi_length} -- {bincmd}"
             else:
-                trace_cmd = f"{dynamorio_home}/bin64/drrun -max_bb_instrs 4095 -opt_cleancall 2 {drio_trace_extra} -t drcachesim -jobs {DR_JOBS} -outdir {seg_dir} -offline -count_fetched_instrs -trace_after_instrs {roi_start} -trace_for_instrs {roi_length} -- {bincmd}"
+                trace_cmd = f"{dynamorio_home}/bin64/drrun -opt_cleancall 2 {drio_trace_extra} -t drcachesim -jobs {DR_JOBS} -outdir {seg_dir} -offline -count_fetched_instrs -trace_after_instrs {roi_start} -trace_for_instrs {roi_length} -- {bincmd}"
 
-            trace_env = os.environ.copy()
-            trace_env["HOME"] = dr_home
-            process = subprocess.Popen("exec " + trace_cmd, stdout=subprocess.DEVNULL, shell=True, env=trace_env)
-            cluster_tracing_processes.add(process)
+            trace_cmds.append(trace_cmd)
 
-        for p in cluster_tracing_processes:
-            p.wait()
+        if skipped_segments > 0:
+            print(f"  resuming: {skipped_segments} segments already traced, {len(trace_cmds)} remaining")
+
+        # Launch in batches to stay within memory limits
+        trace_env = os.environ.copy()
+        trace_env["HOME"] = dr_home
+        for batch_start in range(0, len(trace_cmds), max_parallel):
+            batch = trace_cmds[batch_start:batch_start + max_parallel]
+            print(f"  tracing segments {batch_start+1}-{batch_start+len(batch)} of {len(trace_cmds)}")
+            procs = []
+            for cmd in batch:
+                p = subprocess.Popen("exec " + cmd, stdout=subprocess.DEVNULL, shell=True, env=trace_env)
+                procs.append(p)
+            for p in procs:
+                p.wait()
+
         end_time = time.perf_counter()
         report_time("cluster tracing done", start_time, end_time)
 
         print("clustered traces raw2trace..")
         start_time = time.perf_counter()
-        raw2trace_processes = set()
+        raw2trace_cmds = []
         for cluster_id, segment_id in cluster_map.items():
             trace_path = f"{workload_home}/traces_simp/{segment_id}"
+
+            # Resume support: skip segments where raw2trace already produced trace output.
+            # DR raw2trace puts files inside trace/window.NNNN/ subdirs.
+            # Check specifically for drmemtrace.*.trace.zip (not cpu_schedule.bin.zip
+            # which persists even after minimize deletes the actual trace).
+            trace_out = os.path.join(trace_path, "trace")
+            if os.path.isdir(trace_out) and any(
+                f.endswith(".trace.zip")
+                for _, _, fns in os.walk(trace_out) for f in fns
+            ):
+                continue
+
             trace_files, dr_folders = find_trace_files(trace_path)
             num_dr_folder = len(dr_folders)
             if num_dr_folder == 0:
-                trace_clustering_info["err"] = f"No drmemtrace directories found in {trace_path}."
-                with open(os.path.join(workload_home, "trace_clustering_info.json"), "w") as json_file:
-                    json.dump(trace_clustering_info, json_file, indent=2, separators=(",", ":"))
-                exit(1)
+                # raw/ already moved out of drmemtrace dir (prior run did this step)
+                dr_folders = []
             if num_dr_folder > 1:
                 # Multi-process edge case: pick the folder with the largest raw data
                 best_folder = max(dr_folders, key=lambda d: sum(
@@ -451,22 +806,73 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
                         import shutil
                         shutil.rmtree(d)
 
-            subprocess.run(f"mv {trace_path}/dr*/raw/ {trace_path}/raw/", check=True, shell=True)
+            # Move raw/ out of drmemtrace dir if not already done.
+            # If raw/ exists but is stale (no .raw.lz4) and drmemtrace.*.dir has
+            # fresh data, replace raw/ with the new data.
+            raw_path = os.path.join(trace_path, "raw")
+            dr_raw_dirs = glob.glob(os.path.join(trace_path, "dr*/raw"))
+            fresh_dr_raw = [d for d in dr_raw_dirs if any(
+                f.endswith(".raw.lz4") for _, _, fns in os.walk(d) for f in fns)]
+            if fresh_dr_raw:
+                if os.path.isdir(raw_path):
+                    import shutil as _shutil
+                    _shutil.rmtree(raw_path)
+                subprocess.run(f"mv {fresh_dr_raw[0]}/../raw/ {trace_path}/raw/", check=True, shell=True)
+            elif not os.path.isdir(raw_path):
+                subprocess.run(f"mv {trace_path}/dr*/raw/ {trace_path}/raw/", check=True, shell=True)
             os.makedirs(f"{trace_path}/bin", exist_ok=True)
             bin_path = os.path.join(trace_path, "bin")
-            raw_path = os.path.join(trace_path, "raw")
             os.chmod(bin_path, 0o777)
             os.chmod(raw_path, 0o777)
-            subprocess.run(f"cp {raw_path}/modules.log {bin_path}/modules.log", check=True, shell=True)
-            subprocess.run(f"cp {raw_path}/modules.log {raw_path}/modules.log.bak", check=True, shell=True)
-            subprocess.run(["python2", f"{simpoint_home}/scarab/utils/memtrace/portabilize_trace.py", f"{trace_path}"], capture_output=True, text=True, check=True)
-            subprocess.run(f"cp {bin_path}/modules.log {raw_path}/modules.log", check=True, shell=True)
-            raw2trace_cmd = f"{dynamorio_home}/tools/bin64/drraw2trace -jobs {DR_JOBS} -indir {raw_path} -chunk_instr_count {chunk_size}"
-            process = subprocess.Popen("exec " + raw2trace_cmd, stdout=subprocess.PIPE, shell=True)
-            raw2trace_processes.add(process)
+            # Skip portabilize if bin/ already has libraries (prior run completed it)
+            bin_files = [f for f in os.listdir(bin_path) if f.endswith('.so') or f.endswith('.so.1')]
+            if len(bin_files) > 10:
+                print(f"  segment {segment_id}: portabilize skipped (bin/ has {len(bin_files)} libs)")
+            else:
+                # Restore original modules.log from backup if a prior run already
+                # portabilized it (re-running portabilize on modified paths fails).
+                bak_path = os.path.join(raw_path, "modules.log.bak")
+                if os.path.isfile(bak_path):
+                    subprocess.run(f"cp {bak_path} {bin_path}/modules.log", check=True, shell=True)
+                else:
+                    subprocess.run(f"cp {raw_path}/modules.log {bin_path}/modules.log", check=True, shell=True)
+                    subprocess.run(f"cp {raw_path}/modules.log {raw_path}/modules.log.bak", check=True, shell=True)
+                subprocess.run(["python2", f"{simpoint_home}/scarab/utils/memtrace/portabilize_trace.py", f"{trace_path}"], capture_output=True, text=True, check=True)
+                subprocess.run(f"cp {bin_path}/modules.log {raw_path}/modules.log", check=True, shell=True)
+            # Keep only the main thread's raw file to reduce memory.
+            # Python GIL serializes execution; helper threads add no useful data
+            # but each one costs ~1GB+ during raw2trace decompression.
+            win_dir = os.path.join(raw_path, "window.0000")
+            if os.path.isdir(win_dir):
+                raw_files = [f for f in os.listdir(win_dir) if f.endswith(".raw.lz4")]
+                if len(raw_files) > 1:
+                    main_file = max(raw_files, key=lambda f: os.path.getsize(os.path.join(win_dir, f)))
+                    removed = 0
+                    for f in raw_files:
+                        if f != main_file:
+                            os.remove(os.path.join(win_dir, f))
+                            removed += 1
+                    if removed:
+                        print(f"  segment {segment_id}: kept main thread, removed {removed} helper thread raw files")
+            # Use -jobs 1 for raw2trace to limit memory: a single 500MB
+            # compressed trace can decompress to 100GB+ with -jobs 2.
+            raw2trace_cmd = f"{dynamorio_home}/tools/bin64/drraw2trace -jobs 1 -indir {raw_path} -chunk_instr_count {chunk_size}"
+            raw2trace_cmds.append(raw2trace_cmd)
 
-        for p in raw2trace_processes:
-            p.wait()
+        if len(raw2trace_cmds) == 0:
+            print("  all segments already have trace output, skipping raw2trace")
+        else:
+            # Launch raw2trace in batches to stay within memory limits
+            max_r2t = int(os.environ.get("RAW2TRACE_PARALLEL", "1"))
+            for batch_start in range(0, len(raw2trace_cmds), max_r2t):
+                batch = raw2trace_cmds[batch_start:batch_start + max_r2t]
+                print(f"  raw2trace segments {batch_start+1}-{batch_start+len(batch)} of {len(raw2trace_cmds)}")
+                procs = []
+                for cmd in batch:
+                    p = subprocess.Popen("exec " + cmd, stdout=subprocess.PIPE, shell=True)
+                    procs.append(p)
+                for p in procs:
+                    p.wait()
 
         end_time = time.perf_counter()
         report_time("clustered traces raw2trace done", start_time, end_time)
@@ -699,6 +1105,8 @@ if __name__ == "__main__":
     parser.add_argument('-dr', '--drio_args', required=False, default=None, help='Dynamorio arguments. Usage: --drio_args "-exit_after_tracing 1520000000000"')
     parser.add_argument('-userk', '--clustering_userk', required=False, default=None, help='maxk will use the user provided value if specified. If not specified, maxk will be calculated as the square root of the number of segments.')
     parser.add_argument('-man', '--manual_trace', required=False, default=None, help='manual trace. Usage --manual_trace True')
+    parser.add_argument('--segment_id', type=int, default=None, help='Segment ID to trace (mode 5 only)')
+    parser.add_argument('--cluster_id', type=int, default=None, help='Cluster ID for the segment (mode 5 only)')
 
     # Parse the command-line arguments
     args = parser.parse_args()
@@ -724,6 +1132,12 @@ if __name__ == "__main__":
             trace_then_cluster(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mode, drio_args, clustering_userk)
         elif simpoint_mode == "3": # trace each timestep
             iterative(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mode, drio_args, clustering_userk)
+        elif simpoint_mode == "4": # cluster only (Phase 1 of parallel segment pipeline)
+            cluster_only(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mode, drio_args, clustering_userk)
+        elif simpoint_mode == "5": # trace single segment (Phase 2 of parallel segment pipeline)
+            if args.segment_id is None or args.cluster_id is None:
+                raise Exception("Mode 5 requires --segment_id and --cluster_id")
+            trace_single_segment(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mode, drio_args, args.segment_id, args.cluster_id)
         else:
             raise Exception("Invalid simpoint mode")
     except Exception as e:

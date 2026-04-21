@@ -1,0 +1,34 @@
+{
+  "descriptor_type": "simulation",
+  "architecture": "golden_cove",
+  "experiment": "agent_sim",
+  "workload_manager": "slurm",
+  "root_dir": "/soe/surim",
+  "application_dir": null,
+  "scarab_path": "/soe/surim/src/scarab_ll",
+  "scarab_build": "opt",
+  "traces_dir": "/soe/surim/traces",
+  "top_simpoint": false,
+  "simulations": [
+    {
+      "suite": "agent",
+      "subsuite": null,
+      "workload": null,
+      "cluster_id": null,
+      "simulation_type": "memtrace",
+      "warmup": null
+    }
+  ],
+  "configurations": {
+    "golden_cove_base": {
+      "params": "",
+      "binary": "scarab_current",
+      "slurm_options": "",
+      "memory_overhead_mb": 0
+    }
+  },
+  "mem": {
+    "collection_baseline": null,
+    "fallback_mb": 16384
+  }
+}

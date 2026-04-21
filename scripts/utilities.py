@@ -329,6 +329,48 @@ def file_lock(lock_path):
 #           latest_image_tag - the latest pre-built image name with the tag
 #           diff_output - diff of two git hashes in the directories that change the docker image
 # Output: list of nodes where the docker image is ready
+def _image_cache_path(image_tag):
+    """Return a shared NFS path for caching a Docker image tarball."""
+    safe_tag = image_tag.replace("/", "_").replace(":", "_")
+    cache_dir = os.path.join(project_root, "docker_image_cache")
+    return os.path.join(cache_dir, f"{safe_tag}.tar")
+
+
+def save_docker_image_cache(image_tag, dbg_lvl=1):
+    """Save a Docker image to a shared NFS tarball so other nodes can load it."""
+    cache_path = _image_cache_path(image_tag)
+    os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+    tmp_path = cache_path + ".tmp"
+    try:
+        subprocess.run(["docker", "save", "-o", tmp_path, image_tag], check=True,
+                       capture_output=True, text=True)
+        os.rename(tmp_path, cache_path)
+        info(f"Saved image {image_tag} to {cache_path}", dbg_lvl)
+    except (subprocess.CalledProcessError, OSError) as exc:
+        warn(f"Could not cache image {image_tag}: {exc}", dbg_lvl)
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+
+
+def _load_docker_image_cache(image_tag, dbg_lvl=1):
+    """Try to load a Docker image from the shared NFS cache. Returns True on success."""
+    cache_path = _image_cache_path(image_tag)
+    if not os.path.isfile(cache_path):
+        return False
+    try:
+        info(f"Loading cached image from {cache_path}", dbg_lvl)
+        subprocess.run(["docker", "load", "-i", cache_path], check=True,
+                       capture_output=True, text=True)
+        if image_exist(image_tag):
+            info(f"Successfully loaded {image_tag} from cache", dbg_lvl)
+            return True
+    except subprocess.CalledProcessError as exc:
+        warn(f"docker load failed for {cache_path}: {exc}", dbg_lvl)
+    return False
+
+
 def prepare_docker_image(docker_prefix, image_tag, dbg_lvl=1):
     # Fast path: image already exists → nothing to do
     if image_exist(image_tag):
@@ -343,11 +385,18 @@ def prepare_docker_image(docker_prefix, image_tag, dbg_lvl=1):
         if image_exist(image_tag):
             return
 
+        # Try loading from shared NFS cache (handles compute nodes that can't
+        # rebuild images requiring --ssh or other login-node-only resources).
+        if _load_docker_image_cache(image_tag, dbg_lvl):
+            return
+
         try:
             sci_path = os.path.join(project_root, "sci")
             print(f"Invoking {sci_path} --build-image {docker_prefix}")
             # Ensure stdout is streamed for visibility when running locally.
             subprocess.run([sci_path, "--build-image", docker_prefix], check=True)
+            # After successful build, cache the image for other nodes
+            save_docker_image_cache(image_tag, dbg_lvl)
         except subprocess.CalledProcessError as e:
             err(f"sci --build-image failed with return code {e.returncode}", dbg_lvl)
             failure_stdout = getattr(e, "stdout", None)
@@ -1469,7 +1518,7 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
     except Exception as e:
         raise e
 
-def generate_single_trace_run_command(user, workload, image_name, trace_name, binary_cmd, client_bincmd, simpoint_mode, drio_args, clustering_k):
+def generate_single_trace_run_command(user, workload, image_name, trace_name, binary_cmd, client_bincmd, simpoint_mode, drio_args, clustering_k, segment_id=None, cluster_id=None):
     command = ""
     if simpoint_mode == "cluster_then_trace":
         mode = 1
@@ -1477,6 +1526,10 @@ def generate_single_trace_run_command(user, workload, image_name, trace_name, bi
         mode = 2
     elif simpoint_mode == "iterative_trace":
         mode = 3
+    elif simpoint_mode == "cluster_only":
+        mode = 4
+    elif simpoint_mode == "trace_single_segment":
+        mode = 5
     command = f"python3 -u /usr/local/bin/run_simpoint_trace.py --workload {workload} --suite {image_name} --simpoint_mode {mode} --simpoint_home \\\"/home/{user}/simpoint_flow/{trace_name}\\\" --bincmd \\\"{binary_cmd}\\\""
     if client_bincmd != None:
         command = f"{command} --client_bincmd \\\"{client_bincmd}\\\""
@@ -1484,16 +1537,23 @@ def generate_single_trace_run_command(user, workload, image_name, trace_name, bi
         command = f"{command} --drio_args=\\\"{drio_args}\\\""
     if clustering_k != None:
         command = f"{command} -userk {clustering_k}"
+    if segment_id is not None:
+        command = f"{command} --segment_id {segment_id}"
+    if cluster_id is not None:
+        command = f"{command} --cluster_id {cluster_id}"
     return command
 
 def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_container_name, githash,
                                        workload, image_name, trace_name, traces_dir, docker_home,
                                        env_vars, binary_cmd, client_bincmd, simpoint_mode, drio_args,
-                                       clustering_k, filename, infra_dir, application_dir, slurm = False):
+                                       clustering_k, filename, infra_dir, application_dir, slurm = False,
+                                       trace_parallel=None, raw2trace_parallel=None,
+                                       segment_id=None, cluster_id=None):
     try:
         container_home = "/tmp_home" if user == "root" else f"/home/{user}"
         trace_cmd = generate_single_trace_run_command(user, workload, image_name, trace_name, binary_cmd, client_bincmd,
-                                                      simpoint_mode, drio_args, clustering_k)
+                                                      simpoint_mode, drio_args, clustering_k,
+                                                      segment_id=segment_id, cluster_id=cluster_id)
         with open(filename, "w") as f:
             f.write("#!/bin/bash\n")
             f.write(f"echo \"Tracing {workload}\"\n")
@@ -1521,6 +1581,11 @@ def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_contai
                     -e APP_GROUPNAME={image_name} \
                     -e APPNAME={workload} \
                     -e DR_JOBS=${{DR_JOBS:-2}} "
+
+            if trace_parallel is not None:
+                command += f"-e TRACE_PARALLEL={trace_parallel} "
+            if raw2trace_parallel is not None:
+                command += f"-e RAW2TRACE_PARALLEL={raw2trace_parallel} "
 
             if slurm:
                 f.write("SLURM_CGROUP=$(cat /proc/self/cgroup | cut -d: -f3 | head -n 1)\n")
@@ -1557,6 +1622,60 @@ def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_contai
             f.write("cleanup_container\n")
     except Exception as e:
         raise e
+
+def write_phase2_sbatch_tail(f, workload, trace_name, docker_home, phase2_script_path,
+                             finalize_cmd, finalize_log_path, segment_mem_mb):
+    """Append bash code to Phase 1 sbatch script that submits Phase 2 + Phase 3 jobs.
+
+    After Phase 1 (cluster_only) completes, this code:
+      1. Reads opt.p.lpt0.99 to get segment/cluster pairs
+      2. Skips segments where traces_simp/trace/{segment_id}.zip already exists
+      3. Submits sbatch per segment using the Phase 2 template script
+      4. Submits Phase 3 finalization with --dependency=afterany
+    """
+    wl_dir = f"{docker_home}/simpoint_flow/{trace_name}/{workload}"
+    f.write("\n# --- Phase 2: submit per-segment jobs ---\n")
+    f.write(f'SIMPOINTS_FILE="{wl_dir}/simpoints/opt.p.lpt0.99"\n')
+    f.write('if [ ! -f "$SIMPOINTS_FILE" ]; then\n')
+    f.write('    echo "ERROR: opt.p.lpt0.99 not found after Phase 1. Aborting Phase 2."\n')
+    f.write('    exit 1\n')
+    f.write('fi\n')
+    f.write('PHASE2_JIDS=""\n')
+    f.write('SUBMITTED=0\n')
+    f.write('SKIPPED=0\n')
+    f.write('while IFS=" " read -r SEGMENT_ID CLUSTER_ID; do\n')
+    f.write('    [ -z "$SEGMENT_ID" ] && continue\n')
+    f.write(f'    DEST_ZIP="{wl_dir}/traces_simp/trace/${{SEGMENT_ID}}.zip"\n')
+    f.write('    if [ -f "$DEST_ZIP" ] && [ -s "$DEST_ZIP" ]; then\n')
+    f.write('        SKIPPED=$((SKIPPED + 1))\n')
+    f.write('        continue\n')
+    f.write('    fi\n')
+    seg_log = f"{wl_dir}/logs/seg_%j_${{SEGMENT_ID}}.out"
+    f.write(f'    mkdir -p "{wl_dir}/logs"\n')
+    f.write(f'    JID=$(sbatch --mem {segment_mem_mb}M -c 1 -o "{seg_log}" '
+            f'{phase2_script_path} "$SEGMENT_ID" "$CLUSTER_ID" 2>&1 | grep -oP "\\d+")\n')
+    f.write('    if [ -n "$JID" ]; then\n')
+    f.write('        PHASE2_JIDS="${PHASE2_JIDS:+$PHASE2_JIDS:}$JID"\n')
+    f.write('        SUBMITTED=$((SUBMITTED + 1))\n')
+    f.write('        echo "Submitted segment $SEGMENT_ID (cluster $CLUSTER_ID) as job $JID"\n')
+    f.write('    else\n')
+    f.write('        echo "WARN: failed to submit segment $SEGMENT_ID"\n')
+    f.write('    fi\n')
+    f.write('done < "$SIMPOINTS_FILE"\n')
+    f.write('echo "Phase 2: submitted $SUBMITTED segment jobs, skipped $SKIPPED already-complete"\n')
+    f.write('\n# --- Phase 3: finalization ---\n')
+    f.write('if [ -n "$PHASE2_JIDS" ]; then\n')
+    f.write(f'    mkdir -p "$(dirname {finalize_log_path})"\n')
+    finalize_cmd_escaped = finalize_cmd.replace('"', '\\"')
+    f.write(f'    FJID=$(sbatch --dependency=afterany:$PHASE2_JIDS -o "{finalize_log_path}" '
+            f'--wrap="{finalize_cmd_escaped}" 2>&1 | grep -oP "\\d+")\n')
+    f.write('    echo "Phase 3 finalization job: $FJID (depends on $SUBMITTED segment jobs)"\n')
+    f.write('elif [ "$SUBMITTED" -eq 0 ] && [ "$SKIPPED" -gt 0 ]; then\n')
+    f.write('    echo "All segments already complete. Submitting finalization directly."\n')
+    f.write(f'    mkdir -p "$(dirname {finalize_log_path})"\n')
+    f.write(f'    sbatch -o "{finalize_log_path}" --wrap="{finalize_cmd_escaped}"\n')
+    f.write('fi\n')
+
 
 def get_simpoints (workload_data, sim_mode, dbg_lvl = 2):
     simpoints = {}

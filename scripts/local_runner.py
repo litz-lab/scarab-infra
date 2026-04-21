@@ -432,10 +432,13 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
             info(f"Using docker image with name {image_name}:{githash}", dbg_lvl)
             docker_container_name = f"{image_name}_{workload}_{trace_name}_{simpoint_mode}_{user}"
             filename = f"{docker_container_name}_tmp_run.sh"
+            trace_parallel = descriptor_data.get("trace_parallel")
+            raw2trace_parallel = descriptor_data.get("raw2trace_parallel")
             write_trace_docker_command_to_file(user, local_uid, local_gid, docker_container_name, githash,
                                                workload, image_name, trace_name, traces_dir, docker_home,
                                                env_vars, binary_cmd, client_bincmd, simpoint_mode, drio_args,
-                                               clustering_k, filename, infra_dir, application_dir)
+                                               clustering_k, filename, infra_dir, application_dir,
+                                               trace_parallel=trace_parallel, raw2trace_parallel=raw2trace_parallel)
             tmp_files.append(filename)
             command = '/bin/bash ' + filename
             subprocess.run(["mkdir", "-p", f"{docker_home}/simpoint_flow/{trace_name}/{workload}"], check=True, capture_output=True, text=True)

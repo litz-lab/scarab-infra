@@ -466,6 +466,14 @@ def run_perf_command(descriptor_path, action, dbg_lvl=2, infra_dir=None):
         if not perf_configs:
             raise RuntimeError("Descriptor has no perf_configurations for collection")
         collect_perf_data(user, root_dir, image_name, infra_dir, perf_configs, dbg_lvl)
+
+        # Auto-generate paper tables/macros if paper_output_dir is configured
+        paper_dir = descriptor_data.get("paper_output_dir")
+        if paper_dir:
+            workload_db_path = os.path.join(infra_dir, "workloads", "workloads_db.json")
+            from scripts.generate_paper_tables import generate_tables
+            generate_tables(workload_db_path, paper_dir)
+
         return 0
 
     raise RuntimeError(f"Unsupported perf action: {action}")

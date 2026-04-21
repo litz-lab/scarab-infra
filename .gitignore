@@ -1,5 +1,6 @@
 workloads/spec2017/cpu2017-1_0_5.iso
 scarab_builds/*
+docker_image_cache/
 __pycache__/
 **/__pycache__/
 docs/agent_cpu_evaluation.pptx
