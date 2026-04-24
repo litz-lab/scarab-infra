@@ -601,6 +601,37 @@ def print_trace_status(user, job_name, docker_prefix_list, dbg_lvl = 1):
             if tasks:
                 by_node[node] = tasks
 
+    # parallel_segments mode: Phase 2 jobs invoke a persisted phase2_template.sh
+    # under .../simpoint_flow/<job_name>/<workload>/, and Phase 3 finalize is a
+    # bare `sbatch --wrap=...` whose log path lives at
+    # .../simpoint_flow/<job_name>/logs/finalize_job_%j.out. Neither matches the
+    # `_tmp_run.sh` pattern that check_slurm_task_queued_or_running expects, so
+    # add a synthetic task name per workload so the substring match below picks
+    # them up as in-progress.
+    try:
+        ps_out = subprocess.run(
+            ["squeue", "-u", user, "--format=%N %o", "--noheader"],
+            capture_output=True, text=True, check=True,
+        ).stdout
+        ph2_re = re.compile(rf"/{re.escape(job_name)}/([^/]+)/phase2_template\.sh\b")
+        for line in ps_out.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            node, _, command = line.partition(" ")
+            m = ph2_re.search(command)
+            if not m:
+                continue
+            wl_name = m.group(1)
+            tag = f"phase2_{wl_name}"
+            if node:
+                running.append(tag)
+                by_node.setdefault(node, []).append(tag)
+            else:
+                queued.append(tag)
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        pass
+
     # Check for completed/in-progress traces on disk
     trace_dir = f"{os.path.expanduser('~')}/simpoint_flow/{job_name}"
     completed = []
