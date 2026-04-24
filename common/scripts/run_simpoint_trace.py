@@ -494,10 +494,20 @@ def trace_single_segment(workload, suite, simpoint_home, bincmd, client_bincmd, 
 
             drio_trace_extra = drio_args if drio_args else ""
             drio_trace_extra += " -disable_rseq"
+            # Isolate drcachesim per-segment to avoid collisions between
+            # concurrent Phase 2 jobs on the same slurm node. Observed symptom
+            # (seg 1994): drrun wrote its trace under traces_simp/496/ when
+            # job 546116 (seg 1994) and job 546120 (seg 496) started within
+            # 1 second of each other on the same node. Making ipc_name unique
+            # prevents drrun offline instances from sharing any per-host
+            # coordination state via the default /tmp/drcachesimpipe.
+            # We keep the default -subdir_prefix so downstream globs that
+            # look for "drmemtrace.*.dir" still match.
+            dr_flags = f"-ipc_name drcachesim_{segment_id}"
             if roi_start == 0:
-                trace_cmd = f"{dynamorio_home}/bin64/drrun -opt_cleancall 2 {drio_trace_extra} -t drcachesim -jobs {DR_JOBS} -outdir {seg_dir} -offline -count_fetched_instrs -trace_for_instrs {roi_length} -- {bincmd}"
+                trace_cmd = f"{dynamorio_home}/bin64/drrun -opt_cleancall 2 {drio_trace_extra} -t drcachesim {dr_flags} -jobs {DR_JOBS} -outdir {seg_dir} -offline -count_fetched_instrs -trace_for_instrs {roi_length} -- {bincmd}"
             else:
-                trace_cmd = f"{dynamorio_home}/bin64/drrun -opt_cleancall 2 {drio_trace_extra} -t drcachesim -jobs {DR_JOBS} -outdir {seg_dir} -offline -count_fetched_instrs -trace_after_instrs {roi_start} -trace_for_instrs {roi_length} -- {bincmd}"
+                trace_cmd = f"{dynamorio_home}/bin64/drrun -opt_cleancall 2 {drio_trace_extra} -t drcachesim {dr_flags} -jobs {DR_JOBS} -outdir {seg_dir} -offline -count_fetched_instrs -trace_after_instrs {roi_start} -trace_for_instrs {roi_length} -- {bincmd}"
 
             trace_env = os.environ.copy()
             trace_env["HOME"] = dr_home
@@ -747,10 +757,13 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
             # hitting the BB size limit is fatal (exit 255, empty output).
             # The fingerprint client (libfpg.so) tolerates it as a warning,
             # but drcachesim does not.
+            # -ipc_name: isolate drcachesim state so sibling drrun processes
+            # batched on the same host don't collide on /tmp/drcachesimpipe.
+            dr_flags = f"-ipc_name drcachesim_{segment_id}"
             if roi_start == 0:
-                trace_cmd = f"{dynamorio_home}/bin64/drrun -opt_cleancall 2 {drio_trace_extra} -t drcachesim -jobs {DR_JOBS} -outdir {seg_dir} -offline -count_fetched_instrs -trace_for_instrs {roi_length} -- {bincmd}"
+                trace_cmd = f"{dynamorio_home}/bin64/drrun -opt_cleancall 2 {drio_trace_extra} -t drcachesim {dr_flags} -jobs {DR_JOBS} -outdir {seg_dir} -offline -count_fetched_instrs -trace_for_instrs {roi_length} -- {bincmd}"
             else:
-                trace_cmd = f"{dynamorio_home}/bin64/drrun -opt_cleancall 2 {drio_trace_extra} -t drcachesim -jobs {DR_JOBS} -outdir {seg_dir} -offline -count_fetched_instrs -trace_after_instrs {roi_start} -trace_for_instrs {roi_length} -- {bincmd}"
+                trace_cmd = f"{dynamorio_home}/bin64/drrun -opt_cleancall 2 {drio_trace_extra} -t drcachesim {dr_flags} -jobs {DR_JOBS} -outdir {seg_dir} -offline -count_fetched_instrs -trace_after_instrs {roi_start} -trace_for_instrs {roi_length} -- {bincmd}"
 
             trace_cmds.append(trace_cmd)
 
