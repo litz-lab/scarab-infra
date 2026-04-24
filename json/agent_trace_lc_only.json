@@ -1,0 +1,29 @@
+{
+    "_descriptor_type": "Validation descriptor: trace only langchain_short_12iter to smoke-test ROI phase markers end-to-end.",
+    "descriptor_type": "trace",
+    "workload_manager": "slurm",
+    "root_dir": "/soe/surim",
+    "application_dir": null,
+    "scarab_path": "/soe/surim/src/scarab_ll",
+    "scarab_build": "opt",
+    "traces_dir": "/soe/surim/traces",
+    "trace_name": "trace_agent",
+    "trace_parallel": 1,
+    "raw2trace_parallel": 1,
+    "parallel_segments": true,
+    "trace_configurations": [
+        {
+            "workload": "langchain_short_12iter",
+            "image_name": "agent",
+            "suite": "agent",
+            "subsuite": "langchain",
+            "env_vars": null,
+            "binary_cmd": "python3 \\$tmpdir/AgentCPU/workloads/run.py langchain --task-id lc-short-12 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size short --iterations 12",
+            "client_bincmd": null,
+            "trace_type": "cluster_then_trace",
+            "dynamorio_args": null,
+            "clustering_k": null,
+            "slurm_options": ""
+        }
+    ]
+}
