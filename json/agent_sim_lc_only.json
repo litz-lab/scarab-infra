@@ -1,0 +1,35 @@
+{
+  "_descriptor_type": "Minimal sim descriptor: simulate langchain_short_12iter only — pairs with agent_trace_lc_only to validate the per-phase ROI flow end-to-end before running the full 30-workload sweep.",
+  "descriptor_type": "simulation",
+  "architecture": "golden_cove",
+  "experiment": "agent_sim",
+  "workload_manager": "slurm",
+  "root_dir": "/soe/surim",
+  "application_dir": null,
+  "scarab_path": "/soe/surim/src/scarab_ll",
+  "scarab_build": "opt",
+  "traces_dir": "/soe/surim/traces",
+  "top_simpoint": false,
+  "simulations": [
+    {
+      "suite": "agent",
+      "subsuite": "langchain",
+      "workload": "langchain_short_12iter",
+      "cluster_id": null,
+      "simulation_type": "memtrace",
+      "warmup": null
+    }
+  ],
+  "configurations": {
+    "golden_cove_base": {
+      "params": "",
+      "binary": "scarab_current",
+      "slurm_options": "",
+      "memory_overhead_mb": 0
+    }
+  },
+  "mem": {
+    "collection_baseline": null,
+    "fallback_mb": 4096
+  }
+}
