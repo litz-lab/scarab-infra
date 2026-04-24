@@ -1624,7 +1624,8 @@ def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_contai
         raise e
 
 def write_phase2_sbatch_tail(f, workload, trace_name, docker_home, phase2_script_path,
-                             finalize_cmd, finalize_log_path, segment_mem_mb):
+                             finalize_cmd, finalize_log_path, segment_mem_mb,
+                             finalize_mem_mb=16384):
     """Append bash code to Phase 1 sbatch script that submits Phase 2 + Phase 3 jobs.
 
     After Phase 1 (cluster_only) completes, this code:
@@ -1667,13 +1668,13 @@ def write_phase2_sbatch_tail(f, workload, trace_name, docker_home, phase2_script
     f.write('if [ -n "$PHASE2_JIDS" ]; then\n')
     f.write(f'    mkdir -p "$(dirname {finalize_log_path})"\n')
     finalize_cmd_escaped = finalize_cmd.replace('"', '\\"')
-    f.write(f'    FJID=$(sbatch --dependency=afterany:$PHASE2_JIDS -o "{finalize_log_path}" '
-            f'--wrap="{finalize_cmd_escaped}" 2>&1 | grep -oP "\\d+")\n')
+    f.write(f'    FJID=$(sbatch --mem {finalize_mem_mb}M --dependency=afterany:$PHASE2_JIDS '
+            f'-o "{finalize_log_path}" --wrap="{finalize_cmd_escaped}" 2>&1 | grep -oP "\\d+")\n')
     f.write('    echo "Phase 3 finalization job: $FJID (depends on $SUBMITTED segment jobs)"\n')
     f.write('elif [ "$SUBMITTED" -eq 0 ] && [ "$SKIPPED" -gt 0 ]; then\n')
     f.write('    echo "All segments already complete. Submitting finalization directly."\n')
     f.write(f'    mkdir -p "$(dirname {finalize_log_path})"\n')
-    f.write(f'    sbatch -o "{finalize_log_path}" --wrap="{finalize_cmd_escaped}"\n')
+    f.write(f'    sbatch --mem {finalize_mem_mb}M -o "{finalize_log_path}" --wrap="{finalize_cmd_escaped}"\n')
     f.write('fi\n')
 
 
@@ -2668,8 +2669,12 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
             if subsuite not in workload_db_data[suite]:
                 workload_db_data[suite][subsuite] = {}
 
-            if workload in workload_db_data[suite][subsuite].keys():
-                print("WARNING: workload name should be unique within a subsuite. db will be overwritten!")
+            if workload in workload_db_data[suite][subsuite]:
+                # Preserve existing keys (e.g., performance) that finish_trace doesn't manage
+                existing = workload_db_data[suite][subsuite][workload]
+                for key in existing:
+                    if key not in workload_dict:
+                        workload_dict[key] = existing[key]
             workload_db_data[suite][subsuite][workload] = workload_dict
 
         if skipped:
