@@ -373,7 +373,7 @@ def cluster_only(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint
             start_time = time.perf_counter()
             drio_extra = drio_args if drio_args else ""
             drio_extra += " -disable_rseq"
-            thread_limit_prefix = "OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1 TOKENIZERS_PARALLELISM=false"
+            thread_limit_prefix = "PYTHONHASHSEED=0 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1 TOKENIZERS_PARALLELISM=false"
             fp_cmd = f"HOME={dr_home} {thread_limit_prefix} {dynamorio_home}/bin64/drrun -max_bb_instrs 4095 -opt_cleancall 2 {drio_extra} -c $tmpdir/libfpg.so -no_use_bb_pc -segment_size {seg_size} -output {workload_home}/fingerprint/bbfp -pcmap_output {workload_home}/fingerprint/pcmap -- {bincmd}"
             max_retries = 3
             for attempt in range(1, max_retries + 1):
@@ -622,7 +622,7 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
             # is in DR's d_r_strcmp called with a corrupted module-name pointer
             # when multiple threads dlopen/dlclose simultaneously. Single-threaded
             # fingerprinting is also more deterministic for SimPoint.
-            thread_limit_prefix = "OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1 TOKENIZERS_PARALLELISM=false"
+            thread_limit_prefix = "PYTHONHASHSEED=0 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1 TOKENIZERS_PARALLELISM=false"
             fp_cmd = f"HOME={dr_home} {thread_limit_prefix} {dynamorio_home}/bin64/drrun -max_bb_instrs 4095 -opt_cleancall 2 {drio_extra} -c $tmpdir/libfpg.so -no_use_bb_pc -segment_size {seg_size} -output {workload_home}/fingerprint/bbfp -pcmap_output {workload_home}/fingerprint/pcmap -- {bincmd}"
             # DynamoRIO has a non-deterministic crash in d_r_strcmp when
             # multi-threaded Python apps do concurrent dlopen/dlclose during

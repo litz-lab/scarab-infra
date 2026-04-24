@@ -21,6 +21,13 @@ RUN mkdir -p -m 0700 ~/.ssh && ssh-keyscan github.com >> ~/.ssh/known_hosts
 RUN --mount=type=ssh git clone git@github.com:5surim/AgentCPU.git /tmp_home/AgentCPU && \
     rm -rf /tmp_home/AgentCPU/.git
 
+# Build per-phase marker shared library used by agent_markers.py. -O0 keeps
+# each agent_roi_*_* function at a distinct link address so the marker PCs
+# are unique per phase. Placed at /tmp_home so agent_markers.py finds it.
+RUN gcc -shared -fPIC -O0 -o /tmp_home/libagent_markers.so \
+        /tmp_home/AgentCPU/workloads/marker/marker.c && \
+    chmod 0755 /tmp_home/libagent_markers.so
+
 # Upgrade pip first. Ubuntu jammy ships pip 22 which has a known
 # AssertionError in resolvelib.get_topological_weights on complex graphs.
 RUN python3 -m pip install --no-cache-dir --upgrade "pip>=24.0"
@@ -53,6 +60,9 @@ RUN python3 -c "from transformers import AutoTokenizer; AutoTokenizer.from_pretr
 ENV OPENBLAS_NUM_THREADS=1
 ENV OMP_NUM_THREADS=1
 ENV MKL_NUM_THREADS=1
+# Fix Python hash seed so dict/set iteration order is stable across runs.
+# Required for deterministic instruction counts across retraces.
+ENV PYTHONHASHSEED=0
 
 COPY workloads/agent/workload_root_entrypoint.sh /tmp_home/agent/workload_root_entrypoint.sh
 COPY workloads/agent/workload_user_entrypoint.sh /tmp_home/agent/workload_user_entrypoint.sh
