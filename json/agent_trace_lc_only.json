@@ -17,7 +17,7 @@
             "image_name": "agent",
             "suite": "agent",
             "subsuite": "langchain",
-            "env_vars": null,
+            "env_vars": ["AGENT_PHASE_LOG=/home/surim/simpoint_flow/trace_agent/langchain_short_12iter/agent_phase_log.txt"],
             "binary_cmd": "python3 \\$tmpdir/AgentCPU/workloads/run.py langchain --task-id lc-short-12 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json --context-size short --iterations 12",
             "client_bincmd": null,
             "trace_type": "cluster_then_trace",

@@ -494,14 +494,10 @@ def trace_single_segment(workload, suite, simpoint_home, bincmd, client_bincmd, 
 
             drio_trace_extra = drio_args if drio_args else ""
             drio_trace_extra += " -disable_rseq"
-            # Point agent_markers at a per-segment phase log so downstream
-            # aggregation can align scarab's *.roi.N.csv with phase names.
-            phase_log = f"{workload_home}/traces_simp/{segment_id}/agent_phase_log.txt"
-            env_prefix = f"PYTHONHASHSEED=0 AGENT_PHASE_LOG={phase_log}"
             if roi_start == 0:
-                trace_cmd = f"{env_prefix} {dynamorio_home}/bin64/drrun -opt_cleancall 2 {drio_trace_extra} -t drcachesim -jobs {DR_JOBS} -outdir {seg_dir} -offline -count_fetched_instrs -trace_for_instrs {roi_length} -- {bincmd}"
+                trace_cmd = f"{dynamorio_home}/bin64/drrun -opt_cleancall 2 {drio_trace_extra} -t drcachesim -jobs {DR_JOBS} -outdir {seg_dir} -offline -count_fetched_instrs -trace_for_instrs {roi_length} -- {bincmd}"
             else:
-                trace_cmd = f"{env_prefix} {dynamorio_home}/bin64/drrun -opt_cleancall 2 {drio_trace_extra} -t drcachesim -jobs {DR_JOBS} -outdir {seg_dir} -offline -count_fetched_instrs -trace_after_instrs {roi_start} -trace_for_instrs {roi_length} -- {bincmd}"
+                trace_cmd = f"{dynamorio_home}/bin64/drrun -opt_cleancall 2 {drio_trace_extra} -t drcachesim -jobs {DR_JOBS} -outdir {seg_dir} -offline -count_fetched_instrs -trace_after_instrs {roi_start} -trace_for_instrs {roi_length} -- {bincmd}"
 
             trace_env = os.environ.copy()
             trace_env["HOME"] = dr_home
@@ -747,18 +743,14 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
 
             drio_trace_extra = drio_args if drio_args else ""
             drio_trace_extra += " -disable_rseq"
-            # Point agent_markers at a per-segment phase log so downstream
-            # aggregation can align scarab's *.roi.N.csv with phase names.
-            phase_log = f"{workload_home}/traces_simp/{segment_id}/agent_phase_log.txt"
-            env_prefix = f"PYTHONHASHSEED=0 AGENT_PHASE_LOG={phase_log}"
             # Note: do NOT use -max_bb_instrs here. With drcachesim -offline,
             # hitting the BB size limit is fatal (exit 255, empty output).
             # The fingerprint client (libfpg.so) tolerates it as a warning,
             # but drcachesim does not.
             if roi_start == 0:
-                trace_cmd = f"{env_prefix} {dynamorio_home}/bin64/drrun -opt_cleancall 2 {drio_trace_extra} -t drcachesim -jobs {DR_JOBS} -outdir {seg_dir} -offline -count_fetched_instrs -trace_for_instrs {roi_length} -- {bincmd}"
+                trace_cmd = f"{dynamorio_home}/bin64/drrun -opt_cleancall 2 {drio_trace_extra} -t drcachesim -jobs {DR_JOBS} -outdir {seg_dir} -offline -count_fetched_instrs -trace_for_instrs {roi_length} -- {bincmd}"
             else:
-                trace_cmd = f"{env_prefix} {dynamorio_home}/bin64/drrun -opt_cleancall 2 {drio_trace_extra} -t drcachesim -jobs {DR_JOBS} -outdir {seg_dir} -offline -count_fetched_instrs -trace_after_instrs {roi_start} -trace_for_instrs {roi_length} -- {bincmd}"
+                trace_cmd = f"{dynamorio_home}/bin64/drrun -opt_cleancall 2 {drio_trace_extra} -t drcachesim -jobs {DR_JOBS} -outdir {seg_dir} -offline -count_fetched_instrs -trace_after_instrs {roi_start} -trace_for_instrs {roi_length} -- {bincmd}"
 
             trace_cmds.append(trace_cmd)
 
