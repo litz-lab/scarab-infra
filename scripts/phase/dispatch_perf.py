@@ -100,7 +100,18 @@ def build_sbatch(cfg: dict, args: argparse.Namespace) -> tuple[str, Path]:
     outdir.mkdir(parents=True, exist_ok=True)
     inner = make_inner_cmd(workload, cfg["binary_cmd"], str(outdir))
 
+    # Load the image from the NAS cache if it's not already on this slurm
+    # node. The cache tar lives at infra/docker_image_cache/<image_basename>.tar
+    # where <image_basename> = image tag with ':' → '_'.
+    img_basename = args.image.replace(":", "_")
+    cache_tar = INFRA_DIR / "docker_image_cache" / f"{img_basename}.tar"
+    load_cmd = (
+        f"docker image inspect {args.image} > /dev/null 2>&1 || "
+        f"docker load -i {cache_tar} > /dev/null"
+    )
+
     docker_cmd = (
+        f"{load_cmd} && "
         f"docker run --rm "
         f"-u $(id -u):$(id -g) "
         f"-e HOME=/tmp "
