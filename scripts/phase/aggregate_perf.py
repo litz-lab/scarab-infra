@@ -57,6 +57,9 @@ PHASES = [
     "file_grep", "patch_write", "multi_agent",
 ]
 
+# Each event group is run as a separate perf invocation; merge by event name.
+GROUPS = ["g1_cache", "g2_frontend", "g3_uopcache"]
+
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
@@ -70,19 +73,33 @@ def main() -> int:
 
     rows = []
     for phase in PHASES:
-        perf = parse_perf_csv(args.outdir / f"perf_{phase}.csv")
-        if not perf:
+        # Merge event counts across all group files for this phase
+        merged: dict[str, float] = {}
+        for g in GROUPS:
+            d = parse_perf_csv(args.outdir / f"perf_{phase}_{g}.csv")
+            for k, v in d.items():
+                # cycles/instructions appear in multiple groups — keep the first
+                # occurrence (g1 is "primary"); other events appear in only
+                # one group so collisions are limited to cycles/instructions.
+                merged.setdefault(k, v)
+        if not merged:
             continue
         invocations = count_invocations(args.outdir / f"agent_phase_log_{phase}.txt", phase)
-        cycles = perf.get("cycles", 0.0)
-        insts  = perf.get("instructions", 0.0)
+        cycles = merged.get("cycles", 0.0)
+        insts  = merged.get("instructions", 0.0)
         if insts == 0:
             continue
         ipc = insts / cycles if cycles else 0.0
-        l1d = perf.get("L1-dcache-load-misses", 0.0)
-        llc = perf.get("LLC-load-misses", 0.0)
-        bm  = perf.get("branch-misses", 0.0)
-        br  = perf.get("branches", 0.0)
+        l1d = merged.get("L1-dcache-load-misses", 0.0)
+        l1i = merged.get("L1-icache-load-misses", 0.0)
+        llc = merged.get("LLC-load-misses", 0.0)
+        itlb = merged.get("iTLB-load-misses", 0.0)
+        dtlb = merged.get("dTLB-load-misses", 0.0)
+        bm  = merged.get("branch-misses", 0.0)
+        br  = merged.get("branches", 0.0)
+        dsb = merged.get("idq.dsb_uops", 0.0)
+        mite = merged.get("idq.mite_uops", 0.0)
+        uop_hit = (100.0 * dsb / (dsb + mite)) if (dsb + mite) else float("nan")
         rows.append({
             "phase": phase,
             "invocations": invocations,
@@ -90,8 +107,12 @@ def main() -> int:
             "cycles": int(cycles),
             "IPC": ipc,
             "L1d_MPKI": 1000.0 * l1d / insts,
+            "L1i_MPKI": 1000.0 * l1i / insts,
             "LLC_MPKI": 1000.0 * llc / insts,
+            "iTLB_MPKI": 1000.0 * itlb / insts,
+            "dTLB_MPKI": 1000.0 * dtlb / insts,
             "br_mispred_pct": 100.0 * bm / br if br else 0.0,
+            "uop_cache_hit_pct": uop_hit,
         })
 
     if not rows:
@@ -102,14 +123,21 @@ def main() -> int:
     rows.sort(key=lambda r: -r["insts"])
     total_insts = sum(r["insts"] for r in rows)
     print(f"# {len(rows)} phases, total measured insts = {total_insts:,}")
-    print(f"{'phase':<16} {'inv':>4} {'insts':>14} {'cycles':>14} "
-          f"{'IPC':>5} {'L1d_MPKI':>9} {'LLC_MPKI':>9} {'BrMis%':>7}  pct_insts")
+    hdr = (f"{'phase':<16} {'inv':>4} {'insts':>14} {'IPC':>5} "
+           f"{'L1i_MPKI':>9} {'L1d_MPKI':>9} {'LLC_MPKI':>9} "
+           f"{'iTLB_MPKI':>10} {'dTLB_MPKI':>10} "
+           f"{'BrMis%':>7} {'uopHit%':>8}  pct_insts")
+    print(hdr)
     for r in rows:
         pct = 100.0 * r["insts"] / total_insts
+        uop_str = (f"{r['uop_cache_hit_pct']:>8.2f}"
+                   if r['uop_cache_hit_pct'] == r['uop_cache_hit_pct']  # NaN guard
+                   else f"{'-':>8}")
         print(f"{r['phase']:<16} {r['invocations']:>4} {r['insts']:>14,} "
-              f"{r['cycles']:>14,} {r['IPC']:>5.3f} "
-              f"{r['L1d_MPKI']:>9.2f} {r['LLC_MPKI']:>9.2f} "
-              f"{r['br_mispred_pct']:>7.3f}  {pct:>5.1f}%")
+              f"{r['IPC']:>5.3f} "
+              f"{r['L1i_MPKI']:>9.2f} {r['L1d_MPKI']:>9.2f} {r['LLC_MPKI']:>9.2f} "
+              f"{r['iTLB_MPKI']:>10.2f} {r['dTLB_MPKI']:>10.2f} "
+              f"{r['br_mispred_pct']:>7.3f} {uop_str}  {pct:>5.1f}%")
     return 0
 
 
