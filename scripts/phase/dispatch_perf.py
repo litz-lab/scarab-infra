@@ -125,7 +125,7 @@ def build_sbatch(cfg: dict, args: argparse.Namespace) -> tuple[str, Path]:
     sbatch_log = outdir / "sbatch.out"
     sbatch_cmd = (
         f"sbatch --nodelist={args.nodelist} --nodes=1 "
-        f"--mem={args.mem_mb}M -c 1 "
+        f"--mem={args.mem_mb}M -c 1 --exclusive "
         f"-J perf_{workload} "
         f"-o {sbatch_log} "
         f"--wrap=\"{docker_cmd}\""
