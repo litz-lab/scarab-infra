@@ -28,6 +28,17 @@ RUN gcc -shared -fPIC -O0 -o /tmp_home/libagent_markers.so \
         /tmp_home/AgentCPU/workloads/marker/marker.c && \
     chmod 0755 /tmp_home/libagent_markers.so
 
+# Install perf for per-phase native-HW PMU characterization driven by
+# agent_markers --control fifo:. The kernel-version-specific binary in
+# linux-tools-generic is for jammy's 5.15 ABI; that perf still works
+# against newer host kernels for the basic counter set we use
+# (cycles, instructions, branches, L1/LLC misses).
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        linux-tools-common linux-tools-generic && \
+    ln -sf /usr/lib/linux-tools-5.15.0-176/perf /usr/local/bin/perf && \
+    rm -rf /var/lib/apt/lists/*
+
 # Upgrade pip first. Ubuntu jammy ships pip 22 which has a known
 # AssertionError in resolvelib.get_topological_weights on complex graphs.
 RUN python3 -m pip install --no-cache-dir --upgrade "pip>=24.0"
