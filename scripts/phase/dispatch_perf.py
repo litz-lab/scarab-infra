@@ -42,7 +42,9 @@ def parse_args() -> argparse.Namespace:
     ap.add_argument("--nodelist", default=DEFAULT_NODELIST)
     ap.add_argument("--image", default=DEFAULT_IMAGE)
     ap.add_argument("--outroot", type=Path, default=DEFAULT_OUTROOT)
-    ap.add_argument("--mem-mb", type=int, default=4096)
+    # 5 GB Docker-image load + workload runtime → 4 GB OOMs on first try.
+    # 8 GB has comfortable headroom; small workloads still finish quickly.
+    ap.add_argument("--mem-mb", type=int, default=8192)
     ap.add_argument("--dry-run", action="store_true",
                     help="Print sbatch commands without submitting")
     return ap.parse_args()
@@ -122,7 +124,7 @@ def build_sbatch(cfg: dict, args: argparse.Namespace) -> tuple[str, Path]:
 
     sbatch_log = outdir / "sbatch.out"
     sbatch_cmd = (
-        f"sbatch --nodelist={args.nodelist} "
+        f"sbatch --nodelist={args.nodelist} --nodes=1 "
         f"--mem={args.mem_mb}M -c 1 "
         f"-J perf_{workload} "
         f"-o {sbatch_log} "
