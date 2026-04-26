@@ -92,7 +92,7 @@ jobs:
             exit 1
           fi
           completed=$(printf '%s\n' "$status_line" | awk -F'|' '{gsub(/^[[:space:]]+|[[:space:]]+$/,"",$2); print $2}')
-          if [ "$completed" != "1" ]; then
-            echo "Expected 1 completed simulation for this_pr, got '$completed'"
+          if [ "$completed" != "3" ]; then
+            echo "Expected 3 completed simulation for this_pr, got '$completed'"
             exit 1
           fi
