@@ -843,34 +843,71 @@ class stat_aggregator:
                 found_subsuite = simulation["subsuite"]
                 found_workload = simulation["workload"]
                 found_cluster_id = simulation["cluster_id"]
+                found_sim_type = simulation["simulation_type"]
 
                 if found_cluster_id != None:
                     assert found_workload is not None, "Workload cannot be None when cluster_id is specified"
                     assert found_suite is not None, "Suite cannot be None when cluster_id is specified"
                     assert found_subsuite is not None, "Subsuite cannot be None when cluster_id is specified"
-                    tasks.append((config, found_suite, found_subsuite, found_workload, str(found_cluster_id)))
+
+                    if found_sim_type == None:
+                        sim_type = self.get_default_sim_type(found_workload, found_suite, found_subsuite, top_simpoint_only, workloads_data)
+                    else:
+                        sim_type = found_sim_type
+
+                    tasks.append((config, found_suite, found_subsuite, found_workload, str(found_cluster_id), sim_type))
 
                 elif found_workload != None:
                     assert found_suite is not None, "Suite cannot be None when workload is specified"
                     assert found_subsuite is not None, "Subsuite cannot be None when workload is specified"
+
+                    if found_sim_type == None:
+                        sim_type = self.get_default_sim_type(found_workload, found_suite, found_subsuite, top_simpoint_only, workloads_data)
+                    else:
+                        sim_type = found_sim_type
+
+                    if sim_type == "exec": # Simpoints not supported for exec
+                        tasks.append((config, found_suite, found_subsuite, found_workload, "0", sim_type))
+                        continue
+
                     for cid in self.get_cluster_ids(found_workload, found_suite, found_subsuite, top_simpoint_only):
-                        tasks.append((config, found_suite, found_subsuite, found_workload, str(cid)))
+                        tasks.append((config, found_suite, found_subsuite, found_workload, str(cid), sim_type))
 
                 elif found_subsuite != None:
                     assert found_suite is not None, "Suite cannot be None when subsuite is specified"
                     for workload in list(workloads_data[found_suite][found_subsuite].keys()):
                         if not isinstance(workloads_data[found_suite][found_subsuite][workload], dict):
                             continue
+
+                        if found_sim_type == None:
+                            sim_type = self.get_default_sim_type(workload, found_suite, found_subsuite, top_simpoint_only, workloads_data)
+                        else:
+                            sim_type = found_sim_type
+
+                        if sim_type == "exec": # Simpoints not supported for exec
+                            tasks.append((config, found_suite, found_subsuite, workload, "0", sim_type))
+                            continue
+
                         for cid in self.get_cluster_ids(workload, found_suite, found_subsuite, top_simpoint_only, workloads_data=workloads_data):
-                            tasks.append((config, found_suite, found_subsuite, workload, str(cid)))
+                            tasks.append((config, found_suite, found_subsuite, workload, str(cid), sim_type))
 
                 else:
                     for subsuite in list(workloads_data[found_suite].keys()):
                         for workload in list(workloads_data[found_suite][subsuite].keys()):
                             if not isinstance(workloads_data[found_suite][subsuite][workload], dict):
                                 continue
+
+                            if found_sim_type == None:
+                                sim_type = self.get_default_sim_type(workload, found_suite, subsuite, top_simpoint_only, workloads_data)
+                            else:
+                                sim_type = found_sim_type
+
+                            if sim_type == "exec": # Simpoints not supported for exec
+                                tasks.append((config, found_suite, subsuite, workload, "0", sim_type))
+                                continue
+
                             for cid in self.get_cluster_ids(workload, found_suite, subsuite, top_simpoint_only, workloads_data=workloads_data):
-                                tasks.append((config, found_suite, subsuite, workload, str(cid)))
+                                tasks.append((config, found_suite, subsuite, workload, str(cid), sim_type))
 
         # ... after building tasks ...
         # ---------------------------------------------------------------------
@@ -883,7 +920,7 @@ class stat_aggregator:
 
         incomplete_simpoints = set()
         if skip_incomplete:
-            for (conf, suite, subsuite, workload, cid) in tasks:
+            for (conf, suite, subsuite, workload, cid, sim_type) in tasks:
                 if not self.sp_is_complete(suite, subsuite, workload, conf, cid, experiment_name, simulations_path):
                     incomplete_simpoints.add((suite, subsuite, workload, str(cid)))
 
@@ -908,11 +945,11 @@ class stat_aggregator:
         # ---------------------------------------------------------------------
 
 
-        config0, suite0, subsuite0, workload0, cid0 = tasks[0]
+        config0, suite0, subsuite0, workload0, cid0, simtype0 = tasks[0]
         sim_dir0 = f"{simulations_path}{experiment_name}/{config0}/{suite0}/{subsuite0}/{workload0}/{cid0}/"
         task_sim_dirs = [
             (f"{simulations_path}{experiment_name}/{conf}/{suite}/{subsuite}/{workload}/{cid}/", (conf, suite, subsuite, workload, cid))
-            for (conf, suite, subsuite, workload, cid) in tasks
+            for (conf, suite, subsuite, workload, cid, simtype) in tasks
         ]
 
         known_stats = []
@@ -1006,7 +1043,12 @@ class stat_aggregator:
         # Cache simpoint (weight, segment_id) lookup per (suite, subsuite, workload)
         sp_cache = {}
 
-        w0, s0 = self.get_simpoint_info(cid0, workload0, subsuite0, suite0, top_simpoint_only, workloads_data=workloads_data, sp_cache=sp_cache)
+        if simtype0 != "exec":
+            w0, s0 = self.get_simpoint_info(cid0, workload0, subsuite0, suite0, top_simpoint_only, workloads_data=workloads_data, sp_cache=sp_cache)
+        else:
+            w0 = 1
+            s0 = 0
+
         meta["Experiment"][0] = experiment_name
         meta["Architecture"][0] = architecture
         meta["Configuration"][0] = config0
@@ -1021,18 +1063,23 @@ class stat_aggregator:
         sim_dirs = [None] * n_cols
         sim_dirs[0] = sim_dir0
 
-        for j, (conf, suite, subsuite, workload, cid) in enumerate(tasks[1:], start=1):
+        for j, (conf, suite, subsuite, workload, cid, simtype) in enumerate(tasks[1:], start=1):
             sim_dirs[j] = task_sim_dirs[j][0]
 
-            w, s = self.get_simpoint_info(
-                cid,
-                workload,
-                subsuite,
-                suite,
-                top_simpoint_only,
-                workloads_data=workloads_data,
-                sp_cache=sp_cache,
-            )
+            if simtype != "exec":
+                w, s = self.get_simpoint_info(
+                    cid,
+                    workload,
+                    subsuite,
+                    suite,
+                    top_simpoint_only,
+                    workloads_data=workloads_data,
+                    sp_cache=sp_cache,
+                )
+            else:
+                w = 1
+                s = 0
+
             meta["Experiment"][j] = experiment_name
             meta["Architecture"][j] = architecture
             meta["Configuration"][j] = conf
@@ -1102,7 +1149,7 @@ class stat_aggregator:
                     clear_column=False,
                 )
 
-        colnames = [f"{conf} {suite}/{subsuite}/{workload} {cid}" for (conf, suite, subsuite, workload, cid) in tasks]
+        colnames = [f"{conf} {suite}/{subsuite}/{workload} {cid}" for (conf, suite, subsuite, workload, cid, simtype) in tasks]
 
 
         Path(outfile).parent.mkdir(parents=True, exist_ok=True)
@@ -2446,6 +2493,25 @@ class stat_aggregator:
                 print(f"ERROR: Could not find workload {workload} in workloads_top_simp.json")
             else:
                 print(f"ERROR: Could not find workload {workload} in workloads_db.json")
+            return None
+
+    def get_default_sim_type(self, workload, suite, subsuite, top_simpoint_only, workloads_data=None):
+        infra_dir = _infra_root()
+        if workloads_data is None:
+            if top_simpoint_only:
+                workload_db_path = str(infra_dir / "workloads" / "workloads_top_simp.json")
+            else:
+                workload_db_path = str(infra_dir / "workloads" / "workloads_db.json")
+            workloads_data = utilities.read_descriptor_from_json(workload_db_path)
+
+        try:
+            sim_mode = workloads_data[suite][subsuite][workload]["simulation"]["prioritized_mode"]
+            return sim_mode
+        except (KeyError, TypeError):
+            if top_simpoint_only:
+                print(f"ERROR: Could not find simulation mode for {workload} in workloads_top_simp.json")
+            else:
+                print(f"ERROR: Could not find simulation mode for {workload} in workloads_db.json")
             return None
 
     # Print markdown table to easily report to github
