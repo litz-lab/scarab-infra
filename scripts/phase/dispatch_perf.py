@@ -87,10 +87,14 @@ def make_inner_cmd(workload: str, binary_cmd: str, outdir_in_container: str) -> 
 
     # Hardcode HF cache path (no $-vars) so we can avoid escaping headaches
     # when the inner command is wrapped in sbatch --wrap=\"...\".
+    # Cache HF models under /soe/surim (NAS, 7 TB free) instead of /tmp
+    # inside the container — heavier workloads (haystack with corpus
+    # encoding) otherwise fill the slurm node's /tmp (5 GB image +
+    # transformer activations + model files = OOM).
     return (
-        "mkdir -p /tmp/hf_cache && "
-        "cp -r /root/.cache/huggingface/. /tmp/hf_cache/ 2>/dev/null || true; "
-        "HF_HOME=/tmp/hf_cache "
+        "mkdir -p /soe/surim/hf_cache_shared && "
+        "cp -rn /root/.cache/huggingface/. /soe/surim/hf_cache_shared/ 2>/dev/null || true; "
+        "HF_HOME=/soe/surim/hf_cache_shared "
         f"bash /soe/surim/src/AgentCPU/workloads/perf/run_with_perf.sh "
         f"{outdir_in_container} {py_args}"
     )
