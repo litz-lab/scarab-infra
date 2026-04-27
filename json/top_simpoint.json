@@ -27,7 +27,23 @@
       "workload":"perlbench_r",
       "cluster_id":109678,
       "simulation_type":"memtrace",
-      "warmup":10000000
+      "warmup":1000000
+    },
+    {
+      "suite":"datacenter",
+      "subsuite":"datacenter",
+      "workload":"cassandra",
+      "cluster_id":null,
+      "simulation_type":"pt",
+      "warmup":1000000
+    },
+    {
+      "suite":"spec2017",
+      "subsuite":"rate_fp_v2",
+      "workload":"bwaves_r",
+      "cluster_id":null,
+      "simulation_type":"exec",
+      "warmup":1000000
     }
   ],
   "_configurations":"scarab configurations to sweep. slurm_options passes extra arguments to sbatch (ignored for manual runner); '--mem' is no longer needed here as memory is scheduled per-simpoint automatically. memory_overhead_mb (optional, default 0) adds a fixed MB overhead on top of the per-simpoint base memory for configs that allocate extra Scarab structures.",
