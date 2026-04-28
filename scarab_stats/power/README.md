@@ -48,11 +48,14 @@ It automates the conversion pipeline between Scarab’s parameter/statistics fil
 │   ├── params_table.json
 │   ├── stats_table.json
 │   └── mcpat_structure.json
-├── scarab_output/        # Scarab simulation output (Converter input)
-│   ├── PARAMS.out        # Scarab simulation architecture parameters
-│   └── power.pkl         # Scarab simulation runtime power statistics
 └── mcpat
 ```
+
+The 4-step `client.py` workflow below operates on a user-supplied
+scarab output dir (e.g., a simpoint sim dir from
+`<root>/simulations/<experiment>/<config>/<suite>/<subsuite>/<workload>/<cluster_id>/`).
+Pass paths explicitly to each step or symlink that dir at
+`./scarab_output/`. No fixture files are shipped with this PR.
 
 ---
 
@@ -88,7 +91,7 @@ python client.py update-stats
  - input: ./scarab_output/power.pkl
  - output: ./json/stats_table.json
 
-This step updates the dynamic power statistics in ./json/stats_table.json using a dictionary of runtime data. This dictionary should be manually generated after running the Scarab simulation and should contain the relevant power-related metrics, which are then written into the corresponding fields of the JSON file.
+This step updates the dynamic power statistics in ./json/stats_table.json using a dictionary of runtime data. Historically this dict was hand-built after running scarab; the new pipeline (above) reads scarab's native `power.stat.0.csv` directly via `parse_power_stat.scarab_csv_to_power_dict()` — no manual `power.pkl` step required.
 
 ### 4️⃣ Generate final McPAT XML file
 ```
