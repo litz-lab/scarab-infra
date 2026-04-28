@@ -257,6 +257,81 @@ def collect_stats_for_visualization(descriptor_path: Path, stats_path: Path) -> 
     return True
 
 
+def run_power(descriptor_name: str) -> int:
+    """Run McPAT on each simpoint sim and produce simpoint-weighted power.
+
+    Reads the simulation experiment directory, walks per-(workload,
+    simpoint) outputs, runs McPAT once per simpoint (cached), and writes
+    a simpoint-weighted whole-workload power_summary.csv. Uses scarab's
+    native power.stat.0.csv directly — no manual power.pkl required.
+    """
+    try:
+        descriptor_path, descriptor = read_descriptor(descriptor_name)
+    except StepError as exc:
+        print(exc)
+        return 1
+
+    if descriptor.get("descriptor_type") != "simulation":
+        print("--power only supports simulation descriptors.")
+        return 1
+
+    root_dir = descriptor.get("root_dir")
+    experiment_name = descriptor.get("experiment")
+    if not root_dir or not experiment_name:
+        print("Descriptor must include 'root_dir' and 'experiment'.")
+        return 1
+
+    sim_root = Path(root_dir) / "simulations" / experiment_name
+    if not sim_root.is_dir():
+        print(f"Simulation directory not found: {sim_root}")
+        return 1
+
+    workloads_db = (Path(__file__).resolve().parent /
+                    "workloads" / "workloads_db.json")
+    if not workloads_db.is_file():
+        print(f"workloads_db.json not found at {workloads_db}")
+        return 1
+
+    aggregator = (Path(__file__).resolve().parent /
+                  "scarab_stats" / "power" / "aggregate_workload_power.py")
+    if not aggregator.is_file():
+        print(f"aggregator script not found at {aggregator}")
+        return 1
+
+    # Discover suite/configs/workloads from the descriptor's simulations list.
+    sims = descriptor.get("simulations", [])
+    suites = sorted({s.get("suite") for s in sims if s.get("suite")})
+    configs = list((descriptor.get("configurations") or {}).keys())
+    if not suites or not configs:
+        print("Descriptor must declare 'simulations[*].suite' and 'configurations'.")
+        return 1
+
+    requested_workloads: list[str] = sorted({
+        s.get("workload") for s in sims
+        if s.get("workload")
+    })
+
+    out_csv = sim_root / "power_summary.csv"
+    overall_rc = 0
+    for suite in suites:
+        for config in configs:
+            cmd = [
+                "python3", str(aggregator),
+                "--sim-root", str(sim_root),
+                "--config", config,
+                "--suite", suite,
+                "--workloads-db", str(workloads_db),
+                "--out", str(out_csv),
+            ]
+            if requested_workloads:
+                cmd += ["--workloads", ",".join(requested_workloads)]
+            print(f"# {suite}/{config} → {out_csv}")
+            rc = subprocess.run(cmd).returncode
+            if rc != 0:
+                overall_rc = rc
+    return overall_rc
+
+
 def run_collect_stats(descriptor_name: str) -> int:
     """Collect simulation stats into collected_stats.csv.
 
@@ -4360,6 +4435,14 @@ def build_parser() -> argparse.ArgumentParser:
              "Optionally reads collect_stats.configs from the descriptor to limit collection to specific configurations.",
     )
     parser.add_argument(
+        "--power",
+        dest="power",
+        metavar="DESCRIPTOR",
+        help="Run McPAT on each simpoint sim under the experiment in json/<DESCRIPTOR>.json "
+             "and produce simpoint-weighted whole-workload power_summary.csv. "
+             "Reuses scarab's power.stat.0.csv (no manual power.pkl).",
+    )
+    parser.add_argument(
         "--perf-analyze",
         dest="perf_analyze",
         metavar="DESCRIPTOR",
@@ -4413,6 +4496,7 @@ def main() -> int:
         bool(args.visualize),
         bool(args.collect_mem),
         bool(args.collect_stats),
+        bool(args.power),
         bool(args.perf_analyze),
         bool(args.kill),
         bool(args.status),
@@ -4433,6 +4517,7 @@ def main() -> int:
         args.visualize,
         args.collect_mem,
         args.collect_stats,
+        args.power,
         args.perf_analyze,
         args.kill,
         args.status,
@@ -4539,6 +4624,8 @@ def main() -> int:
         return run_collect_mem(args.collect_mem)
     if args.collect_stats:
         return run_collect_stats(args.collect_stats)
+    if args.power:
+        return run_power(args.power)
     if args.perf_analyze:
         return run_perf_analyze(args.perf_analyze)
     if args.kill:
