@@ -116,12 +116,20 @@ def build_sbatch(cfg: dict, args: argparse.Namespace) -> tuple[str, Path]:
         f"docker load -i {cache_tar} > /dev/null"
     )
 
+    # Bind-mount the host's agent_markers.py over the in-image copy so
+    # quick fixes (like the nested-ROI perf-signal change) take effect
+    # without rebuilding the docker image. Path inside the image is set
+    # in the agent Dockerfile (cloned to /tmp_home/AgentCPU).
+    host_markers = "/soe/surim/src/AgentCPU/workloads/agent_markers.py"
+    img_markers = "/tmp_home/AgentCPU/workloads/agent_markers.py"
+
     docker_cmd = (
         f"{load_cmd} && "
         f"docker run --rm "
         f"-u $(id -u):$(id -g) "
         f"-e HOME=/tmp "
         f"-v /soe/surim:/soe/surim "
+        f"-v {host_markers}:{img_markers}:ro "
         f"--cap-add=PERFMON --cap-add=SYS_ADMIN "
         f"{args.image} bash -c '{inner}'"
     )
