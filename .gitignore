@@ -1,2 +1,6 @@
 workloads/spec2017/cpu2017-1_0_5.iso
 scarab_builds/*
+# McPAT is built locally via scarab_stats/power/install_mcpat.sh
+scarab_stats/power/mcpat
+scarab_stats/power/mcpat_src/
+scarab_stats/power/json/

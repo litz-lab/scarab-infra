@@ -10,8 +10,16 @@ simpoint-weighted whole-workload summary.
 ## 🚀 Usage
 
 ```
+./sci --init           # builds McPAT 1.3 from source if not already present
 ./sci --power <DESCRIPTOR>
 ```
+
+`./sci --init` includes an optional step that runs
+`install_mcpat.sh`, which clones `HewlettPackard/mcpat` at v1.3.0
+and builds the binary at `scarab_stats/power/mcpat`. The script can
+also be run directly. Set `MCPAT_BIN=/path/to/mcpat` to point at a
+pre-built binary instead.
+
 
 For each (suite, subsuite, workload, configuration) under the
 descriptor's experiment directory, the pipeline:
@@ -42,11 +50,11 @@ weighted_cycles / clock_freq` (default 4.0 GHz).
 ├── converter.py                    # Scarab↔McPAT field-mapping (Converter class)
 ├── parse_power_stat.py             # Reads scarab power.stat.0.csv totals
 ├── aggregate_workload_power.py     # Per-simpoint pipeline + weighted aggregation
+├── install_mcpat.sh                # Clone + build McPAT 1.3 (HewlettPackard/mcpat v1.3.0)
 ├── xml/
 │   └── template.xml                # McPAT XML template
-├── template/                       # Field-mapping JSON tables
-│   ├── mcpat_structure.json
-│   ├── params_table.json
-│   └── stats_table.json
-└── mcpat                           # McPAT binary
+└── template/                       # Field-mapping JSON tables
+    ├── mcpat_structure.json
+    ├── params_table.json
+    └── stats_table.json
 ```

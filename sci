@@ -34,6 +34,7 @@ MINICONDA_URL = "https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86
 OPTIONAL_TITLES = {
     "(Optional) Slurm installation",
     "(Optional) ghcr.io login to pull pre-built images from GitHub Container Registry (recommended)",
+    "(Optional) Build McPAT for ./sci --power",
     "(Optional) Verify Codex CLI auth",
     "(Optional) Verify Gemini CLI auth",
     "(Optional) Verify Claude CLI auth",
@@ -1992,6 +1993,25 @@ def maybe_install_slurm(_: argparse.Namespace) -> Tuple[bool, str]:
     return False, "Automated Slurm setup supported only on apt-based systems. See docs/slurm_install_guide.md."
 
 
+def maybe_build_mcpat(_: argparse.Namespace) -> Tuple[bool, str]:
+    """Build McPAT 1.3 from source so `./sci --power` is ready to use."""
+    script = REPO_ROOT / "scarab_stats" / "power" / "install_mcpat.sh"
+    target = REPO_ROOT / "scarab_stats" / "power" / "mcpat"
+    if target.exists() and os.access(target, os.X_OK):
+        return True, f"McPAT already installed at {target}."
+    if not script.is_file():
+        return False, f"install_mcpat.sh not found at {script}."
+    if not shutil.which("git") or not shutil.which("make"):
+        return False, "git or make missing; cannot build McPAT. Install build tools or set MCPAT_BIN to a pre-built binary."
+    try:
+        run_command(["bash", str(script)])
+    except StepError as exc:
+        return False, str(exc)
+    if not target.exists():
+        return False, "install_mcpat.sh ran but did not produce a binary."
+    return True, f"Built and installed McPAT at {target}."
+
+
 def maybe_docker_login(_: argparse.Namespace) -> Tuple[bool, str]:
     if not shutil.which("docker"):
         return False, "Docker not available; cannot login to ghcr.io."
@@ -2217,6 +2237,7 @@ def run_init(args: argparse.Namespace) -> int:
         ("Ensure GitHub SSH key", ensure_ssh_key),
         ("Download simpoint traces", ensure_traces),
         ("(Optional) Slurm installation", maybe_install_slurm),
+        ("(Optional) Build McPAT for ./sci --power", maybe_build_mcpat),
         ("(Optional) ghcr.io login to pull pre-built images from GitHub Container Registry (recommended)", maybe_docker_login),
         ("(Optional) Verify Codex CLI auth", maybe_check_codex_cli_auth),
         ("(Optional) Verify Gemini CLI auth", maybe_check_gemini_cli_auth),
@@ -2259,6 +2280,7 @@ def run_ci_init(args: argparse.Namespace) -> int:
         ("Ensure GitHub SSH key", ensure_ssh_key),
         ("Download CI simpoint trace", ensure_ci_trace),
         ("(Optional) Slurm installation", maybe_install_slurm),
+        ("(Optional) Build McPAT for ./sci --power", maybe_build_mcpat),
         ("(Optional) ghcr.io login to pull pre-built images from GitHub Container Registry (recommended)", maybe_docker_login),
         ("(Optional) Verify Codex CLI auth", maybe_check_codex_cli_auth),
         ("(Optional) Verify Gemini CLI auth", maybe_check_gemini_cli_auth),

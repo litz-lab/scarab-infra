@@ -41,8 +41,11 @@ sys.path.insert(0, str(THIS_DIR))
 from converter import Converter  # noqa: E402
 from parse_power_stat import scarab_csv_to_power_dict  # noqa: E402
 
+import os
 XML_TEMPLATE = THIS_DIR / "xml" / "template.xml"
-MCPAT_BIN = THIS_DIR / "mcpat"
+# MCPAT_BIN env var lets users point at a system or pre-built McPAT;
+# otherwise fall back to the binary install_mcpat.sh drops next to us.
+MCPAT_BIN = Path(os.environ.get("MCPAT_BIN", str(THIS_DIR / "mcpat")))
 
 
 # === Per-simpoint pipeline ==================================================
@@ -83,6 +86,12 @@ def build_mcpat_xml(sim_dir: Path, work_dir: Path) -> Path:
 
 def run_mcpat(xml_path: Path, out_path: Path) -> None:
     """Invoke the mcpat binary; stdout → out_path."""
+    if not MCPAT_BIN.exists():
+        raise FileNotFoundError(
+            f"McPAT binary not found at {MCPAT_BIN}. Build it via "
+            f"`{THIS_DIR/'install_mcpat.sh'}` (also wired into "
+            f"`./sci --init`), or set MCPAT_BIN to a pre-built binary."
+        )
     with open(out_path, "w") as f:
         subprocess.run(
             [str(MCPAT_BIN), "-infile", str(xml_path), "-print_level", "5"],
