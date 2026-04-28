@@ -51,10 +51,8 @@ weighted_cycles / clock_freq` (default 4.0 GHz).
 ├── parse_power_stat.py             # Reads scarab power.stat.0.csv totals
 ├── aggregate_workload_power.py     # Per-simpoint pipeline + weighted aggregation
 ├── install_mcpat.sh                # Clone + build McPAT 1.3 (HewlettPackard/mcpat v1.3.0)
-├── xml/
-│   └── template.xml                # McPAT XML template
-└── template/                       # Field-mapping JSON tables
-    ├── mcpat_structure.json
-    ├── params_table.json
-    └── stats_table.json
+└── xml/
+    └── template.xml                # McPAT XML template
 ```
+
+`Converter.generate_json_from_template()` parses `xml/template.xml` and emits the field-mapping JSON tables (`mcpat_structure.json`, `params_table.json`, `stats_table.json`) into a per-simpoint working dir on every run, so no static JSON tables need to be checked in.
