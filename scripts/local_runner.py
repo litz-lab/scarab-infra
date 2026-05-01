@@ -276,6 +276,10 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
             return
         os.makedirs(os.path.join(docker_home, "simulations", experiment_name, "logs"), exist_ok=True)
 
+        # Collect old job logs before submitting new jobs
+        experiment_dir = f"{descriptor_data['root_dir']}/simulations/{experiment_name}"
+        old_job_logs = get_old_job_logs(f"{experiment_dir}/logs")
+
         print("Submitting jobs...")
         # Iterate over each workload and config combo
         simulations = normalize_simulations(simulations)
@@ -341,6 +345,8 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
             info(f"Removing temporary run script {tmp}", dbg_lvl)
             os.remove(tmp)
 
+        remove_old_job_logs(old_job_logs, remove_jobs, dbg_lvl)
+
         finish_simulation(user, docker_home, descriptor_path, descriptor_data['root_dir'], experiment_name, image_tag_list, [], dont_collect=dont_collect)
 
     except Exception as e:
@@ -356,6 +362,8 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
         for tmp in tmp_files:
             info(f"Removing temporary run script {tmp}", dbg_lvl)
             os.remove(tmp)
+
+        remove_old_job_logs(old_job_logs, remove_jobs, dbg_lvl)
 
         infra_dir = subprocess.check_output(["pwd"]).decode("utf-8").split("\n")[0]
         print(infra_dir)
@@ -379,8 +387,8 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
     available_cores = os.cpu_count()
     max_processes = int(available_cores * 0.9)
     processes = set()
-    tmp_files = []
-    log_files = []
+    tmp_files = set()
+    log_files = set()
 
     def run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd, trace_type, drio_args, clustering_k, infra_dir, application_dir):
         try:
@@ -399,14 +407,14 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
                                                workload, image_name, trace_name, traces_dir, docker_home,
                                                env_vars, binary_cmd, client_bincmd, simpoint_mode, drio_args,
                                                clustering_k, filename, infra_dir, application_dir)
-            tmp_files.append(filename)
+            tmp_files.add(filename)
             command = '/bin/bash ' + filename
             subprocess.run(["mkdir", "-p", f"{docker_home}/simpoint_flow/{trace_name}/{workload}"], check=True, capture_output=True, text=True)
             log_out = f"{docker_home}/simpoint_flow/{trace_name}/{workload}/log.out"
             log_err = f"{docker_home}/simpoint_flow/{trace_name}/{workload}/log.err"
             out = open(log_out, "w")
             err = open(log_err, "w")
-            log_files.append((out, err))
+            log_files.add((out, err))
             process = subprocess.Popen(command, stdout=out, stderr=err, shell=True, preexec_fn=os.setsid)
             processes.add(process)
             info(f"Running command '{command}'", dbg_lvl)
