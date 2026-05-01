@@ -24,6 +24,7 @@ from .utilities import (
         get_weight_by_cluster_id,
         image_exist,
         check_can_skip,
+        get_old_job_logs,
         remove_old_job_logs,
         print_simulation_status_summary,
         normalize_simulations,
@@ -144,8 +145,10 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
     max_processes = int(available_cores * 0.9)
     processes = set()
     process_logs = {}
-    tmp_files = []
-    log_files = []
+    tmp_files = set()
+    remove_jobs = set()
+    log_dir = os.path.join(docker_home, "simulations", experiment_name, "logs")
+    log_files = set()
     log_index = 0
 
     dont_collect = True
@@ -203,7 +206,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                     # Create temp file with run command and run it
                     filename = f"{docker_container_name}_tmp_run.sh"
 
-                    if check_can_skip(descriptor_data, config_key, suite, subsuite, workload, cluster_id, filename, sim_mode, user, dbg_lvl=dbg_lvl):
+                    if check_can_skip(descriptor_data, config_key, suite, subsuite, workload, cluster_id, filename, dbg_lvl=dbg_lvl):
                         info(f"Skipping {workload} with config {config_key} and cluster id {cluster_id}", dbg_lvl)
                         continue
 
@@ -213,17 +216,16 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                                                  docker_home, githash, config_key, config, sim_mode, scarab_binary,
                                                  seg_size, architecture, cluster_id, warmup, trace_warmup, trace_type,
                                                  trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir, application_dir)
-                    tmp_files.append(filename)
+                    tmp_files.add(filename)
                     command = '/bin/bash ' + filename
-                    _log_dir = os.path.join(docker_home, "simulations", experiment_name, "logs")
-                    remove_old_job_logs(_log_dir, config_key, suite, subsuite, workload, cluster_id)
+                    remove_jobs.add((config_key, suite, subsuite, workload, cluster_id))
                     log_path = os.path.join(
-                        _log_dir,
+                        log_dir,
                         f"job_{log_index}.out",
                     )
                     log_index += 1
                     log_handle = open(log_path, "w")
-                    log_files.append(log_handle)
+                    log_files.add(log_handle)
                     process = subprocess.Popen(
                         "exec " + command,
                         stdout=log_handle,

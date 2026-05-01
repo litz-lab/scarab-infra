@@ -1957,29 +1957,44 @@ def parse_job_log_header(first_line: str) -> Optional[Tuple[str, str, str, str, 
     suite, subsuite, workload = path_parts
     return (config, suite, subsuite, workload, cluster_id_str)
 
-
-def remove_old_job_logs(log_dir: str, config_key: str, suite: str, subsuite: str, workload: str, cluster_id) -> int:
-    """Remove old job log files matching the given (config, workload, simpoint).
-
-    Scans ``log_dir`` for ``job_*.out`` files whose header matches the target
-    key and deletes them so that stale logs don't inflate counts in --status.
-
-    Returns the number of removed files.
+def get_old_job_logs(log_dir: str) -> dict[Tuple[str, str, str, str, str], list[Path]]:
+    """
+    Returns ``job_*.out`` files that can be passed to ``remove_old_job_logs``
+    as a dictionary mapping (config, suite, subsuite, workload, cluster_id) to file paths.
     """
     log_path = Path(log_dir)
     if not log_path.is_dir():
-        return 0
-    target_key = (config_key, suite, subsuite, workload, str(cluster_id))
-    removed = 0
+        return {}
+    old_job_logs = {}
     for old_log in log_path.glob("job_*.out"):
         try:
             with old_log.open(encoding="utf-8", errors="replace") as fh:
                 hdr = parse_job_log_header(fh.readline().strip())
-            if hdr == target_key:
-                old_log.unlink()
-                removed += 1
+                old_job_logs.setdefault(hdr, []).append(old_log)
         except OSError:
             pass
+    return old_job_logs
+
+def remove_old_job_logs(
+        old_job_logs: dict[Tuple[str, str, str, str, str], list[Path]],
+        target_jobs: set[Tuple[str, str, str, str, str]], dbg_lvl = 1) -> int:
+    """Remove old job log files matching the given target jobs.
+
+    Scans given old ``job_*.out`` files whose header matches the target
+    key and deletes them so that stale logs don't inflate counts in --status.
+
+    Returns the number of removed files.
+    """
+    assert isinstance(old_job_logs, dict)
+    info("Removing old job logs", dbg_lvl)
+    removed = 0
+    for target in target_jobs:
+        for old_log in old_job_logs.get(target, []):
+            try:
+                old_log.unlink()
+                removed += 1
+            except OSError:
+                pass
     return removed
 
 
@@ -2810,7 +2825,7 @@ def clean_failed_run (descriptor_data, config_key, suite, subsuite, workload, ex
     patterns_to_clean = ["*.csv", "*.out", "*.in", "*.csv.warmup", "*.out.warmup", "sim.log"]
 
     try:
-        if experiment_path.exists():
+        if experiment_path.is_dir():
             for pattern in patterns_to_clean:
                 for target in experiment_path.glob(pattern):
                     if target.is_file() or target.is_symlink():
@@ -2819,44 +2834,28 @@ def clean_failed_run (descriptor_data, config_key, suite, subsuite, workload, ex
         err(f"Error cleaning files in {experiment_dir}: {e}", 1)
 
     # Wipe log file
-    log_dir =  f"{descriptor_data['root_dir']}/simulations/{descriptor_data['experiment']}/logs/"
-    log_files = os.listdir(log_dir)
+    log_dir =  Path(f"{descriptor_data['root_dir']}/simulations/{descriptor_data['experiment']}/logs/")
+    log_files = log_dir.glob("log_*.out")
     for file in log_files:
-        full_path = os.path.join(log_dir, file)
-        with open(full_path, 'r') as f:
+        with open(file, 'r') as f:
             lines = f.readlines()
 
             # Logfile will have {config} {suite}/{subsuite}/{workload} {simpoint} as header
             header = f"Running {config_key} {suite}/{subsuite}/{workload} {exp_cluster_id}\n"
             if header in lines:
                 info(f"Removing log entry for failed run: {header.strip()}", dbg_lvl)
-                os.remove(full_path)
+                file.unlink()
 
 # Check if run was already successful, and thus skippable
 # Please use as follows:
 # if check_can_skip(...):
 #     continue
-def check_can_skip (descriptor_data, config_key, suite, subsuite, workload, cluster_id, filename, sim_mode, user, slurm_queue=None, dbg_lvl=1):
+def check_can_skip (descriptor_data, config_key, suite, subsuite, workload, cluster_id, filename, dbg_lvl=1):
     # Check if it is about to be run
     if os.path.exists(filename):
         # Run script has generated run file, it will be run shortly.
         info(f"Run script for {config_key} for workload {workload} exists. Other script will run it.", dbg_lvl)
         return True
-
-    # If using slurm, check queue too
-    if not slurm_queue is None:
-        # Check each entry
-        for entry in slurm_queue:
-            # Check for following identifier. Should be of form <docker_prefix>_...as below..._<sim_mode>_<user>
-            # Docker prefix and username checked in slurm_runner
-            identifier = (
-                f"{suite}_{subsuite}_{workload}_{descriptor_data['experiment']}"
-                f"_{config_key.replace('/', '-')}_{cluster_id}_{sim_mode}_{user}"
-            )
-            if identifier in entry:
-                # Job is in the queue, it will be run shortly.
-                info(f"Job for {config_key} for workload {workload} is in the queue. Other script will run it.", dbg_lvl)
-                return True
 
     # If CSV files don't exist, clean up failed run and re-run (can skip = False)
     if check_sp_failed(descriptor_data, config_key, suite, subsuite, workload, cluster_id):
