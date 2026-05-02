@@ -1875,7 +1875,7 @@ def get_simulation_jobs(descriptor_data, workloads_data, docker_prefix, user, db
 def get_simulation_job_identifiers(descriptor_data, workloads_data, dbg_lvl = 1):
     experiment_name = descriptor_data["experiment"]
     configs = descriptor_data["configurations"]
-    simulations = descriptor_data["simulations"]
+    simulations = normalize_simulations(descriptor_data["simulations"])
 
     def get_simpoints_wrapper(suite, subsuite, workload, exp_cluster_id, sim_mode):
         if "simpoints" not in workloads_data[suite][subsuite][workload].keys():
