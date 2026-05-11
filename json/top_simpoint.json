@@ -41,7 +41,7 @@
       "suite":"spec2017",
       "subsuite":"rate_fp_v2",
       "workload":"bwaves_r",
-      "cluster_id":null,
+      "cluster_id":7936,
       "simulation_type":"exec",
       "warmup":1000000
     }
