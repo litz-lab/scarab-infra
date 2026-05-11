@@ -32,6 +32,7 @@ from .utilities import (
         get_weight_by_cluster_id,
         image_exist,
         check_can_skip,
+        get_old_job_logs,
         remove_old_job_logs,
         print_simulation_status_summary,
         run_on_node,
@@ -486,6 +487,14 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
     total_sims = 0
     docker_prefix_list = get_image_list(simulations, workloads_data)
 
+    slurm_running_sims = check_slurm_task_queued_or_running(docker_prefix_list, experiment_name, user, dbg_lvl)
+    running_sims = set()
+    for node_list in slurm_running_sims.values():
+        running_sims |= set(node_list)
+
+    tmp_files = set()
+    remove_jobs = set()
+
     def run_single_workload(suite, subsuite, workload, exp_cluster_id, sim_mode, warmup):
         try:
             docker_prefix = get_docker_prefix(sim_mode, workloads_data[suite][subsuite][workload]["simulation"])
@@ -539,6 +548,18 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
 
                     docker_container_name = f"{docker_prefix}_{suite}_{subsuite}_{workload}_{experiment_name}_{config_key.replace("/", "-")}_{cluster_id}_{sim_mode}_{user}"
 
+                    if docker_container_name in running_sims:
+                        # Job is in the queue, it will be run shortly.
+                        info(f"Job for {config_key} for workload {workload} is in the queue. Other script will run it.", dbg_lvl)
+                        continue
+
+                    # Create temp file with run command and run it
+                    filename = f"{docker_container_name}_tmp_run.sh"
+
+                    if check_can_skip(descriptor_data, config_key, suite, subsuite, workload, cluster_id, filename, dbg_lvl=dbg_lvl):
+                        info(f"Skipping {workload} with config {config_key} and cluster id {cluster_id}", dbg_lvl)
+                        continue
+
                     # TODO: Notification when a run fails, point to output file and command that caused failure
                     # Add help (?)
                     # Look into squeue -o https://slurm.schedmd.com/squeue.html
@@ -569,17 +590,6 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
 
                     sbatch_cmd = generate_sbatch_command(experiment_dir, slurm_options=slurm_options, mem_mb=mem_mb)
 
-                    # Create temp file with run command and run it
-                    filename = f"{docker_container_name}_tmp_run.sh"
-                    slurm_running_sims = check_slurm_task_queued_or_running(docker_prefix_list, experiment_name, user, dbg_lvl)
-                    running_sims = []
-                    for node_list in slurm_running_sims.values():
-                        running_sims += node_list
-
-                    if check_can_skip(descriptor_data, config_key, suite, subsuite, workload, cluster_id, filename, sim_mode, user, slurm_queue=running_sims, dbg_lvl=dbg_lvl):
-                        info(f"Skipping {workload} with config {config_key} and cluster id {cluster_id}", dbg_lvl)
-                        continue
-
                     if fallback_mb is not None:
                         print(f"WARN: no base_memory_mb_by_mode entry for {suite}/{subsuite}/{workload} cluster={cluster_id} sim_mode={sim_mode} config={config_key}, using fallback={fallback_mb}MB + overhead={overhead_mb}MB = {mem_mb}MB")
 
@@ -589,9 +599,9 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                                                  docker_home, githash, config_key, config, sim_mode, binary_name,
                                                  seg_size, architecture, cluster_id, warmup, trace_warmup, trace_type,
                                                  trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir, application_dir, slurm=True)
-                    tmp_files.append(filename)
+                    tmp_files.add(filename)
 
-                    remove_old_job_logs(f"{experiment_dir}/logs", config_key, suite, subsuite, workload, cluster_id)
+                    remove_jobs.add((config_key, suite, subsuite, workload, cluster_id))
 
                     result = subprocess.run(["touch", f"{experiment_dir}/logs/job_%j.out"], capture_output=True, text=True, check=True)
                     result = subprocess.run((sbatch_cmd + filename).split(" "), capture_output=True, text=True)
@@ -605,7 +615,6 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
             print(f"Error running workload {workload}: {e}")
             raise e
 
-    tmp_files = []
     try:
         # Get user for commands
         user = subprocess.check_output("whoami").decode('utf-8')[:-1]
@@ -649,10 +658,12 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
         except Exception:
             memory_db = workloads_data
 
+        # Collect old job logs before submitting new jobs
+        old_job_logs = get_old_job_logs(f"{experiment_dir}/logs")
+
         print("Submitting jobs...")
         # Iterate over each workload and config combo
         simulations = normalize_simulations(simulations)
-        tmp_files = []
         for simulation in simulations:
             suite = simulation["suite"]
             subsuite = simulation["subsuite"]
@@ -712,6 +723,8 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
             info(f"Removing temporary run script {tmp}", dbg_lvl)
             os.remove(tmp)
 
+        remove_old_job_logs(old_job_logs, remove_jobs, dbg_lvl)
+
         #finish_simulation(user, docker_home, descriptor_path, descriptor_data['root_dir'], experiment_name, image_tag_list, slurm_ids)
 
         # TODO: check resource capping policies, add kill/info options
@@ -725,6 +738,8 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
         for tmp in tmp_files:
             info(f"Removing temporary run script {tmp}", dbg_lvl)
             os.remove(tmp)
+
+        remove_old_job_logs(old_job_logs, remove_jobs, dbg_lvl)
 
         kill_jobs(user, experiment_name, docker_prefix_list, dbg_lvl)
 
@@ -743,7 +758,7 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
         if image_name not in docker_prefix_list:
             docker_prefix_list.append(image_name)
 
-    tmp_files = []
+    tmp_files = set()
 
     def run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd, trace_type, drio_args, clustering_k, application_dir, slurm_options):
         try:
@@ -764,7 +779,7 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
                                                workload, image_name, trace_name, traces_dir, docker_home,
                                                env_vars, binary_cmd, client_bincmd, simpoint_mode, drio_args,
                                                clustering_k, filename, infra_dir, application_dir, slurm=True)
-            tmp_files.append(filename)
+            tmp_files.add(filename)
 
             result = subprocess.run((sbatch_cmd + filename).split(" "), capture_output=True, text=True)
             _print_sbatch_output(result)

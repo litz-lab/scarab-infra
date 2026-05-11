@@ -457,12 +457,50 @@ def lint_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_pref
     # Keep the enabled check set narrow. Expand intentionally by editing this
     # list; every consumer of --lint-scarab picks up the change automatically.
     checks = "-*,cppcoreguidelines-pro-type-member-init"
-    # Directories we never lint (vendored third-party / external toolchain).
-    exclude_re = r"^(deps|ramulator|pin)/"
-    # Same regex, expressed so that paths from clang-tidy diagnostics (which
-    # are absolute, e.g. /scarab/src/ramulator/...) are also filtered out
-    # when they leak in via transitive #includes.
-    diag_exclude_re = r"/(deps|ramulator|pin)/"
+    # Directories/files we never lint. We keep this list as narrow as
+    # possible so that scarab-owned code is always checked.
+    #
+    #   - deps, ramulator: vendored third-party sources.
+    #   - pin/pin_exec, pin/pin_trace: Intel-PIN tools built with the PIN
+    #     toolchain. They have their own CMakeLists.txt with nonstandard
+    #     flags (pin.H etc.) and are NOT part of scarab's main
+    #     compile_commands.json.
+    #   - pin/pin_lib/decoder.{cc,h}: the one file in pin_lib that is also
+    #     PIN-only (it #include "pin.H"). The rest of pin_lib IS in the main
+    #     compile DB and is linted.
+    #   - test: standalone gtest Makefile-driven tests; not in the CMake
+    #     target, so they don't appear in compile_commands.json and
+    #     clang-tidy would flag every #include <gtest/gtest.h> as missing.
+    exclude_re = (
+        r"^(deps|ramulator|pin/pin_exec|pin/pin_trace|test)/"
+        r"|^pin/pin_lib/decoder\.(cc|h)$"
+    )
+    # Positive-list of scarab-owned top-level dirs that we DO want header
+    # diagnostics from. We use a positive list rather than a negative one
+    # because clang-tidy 18 does not yet support --exclude-header-filter
+    # (added in clang-tidy 19) and llvm::Regex lacks negative lookahead.
+    #
+    # Matches either:
+    #   /scarab/src/<allowed_subdir>/...   (headers inside scarab source trees)
+    #   /scarab/src/pin/pin_lib/...        (scarab-authored PIN glue; pin_exec/
+    #                                       is the PIN tool and stays excluded)
+    #   /scarab/src/<top_level_file>       (headers directly under src/, e.g.
+    #                                       decoupled_frontend.h, ft.h, …)
+    #
+    # If a new top-level source dir is added to scarab, append it here.
+    scarab_owned_dirs = "bp|confidence|debug|dvfs|frontend|globals|isa|libs|memory|power|prefetcher|support"
+    header_filter_re = (
+        rf"^/scarab/src/({scarab_owned_dirs})/"
+        r"|^/scarab/src/pin/pin_lib/"
+        r"|^/scarab/src/[^/]+$"
+    )
+    # Defense-in-depth: even though we positive-filter via --header-filter,
+    # also drop any vendored-tree path (or PIN-only pin_lib/decoder.h) that
+    # somehow makes it into the log before the pass/fail grep.
+    header_exclude_re = (
+        r"/scarab/src/(deps|ramulator|pin/pin_exec|pin/pin_trace|test)/"
+        r"|/scarab/src/pin/pin_lib/decoder\.h"
+    )
 
     lint_script = (
         "set -o pipefail\n"
@@ -501,11 +539,20 @@ def lint_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_pref
         "        -p \"$BUILD_DIR\" \\\n"
         "        -quiet \\\n"
         f"        -checks='{checks}' \\\n"
-        "        --header-filter='.*' \\\n"
+        # Positive-list scarab-owned headers only. Headers transitively
+        # pulled in from deps/ / ramulator/ / pin/ / test/ will not match
+        # this regex and clang-tidy will therefore suppress diagnostics
+        # that originate inside them (diagnostics from the main TU file
+        # itself are always shown regardless of --header-filter).
+        f"        --header-filter='{header_filter_re}' \\\n"
         "        {} 2>&1 | tee -a \"$LOG\" || true\n"
         "\n"
+        # Post-filter on findings is (mostly) redundant with --header-filter
+        # now, but we keep it as defense-in-depth in case a diagnostic from
+        # a vendored tree slips through (e.g. if a new top-level dir gets
+        # added to scarab_owned_dirs and someone forgets to update the list).
         "{ grep -E 'warning:.*\\[cppcoreguidelines-pro-type-member-init\\]' \"$LOG\" \\\n"
-        f"    | grep -vE '{diag_exclude_re}' \\\n"
+        f"    | grep -vE '{header_exclude_re}' \\\n"
         "    | sort -u; } > \"$FINDINGS\" || true\n"
         "\n"
         "echo '=== member-init findings (post-filter) ==='\n"
@@ -1828,7 +1875,7 @@ def get_simulation_jobs(descriptor_data, workloads_data, docker_prefix, user, db
 def get_simulation_job_identifiers(descriptor_data, workloads_data, dbg_lvl = 1):
     experiment_name = descriptor_data["experiment"]
     configs = descriptor_data["configurations"]
-    simulations = descriptor_data["simulations"]
+    simulations = normalize_simulations(descriptor_data["simulations"])
 
     def get_simpoints_wrapper(suite, subsuite, workload, exp_cluster_id, sim_mode):
         if "simpoints" not in workloads_data[suite][subsuite][workload].keys():
@@ -1910,29 +1957,44 @@ def parse_job_log_header(first_line: str) -> Optional[Tuple[str, str, str, str, 
     suite, subsuite, workload = path_parts
     return (config, suite, subsuite, workload, cluster_id_str)
 
-
-def remove_old_job_logs(log_dir: str, config_key: str, suite: str, subsuite: str, workload: str, cluster_id) -> int:
-    """Remove old job log files matching the given (config, workload, simpoint).
-
-    Scans ``log_dir`` for ``job_*.out`` files whose header matches the target
-    key and deletes them so that stale logs don't inflate counts in --status.
-
-    Returns the number of removed files.
+def get_old_job_logs(log_dir: str) -> dict[Tuple[str, str, str, str, str], list[Path]]:
+    """
+    Returns ``job_*.out`` files that can be passed to ``remove_old_job_logs``
+    as a dictionary mapping (config, suite, subsuite, workload, cluster_id) to file paths.
     """
     log_path = Path(log_dir)
     if not log_path.is_dir():
-        return 0
-    target_key = (config_key, suite, subsuite, workload, str(cluster_id))
-    removed = 0
+        return {}
+    old_job_logs = {}
     for old_log in log_path.glob("job_*.out"):
         try:
             with old_log.open(encoding="utf-8", errors="replace") as fh:
                 hdr = parse_job_log_header(fh.readline().strip())
-            if hdr == target_key:
-                old_log.unlink()
-                removed += 1
+                old_job_logs.setdefault(hdr, []).append(old_log)
         except OSError:
             pass
+    return old_job_logs
+
+def remove_old_job_logs(
+        old_job_logs: dict[Tuple[str, str, str, str, str], list[Path]],
+        target_jobs: set[Tuple[str, str, str, str, str]], dbg_lvl = 1) -> int:
+    """Remove old job log files matching the given target jobs.
+
+    Scans given old ``job_*.out`` files whose header matches the target
+    key and deletes them so that stale logs don't inflate counts in --status.
+
+    Returns the number of removed files.
+    """
+    assert isinstance(old_job_logs, dict)
+    info("Removing old job logs", dbg_lvl)
+    removed = 0
+    for target in target_jobs:
+        for old_log in old_job_logs.get(target, []):
+            try:
+                old_log.unlink()
+                removed += 1
+            except OSError:
+                pass
     return removed
 
 
@@ -2763,7 +2825,7 @@ def clean_failed_run (descriptor_data, config_key, suite, subsuite, workload, ex
     patterns_to_clean = ["*.csv", "*.out", "*.in", "*.csv.warmup", "*.out.warmup", "sim.log"]
 
     try:
-        if experiment_path.exists():
+        if experiment_path.is_dir():
             for pattern in patterns_to_clean:
                 for target in experiment_path.glob(pattern):
                     if target.is_file() or target.is_symlink():
@@ -2772,44 +2834,28 @@ def clean_failed_run (descriptor_data, config_key, suite, subsuite, workload, ex
         err(f"Error cleaning files in {experiment_dir}: {e}", 1)
 
     # Wipe log file
-    log_dir =  f"{descriptor_data['root_dir']}/simulations/{descriptor_data['experiment']}/logs/"
-    log_files = os.listdir(log_dir)
+    log_dir =  Path(f"{descriptor_data['root_dir']}/simulations/{descriptor_data['experiment']}/logs/")
+    log_files = log_dir.glob("log_*.out")
     for file in log_files:
-        full_path = os.path.join(log_dir, file)
-        with open(full_path, 'r') as f:
+        with open(file, 'r') as f:
             lines = f.readlines()
 
             # Logfile will have {config} {suite}/{subsuite}/{workload} {simpoint} as header
             header = f"Running {config_key} {suite}/{subsuite}/{workload} {exp_cluster_id}\n"
             if header in lines:
                 info(f"Removing log entry for failed run: {header.strip()}", dbg_lvl)
-                os.remove(full_path)
+                file.unlink()
 
 # Check if run was already successful, and thus skippable
 # Please use as follows:
 # if check_can_skip(...):
 #     continue
-def check_can_skip (descriptor_data, config_key, suite, subsuite, workload, cluster_id, filename, sim_mode, user, slurm_queue=None, dbg_lvl=1):
+def check_can_skip (descriptor_data, config_key, suite, subsuite, workload, cluster_id, filename, dbg_lvl=1):
     # Check if it is about to be run
     if os.path.exists(filename):
         # Run script has generated run file, it will be run shortly.
         info(f"Run script for {config_key} for workload {workload} exists. Other script will run it.", dbg_lvl)
         return True
-
-    # If using slurm, check queue too
-    if not slurm_queue is None:
-        # Check each entry
-        for entry in slurm_queue:
-            # Check for following identifier. Should be of form <docker_prefix>_...as below..._<sim_mode>_<user>
-            # Docker prefix and username checked in slurm_runner
-            identifier = (
-                f"{suite}_{subsuite}_{workload}_{descriptor_data['experiment']}"
-                f"_{config_key.replace('/', '-')}_{cluster_id}_{sim_mode}_{user}"
-            )
-            if identifier in entry:
-                # Job is in the queue, it will be run shortly.
-                info(f"Job for {config_key} for workload {workload} is in the queue. Other script will run it.", dbg_lvl)
-                return True
 
     # If CSV files don't exist, clean up failed run and re-run (can skip = False)
     if check_sp_failed(descriptor_data, config_key, suite, subsuite, workload, cluster_id):
