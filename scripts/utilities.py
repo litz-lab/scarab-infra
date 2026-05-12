@@ -1227,6 +1227,8 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
 
         experiment_dir = f"{docker_home}/simulations/{experiment_name}"
         os.system(f"mkdir -p {experiment_dir}/logs/")
+        os.system(f"mkdir -p {experiment_dir}/logs/statefiles")
+        os.system(f"mkdir -p {experiment_dir}/logs/launch_scripts")
         dest_scarab_bin = f"{experiment_dir}/scarab/src/scarab"
         build_mode = scarab_build if scarab_build else "opt"
 
@@ -1588,9 +1590,13 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
         scarab_cmd = generate_single_scarab_run_command(user, workload_home, experiment_name, config_key, config,
                                                         scarab_mode, seg_size, architecture, scarab_binary, cluster_id,
                                                         warmup, trace_warmup, trace_type, trace_file, env_vars, bincmd, client_bincmd)
+
         with open(filename, "w") as f:
             f.write("#!/bin/bash\n")
             f.write(f"echo \"Running {config_key} {workload_home} {cluster_id} {scarab_mode}\"\n")
+            f.write(f"STATEFILE={docker_home}/simulations/{experiment_name}/logs/statefiles/{config_key}_{workload_home.replace('/', '_')}_{cluster_id}.log\n")
+            f.write("echo \"Writing state to $STATEFILE\"\n")
+            f.write("echo \"Job RUNNING\" >> $STATEFILE\n")
             f.write(f"echo \"Simulation mode: {scarab_mode}\"\n")
             f.write(f"echo \"Script name: {filename}\"\n")
             f.write("echo \"Running on $(uname -n)\"\n")
@@ -1598,7 +1604,13 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
             f.write("cleanup_container() {\n")
             f.write("    docker rm -f \"$CONTAINER_NAME\" >/dev/null 2>&1 || true\n")
             f.write("}\n")
-            f.write("trap cleanup_container EXIT INT TERM HUP\n")
+            f.write("graceful_exit() {\n")
+            f.write("    if [ -n $SCARAB_EXIT ]; then\n")
+            f.write("        echo \"Job FAILED - Runner\" >> $STATEFILE\n")
+            f.write("    fi\n")
+            f.write("    cleanup_container\n")
+            f.write("}\n")
+            f.write("trap graceful_exit EXIT INT TERM HUP\n")
             f.write(f"cd {infra_dir}\n")
             f.write(f"python -m scripts.prepare_docker_image --docker-prefix {docker_prefix} --githash {githash} \n")
             f.write(f"cd -\n")
@@ -1653,7 +1665,14 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
                 f.write(f"docker cp {infra_dir}/common/scripts/run_exec_single_simpoint.sh $CONTAINER_NAME:/usr/local/bin\n")
                 f.write("docker exec --privileged $CONTAINER_NAME /bin/bash -c \"echo 0 | sudo tee /proc/sys/kernel/randomize_va_space\"\n")
             f.write("docker exec --privileged $CONTAINER_NAME /bin/bash -c '/usr/local/bin/root_entrypoint.sh'\n")
-            f.write(f"docker exec --user={user} $CONTAINER_NAME /bin/bash -c \"source /usr/local/bin/user_entrypoint.sh && {scarab_cmd}\" || echo \"Scarab error detected\"\n")
+            f.write(f"docker exec --user={user} $CONTAINER_NAME /bin/bash -c \"source /usr/local/bin/user_entrypoint.sh && {scarab_cmd}\" \n")
+            f.write("SCARAB_EXIT=$?\n")
+            f.write("if [ $SCARAB_EXIT -ne 0 ]; then\n")
+            f.write("    echo \"Scarab error detected\"\n")
+            f.write("    echo \"Job FAILED - Scarab\" >> $STATEFILE\n")
+            f.write("else\n")
+            f.write("    echo \"Job COMPLETED SUCCESSFULLY\" >> $STATEFILE\n")
+            f.write("fi\n")
             f.write("cleanup_container\n")
             f.write("echo \"Completed Simulation\"\n")
             f.write(f"sync {docker_home}/simulations/{experiment_name}/logs")
@@ -2583,6 +2602,7 @@ def prepare_trace(user, scarab_path, scarab_build, docker_home, job_name, infra_
             raise FileNotFoundError(f"Required Scarab binary not found: {scarab_ver}")
 
         os.system(f"mkdir -p {trace_dir}/scarab/bin/scarab_globals")
+        os.system(f"mkdir -p {trace_dir}/logs/statefiles")
         os.system(f"cp {scarab_path}/bin/scarab_launch.py  {trace_dir}/scarab/bin/scarab_launch.py ")
         os.system(f"cp {scarab_path}/bin/scarab_globals/*  {trace_dir}/scarab/bin/scarab_globals/ ")
         os.system(f"mkdir -p {trace_dir}/scarab/utils/memtrace")
@@ -2846,6 +2866,8 @@ def clean_failed_run (descriptor_data, config_key, suite, subsuite, workload, ex
                 info(f"Removing log entry for failed run: {header.strip()}", dbg_lvl)
                 file.unlink()
 
+    # TODO: delete statefile and launch script
+
 # Check if run was already successful, and thus skippable
 # Please use as follows:
 # if check_can_skip(...):
@@ -2915,3 +2937,8 @@ def generate_table(data, title=""):
         table_string += row_string.replace(' 0 ', ' \033[30m0\033[0m ')
 
     return table_string
+
+def update_statefile(experiment_dir, config, suite, subsuite, workload, simpoint, message):
+    statefile = f"{experiment_dir}/logs/statefiles/{config}_{suite}_{subsuite}_{workload}_{simpoint}.log"
+    with open(statefile, "a") as f:
+        f.write(message+"\n")

@@ -37,6 +37,7 @@ from .utilities import (
         print_simulation_status_summary,
         run_on_node,
         normalize_simulations,
+        update_statefile
         )
 
 # Check if the docker image exists on available slurm nodes
@@ -605,8 +606,10 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
 
                     result = subprocess.run(["touch", f"{experiment_dir}/logs/job_%j.out"], capture_output=True, text=True, check=True)
                     result = subprocess.run((sbatch_cmd + filename).split(" "), capture_output=True, text=True)
-                    _print_sbatch_output(result)
                     job_id = result.stdout.split(" ")[-1].strip()
+                    update_statefile(experiment_dir, config_key, suite, subsuite, workload, cluster_id, f"Job PENDING - Slurm: {job_id}")
+
+                    _print_sbatch_output(result)
                     slurm_ids.append(job_id)
                     run_single_workload.submitted += 1
                 print("\rSubmitting jobs: "+str(run_single_workload.submitted), end=' ', flush=True)
@@ -720,8 +723,8 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
         print("\nSubmitted all jobs")
         # Clean up temp files
         for tmp in tmp_files:
-            info(f"Removing temporary run script {tmp}", dbg_lvl)
-            os.remove(tmp)
+            info(f"Moving temporary run script {tmp}", dbg_lvl)
+            os.system(f"mv {tmp} {experiment_dir}/logs/launch_scripts")
 
         remove_old_job_logs(old_job_logs, remove_jobs, dbg_lvl)
 
@@ -736,8 +739,8 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
 
         # Clean up temp files
         for tmp in tmp_files:
-            info(f"Removing temporary run script {tmp}", dbg_lvl)
-            os.remove(tmp)
+            info(f"Moving temporary run script {tmp}", dbg_lvl)
+            os.system(f"mv {tmp} {experiment_dir}/logs/launch_scripts")
 
         remove_old_job_logs(old_job_logs, remove_jobs, dbg_lvl)
 
