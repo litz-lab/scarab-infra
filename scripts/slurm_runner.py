@@ -488,6 +488,8 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
     total_sims = 0
     docker_prefix_list = get_image_list(simulations, workloads_data)
 
+    experiment_dir = f"{descriptor_data['root_dir']}/simulations/{experiment_name}"
+
     slurm_running_sims = check_slurm_task_queued_or_running(docker_prefix_list, experiment_name, user, dbg_lvl)
     running_sims = set()
     for node_list in slurm_running_sims.values():
@@ -557,7 +559,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                     # Create temp file with run command and run it
                     filename = f"{docker_container_name}_tmp_run.sh"
 
-                    if check_can_skip(descriptor_data, config_key, suite, subsuite, workload, cluster_id, filename, dbg_lvl=dbg_lvl):
+                    if check_can_skip(experiment_dir, config_key, suite, subsuite, workload, cluster_id, filename, dbg_lvl=dbg_lvl):
                         info(f"Skipping {workload} with config {config_key} and cluster id {cluster_id}", dbg_lvl)
                         continue
 
@@ -644,7 +646,6 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                     scarab_binaries.append(scarab_binary)
 
         # Generate commands for executing in users docker and sbatching to nodes with containers
-        experiment_dir = f"{descriptor_data['root_dir']}/simulations/{experiment_name}"
 
         try:
             scarab_githash, image_tag_list = prepare_simulation(user, scarab_path, scarab_build, descriptor_data['root_dir'], experiment_name, architecture, docker_prefix_list, githash, infra_dir, scarab_binaries, False, dbg_lvl)

@@ -1605,7 +1605,7 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
             f.write("    docker rm -f \"$CONTAINER_NAME\" >/dev/null 2>&1 || true\n")
             f.write("}\n")
             f.write("graceful_exit() {\n")
-            f.write("    if [ -n $SCARAB_EXIT ]; then\n")
+            f.write("    if [ -z $SCARAB_EXIT ]; then\n")
             f.write("        echo \"Job FAILED - Runner\" >> $STATEFILE\n")
             f.write("    fi\n")
             f.write("    cleanup_container\n")
@@ -2820,28 +2820,21 @@ def check_sp_exist (descriptor_data, config_key, suite, subsuite, workload, exp_
     return False
 
 # Returns true if experiment failed
-def check_sp_failed (descriptor_data, config_key, suite, subsuite, workload, exp_cluster_id):
-    # Check if simpoint exists
-    experiment_dir =  f"{descriptor_data['root_dir']}/simulations/{descriptor_data['experiment']}/"
-    experiment_dir += f"{config_key}/{suite}/{subsuite}/{workload}/{exp_cluster_id}"
-
-    if Path(experiment_dir).is_dir() == False:
+def check_sp_failed (experiment_dir, config_key, suite, subsuite, workload, exp_cluster_id, dbg_lvl=1):
+    statefile = f"{experiment_dir}/logs/statefiles/{config_key}_{suite}_{subsuite}_{workload}_{exp_cluster_id}.log"
+    try:
+        with open(statefile, "r") as f:
+            return "Job FAILED" in f.readlines()
+    except Exception as e:
+        warn(f"Statefile did not exist during check. Existance should have been checked previously: {e}", dbg_lvl)
         return True
-
-    # Failed case; CSV files not generated. Ignoring .csv.warmup files.
-    if len(list(filter(lambda x: x.endswith('.csv'), os.listdir(experiment_dir)))) == 0:
-        return True
-
-    # Success case
-    return False
 
 # Clean up failed run
-def clean_failed_run (descriptor_data, config_key, suite, subsuite, workload, exp_cluster_id, dbg_lvl=1):
+def clean_failed_run (experiment_dir, config_key, suite, subsuite, workload, exp_cluster_id, dbg_lvl=1):
     # Remove failed run artifacts while preserving directory structure
-    experiment_dir =  f"{descriptor_data['root_dir']}/simulations/{descriptor_data['experiment']}/"
-    experiment_dir += f"{config_key}/{suite}/{subsuite}/{workload}/{exp_cluster_id}"
+    cluster_output_path = f"{experiment_dir}/{config_key}/{suite}/{subsuite}/{workload}/{exp_cluster_id}"
 
-    experiment_path = Path(experiment_dir)
+    experiment_path = Path(cluster_output_path)
     patterns_to_clean = ["*.csv", "*.out", "*.in", "*.csv.warmup", "*.out.warmup", "sim.log"]
 
     try:
@@ -2853,39 +2846,28 @@ def clean_failed_run (descriptor_data, config_key, suite, subsuite, workload, ex
     except Exception as e:
         err(f"Error cleaning files in {experiment_dir}: {e}", 1)
 
-    # Wipe log file
-    log_dir =  Path(f"{descriptor_data['root_dir']}/simulations/{descriptor_data['experiment']}/logs/")
-    log_files = log_dir.glob("log_*.out")
-    for file in log_files:
-        with open(file, 'r') as f:
-            lines = f.readlines()
-
-            # Logfile will have {config} {suite}/{subsuite}/{workload} {simpoint} as header
-            header = f"Running {config_key} {suite}/{subsuite}/{workload} {exp_cluster_id}\n"
-            if header in lines:
-                info(f"Removing log entry for failed run: {header.strip()}", dbg_lvl)
-                file.unlink()
-
-    # TODO: delete statefile and launch script
+    # Wipe statefile. Keep old run slurm log files
+    statefile = f"{experiment_dir}/logs/statefiles/{config_key}_{suite}_{subsuite}_{workload}_{exp_cluster_id}.log"
+    Path(statefile).unlink()
 
 # Check if run was already successful, and thus skippable
 # Please use as follows:
 # if check_can_skip(...):
 #     continue
-def check_can_skip (descriptor_data, config_key, suite, subsuite, workload, cluster_id, filename, dbg_lvl=1):
+def check_can_skip (experiment_dir, config_key, suite, subsuite, workload, cluster_id, filename, dbg_lvl=1):
     # Check if it is about to be run
-    if os.path.exists(filename):
+    if not check_statefile_exists(experiment_dir, config_key, suite, subsuite, workload, cluster_id):
         # Run script has generated run file, it will be run shortly.
-        info(f"Run script for {config_key} for workload {workload} exists. Other script will run it.", dbg_lvl)
-        return True
+        info(f"Statefile for {config_key} for workload {workload} ({cluster_id}) not found.", dbg_lvl)
+        return False
 
     # If CSV files don't exist, clean up failed run and re-run (can skip = False)
-    if check_sp_failed(descriptor_data, config_key, suite, subsuite, workload, cluster_id):
+    if check_sp_failed(experiment_dir, config_key, suite, subsuite, workload, cluster_id, dbg_lvl=dbg_lvl):
         info(f"Previous run with config {config_key} for workload {workload} failed. Cleaning directory and Re-running.", dbg_lvl)
-        clean_failed_run(descriptor_data, config_key, suite, subsuite, workload, cluster_id, dbg_lvl=dbg_lvl)
+        clean_failed_run(experiment_dir, config_key, suite, subsuite, workload, cluster_id, dbg_lvl=dbg_lvl)
         return False
         
-    # Since sp_failed returned false, we know csv files exist. No need to re-run.
+    # Since check_sp_failed returned false, we know it completed successfully. No need to re-run.
     info(f"Run with config {config_key} for workload {workload} already completed. Skipping.", dbg_lvl)
     return True
     
@@ -2942,3 +2924,7 @@ def update_statefile(experiment_dir, config, suite, subsuite, workload, simpoint
     statefile = f"{experiment_dir}/logs/statefiles/{config}_{suite}_{subsuite}_{workload}_{simpoint}.log"
     with open(statefile, "a") as f:
         f.write(message+"\n")
+
+def check_statefile_exists(experiment_dir, config, suite, subsuite, workload, simpoint):
+    statefile = f"{experiment_dir}/logs/statefiles/{config}_{suite}_{subsuite}_{workload}_{simpoint}.log"
+    return os.path.exists(statefile)
