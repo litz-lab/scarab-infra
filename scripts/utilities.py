@@ -1581,12 +1581,13 @@ def write_docker_command_to_file_run_by_root(user, local_uid, local_gid, workloa
     except Exception as e:
         raise e
 
-def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_home, experiment_name,
+def write_docker_command_to_file(user, local_uid, local_gid, suite, subsuite, workload, experiment_name,
                                  docker_prefix, docker_container_name, traces_dir,
                                  docker_home, githash, config_key, config, scarab_mode, scarab_binary,
                                  seg_size, architecture, cluster_id, warmup, trace_warmup, trace_type,
                                  trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir, application_dir, slurm=False):
     try:
+        workload_home = f"{suite}/{subsuite}/{workload}"
         scarab_cmd = generate_single_scarab_run_command(user, workload_home, experiment_name, config_key, config,
                                                         scarab_mode, seg_size, architecture, scarab_binary, cluster_id,
                                                         warmup, trace_warmup, trace_type, trace_file, env_vars, bincmd, client_bincmd)
@@ -1594,7 +1595,7 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
         with open(filename, "w") as f:
             f.write("#!/bin/bash\n")
             f.write(f"echo \"Running {config_key} {workload_home} {cluster_id} {scarab_mode}\"\n")
-            f.write(f"STATEFILE={docker_home}/simulations/{experiment_name}/logs/statefiles/{config_key}_{workload_home.replace('/', '_')}_{cluster_id}.log\n")
+            f.write(f"STATEFILE={docker_home}/simulations/{experiment_name}/logs/statefiles/{get_statefile_name(config_key, suite, subsuite, workload, cluster_id)}.log\n")
             f.write("echo \"Writing state to $STATEFILE\"\n")
             f.write("echo \"Job RUNNING\" >> $STATEFILE\n")
             f.write(f"echo \"Simulation mode: {scarab_mode}\"\n")
@@ -1817,6 +1818,7 @@ def normalize_simulations(simulations):
             expanded.append(sim)
     return expanded
 
+# Get docker container name for all jobs created from an experiment file
 def get_simulation_jobs(descriptor_data, workloads_data, docker_prefix, user, dbg_lvl = 1):
     experiment_name = descriptor_data["experiment"]
     configs = descriptor_data["configurations"]
@@ -1908,6 +1910,11 @@ def get_simulation_job_identifiers(descriptor_data, workloads_data, dbg_lvl = 1)
 
     all_jobs = []
 
+    # Perform input sanitization, so names with _ aren't messed up in statefile names
+    def sanitize(config, suite, subsuite, workload, cluster_id):
+        return (config.replace("_", '-'), suite.replace("_", '-'), subsuite.replace("_", '-'),
+                workload.replace("_", '-'), cluster_id)
+
     for simulation in simulations:
         suite = simulation["suite"]
         subsuite = simulation["subsuite"]
@@ -1925,7 +1932,7 @@ def get_simulation_job_identifiers(descriptor_data, workloads_data, dbg_lvl = 1)
                         sim_mode_ = workloads_data[suite][subsuite_][workload_]["simulation"]["prioritized_mode"]
                     simpoint_ids = get_simpoints_wrapper(suite, subsuite_, workload_, exp_cluster_id, sim_mode_) * len(configs)
                     all_jobs += [
-                        (config, suite, subsuite_, workload_, cluster_id)
+                        sanitize(config, suite, subsuite_, workload_, cluster_id)
                         for config in configs.keys()
                         for cluster_id in simpoint_ids
                     ]
@@ -1938,7 +1945,7 @@ def get_simulation_job_identifiers(descriptor_data, workloads_data, dbg_lvl = 1)
                     sim_mode_ = workloads_data[suite][subsuite][workload_]["simulation"]["prioritized_mode"]
                 simpoint_ids = get_simpoints_wrapper(suite, subsuite, workload_, exp_cluster_id, sim_mode_) * len(configs)
                 all_jobs += [
-                    (config, suite, subsuite, workload_, cluster_id)
+                    sanitize(config, suite, subsuite, workload_, cluster_id)
                     for config in configs.keys()
                     for cluster_id in simpoint_ids
                 ]
@@ -1948,7 +1955,7 @@ def get_simulation_job_identifiers(descriptor_data, workloads_data, dbg_lvl = 1)
                 sim_mode_ = workloads_data[suite][subsuite][workload]["simulation"]["prioritized_mode"]
             simpoint_ids = get_simpoints_wrapper(suite, subsuite, workload, exp_cluster_id, sim_mode_) * len(configs)
             all_jobs += [
-                (config, suite, subsuite, workload, cluster_id)
+                sanitize(config, suite, subsuite, workload, cluster_id)
                 for config in configs.keys()
                 for cluster_id in simpoint_ids
             ]
@@ -2143,68 +2150,38 @@ def print_simulation_status_summary(
     queued_sims,
     dbg_lvl = 1,
     all_nodes = None,
-    log_file_count_buffer = 0,
+    state_file_count_buffer = 0,
     strict_log_count = False,
     log_count_offset = 0,
     prep_failed_label = "Failed - Slurm",
 ):
-    all_jobs = get_simulation_jobs(descriptor_data, workloads_data, docker_prefix_list, user, dbg_lvl)
+
+    all_job_ids = get_simulation_job_identifiers(descriptor_data, workloads_data, dbg_lvl=dbg_lvl)
 
     root_directory = os.path.join(
         descriptor_data["root_dir"],
         "simulations",
         descriptor_data["experiment"],
     )
+
+    # Sync NFS
     root_logfile_directory = os.path.join(root_directory, "logs")
+    statefile_directory = os.path.join(root_logfile_directory, "statefiles")
     os.system(f"ls -R {root_directory} > /dev/null")
 
     try:
-        all_log_files = os.listdir(root_logfile_directory)
+        all_state_files = os.listdir(statefile_directory)
     except Exception:
-        print("Log file directory does not exist")
+        print("State file directory does not exist")
         print("The current experiment does not seem to have been run yet")
         return
 
-    if len(all_log_files) > len(all_jobs) + log_file_count_buffer:
+    if len(all_state_files) > len(all_job_ids):
         print("More log files than total runs. Maybe same experiment name was run multiple times?")
 
-    # Single pass: build latest parseable logs (for status processing) and count all
-    # unique log entries including unparseable ones (for log_count_offset assertions).
-    _parseable: dict = {}   # (config, suite, subsuite, workload, cid) → (job_id, Path)
-    _unparseable: set = set()   # unique filenames for unparseable logs
-    for _lp in Path(root_logfile_directory).glob("job_*.out"):
-        try:
-            _jid = int(_lp.stem.split("_")[1])
-        except (IndexError, ValueError):
-            # e.g. the literal "job_%j.out" placeholder touched before sbatch submission
-            _unparseable.add(_lp.name)
-            continue
-        try:
-            with _lp.open(encoding="utf-8", errors="replace") as _fh:
-                _first = _fh.readline().strip()
-        except OSError:
-            continue
-        _parsed = parse_job_log_header(_first)
-        if _parsed is not None:
-            _key = _parsed  # (config, suite, subsuite, workload, cid)
-            if _jid > _parseable.get(_key, (-1, None))[0]:
-                _parseable[_key] = (_jid, _lp)
-        else:
-            _unparseable.add(_lp.name)
-
-    latest_logs = [
-        (_jid, _lp, config, suite, subsuite, workload, cid)
-        for (config, suite, subsuite, workload, cid), (_jid, _lp) in _parseable.items()
-    ]
-    # total_log_count mirrors the old len(log_files) which included unparseable entries;
-    # log_count_offset and strict_log_count are calibrated against this value.
-    total_log_count = len(latest_logs) + len(_unparseable)
-
     error_runs = set()
-    sim_log_to_job_log = {}
-    skipped = 0
 
-    confs = list(descriptor_data["configurations"].keys())
+    confs = list(map(lambda x:x.replace("_", "-"), descriptor_data["configurations"].keys()))
 
     completed = {conf: 0 for conf in confs}
     failed = {conf: 0 for conf in confs}
@@ -2212,132 +2189,44 @@ def print_simulation_status_summary(
     running = {conf: 0 for conf in confs}
     pending = {conf: 0 for conf in confs}
 
-    experiment_name = descriptor_data["experiment"]
-    for sim in queued_sims:
-        matches = [conf for conf in confs if f"{experiment_name}_{conf}" in sim]
-        if not matches:
-            info(f"'{experiment_name}_{conf}' not found in any queued sim names", dbg_lvl)
-            continue
-        conf = max(matches, key=len)
-        pending[conf] += 1
+    not_in_experiment = 0
+    total_running = 0
+    for statefile in Path(statefile_directory).glob("*.log"):
+        print(statefile.stem)
+        if len(statefile.stem.split('_')) != 5:
+            err(f"Not 5 sections in statefile name {statefile.stem}", 1)
+            exit(1)
 
-    all_job_ids = get_simulation_job_identifiers(descriptor_data, workloads_data, dbg_lvl=dbg_lvl)
+        config, suite, subsuite, workload, cluster_id = statefile.stem.split('_')
 
-    not_in_experiment = []
-    oom_killed = []
-    oom_killed_sps = 0
-    descriptor_aligned_log_count = 0
-    for _job_id, log_path, config, suite, subsuite, workload, cluster_id in latest_logs:
         if not (config, suite, subsuite, workload, int(cluster_id)) in all_job_ids:
+            info(f"Statefile {statefile.stem} not found in experiment", dbg_lvl)
+            print(all_job_ids)
+            not_in_experiment += 1
             continue
 
-        descriptor_aligned_log_count += 1
-        workload_path = f"{suite}/{subsuite}/{workload}"
-        with open(log_path, 'r') as f:
+        with open(statefile, 'r') as f:
             contents = f.read()
-            contents_after_docker = contents
-            if len(contents.split("\n")) < 2:
-                continue
 
-            scarab_logfile_path = os.path.join(
-                root_directory,
-                config,
-                workload_path,
-                cluster_id,
-                "sim.log",
-            )
-            sim_log_to_job_log[scarab_logfile_path] = str(log_path)
-
-            if config not in confs:
-                if config not in not_in_experiment:
-                    print(f"WARN: Log files for config {config}, which is not in the experiment file")
-                not_in_experiment.append(config)
-                continue
-
-            pattern = r"Script name: (\S*)"
-            match = re.search(pattern, contents)
-            if match:
-                script_name = match.group(1)
-                is_running = any(sim in script_name for sim in running_sims)
-                if is_running:
-                    skipped += 1
-                    running[config] += 1
-                    continue
-
-            if "BEGIN prepare_docker_image" in contents:
-                if "FAILED prepare_docker_image" in contents:
-                    prep_failed[config] += 1
-                    error_runs.add(str(log_path))
-                    print("Docker image preparation failed, Simulation is not running (Error message in log file)")
-                    continue
-
-                if "END prepare_docker_image" in contents:
-                    contents_after_docker = contents.split("END prepare_docker_image\n")[1]
-                else:
-                    prep_failed[config] += 1
-                    error_runs.add(str(log_path))
-                    print("Docker image preparation failed, Simulation is not running (Image prep never completed; no failure message)")
-                    continue
-            else:
-                print("Docker image preparation failed (Image prep never started)")
-                prep_failed[config] += 1
-                error_runs.add(str(log_path))
-                continue
-
-            if 'docker: Error' in contents_after_docker:
-                prep_failed[config] += 1
-                error_runs.add(str(log_path))
-                continue
-
-            prep_err = 0
-            workload_parts = workload_path.split("/")
-            sim_dir = Path(descriptor_data["root_dir"]) / "simulations" / descriptor_data["experiment"] / config
-            sim_dir = sim_dir.joinpath(*workload_parts, cluster_id)
-            has_csv = False
-            try:
-                has_csv = any(x.endswith(".csv") for x in os.listdir(sim_dir))
-            except OSError:
-                has_csv = False
-
-            status_scan_text = _scrub_ignorable_slurm_job_log_noise(contents_after_docker)
-
-            # If slurm cancelled wrapper execution but results were already produced, treat as completed.
-            if "cancelled" in status_scan_text.lower() and has_csv:
+            if "Job COMPLETED SUCCESSFULLY" in contents:
                 completed[config] += 1
-                continue
+            elif "Job FAILED - Runner" in contents:
+                prep_failed[config] += 1
+            elif "Job FAILED - Scarab" in contents:
+                failed[config] += 1
+            elif "Job RUNNING" in contents:
+                total_running += 1
+                running[config] += 1
+            elif "Job PENDING" in contents:
+                pending[config] += 1
+            else:
+                # State file is created by echo-ing Job PENDING into statefile.
+                # Should be safe to assume pending here, but I will throw warning
+                pending[config] += 1
+                warn(f"Statefile {statefile.stem} found but has no contents. Assuming pending", 2)
 
-            if all_nodes:
-                for node in all_nodes:
-                    if f"{node}: error:" in status_scan_text:
-                        error_runs.add(str(log_path))
-                        prep_failed[config] += 1
-                        prep_err = 1
 
-                        if "oom_kill" in status_scan_text:
-                            oom_killed_sps += 1
-                            if config not in oom_killed:
-                                oom_killed.append(config)
-
-            if prep_err:
-                continue
-
-            error = 0
-            if 'Segmentation fault' in status_scan_text:
-                error = 1
-
-            if 'error' in status_scan_text.lower():
-                error = 1
-
-            if "Completed Simulation" in status_scan_text and not error:
-                if has_csv:
-                    completed[config] += 1
-                    continue
-                err("Stat files not generated, despite being completed with no errors.", 1)
-
-            error_runs.add(scarab_logfile_path)
-            failed[config] += 1
-
-    print(f"Currently running {len(running_sims)} simulations (from logs: {skipped})")
+    print(f"Currently running {total_running} simulations")
 
     calculated_logfile_count = 0
     data = {
@@ -2358,7 +2247,7 @@ def print_simulation_status_summary(
         data["Running"].append(running[conf])
         data["Pending"].append(pending[conf])
 
-        total_per_conf = int(len(all_jobs) / len(confs))
+        total_per_conf = int(len(all_job_ids) / len(confs))
         total_found = completed[conf] + failed[conf] + running[conf] + pending[conf] + prep_failed[conf]
         calculated_logfile_count += total_found - pending[conf]
 
@@ -2367,11 +2256,10 @@ def print_simulation_status_summary(
         data["Total"].append(total_per_conf)
         data["Non-existant"].append(total_per_conf - total_found)
 
-    if len(not_in_experiment) == 0:
-        if strict_log_count:
-            assert calculated_logfile_count == descriptor_aligned_log_count, "ERR: Assert Failed: Log file count doesn't match number of accounted jobs"
-        elif calculated_logfile_count != descriptor_aligned_log_count:
-            warn("Log file count doesn't match number of accounted jobs.", dbg_lvl)
+    if strict_log_count:
+        assert len(all_state_files) - not_in_experiment == len(all_job_ids), "ERR: Assert Failed: Log file count doesn't match number of accounted jobs"
+    elif len(all_state_files) - not_in_experiment != len(all_job_ids):
+        warn("Log file count doesn't match number of accounted jobs.", dbg_lvl)
 
     print("PRINTING SUMMARY TABLE:")
     print(generate_table(data))
@@ -2421,12 +2309,12 @@ def print_simulation_status_summary(
     else:
         print(f"\033[92mNo errors found in log files\033[0m")
 
-    if oom_killed_sps > 0:
-        print()
-        print(f"\033[31mOOM Killed Jobs: {oom_killed_sps}\033[0m")
-        print("To fix: Run './sci --collect-mem <descriptor>' after jobs complete to record per-simpoint memory measurements. The infra will use these to schedule future runs with appropriate --mem limits.")
-        print("If jobs haven't run yet, set 'memory_overhead_mb' in the config entry within the descriptor to add a fixed overhead on top of the auto-scheduled base memory.")
-        print("OOM Killed Configs:\n", "\n".join(oom_killed), "\033[0m", sep='')
+    # if oom_killed_sps > 0:
+    #     print()
+    #     print(f"\033[31mOOM Killed Jobs: {oom_killed_sps}\033[0m")
+    #     print("To fix: Run './sci --collect-mem <descriptor>' after jobs complete to record per-simpoint memory measurements. The infra will use these to schedule future runs with appropriate --mem limits.")
+    #     print("If jobs haven't run yet, set 'memory_overhead_mb' in the config entry within the descriptor to add a fixed overhead on top of the auto-scheduled base memory.")
+    #     print("OOM Killed Configs:\n", "\n".join(oom_killed), "\033[0m", sep='')
 
 def remove_docker_containers(docker_prefix_list, job_name, user, dbg_lvl):
     try:
@@ -2821,7 +2709,7 @@ def check_sp_exist (descriptor_data, config_key, suite, subsuite, workload, exp_
 
 # Returns true if experiment failed
 def check_sp_failed (experiment_dir, config_key, suite, subsuite, workload, exp_cluster_id, dbg_lvl=1):
-    statefile = f"{experiment_dir}/logs/statefiles/{config_key}_{suite}_{subsuite}_{workload}_{exp_cluster_id}.log"
+    statefile = f"{experiment_dir}/logs/statefiles/{get_statefile_name(config_key, suite, subsuite, workload, exp_cluster_id)}.log"
     try:
         with open(statefile, "r") as f:
             return "Job FAILED" in f.readlines()
@@ -2847,7 +2735,7 @@ def clean_failed_run (experiment_dir, config_key, suite, subsuite, workload, exp
         err(f"Error cleaning files in {experiment_dir}: {e}", 1)
 
     # Wipe statefile. Keep old run slurm log files
-    statefile = f"{experiment_dir}/logs/statefiles/{config_key}_{suite}_{subsuite}_{workload}_{exp_cluster_id}.log"
+    statefile = f"{experiment_dir}/logs/statefiles/{get_statefile_name(config_key, suite, subsuite, workload, exp_cluster_id)}.log"
     Path(statefile).unlink()
 
 # Check if run was already successful, and thus skippable
@@ -2920,11 +2808,16 @@ def generate_table(data, title=""):
 
     return table_string
 
+def get_statefile_name(config, suite, subsuite, workload, simpoint):
+    name = f"{config.replace('_', '-')}_{suite.replace('_', '-')}_{subsuite.replace('_', '-')}"
+    name += f"_{workload.replace('_', '-')}_{simpoint.replace('_', '-')}"
+    return name
+
 def update_statefile(experiment_dir, config, suite, subsuite, workload, simpoint, message):
-    statefile = f"{experiment_dir}/logs/statefiles/{config}_{suite}_{subsuite}_{workload}_{simpoint}.log"
+    statefile = f"{experiment_dir}/logs/statefiles/{get_statefile_name(config, suite, subsuite, workload, simpoint)}.log"
     with open(statefile, "a") as f:
         f.write(message+"\n")
 
 def check_statefile_exists(experiment_dir, config, suite, subsuite, workload, simpoint):
-    statefile = f"{experiment_dir}/logs/statefiles/{config}_{suite}_{subsuite}_{workload}_{simpoint}.log"
+    statefile = f"{experiment_dir}/logs/statefiles/{get_statefile_name(config, suite, subsuite, workload, simpoint)}.log"
     return os.path.exists(statefile)

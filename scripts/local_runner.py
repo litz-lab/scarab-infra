@@ -69,9 +69,7 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data=None, workl
         docker_running,
         [],
         dbg_lvl=dbg_lvl,
-        log_file_count_buffer=0,
         strict_log_count=False,
-        log_count_offset=0,
         prep_failed_label="Failed - Prep",
     )
 
@@ -214,7 +212,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                         continue
 
                     workload_home = f"{suite}/{subsuite}/{workload}"
-                    write_docker_command_to_file(user, local_uid, local_gid, workload, workload_home, experiment_name,
+                    write_docker_command_to_file(user, local_uid, local_gid, suite, subsuite, workload, experiment_name,
                                                  docker_prefix, docker_container_name, traces_dir,
                                                  docker_home, githash, config_key, config, sim_mode, scarab_binary,
                                                  seg_size, architecture, cluster_id, warmup, trace_warmup, trace_type,
