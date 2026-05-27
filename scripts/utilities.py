@@ -1668,7 +1668,10 @@ def write_docker_command_to_file(user, local_uid, local_gid, suite, subsuite, wo
             f.write("docker exec --privileged $CONTAINER_NAME /bin/bash -c '/usr/local/bin/root_entrypoint.sh'\n")
             f.write(f"docker exec --user={user} $CONTAINER_NAME /bin/bash -c \"source /usr/local/bin/user_entrypoint.sh && {scarab_cmd}\" \n")
             f.write("SCARAB_EXIT=$?\n")
-            f.write("if [ $SCARAB_EXIT -ne 0 ]; then\n")
+            f.write(f"ls {docker_home}/simulations/{experiment_name}/{config_key}/{workload_home}/{cluster_id} | grep csv$ > /dev/null\n")
+            f.write("STAT_FILE_CHECK=$?\n")
+            f.write("echo $STAT_FILE_CHECK\n")
+            f.write("if [[ $SCARAB_EXIT -ne 0 || $STAT_FILE_CHECK -ne 0 ]]; then\n")
             f.write("    echo \"Scarab error detected\"\n")
             f.write("    echo \"Job FAILED - Scarab\" >> $STATEFILE\n")
             f.write("else\n")
@@ -2712,9 +2715,10 @@ def check_sp_failed (experiment_dir, config_key, suite, subsuite, workload, exp_
     statefile = f"{experiment_dir}/logs/statefiles/{get_statefile_name(config_key, suite, subsuite, workload, exp_cluster_id)}.log"
     try:
         with open(statefile, "r") as f:
-            return "Job FAILED" in f.readlines()
+            contents = ''.join(f.readlines())
+            return "Job FAILED" in contents
     except Exception as e:
-        warn(f"Statefile did not exist during check. Existance should have been checked previously: {e}", dbg_lvl)
+        warn(f"Statefile did not exist during check. Existance should have been checked previously: {e}", 3) #dbg_lvl)
         return True
 
 # Clean up failed run
