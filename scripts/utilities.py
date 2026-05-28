@@ -1894,6 +1894,10 @@ def get_simulation_jobs(descriptor_data, workloads_data, docker_prefix, user, db
             ]
 
     return set(all_jobs)
+# Perform input sanitization, so names with _ aren't messed up in statefile names
+def sanitize(config, suite, subsuite, workload, cluster_id):
+    return (config.replace("_", '-'), suite.replace("_", '-'), subsuite.replace("_", '-'),
+                workload.replace("_", '-'), cluster_id)
 
 # Returns (config, suite, subsuite, workload_, cluster_id) for all jobs in config
 def get_simulation_job_identifiers(descriptor_data, workloads_data, dbg_lvl = 1):
@@ -1912,11 +1916,6 @@ def get_simulation_job_identifiers(descriptor_data, workloads_data, dbg_lvl = 1)
         return [0]
 
     all_jobs = []
-
-    # Perform input sanitization, so names with _ aren't messed up in statefile names
-    def sanitize(config, suite, subsuite, workload, cluster_id):
-        return (config.replace("_", '-'), suite.replace("_", '-'), subsuite.replace("_", '-'),
-                workload.replace("_", '-'), cluster_id)
 
     for simulation in simulations:
         suite = simulation["suite"]
@@ -1965,7 +1964,7 @@ def get_simulation_job_identifiers(descriptor_data, workloads_data, dbg_lvl = 1)
 
     return all_jobs
 
-def parse_job_log_header(first_line: str) -> Optional[Tuple[str, str, str, str, str]]:
+def parse_job_log_header(first_line: str, sanitize_result=False) -> Optional[Tuple[str, str, str, str, str]]:
     """Parse the first line of a Slurm job log.
 
     Expected format: ``Running {config} {suite}/{subsuite}/{workload} {cluster_id}``
@@ -1984,7 +1983,10 @@ def parse_job_log_header(first_line: str) -> Optional[Tuple[str, str, str, str, 
     if len(path_parts) != 3:
         return None
     suite, subsuite, workload = path_parts
-    return (config, suite, subsuite, workload, cluster_id_str)
+    if sanitize_result:
+        return sanitize(config, suite, subsuite, workload, cluster_id_str)
+    else:
+        return (config, suite, subsuite, workload, cluster_id_str)
 
 def get_old_job_logs(log_dir: str) -> dict[Tuple[str, str, str, str, str], list[Path]]:
     """
@@ -2143,6 +2145,28 @@ def _scrub_ignorable_slurm_job_log_noise(log_text: str) -> str:
         out.append(line)
     return "".join(out)
 
+# Iterate over all log files, and return dictionary associating them with their parameters
+# Ditionary of form [(config, suite, subsuite, workload, cluster_id)] = "logfile path"
+def get_runner_logs(root_logfile_directory):
+    log_file_db = {}
+    for file in Path(root_logfile_directory).glob("job_*.out"):
+        # If we need to get slurm ids, we can use this code.
+        #try:
+        #    slurm_job_id = int(file.stem.split("_")[1])
+        #except (IndexError, ValueError):
+        #    # e.g. the literal "job_%j.out" placeholder touched before sbatch submission
+        #    # _unparseable.add(_lp.name)
+        #    continue
+        try:
+            with file.open(encoding="utf-8", errors="replace") as file_handle:
+                first_line = file_handle.readline().strip()
+        except OSError:
+            continue
+        parsed = parse_job_log_header(first_line, sanitize_result=True)
+        log_file_db[parsed] = file
+
+        return log_file_db
+
 
 def print_simulation_status_summary(
     descriptor_data,
@@ -2182,6 +2206,8 @@ def print_simulation_status_summary(
     if len(all_state_files) > len(all_job_ids):
         print("More log files than total runs. Maybe same experiment name was run multiple times?")
 
+    runner_logs = get_runner_logs(root_logfile_directory)
+
     error_runs = set()
 
     confs = list(map(lambda x:x.replace("_", "-"), descriptor_data["configurations"].keys()))
@@ -2201,6 +2227,7 @@ def print_simulation_status_summary(
             exit(1)
 
         config, suite, subsuite, workload, cluster_id = statefile.stem.split('_')
+        logfile_key = (config, suite, subsuite, workload, cluster_id) # Log dictionaries use tuple as key
 
         if not (config, suite, subsuite, workload, int(cluster_id)) in all_job_ids:
             info(f"Statefile {statefile.stem} not found in experiment", dbg_lvl)
@@ -2215,8 +2242,11 @@ def print_simulation_status_summary(
                 completed[config] += 1
             elif "Job FAILED - Runner" in contents:
                 prep_failed[config] += 1
+                error_runs.add(runner_logs[logfile_key])
             elif "Job FAILED - Scarab" in contents:
                 failed[config] += 1
+                # TODO: Check OOM. Use suite, subsuite, workload, cluster_id from above
+                # TODO: Get scarab log file
             elif "Job RUNNING" in contents:
                 total_running += 1
                 running[config] += 1
@@ -2227,7 +2257,6 @@ def print_simulation_status_summary(
                 # Should be safe to assume pending here, but I will throw warning
                 pending[config] += 1
                 warn(f"Statefile {statefile.stem} found but has no contents. Assuming pending", 2)
-
 
     print(f"Currently running {total_running} simulations")
 
