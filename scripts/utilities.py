@@ -2955,6 +2955,9 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
                 preserved_fields = {
                     key: value for key, value in workload_db_data[suite][subsuite][workload].items() if key not in workload_dict
                 }
+            # Tracing a workload of a suite/subsuite the db has never seen lands here
+            # with nothing to index into.
+            workload_db_data.setdefault(suite, {}).setdefault(subsuite, {})
             # Update/insert only the related fields and leave the other existing fields unchanged
             workload_db_data[suite][subsuite][workload] = workload_dict | preserved_fields
 
