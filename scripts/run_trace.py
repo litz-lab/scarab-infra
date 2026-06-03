@@ -15,6 +15,7 @@ from .utilities import (
     read_descriptor_from_json,
     remove_docker_containers,
     prepare_trace,
+    finish_trace,
     is_container_running,
     count_interactive_shells
 )
@@ -74,6 +75,17 @@ def verify_descriptor(descriptor_data, workload_db_path, open_shell=False, dbg_l
 
     # Check if each trace scenario is valid
     validate_tracing(descriptor_data["trace_configurations"], workload_db_path, dbg_lvl)
+
+    # Check parallel_segments compatibility (cluster_then_trace + slurm only)
+    if descriptor_data.get("parallel_segments"):
+        if descriptor_data.get("workload_manager") != "slurm":
+            err("parallel_segments=true requires workload_manager='slurm'.", dbg_lvl)
+            exit(1)
+        for trace in descriptor_data.get("trace_configurations") or []:
+            if trace.get("trace_type") != "cluster_then_trace":
+                err(f"parallel_segments=true is only valid with trace_type='cluster_then_trace' "
+                    f"(workload {trace.get('workload')} uses '{trace.get('trace_type')}').", dbg_lvl)
+                exit(1)
 
     # Check the workload manager
     if descriptor_data["workload_manager"] != "manual" and descriptor_data["workload_manager"] != "slurm":
@@ -267,6 +279,13 @@ def run_trace_command(descriptor_path, action, dbg_lvl=2, infra_dir=None):
             remove_docker_containers(docker_image_list, trace_name, user, dbg_lvl)
             return 0
 
+        if action == "finish_trace":
+            # Invoked by Phase 3 of the parallel_segments pipeline (from inside
+            # a Slurm job with --dependency=afterany on all Phase 2 jobs).
+            # Consolidates traces into traces_dir and updates workloads_db.json.
+            finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl)
+            return 0
+
         try:
             verify_descriptor(descriptor_data, workload_db_path, open_shell=False, dbg_lvl=dbg_lvl)
         except SystemExit as exc:
@@ -275,7 +294,7 @@ def run_trace_command(descriptor_path, action, dbg_lvl=2, infra_dir=None):
         if workload_manager == "manual":
             local_runner.run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl)
         else:
-            slurm_runner.run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl)
+            slurm_runner.run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl, descriptor_path=descriptor_path)
         return 0
     except Exception as exc:
         raise exc
@@ -289,6 +308,7 @@ def main():
     parser.add_argument('-i','--info', required=False, default=False, action=argparse.BooleanOptionalAction, help='Get info about all nodes and if they have containers for slurm workloads')
     parser.add_argument('-l','--launch', required=False, default=False, action=argparse.BooleanOptionalAction, help='Launch a docker container on a node for the purpose of development/debugging where the environment is for the experiment described in a descriptor.')
     parser.add_argument('-c','--clean', required=False, default=False, action=argparse.BooleanOptionalAction, help='Clean up all the docker containers related to an experiment')
+    parser.add_argument('-f','--finish-trace', dest='finish_trace', required=False, default=False, action=argparse.BooleanOptionalAction, help='Run finish_trace directly. Used by Phase 3 finalisation in parallel_segments mode.')
     parser.add_argument('-dbg','--debug', required=False, type=int, default=2, help='1 for errors, 2 for warnings, 3 for info')
     parser.add_argument('-si','--scarab_infra', required=False, default=None, help='Path to scarab infra repo to launch new containers')
 
@@ -306,6 +326,8 @@ def main():
         action = "launch"
     elif args.clean:
         action = "clean"
+    elif args.finish_trace:
+        action = "finish_trace"
 
     return run_trace_command(descriptor_path, action, dbg_lvl=dbg_lvl, infra_dir=infra_dir)
 
