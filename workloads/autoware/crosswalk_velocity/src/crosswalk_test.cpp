@@ -259,7 +259,7 @@ private:
     if (odom_ && preds_ && path_ && !executed_ && !finished_) {
       executed_ = true;
       RCLCPP_INFO(this->get_logger(), "All data ready => modifyPathVelocity start!");
-      auto planner_data = std::make_shared<autoware::behavior_velocity_planner::PlannerData>();
+      auto planner_data = std::make_shared<autoware::behavior_velocity_planner::PlannerData>(*this);
 
       // odom
       geometry_msgs::msg::PoseStamped ps;
