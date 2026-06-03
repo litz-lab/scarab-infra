@@ -2728,6 +2728,10 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
 
             if suite in workload_db_data.keys() and subsuite in workload_db_data[suite].keys() and workload in workload_db_data[suite][subsuite].keys():
                 print("WARNING: workload name should be unique within a subsuite. db will be overwritten!")
+            if suite not in workload_db_data.keys():
+                workload_db_data[suite] = dict()
+            if subsuite not in workload_db_data[suite].keys():
+                workload_db_data[suite][subsuite] = dict()
             workload_db_data[suite][subsuite][workload] = workload_dict
 
         write_json_descriptor(workload_db_path, workload_db_data, dbg_lvl)
