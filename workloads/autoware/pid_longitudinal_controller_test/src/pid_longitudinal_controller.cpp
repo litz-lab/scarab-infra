@@ -13,6 +13,7 @@
 using autoware::motion::control::pid_longitudinal_controller::PidLongitudinalController;
 using autoware::motion::control::trajectory_follower::InputData;
 using autoware::motion::control::trajectory_follower::LongitudinalOutput;
+using autoware::motion::control::trajectory_follower::LongitudinalControllerBase;
 
 using nav_msgs::msg::Odometry;
 using geometry_msgs::msg::AccelWithCovarianceStamped;
@@ -101,7 +102,7 @@ private:
   rclcpp::Node::SharedPtr node_;
   rclcpp::Logger          logger_;
   std::shared_ptr<diagnostic_updater::Updater> diag_updater_;
-  std::unique_ptr<PidLongitudinalController>   controller_;
+  std::unique_ptr<LongitudinalControllerBase>  controller_;
 };
 
 class LongitudinalTestNode : public rclcpp::Node
