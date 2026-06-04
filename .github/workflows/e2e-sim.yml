@@ -75,6 +75,11 @@ jobs:
           trace_home: ${{ github.workspace }}/traces_top_simpoint
         run: ./sci --build-scarab top_simpoint_infra_ci
 
+      - name: Setup Dhrystone
+        env:
+          trace_home: ${{ github.workspace }}/traces_top_simpoint
+        run: ./sci --setup-dhrystone top_simpoint_infra_ci
+
       - name: Run simulation
         env:
           trace_home: ${{ github.workspace }}/traces_top_simpoint

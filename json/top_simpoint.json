@@ -38,10 +38,10 @@
       "warmup":1000000
     },
     {
-      "suite":"spec2017",
-      "subsuite":"rate_fp_v2",
-      "workload":"bwaves_r",
-      "cluster_id":7936,
+      "suite":"dhrystone",
+      "subsuite":"dhrystone",
+      "workload":"dhrystone",
+      "cluster_id":null,
       "simulation_type":"exec",
       "warmup":1000000
     }
