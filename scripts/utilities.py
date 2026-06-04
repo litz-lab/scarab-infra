@@ -1585,7 +1585,7 @@ def write_docker_command_to_file(user, local_uid, local_gid, suite, subsuite, wo
                                  docker_prefix, docker_container_name, traces_dir,
                                  docker_home, githash, config_key, config, scarab_mode, scarab_binary,
                                  seg_size, architecture, cluster_id, warmup, trace_warmup, trace_type,
-                                 trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir, application_dir, slurm=False):
+                                 trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir, application_dir, memory_mb, slurm=False):
     try:
         workload_home = f"{suite}/{subsuite}/{workload}"
         scarab_cmd = generate_single_scarab_run_command(user, workload_home, experiment_name, config_key, config,
@@ -1606,9 +1606,9 @@ def write_docker_command_to_file(user, local_uid, local_gid, suite, subsuite, wo
             f.write("    docker rm -f \"$CONTAINER_NAME\" >/dev/null 2>&1 || true\n")
             f.write("}\n")
             f.write("graceful_exit() {\n")
-            f.write("    if [ -z $SCARAB_EXIT ]; then\n")
-            f.write("        echo \"Job FAILED - Runner\" >> $STATEFILE\n")
-            f.write("    fi\n")
+            #f.write("    if [ -z $SCARAB_EXIT ]; then\n")
+            #f.write("        echo \"Job FAILED - Runner\" >> $STATEFILE\n")
+            #f.write("    fi\n")
             f.write("    cleanup_container\n")
             f.write("}\n")
             f.write("trap graceful_exit EXIT INT TERM HUP\n")
@@ -1619,8 +1619,9 @@ def write_docker_command_to_file(user, local_uid, local_gid, suite, subsuite, wo
                 f.write("SLURM_CGROUP=$(cat /proc/self/cgroup | cut -d: -f3 | head -n 1)\n")
                 f.write("echo $SLURM_CGROUP\n")
                 f.write(f"docker run --privileged\
-                --cgroup-parent $SLURM_CGROUP \
-                --cgroupns=host \
+                --memory={memory_mb}m \
+                --memory-swap={memory_mb}m \
+                --memory-swappiness=0 \
                 -e user_id={local_uid} \
                 -e group_id={local_gid} \
                 -e username={user} \
@@ -1668,17 +1669,21 @@ def write_docker_command_to_file(user, local_uid, local_gid, suite, subsuite, wo
             f.write("docker exec --privileged $CONTAINER_NAME /bin/bash -c '/usr/local/bin/root_entrypoint.sh'\n")
             f.write(f"docker exec --user={user} $CONTAINER_NAME /bin/bash -c \"source /usr/local/bin/user_entrypoint.sh && {scarab_cmd}\" \n")
             f.write("SCARAB_EXIT=$?\n")
+            f.write("OOMKILLED=$(docker inspect --format '{{.State.OOMKilled}}' $CONTAINER_NAME)\n")
             f.write(f"ls {docker_home}/simulations/{experiment_name}/{config_key}/{workload_home}/{cluster_id} | grep csv$ > /dev/null\n")
             f.write("STAT_FILE_CHECK=$?\n")
             f.write("echo $STAT_FILE_CHECK\n")
-            f.write("if [[ $SCARAB_EXIT -ne 0 || $STAT_FILE_CHECK -ne 0 ]]; then\n")
+            f.write("if [[ $OOMKILLED = \"true\" ]]; then\n")
+            f.write("    echo \"Runner error detected\"\n")
+            f.write("    echo \"Job FAILED - Runner : OOM Killed\" >> $STATEFILE\n")
+            f.write("elif [[ $SCARAB_EXIT -ne 0 || $STAT_FILE_CHECK -ne 0 ]]; then\n")
             f.write("    echo \"Scarab error detected\"\n")
             f.write("    echo \"Job FAILED - Scarab\" >> $STATEFILE\n")
             f.write("else\n")
+            f.write("    echo \"Completed Simulation\"\n")
             f.write("    echo \"Job COMPLETED SUCCESSFULLY\" >> $STATEFILE\n")
             f.write("fi\n")
             f.write("cleanup_container\n")
-            f.write("echo \"Completed Simulation\"\n")
             f.write(f"sync {docker_home}/simulations/{experiment_name}/logs")
     except Exception as e:
         raise e
@@ -2165,7 +2170,7 @@ def get_runner_logs(root_logfile_directory):
         parsed = parse_job_log_header(first_line, sanitize_result=True)
         log_file_db[parsed] = file
 
-        return log_file_db
+    return log_file_db
 
 
 def print_simulation_status_summary(
@@ -2220,7 +2225,8 @@ def print_simulation_status_summary(
 
     not_in_experiment = 0
     total_running = 0
-    for statefile in Path(statefile_directory).glob("*.log"):
+    statefiles = Path(statefile_directory).glob("*.log")
+    for statefile in statefiles:
         print(statefile.stem)
         if len(statefile.stem.split('_')) != 5:
             err(f"Not 5 sections in statefile name {statefile.stem}", 1)
@@ -2242,6 +2248,7 @@ def print_simulation_status_summary(
                 completed[config] += 1
             elif "Job FAILED - Runner" in contents:
                 prep_failed[config] += 1
+                print(runner_logs.keys())
                 error_runs.add(runner_logs[logfile_key])
             elif "Job FAILED - Scarab" in contents:
                 failed[config] += 1
@@ -2271,6 +2278,7 @@ def print_simulation_status_summary(
         "Non-existant": [],
         "Total": [],
     }
+    total_logfiles = 0
     for conf in confs:
         data["Configuration"].append(conf)
         data["Completed"].append(completed[conf])
@@ -2286,6 +2294,7 @@ def print_simulation_status_summary(
         assert total_per_conf >= total_found, "ERR: Assert Failed: More jobs found (via squeue and log files) than should exist"
 
         data["Total"].append(total_per_conf)
+        total_logfiles += total_per_conf
         data["Non-existant"].append(total_per_conf - total_found)
 
     if strict_log_count:
@@ -2299,7 +2308,7 @@ def print_simulation_status_summary(
     if error_runs:
         error_list = sorted(error_runs)
         print(f"\033[31mErroneous Jobs: {len(error_list)}\033[0m")
-        print(f"\033[31mErrors found in {len(error_list)}/{len(latest_logs)} latest log files.")
+        print(f"\033[31mErrors found in {len(error_list)}/{total_logfiles} latest log files.")
         print("First 5 error runs:\n", "\n".join(error_list[:5]), "\033[0m", sep='')
         first_error_log = error_list[0]
         print()
