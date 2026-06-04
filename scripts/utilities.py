@@ -1585,7 +1585,7 @@ def write_docker_command_to_file(user, local_uid, local_gid, suite, subsuite, wo
                                  docker_prefix, docker_container_name, traces_dir,
                                  docker_home, githash, config_key, config, scarab_mode, scarab_binary,
                                  seg_size, architecture, cluster_id, warmup, trace_warmup, trace_type,
-                                 trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir, application_dir, memory_mb, slurm=False):
+                                 trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir, application_dir, memory_mb=None, slurm=False):
     try:
         workload_home = f"{suite}/{subsuite}/{workload}"
         scarab_cmd = generate_single_scarab_run_command(user, workload_home, experiment_name, config_key, config,
