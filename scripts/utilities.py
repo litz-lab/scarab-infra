@@ -1938,7 +1938,7 @@ def get_simulation_job_identifiers(descriptor_data, workloads_data, dbg_lvl = 1)
                         sim_mode_ = workloads_data[suite][subsuite_][workload_]["simulation"]["prioritized_mode"]
                     simpoint_ids = get_simpoints_wrapper(suite, subsuite_, workload_, exp_cluster_id, sim_mode_) * len(configs)
                     all_jobs += [
-                        sanitize(config, suite, subsuite_, workload_, cluster_id)
+                        (config, suite, subsuite_, workload_, cluster_id)
                         for config in configs.keys()
                         for cluster_id in simpoint_ids
                     ]
@@ -1951,7 +1951,7 @@ def get_simulation_job_identifiers(descriptor_data, workloads_data, dbg_lvl = 1)
                     sim_mode_ = workloads_data[suite][subsuite][workload_]["simulation"]["prioritized_mode"]
                 simpoint_ids = get_simpoints_wrapper(suite, subsuite, workload_, exp_cluster_id, sim_mode_) * len(configs)
                 all_jobs += [
-                    sanitize(config, suite, subsuite, workload_, cluster_id)
+                    (config, suite, subsuite, workload_, cluster_id)
                     for config in configs.keys()
                     for cluster_id in simpoint_ids
                 ]
@@ -1961,7 +1961,7 @@ def get_simulation_job_identifiers(descriptor_data, workloads_data, dbg_lvl = 1)
                 sim_mode_ = workloads_data[suite][subsuite][workload]["simulation"]["prioritized_mode"]
             simpoint_ids = get_simpoints_wrapper(suite, subsuite, workload, exp_cluster_id, sim_mode_) * len(configs)
             all_jobs += [
-                sanitize(config, suite, subsuite, workload, cluster_id)
+                (config, suite, subsuite, workload, cluster_id)
                 for config in configs.keys()
                 for cluster_id in simpoint_ids
             ]
@@ -2166,11 +2166,18 @@ def get_runner_logs(root_logfile_directory):
                 first_line = file_handle.readline().strip()
         except OSError:
             continue
-        parsed = parse_job_log_header(first_line, sanitize_result=True)
+        parsed = parse_job_log_header(first_line, sanitize_result=False)
         log_file_db[parsed] = file
 
     return log_file_db
 
+def is_log_readable(path):
+    try:
+        with open(path, "r") as f:
+            pass
+        return True
+    except:
+        return False
 
 def print_simulation_status_summary(
     descriptor_data,
@@ -2214,7 +2221,7 @@ def print_simulation_status_summary(
 
     error_runs = set()
 
-    confs = list(map(lambda x:x.replace("_", "-"), descriptor_data["configurations"].keys()))
+    confs = descriptor_data["configurations"]
 
     completed = {conf: 0 for conf in confs}
     failed = {conf: 0 for conf in confs}
@@ -2222,26 +2229,38 @@ def print_simulation_status_summary(
     running = {conf: 0 for conf in confs}
     pending = {conf: 0 for conf in confs}
 
+    runner_log_to_sim_log = {}
+
     not_in_experiment = 0
     total_running = 0
     oom_killed_sps = []
     statefiles = Path(statefile_directory).glob("*.log")
     for statefile in statefiles:
-        if len(statefile.stem.split('_')) != 5:
+        if len(statefile.stem.split('___')) != 5:
             err(f"Not 5 sections in statefile name {statefile.stem}", 1)
             exit(1)
 
-        config, suite, subsuite, workload, cluster_id = statefile.stem.split('_')
+        config, suite, subsuite, workload, cluster_id = statefile.stem.split('___')
         logfile_key = (config, suite, subsuite, workload, cluster_id) # Log dictionaries use tuple as key
 
         if not (config, suite, subsuite, workload, int(cluster_id)) in all_job_ids:
             info(f"Statefile {statefile.stem} not found in experiment", dbg_lvl)
-            print(all_job_ids)
+            print("Not found in:", all_job_ids)
             not_in_experiment += 1
             continue
 
         with open(statefile, 'r') as f:
             contents = f.read()
+            scarab_logfile = os.path.join(
+                    root_directory,
+                    config,
+                    suite,
+                    subsuite,
+                    workload,
+                    cluster_id,
+                    "sim.log"
+                )
+            runner_log_to_sim_log[runner_logs[logfile_key]] = scarab_logfile
 
             if "Job COMPLETED SUCCESSFULLY" in contents:
                 completed[config] += 1
@@ -2251,8 +2270,10 @@ def print_simulation_status_summary(
                 oom_killed_sps.append(statefile.stem)
             elif "Job FAILED - Scarab" in contents:
                 failed[config] += 1
-                # TODO: Check OOM. Use suite, subsuite, workload, cluster_id from above
-                # TODO: Get scarab log file
+                if is_log_readable(scarab_logfile):
+                    error_runs.add(scarab_logfile)
+                else:
+                    error_runs.add(runner_logs[logfile_key])
             elif "Job RUNNING" in contents:
                 total_running += 1
                 running[config] += 1
@@ -2317,34 +2338,10 @@ def print_simulation_status_summary(
                 tail_lines = list(deque(first_error_log_file, maxlen=20))
             if tail_lines:
                 print("".join(tail_lines).rstrip("\n"))
-            elif fallback_log:
-                print(f"<empty log file; showing runner log fallback: {fallback_log}>")
-                fallback_log = sim_log_to_job_log.get(first_error_log)
-                try:
-                    with open(fallback_log, "r", errors="replace") as fallback_log_file:
-                        fallback_tail_lines = list(deque(fallback_log_file, maxlen=20))
-                    if fallback_tail_lines:
-                        print("".join(fallback_tail_lines).rstrip("\n"))
-                    else:
-                        print("<runner log is also empty>")
-                except OSError as fallback_exc:
-                    print(f"<unable to read runner log fallback: {fallback_exc}>")
             else:
                 print("<empty log file>")
         except OSError as exc:
-            if fallback_log:
-                print(f"<unable to read log file: {exc}; showing runner log fallback: {fallback_log}>")
-                try:
-                    with open(fallback_log, "r", errors="replace") as fallback_log_file:
-                        fallback_tail_lines = list(deque(fallback_log_file, maxlen=20))
-                    if fallback_tail_lines:
-                        print("".join(fallback_tail_lines).rstrip("\n"))
-                    else:
-                        print("<runner log is also empty>")
-                except OSError as fallback_exc:
-                    print(f"<unable to read runner log fallback: {fallback_exc}>")
-            else:
-                print(f"<unable to read log file: {exc}>")
+            print(f"<unable to read log file: {exc}>")
         print("\033[0m", end="")
     else:
         print(f"\033[92mNo errors found in log files\033[0m")
@@ -2815,7 +2812,7 @@ def generate_table(data, title=""):
     Returns:
         str: A string representing the formatted table.
     """
-    
+
     if not data:
         return "No data provided."
 
@@ -2850,8 +2847,8 @@ def generate_table(data, title=""):
     return table_string
 
 def get_statefile_name(config, suite, subsuite, workload, simpoint):
-    name = f"{config.replace('_', '-')}_{suite.replace('_', '-')}_{subsuite.replace('_', '-')}"
-    name += f"_{workload.replace('_', '-')}_{simpoint.replace('_', '-')}"
+    name = f"{config}___{suite}___{subsuite}"
+    name += f"___{workload}___{simpoint}"
     return name
 
 def update_statefile(experiment_dir, config, suite, subsuite, workload, simpoint, message):
