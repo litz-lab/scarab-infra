@@ -1621,7 +1621,6 @@ def write_docker_command_to_file(user, local_uid, local_gid, suite, subsuite, wo
                 f.write(f"docker run --privileged\
                 --memory={memory_mb}m \
                 --memory-swap={memory_mb}m \
-                --memory-swappiness=0 \
                 -e user_id={local_uid} \
                 -e group_id={local_gid} \
                 -e username={user} \
@@ -2309,11 +2308,10 @@ def print_simulation_status_summary(
         error_list = sorted(error_runs)
         print(f"\033[31mErroneous Jobs: {len(error_list)}\033[0m")
         print(f"\033[31mErrors found in {len(error_list)}/{total_logfiles} latest log files.")
-        print("First 5 error runs:\n", "\n".join(error_list[:5]), "\033[0m", sep='')
+        print("First 5 error runs:\n", "\n".join(list(map(str, error_list))[:5]), "\033[0m", sep='')
         first_error_log = error_list[0]
         print()
         print(f"\033[94mTail of the first error ({first_error_log}):")
-        fallback_log = sim_log_to_job_log.get(first_error_log)
         try:
             with open(first_error_log, "r", errors="replace") as first_error_log_file:
                 tail_lines = list(deque(first_error_log_file, maxlen=20))
@@ -2321,6 +2319,7 @@ def print_simulation_status_summary(
                 print("".join(tail_lines).rstrip("\n"))
             elif fallback_log:
                 print(f"<empty log file; showing runner log fallback: {fallback_log}>")
+                fallback_log = sim_log_to_job_log.get(first_error_log)
                 try:
                     with open(fallback_log, "r", errors="replace") as fallback_log_file:
                         fallback_tail_lines = list(deque(fallback_log_file, maxlen=20))
