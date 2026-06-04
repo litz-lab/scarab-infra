@@ -1606,9 +1606,9 @@ def write_docker_command_to_file(user, local_uid, local_gid, suite, subsuite, wo
             f.write("    docker rm -f \"$CONTAINER_NAME\" >/dev/null 2>&1 || true\n")
             f.write("}\n")
             f.write("graceful_exit() {\n")
-            #f.write("    if [ -z $SCARAB_EXIT ]; then\n")
-            #f.write("        echo \"Job FAILED - Runner\" >> $STATEFILE\n")
-            #f.write("    fi\n")
+            f.write("    if [ -z $SCARAB_EXIT ]; then\n")
+            f.write("        echo \"Job FAILED - Runner\" >> $STATEFILE\n")
+            f.write("    fi\n")
             f.write("    cleanup_container\n")
             f.write("}\n")
             f.write("trap graceful_exit EXIT INT TERM HUP\n")
@@ -2224,9 +2224,9 @@ def print_simulation_status_summary(
 
     not_in_experiment = 0
     total_running = 0
+    oom_killed_sps = []
     statefiles = Path(statefile_directory).glob("*.log")
     for statefile in statefiles:
-        print(statefile.stem)
         if len(statefile.stem.split('_')) != 5:
             err(f"Not 5 sections in statefile name {statefile.stem}", 1)
             exit(1)
@@ -2247,8 +2247,8 @@ def print_simulation_status_summary(
                 completed[config] += 1
             elif "Job FAILED - Runner" in contents:
                 prep_failed[config] += 1
-                print(runner_logs.keys())
                 error_runs.add(runner_logs[logfile_key])
+                oom_killed_sps.append(statefile.stem)
             elif "Job FAILED - Scarab" in contents:
                 failed[config] += 1
                 # TODO: Check OOM. Use suite, subsuite, workload, cluster_id from above
@@ -2349,12 +2349,12 @@ def print_simulation_status_summary(
     else:
         print(f"\033[92mNo errors found in log files\033[0m")
 
-    # if oom_killed_sps > 0:
-    #     print()
-    #     print(f"\033[31mOOM Killed Jobs: {oom_killed_sps}\033[0m")
-    #     print("To fix: Run './sci --collect-mem <descriptor>' after jobs complete to record per-simpoint memory measurements. The infra will use these to schedule future runs with appropriate --mem limits.")
-    #     print("If jobs haven't run yet, set 'memory_overhead_mb' in the config entry within the descriptor to add a fixed overhead on top of the auto-scheduled base memory.")
-    #     print("OOM Killed Configs:\n", "\n".join(oom_killed), "\033[0m", sep='')
+    if len(oom_killed_sps) > 0:
+        print()
+        print(f"\033[31mOOM Killed Jobs: {len(oom_killed_sps)}\033[0m")
+        print("To fix: Run './sci --collect-mem <descriptor>' after jobs complete to record per-simpoint memory measurements. The infra will use these to schedule future runs with appropriate --mem limits.")
+        print("If jobs haven't run yet, set 'memory_overhead_mb' in the config entry within the descriptor to add a fixed overhead on top of the auto-scheduled base memory.")
+        print("OOM Killed Configs:\n", "\n".join(oom_killed_sps), "\033[0m", sep='')
 
 def remove_docker_containers(docker_prefix_list, job_name, user, dbg_lvl):
     try:
