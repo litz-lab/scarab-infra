@@ -971,6 +971,74 @@ def _build_missing_scarab_version(
     except Exception:
         raise
 
+# Provides utility to run setup commands in docker container for CI
+# Run a list of commands in a container
+def run_in_container (infra_dir, scarab_path, application_dir, user, docker_home, docker_prefix, githash, docker_container_name, cmds, dbg_lvl=1):
+    local_uid = os.getuid()
+    local_gid = os.getgid()
+
+    exception = None
+
+    info(f"Spinning up {docker_prefix}:{githash} container named {docker_container_name}", dbg_lvl)
+    try:
+        subprocess.run(
+                ["docker", "run", "-e", f"user_id={local_uid}",
+                 "-e", f"group_id={local_gid}",
+                 "-e", f"username={user}",
+                 "-dit", "--name", f"{docker_container_name}",
+                 "--mount", f"type=bind,source={docker_home},target=/home/{user},readonly=false",
+                 "--mount", f"type=bind,source={scarab_path},target=/scarab,readonly=false",
+                 "--mount", f"type=bind,source={application_dir},target=/tmp_home/application,readonly=false",
+                 f"{docker_prefix}:{githash}", "/bin/bash"], check=True, capture_output=True, text=True)
+        subprocess.run(
+                ["docker", "cp", f"{infra_dir}/common/scripts/root_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
+                check=True, capture_output=True, text=True)
+        subprocess.run(
+                ["docker", "cp", f"{infra_dir}/common/scripts/user_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
+                check=True, capture_output=True, text=True)
+        if os.path.isfile(f"{infra_dir}/workloads/{docker_prefix}/workload_root_entrypoint.sh"):
+            subprocess.run(
+                    ["docker", "cp", f"{infra_dir}/workloads/{docker_prefix}/workload_root_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
+                    check=True, capture_output=True, text=True)
+        if os.path.isfile(f"{infra_dir}/workloads/{docker_prefix}/workload_user_entrypoint.sh"):
+            subprocess.run(
+                    ["docker", "cp", f"{infra_dir}/workloads/{docker_prefix}/workload_user_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
+                    check=True, capture_output=True, text=True)
+
+        subprocess.run(
+                ["docker", "exec", "--privileged", f"{docker_container_name}", "/bin/bash", "-c", "\'/usr/local/bin/root_entrypoint.sh\'"],
+                check=True, capture_output=True, text=True)
+
+        for cmd in cmds:
+            info(f"Running <{cmd}>", dbg_lvl)
+            docker_cmd = [
+                    "docker",
+                        "exec",
+                        f"--user={user}",
+                        f"--workdir=/home/{user}",
+                        f"{docker_container_name}",
+                        "/bin/bash",
+                        "-c",
+                        cmd
+                ]
+
+            build_result = subprocess.run(docker_cmd, capture_output=True, text=True)
+
+            if build_result.returncode != 0:
+                exception = RuntimeError("Scarab build returned with non-zero code")
+                err(f"Build stdout: {build_result.stdout}", dbg_lvl)
+                err(f"Build stderr: {build_result.stderr}", dbg_lvl)
+                break
+
+    except Exception as e:
+        exception = e
+    finally:
+        # Always clean up build container
+        subprocess.run(["docker", "rm", "-f", f"{docker_container_name}"], check=True, capture_output=True, text=True)
+
+    if exception != None:
+        raise exception
+
 # Wrapper function that handles rebuilding scarab if needed, and caching
 def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, githash, scarab_githash, scarab_build, stream_build=False, dbg_lvl=1):
     build_mode = scarab_build if scarab_build else "opt"
