@@ -11,7 +11,6 @@ import time
 import re
 import glob
 import json
-import shlex
 import shutil
 import zipfile
 
@@ -90,6 +89,17 @@ def get_cluster_map(workload_home):
     return cluster_map
 
 EMPTY_TRACE_WEIGHT_THRESHOLD = 0.01  # auto-remove segments with weight < 1%
+
+# Single-thread the workload during BOTH fingerprinting and tracing. Threading
+# in the workload causes (a) non-deterministic instruction counts that make
+# SimPoint segments fall past end-of-execution on the trace run, and (b)
+# DR client-cache thrash in the trace phase that can produce empty raw output.
+# Same set of vars as the fingerprint prefix, kept in a single constant so
+# all drrun call sites agree.
+THREAD_LIMIT_ENV_PREFIX = (
+    "PYTHONHASHSEED=0 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 "
+    "OPENBLAS_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1 TOKENIZERS_PARALLELISM=false"
+)
 
 def _remove_segment_from_simpoints(workload_home, cluster_id, segment_id, reason=""):
     """Remove a segment from opt.p.lpt0.99 and opt.w.lpt0.99 by cluster_id.
@@ -189,8 +199,24 @@ def minimize_simpoint_traces(cluster_map, workload_home, warmup_chunks):
                     print(f"  segment {segment_id} (cluster {cluster_id}) has empty trace and weight "
                           f"{weight} >= {EMPTY_TRACE_WEIGHT_THRESHOLD}; refusing to auto-remove. "
                           f"Investigate the workload's determinism or switch to trace_then_cluster.")
+                print(f"  segment {segment_id}: no drmemtrace.*.trace.zip files found in {trace_dir}.")
+                print( "  Possible causes:")
+                print( "    1. Non-deterministic workload (instruction count varies between fingerprint")
+                print( "       and trace runs); the selected simpoint fell past end-of-execution. Try")
+                print( "       trace_then_cluster, or opt in to weight-based removal with")
+                print( "       env_vars=\"EMPTY_SEGMENT_ACTION=remove\" (see README.trace.md).")
+                print( "    2. DynamoRIO minizip bug on large raw traces. drrun completes but the")
+                print( "       output .trace.zip is empty / corrupted. Workaround: re-run drraw2trace")
+                print( "       manually with -compress lz4 then 'zip' the resulting .trace.lz4 by hand,")
+                print(f"       e.g.: drraw2trace -indir {trace_dir}/raw -compress lz4 -jobs 1")
+                print( "             -chunk_instr_count 10000000")
+                err_msg = (
+                    f"No drmemtrace.*.trace.zip files found in {trace_dir}. "
+                    "See stderr for likely causes and workarounds (non-deterministic "
+                    "workload or DR minizip bug on large raw)."
+                )
                 trace_clustering_info = {}
-                trace_clustering_info["err"] = f"No trace.zip files found in {trace_dir}."
+                trace_clustering_info["err"] = err_msg
                 with open(os.path.join(workload_home, "trace_clustering_info.json"), "w") as json_file:
                     json.dump(trace_clustering_info, json_file, indent=2, separators=(",", ":"))
                 exit(1)
@@ -233,11 +259,16 @@ def trace_then_cluster(workload, suite, simpoint_home, bincmd, client_bincmd, si
         subprocess.run(["mkdir", "-p", f"{simpoint_home}/{workload}/traces/whole"], check=True, capture_output=True, text=True)
         workload_home = f"{simpoint_home}/{workload}"
         dynamorio_home = os.environ.get('DYNAMORIO_HOME')
-        trace_cmd = f"{dynamorio_home}/bin64/drrun -t drcachesim -jobs {DR_JOBS} -outdir {workload_home}/traces/whole -offline"
+        # Workload binary is launched single-threaded so the trace phase sees
+        # the same sequential instruction count as fingerprinting did.
+        trace_cmd = f"{THREAD_LIMIT_ENV_PREFIX} {dynamorio_home}/bin64/drrun -t drcachesim -jobs {DR_JOBS} -outdir {workload_home}/traces/whole -offline"
         if drio_args != None:
             trace_cmd = f"{trace_cmd} {drio_args}"
         trace_cmd = f"{trace_cmd} -- {bincmd}"
-        trace_cmd_list = shlex.split(trace_cmd)
+        # Wrap in /bin/sh -c so the leading KEY=VALUE env-var assignments
+        # land in the drrun child's environment instead of being interpreted
+        # as the program name (which subprocess.run + an argv list would do).
+        trace_cmd_list = ["/bin/sh", "-c", trace_cmd]
 
         whole_trace_path = f"{workload_home}/traces/whole"
         trace_clustering_info = {}
@@ -403,8 +434,7 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
             # is in DR's d_r_strcmp called with a corrupted module-name pointer
             # when multiple threads dlopen/dlclose simultaneously. Single-threaded
             # fingerprinting is also more deterministic for SimPoint.
-            thread_limit_prefix = "PYTHONHASHSEED=0 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1 TOKENIZERS_PARALLELISM=false"
-            fp_cmd = f"HOME={dr_home} {thread_limit_prefix} {dynamorio_home}/bin64/drrun -max_bb_instrs 4095 -opt_cleancall 2 {drio_extra} -c $tmpdir/libfpg.so -no_use_bb_pc -segment_size {seg_size} -output {workload_home}/fingerprint/bbfp -pcmap_output {workload_home}/fingerprint/pcmap -- {bincmd}"
+            fp_cmd = f"HOME={dr_home} {THREAD_LIMIT_ENV_PREFIX} {dynamorio_home}/bin64/drrun -max_bb_instrs 4095 -opt_cleancall 2 {drio_extra} -c $tmpdir/libfpg.so -no_use_bb_pc -segment_size {seg_size} -output {workload_home}/fingerprint/bbfp -pcmap_output {workload_home}/fingerprint/pcmap -- {bincmd}"
             # DynamoRIO has a non-deterministic crash in d_r_strcmp when
             # multi-threaded Python apps do concurrent dlopen/dlclose during
             # fingerprinting. Retry up to 3 times on failure.
@@ -531,10 +561,17 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
             # -ipc_name: isolate drcachesim state so sibling drrun processes
             # batched on the same host don't collide on /tmp/drcachesimpipe.
             dr_flags = f"-ipc_name drcachesim_{segment_id}"
+            # Same single-thread prefix as fingerprinting so the workload runs
+            # sequentially under DR during tracing too. Without this, OMP /
+            # MKL / tokenizers worker threads spawn during the trace phase
+            # and (a) produce helper-thread .raw.lz4 files that have to be
+            # filtered out later, (b) bloat raw2trace memory, and (c) can
+            # collide with the per-segment -ipc_name when many concurrent
+            # drrun instances share /tmp.
             if roi_start == 0:
-                trace_cmd = f"{dynamorio_home}/bin64/drrun -opt_cleancall 2 {drio_trace_extra} -t drcachesim {dr_flags} -jobs {DR_JOBS} -outdir {seg_dir} -offline -count_fetched_instrs -trace_for_instrs {roi_length} -- {bincmd}"
+                trace_cmd = f"{THREAD_LIMIT_ENV_PREFIX} {dynamorio_home}/bin64/drrun -opt_cleancall 2 {drio_trace_extra} -t drcachesim {dr_flags} -jobs {DR_JOBS} -outdir {seg_dir} -offline -count_fetched_instrs -trace_for_instrs {roi_length} -- {bincmd}"
             else:
-                trace_cmd = f"{dynamorio_home}/bin64/drrun -opt_cleancall 2 {drio_trace_extra} -t drcachesim {dr_flags} -jobs {DR_JOBS} -outdir {seg_dir} -offline -count_fetched_instrs -trace_after_instrs {roi_start} -trace_for_instrs {roi_length} -- {bincmd}"
+                trace_cmd = f"{THREAD_LIMIT_ENV_PREFIX} {dynamorio_home}/bin64/drrun -opt_cleancall 2 {drio_trace_extra} -t drcachesim {dr_flags} -jobs {DR_JOBS} -outdir {seg_dir} -offline -count_fetched_instrs -trace_after_instrs {roi_start} -trace_for_instrs {roi_length} -- {bincmd}"
 
             trace_cmds.append(trace_cmd)
 
@@ -686,11 +723,11 @@ def iterative(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mo
             if not dynamorio_home:
                 raise EnvironmentError("DYNAMORIO_HOME not set")
 
-            trace_cmd = (f"{dynamorio_home}/bin64/drrun -t drcachesim -jobs {DR_JOBS} -outdir {timestep_dir} -offline")
+            trace_cmd = (f"{THREAD_LIMIT_ENV_PREFIX} {dynamorio_home}/bin64/drrun -t drcachesim -jobs {DR_JOBS} -outdir {timestep_dir} -offline")
             if drio_args is not None:
                 trace_cmd = f"{trace_cmd} {drio_args}"
             trace_cmd = f"{trace_cmd} -- {bincmd}"
-            trace_cmd_list = shlex.split(trace_cmd)
+            trace_cmd_list = ["/bin/sh", "-c", trace_cmd]
 
             print(f"[Timestep {i}] tracing..")
             if i == 1 and client_bincmd:
