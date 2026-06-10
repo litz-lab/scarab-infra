@@ -220,6 +220,84 @@ When all trace jobs complete, `finish_trace` copies minimized traces to
 `traces_dir` and updates `workloads/workloads_db.json` with trace paths and
 SimPoint weights.
 
+## Parallel Segment Tracing
+
+For workloads with many simpoints (50+), the default single-job pipeline
+spends most of its time serially tracing one segment after another inside a
+single Slurm allocation. Setting `"parallel_segments": true` in the
+descriptor switches to a 3-phase Slurm pipeline that traces each segment as
+an independent job:
+
+```
+Phase 1 (1 job):   Fingerprint + Cluster (mode 4)
+    │             produces opt.p.lpt0.99, opt.w.lpt0.99
+    ▼ (Phase 1 script reads opt.p.lpt0.99 and submits Phase 2 jobs)
+Phase 2 (N jobs):  Trace + raw2trace + minimize one segment each (mode 5)
+    │
+    ▼ (--dependency=afterany:<all Phase 2 job ids>)
+Phase 3 (1 job):   finish_trace (consolidates traces + updates workloads_db)
+```
+
+Only valid with `workload_manager: "slurm"` and `trace_type:
+"cluster_then_trace"`. The descriptor validator rejects mixed
+configurations.
+
+### How it works
+
+1. The host submits Phase 1 as a single Slurm job that runs
+   `run_simpoint_trace.py` in mode 4 (`cluster_only`): fingerprint +
+   clustering only, no tracing.
+2. The Phase 1 sbatch script has appended bash that, after mode 4 returns,
+   reads `opt.p.lpt0.99`, skips segments where
+   `traces_simp/trace/{segment_id}.zip` already exists, and `sbatch`'s one
+   Phase 2 job per remaining segment using a pre-generated template script.
+3. Each Phase 2 job runs `run_simpoint_trace.py` in mode 5
+   (`trace_single_segment`) for one `(segment_id, cluster_id)` — drrun,
+   raw2trace, minimize.
+4. A Phase 3 `finish_trace` job is submitted with
+   `--dependency=afterany:<all Phase 2 job IDs>` and runs the same
+   finalisation that single-job mode runs synchronously on the host.
+
+### Per-segment memory
+
+A Phase 2 segment job runs one drrun then one raw2trace sequentially, so its
+memory footprint is much smaller than a full single-job trace. PR δ ships
+fixed defaults; a follow-up can wire `peak_rss_mb` from `workloads_db.json`:
+
+| Constant | Default | Description |
+|----------|---------|-------------|
+| `PHASE1_MEM_DEFAULT_MB` | 32000 | Phase 1 (fingerprint + cluster) |
+| `SEGMENT_MEM_MIN_MB` | 10000 | Per-segment Phase 2 job |
+| `PHASE3_FINALIZE_MEM_MB` | 16384 | Phase 3 finalisation |
+
+### Resume
+
+Kill the Phase 1 job mid-flight and resubmit `./sci --trace <descriptor>`:
+Phase 1 re-runs fingerprinting and clustering only if `opt.p.lpt0.99` is
+missing (resume from inside `run_simpoint_trace.py`). After Phase 1
+completes, the appended bash tail skips any segment whose minimized zip
+already exists, so Phase 2 only re-submits incomplete segments.
+
+### Status
+
+`./sci --status <descriptor>` currently shows only Phase 1 jobs. To see
+Phase 2 / Phase 3 progress, use `squeue -u <user>` directly. Full status
+integration is a planned follow-up.
+
+### Descriptor
+
+```json
+{
+  "workload_manager": "slurm",
+  "parallel_segments": true,
+  "trace_configurations": [
+    { "trace_type": "cluster_then_trace", ... }
+  ]
+}
+```
+
+Default is `false`, preserving the existing single-job behaviour.
+
 ## Completion Detection
 
 A trace workload is considered complete when minimized `.zip` files exist in
