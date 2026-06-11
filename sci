@@ -43,6 +43,8 @@ COOKIES_CACHE_PATH = Path.home() / ".cache" / "gdown" / "cookies.txt"
 _COOKIES_STATUS = {"prompted": False, "skipped": False}
 WORKLOADS_DB_PATH = REPO_ROOT / "workloads" / "workloads_db.json"
 
+DHRYSTONE_DRIVE_ID = "1btLIOve4mujEfuYohKMy8VRUeJ18ZQEM"
+
 
 def load_infra_utilities():
     if str(REPO_ROOT) not in sys.path:
@@ -1423,43 +1425,50 @@ def ensure_ci_trace(_: argparse.Namespace) -> Tuple[bool, str]:
         return False, f"Could not create trace directory {trace_home}: {exc}"
 
     workloads_db = load_workloads_file("workloads_db.json")
-    try:
-        simpoints = (
-            workloads_db["spec2017"]["rate_int_v2"]["perlbench_r"].get("simpoints", [])
+    CI_traces = [("spec2017", "rate_int_v2", "perlbench_r", 109678), ("dhrystone", "dhrystone", "dhrystone", 101)]
+    for trace in CI_traces:
+        suite = trace[0]
+        subsuite = trace[1]
+        workload = trace[2]
+        simpoint_cid = trace[3]
+        try:
+            simpoints = (
+                workloads_db[suite][subsuite][workload].get("simpoints", [])
+            )
+        except (TypeError, KeyError):
+            return False, f"CI trace metadata missing for {suite}{subsuite}/{workload}."
+        ci_entry = None
+        for simpoint in simpoints:
+            print(simpoint)
+            if isinstance(simpoint, dict) and simpoint.get("cluster_id") == simpoint_cid:
+                ci_entry = simpoint
+                break
+        if not ci_entry:
+            return False, f"CI trace simpoint {simpoint_cid} not found in workloads_db.json."
+        drive_id = ci_entry.get("drive_id")
+        if not drive_id:
+            return False, f"CI trace simpoint {simpoint_cid} missing drive_id in workloads_db.json."
+        target_path = (
+            trace_home
+            / suite
+            / subsuite
+            / workload
+            / "traces"
+            / "simp"
+            / f"{simpoint_cid}.zip"
         )
-    except (TypeError, KeyError):
-        return False, "CI trace metadata missing for spec2017/rate_int_v2/perlbench_r."
-    ci_entry = None
-    for simpoint in simpoints:
-        if isinstance(simpoint, dict) and simpoint.get("cluster_id") == 109678:
-            ci_entry = simpoint
-            break
-    if not ci_entry:
-        return False, "CI trace simpoint 109678 not found in workloads_db.json."
-    drive_id = ci_entry.get("drive_id")
-    if not drive_id:
-        return False, "CI trace simpoint 109678 missing drive_id in workloads_db.json."
-    target_path = (
-        trace_home
-        / "spec2017"
-        / "rate_int_v2"
-        / "perlbench_r"
-        / "traces"
-        / "simp"
-        / "109678.zip"
-    )
-    if target_path.exists():
-        return True, "CI trace spec2017/rate_int_v2/perlbench_r:109678 already present."
+        if target_path.exists():
+            continue
 
-    try:
-        target_path.parent.mkdir(parents=True, exist_ok=True)
-    except OSError as exc:
-        return False, f"Failed to create {target_path.parent}: {exc}"
-    try:
-        download_trace_file(str(drive_id), target_path, allow_cookie_prompt=False)
-    except StepError as exc:
-        return False, f"Download failed for CI trace: {exc}"
-    return True, "Downloaded CI trace spec2017/rate_int_v2/perlbench_r:109678."
+        try:
+            target_path.parent.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            return False, f"Failed to create {target_path.parent}: {exc}"
+        try:
+            download_trace_file(str(drive_id), target_path, allow_cookie_prompt=False)
+        except StepError as exc:
+            return False, f"Download failed for CI trace: {exc}"
+    return True, f"Ensured CI traces: {', '.join([f'{suite}/{subsuite}/{wl}:{sp}' for suite, subsuite, wl, sp in CI_traces])} present."
 
 
 def ensure_conda_installed(_: argparse.Namespace) -> Tuple[bool, str]:
@@ -2093,7 +2102,7 @@ def ensure_aslr_disabled(_: argparse.Namespace) -> Tuple[bool, str]:
                     ['srun', '-w', node, '-N1', '-n1', 'cat', aslr_path],
                     universal_newlines=True, stderr=subprocess.DEVNULL, timeout=3
                 ).strip()
-                
+
                 if node_aslr != '0':
                     print(f"\n[!] ERROR: ASLR is enabled on Slurm node [{node}] (value: {node_aslr}).")
                     print(f"    Please run: srun -w {node} sudo sh -c 'echo 0 > {aslr_path}'")
@@ -2101,7 +2110,7 @@ def ensure_aslr_disabled(_: argparse.Namespace) -> Tuple[bool, str]:
             except Exception:
                 continue
         return True, f"ASLR is disabled across all {len(all_nodes)} Slurm nodes."
-    
+
     else:
         content = aslr_file.read_text().strip()
         if content != "0":
@@ -2109,7 +2118,77 @@ def ensure_aslr_disabled(_: argparse.Namespace) -> Tuple[bool, str]:
             print(f"    Please run: echo 0 | sudo tee {aslr_path}")
             sys.exit(1)
         return True, "ASLR is disabled on local host (0)."
-    
+
+def setup_dhrystone (descriptor_name: str, dbg_level: int = 1):
+    if dbg_level == None:
+        dbg_level = 1
+
+    try:
+        descriptor_path, descriptor = read_descriptor(descriptor_name)
+    except StepError as exc:
+        print(exc)
+        return 1
+
+    if descriptor.get("descriptor_type") != "simulation":
+        print("--setup-dhrystone only supports simulation descriptors.")
+        return 1
+
+    missing = _check_descriptor_fields(descriptor, _SCHEMA_RUN)
+    if missing:
+        print(f"Descriptor missing required fields: {', '.join(missing)}")
+        return 1
+
+    docker_home = descriptor.get("root_dir")
+    applications_dir = descriptor.get("application_dir")
+    scarab_path = descriptor.get("scarab_path")
+    if not docker_home or not applications_dir:
+        print("Descriptor must include 'root_dir', 'scarab_path', and 'application_dir'.")
+        return 1
+
+    try:
+        Path(applications_dir).mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        print(f"Failed to prepare temporary directory {tmp_path}: {exc}")
+        return False
+
+    infra_dir = str(REPO_ROOT)
+
+    try:
+        githash = run_command(
+            ["git", "rev-parse", "--short", "HEAD"],
+            capture=True, check=True, input_data=None,
+        )
+    except StepError as exc:
+        raise StepError("Failed to obtain scarab-infra git hash.") from exc
+    if githash is None:
+        raise StepError("Git hash query returned no output.")
+    githash = githash.strip()
+
+    user = getpass.getuser()
+
+    # Specific to dhrystone, not descriptor/environment
+    docker_container_name = "Dhrystone_setup"
+    docker_prefix = "allbench_traces"
+    print("dbg lvl:", dbg_level)
+
+    try:
+        run_command(["wget", f"https://drive.google.com/uc?id={DHRYSTONE_DRIVE_ID}", "-O", f"{applications_dir}/dry.c"])
+    except StepError as exc:
+        return False, f"Download failed for Dhrystone v2.2 source file"
+
+    infra_utils = load_infra_utilities()
+
+    dhrystone_setup_cmds = [
+        "gcc -std=c89 -DREG -c $tmpdir/application/dry.c -o $tmpdir/application/dry1.o",
+        "gcc -std=c89 -DPASS2 -DREG -c $tmpdir/application/dry.c -o $tmpdir/application/dry2.o",
+        "gcc $tmpdir/application/dry1.o $tmpdir/application/dry2.o -o $tmpdir/application/dry"
+    ]
+
+    try:
+        infra_utils.run_in_container (infra_dir, scarab_path, applications_dir, user, docker_home, docker_prefix,
+                                      githash, docker_container_name, dhrystone_setup_cmds, dbg_lvl=dbg_level)
+    except Exception as exc:
+        raise StepError(f"Dhrystone set up failed: {exc}") from exc
 
 def run_init(args: argparse.Namespace) -> int:
     if sys.stdin.isatty():
@@ -4326,6 +4405,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Run simulations defined in json/<DESCRIPTOR>.json.",
     )
     parser.add_argument(
+        "--setup-dhrystone",
+        metavar="DESCRIPTOR",
+        help="Set up Dhrystone using paths defined in json/<DESCRIPTOR>.json.",
+    )
+    parser.add_argument(
         "--perf",
         metavar="DESCRIPTOR",
         help="Run automated perf top-down collection for json/<DESCRIPTOR>.json.",
@@ -4406,6 +4490,7 @@ def main() -> int:
         bool(args.kill),
         bool(args.status),
         bool(args.clean),
+        bool(args.setup_dhrystone)
     ]
     if sum(requested) > 1:
         print("Use only one primary action per invocation.")
@@ -4426,6 +4511,7 @@ def main() -> int:
         args.kill,
         args.status,
         args.clean,
+        args.setup_dhrystone
     ])
     if needs_env:
         reexec_in_conda_env()
@@ -4452,6 +4538,8 @@ def main() -> int:
         return run_init(args)
     if args.ci_init:
         return run_ci_init(args)
+    if args.setup_dhrystone:
+        return setup_dhrystone(args.setup_dhrystone, dbg_level=args.debug_level)
     if args.list:
         workloads_path = REPO_ROOT / "workloads" / "workloads_db.json"
         try:

@@ -6052,5 +6052,39 @@
         }
       }
     }
+  },
+  "dhrystone":{
+    "dhrystone":{
+      "dhrystone":{
+        "trace":{
+          "dynamorio_args":null,
+          "clustering_k":null
+        },
+        "simulation":{
+          "prioritized_mode":"memtrace",
+          "exec":{
+            "image_name":"allbench_traces",
+            "segment_size":10000000,
+            "env_vars":null,
+            "binary_cmd":"\\$tmpdir/application/dry",
+            "client_bincmd":null
+          },
+          "memtrace":{
+            "image_name":"allbench_traces",
+            "segment_size":10000000,
+            "warmup":50000000,
+            "whole_trace_file":"drmemtrace.dry.00041.0819.trace.zip",
+            "trace_type":"trace_then_cluster"
+          }
+        },
+        "simpoints":[
+          {
+            "cluster_id":101,
+            "segment_id":1,
+            "weight":1.0
+          }
+        ]
+      }
+    }
   }
 }
