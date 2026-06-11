@@ -1425,43 +1425,50 @@ def ensure_ci_trace(_: argparse.Namespace) -> Tuple[bool, str]:
         return False, f"Could not create trace directory {trace_home}: {exc}"
 
     workloads_db = load_workloads_file("workloads_db.json")
-    try:
-        simpoints = (
-            workloads_db["spec2017"]["rate_int_v2"]["perlbench_r"].get("simpoints", [])
+    CI_traces = [("spec2017", "rate_int_v2", "perlbench_r", 109678), ("dhrystone", "dhrystone", "dhrystone", 101)]
+    for trace in CI_traces:
+        suite = trace[0]
+        subsuite = trace[1]
+        workload = trace[2]
+        simpoint_cid = trace[3]
+        try:
+            simpoints = (
+                workloads_db[suite][subsuite][workload].get("simpoints", [])
+            )
+        except (TypeError, KeyError):
+            return False, f"CI trace metadata missing for {suite}{subsuite}/{workload}."
+        ci_entry = None
+        for simpoint in simpoints:
+            print(simpoint)
+            if isinstance(simpoint, dict) and simpoint.get("cluster_id") == simpoint_cid:
+                ci_entry = simpoint
+                break
+        if not ci_entry:
+            return False, f"CI trace simpoint {simpoint_cid} not found in workloads_db.json."
+        drive_id = ci_entry.get("drive_id")
+        if not drive_id:
+            return False, f"CI trace simpoint {simpoint_cid} missing drive_id in workloads_db.json."
+        target_path = (
+            trace_home
+            / suite
+            / subsuite
+            / workload
+            / "traces"
+            / "simp"
+            / f"{simpoint_cid}.zip"
         )
-    except (TypeError, KeyError):
-        return False, "CI trace metadata missing for spec2017/rate_int_v2/perlbench_r."
-    ci_entry = None
-    for simpoint in simpoints:
-        if isinstance(simpoint, dict) and simpoint.get("cluster_id") == 109678:
-            ci_entry = simpoint
-            break
-    if not ci_entry:
-        return False, "CI trace simpoint 109678 not found in workloads_db.json."
-    drive_id = ci_entry.get("drive_id")
-    if not drive_id:
-        return False, "CI trace simpoint 109678 missing drive_id in workloads_db.json."
-    target_path = (
-        trace_home
-        / "spec2017"
-        / "rate_int_v2"
-        / "perlbench_r"
-        / "traces"
-        / "simp"
-        / "109678.zip"
-    )
-    if target_path.exists():
-        return True, "CI trace spec2017/rate_int_v2/perlbench_r:109678 already present."
+        if target_path.exists():
+            continue
 
-    try:
-        target_path.parent.mkdir(parents=True, exist_ok=True)
-    except OSError as exc:
-        return False, f"Failed to create {target_path.parent}: {exc}"
-    try:
-        download_trace_file(str(drive_id), target_path, allow_cookie_prompt=False)
-    except StepError as exc:
-        return False, f"Download failed for CI trace: {exc}"
-    return True, "Downloaded CI trace spec2017/rate_int_v2/perlbench_r:109678."
+        try:
+            target_path.parent.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            return False, f"Failed to create {target_path.parent}: {exc}"
+        try:
+            download_trace_file(str(drive_id), target_path, allow_cookie_prompt=False)
+        except StepError as exc:
+            return False, f"Download failed for CI trace: {exc}"
+    return True, f"Ensured CI traces: {', '.join([f'{suite}/{subsuite}/{wl}:{sp}' for suite, subsuite, wl, sp in CI_traces])} present."
 
 
 def ensure_conda_installed(_: argparse.Namespace) -> Tuple[bool, str]:

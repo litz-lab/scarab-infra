@@ -23023,7 +23023,9 @@
           {
             "cluster_id":101,
             "segment_id":1,
-            "weight":1.0
+            "weight":1.0,
+            "drive_id":"1_S7Xt2TFQzcOf5yEkKmOw--smRflDzrA",
+            "size_bytes":"14169339"
           }
         ]
       }
