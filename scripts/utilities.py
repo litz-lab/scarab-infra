@@ -1733,7 +1733,6 @@ def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_contai
                 f.write("echo $SLURM_CGROUP\n")
                 command += "--cgroup-parent $SLURM_CGROUP \
                             --cgroupns=host "
-
             if env_vars:
                 for env in env_vars:
                     command = command + f"-e {env} "
@@ -2229,8 +2228,6 @@ def print_simulation_status_summary(
     running = {conf: 0 for conf in confs}
     pending = {conf: 0 for conf in confs}
 
-    runner_log_to_sim_log = {}
-
     not_in_experiment = 0
     total_running = 0
     oom_killed_sps = []
@@ -2260,7 +2257,6 @@ def print_simulation_status_summary(
                     cluster_id,
                     "sim.log"
                 )
-            runner_log_to_sim_log[runner_logs[logfile_key]] = scarab_logfile
 
             if "Job COMPLETED SUCCESSFULLY" in contents:
                 completed[config] += 1
@@ -2528,6 +2524,7 @@ def prepare_trace(user, scarab_path, scarab_build, docker_home, job_name, infra_
 
         os.system(f"mkdir -p {trace_dir}/scarab/bin/scarab_globals")
         os.system(f"mkdir -p {trace_dir}/logs/statefiles")
+        os.system(f"mkdir -p {trace_dir}/logs/launch_scripts")
         os.system(f"cp {scarab_path}/bin/scarab_launch.py  {trace_dir}/scarab/bin/scarab_launch.py ")
         os.system(f"cp {scarab_path}/bin/scarab_globals/*  {trace_dir}/scarab/bin/scarab_globals/ ")
         os.system(f"mkdir -p {trace_dir}/scarab/utils/memtrace")

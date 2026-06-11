@@ -840,7 +840,7 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
         # Clean up temp files
         for tmp in tmp_files:
             info(f"Removing temporary run script {tmp}", dbg_lvl)
-            os.remove(tmp)
+            os.system(f"mv {tmp} {trace_dir}/logs/launch_scripts")
 
         finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl)
     except Exception as e:
@@ -850,6 +850,6 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
         # Clean up temp files
         for tmp in tmp_files:
             info(f"Removing temporary run script {tmp}", dbg_lvl)
-            os.remove(tmp)
+            os.system(f"mv {tmp} {trace_dir}/logs/launch_scripts")
 
         kill_jobs(user, trace_name, docker_prefix_list, dbg_lvl)
