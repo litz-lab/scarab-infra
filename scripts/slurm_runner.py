@@ -37,6 +37,7 @@ from .utilities import (
         print_simulation_status_summary,
         run_on_node,
         normalize_simulations,
+        update_statefile
         )
 
 # Check if the docker image exists on available slurm nodes
@@ -322,9 +323,8 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
         queued_sims,
         dbg_lvl=dbg_lvl,
         all_nodes=all_nodes,
-        log_file_count_buffer=1,
+        state_file_count_buffer=0,
         strict_log_count=True,
-        log_count_offset=1,
         prep_failed_label="Failed - Slurm",
     )
 
@@ -487,6 +487,8 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
     total_sims = 0
     docker_prefix_list = get_image_list(simulations, workloads_data)
 
+    experiment_dir = f"{descriptor_data['root_dir']}/simulations/{experiment_name}"
+
     slurm_running_sims = check_slurm_task_queued_or_running(docker_prefix_list, experiment_name, user, dbg_lvl)
     running_sims = set()
     for node_list in slurm_running_sims.values():
@@ -556,7 +558,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                     # Create temp file with run command and run it
                     filename = f"{docker_container_name}_tmp_run.sh"
 
-                    if check_can_skip(descriptor_data, config_key, suite, subsuite, workload, cluster_id, filename, dbg_lvl=dbg_lvl):
+                    if check_can_skip(experiment_dir, config_key, suite, subsuite, workload, cluster_id, filename, dbg_lvl=dbg_lvl):
                         info(f"Skipping {workload} with config {config_key} and cluster id {cluster_id}", dbg_lvl)
                         continue
 
@@ -594,19 +596,21 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                         print(f"WARN: no base_memory_mb_by_mode entry for {suite}/{subsuite}/{workload} cluster={cluster_id} sim_mode={sim_mode} config={config_key}, using fallback={fallback_mb}MB + overhead={overhead_mb}MB = {mem_mb}MB")
 
                     workload_home = f"{suite}/{subsuite}/{workload}"
-                    write_docker_command_to_file(user, local_uid, local_gid, workload, workload_home, experiment_name,
+                    write_docker_command_to_file(user, local_uid, local_gid, suite, subsuite, workload, experiment_name,
                                                  docker_prefix, docker_container_name, traces_dir,
                                                  docker_home, githash, config_key, config, sim_mode, binary_name,
                                                  seg_size, architecture, cluster_id, warmup, trace_warmup, trace_type,
-                                                 trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir, application_dir, slurm=True)
+                                                 trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir, application_dir, mem_mb, slurm=True)
                     tmp_files.add(filename)
 
                     remove_jobs.add((config_key, suite, subsuite, workload, cluster_id))
 
                     result = subprocess.run(["touch", f"{experiment_dir}/logs/job_%j.out"], capture_output=True, text=True, check=True)
                     result = subprocess.run((sbatch_cmd + filename).split(" "), capture_output=True, text=True)
-                    _print_sbatch_output(result)
                     job_id = result.stdout.split(" ")[-1].strip()
+                    update_statefile(experiment_dir, config_key, suite, subsuite, workload, cluster_id, f"Job PENDING - Slurm: {job_id}")
+
+                    _print_sbatch_output(result)
                     slurm_ids.append(job_id)
                     run_single_workload.submitted += 1
                 print("\rSubmitting jobs: "+str(run_single_workload.submitted), end=' ', flush=True)
@@ -641,7 +645,6 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                     scarab_binaries.append(scarab_binary)
 
         # Generate commands for executing in users docker and sbatching to nodes with containers
-        experiment_dir = f"{descriptor_data['root_dir']}/simulations/{experiment_name}"
 
         try:
             scarab_githash, image_tag_list = prepare_simulation(user, scarab_path, scarab_build, descriptor_data['root_dir'], experiment_name, architecture, docker_prefix_list, githash, infra_dir, scarab_binaries, False, dbg_lvl)
@@ -720,8 +723,8 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
         print("\nSubmitted all jobs")
         # Clean up temp files
         for tmp in tmp_files:
-            info(f"Removing temporary run script {tmp}", dbg_lvl)
-            os.remove(tmp)
+            info(f"Moving temporary run script {tmp}", dbg_lvl)
+            os.system(f"mv {tmp} {experiment_dir}/logs/launch_scripts")
 
         remove_old_job_logs(old_job_logs, remove_jobs, dbg_lvl)
 
@@ -736,8 +739,8 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
 
         # Clean up temp files
         for tmp in tmp_files:
-            info(f"Removing temporary run script {tmp}", dbg_lvl)
-            os.remove(tmp)
+            info(f"Moving temporary run script {tmp}", dbg_lvl)
+            os.system(f"mv {tmp} {experiment_dir}/logs/launch_scripts")
 
         remove_old_job_logs(old_job_logs, remove_jobs, dbg_lvl)
 
@@ -837,7 +840,7 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
         # Clean up temp files
         for tmp in tmp_files:
             info(f"Removing temporary run script {tmp}", dbg_lvl)
-            os.remove(tmp)
+            os.system(f"mv {tmp} {trace_dir}/logs/launch_scripts")
 
         finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl)
     except Exception as e:
@@ -847,6 +850,6 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
         # Clean up temp files
         for tmp in tmp_files:
             info(f"Removing temporary run script {tmp}", dbg_lvl)
-            os.remove(tmp)
+            os.system(f"mv {tmp} {trace_dir}/logs/launch_scripts")
 
         kill_jobs(user, trace_name, docker_prefix_list, dbg_lvl)

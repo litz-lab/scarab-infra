@@ -28,6 +28,7 @@ from .utilities import (
         remove_old_job_logs,
         print_simulation_status_summary,
         normalize_simulations,
+        update_statefile
         )
 
 # Check if a container is running on local
@@ -68,9 +69,7 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data=None, workl
         docker_running,
         [],
         dbg_lvl=dbg_lvl,
-        log_file_count_buffer=0,
         strict_log_count=False,
-        log_count_offset=0,
         prep_failed_label="Failed - Prep",
     )
 
@@ -151,6 +150,8 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
     log_files = set()
     log_index = 0
 
+    experiment_dir = f"{descriptor_data['root_dir']}/simulations/{experiment_name}"
+
     dont_collect = True
 
     def run_single_workload(suite, subsuite, workload, exp_cluster_id, sim_mode, warmup):
@@ -199,19 +200,19 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
 
                 for cluster_id, weight in simpoints.items():
                     info(f"cluster_id: {cluster_id}, weight: {weight}", dbg_lvl)
-                    
+
                     dont_collect = False
 
                     docker_container_name = f"{docker_prefix}_{suite}_{subsuite}_{workload}_{experiment_name}_{config_key.replace("/", "-")}_{cluster_id}_{sim_mode}_{user}"
                     # Create temp file with run command and run it
                     filename = f"{docker_container_name}_tmp_run.sh"
 
-                    if check_can_skip(descriptor_data, config_key, suite, subsuite, workload, cluster_id, filename, dbg_lvl=dbg_lvl):
+                    if check_can_skip(experiment_dir, config_key, suite, subsuite, workload, cluster_id, filename, dbg_lvl=dbg_lvl):
                         info(f"Skipping {workload} with config {config_key} and cluster id {cluster_id}", dbg_lvl)
                         continue
 
                     workload_home = f"{suite}/{subsuite}/{workload}"
-                    write_docker_command_to_file(user, local_uid, local_gid, workload, workload_home, experiment_name,
+                    write_docker_command_to_file(user, local_uid, local_gid, suite, subsuite, workload, experiment_name,
                                                  docker_prefix, docker_container_name, traces_dir,
                                                  docker_home, githash, config_key, config, sim_mode, scarab_binary,
                                                  seg_size, architecture, cluster_id, warmup, trace_warmup, trace_type,
@@ -226,6 +227,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                     log_index += 1
                     log_handle = open(log_path, "w")
                     log_files.add(log_handle)
+                    update_statefile(experiment_dir, config_key, suite, subsuite, workload, cluster_id, f"Job PENDING - Local")
                     process = subprocess.Popen(
                         "exec " + command,
                         stdout=log_handle,
@@ -277,7 +279,6 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
         os.makedirs(os.path.join(docker_home, "simulations", experiment_name, "logs"), exist_ok=True)
 
         # Collect old job logs before submitting new jobs
-        experiment_dir = f"{descriptor_data['root_dir']}/simulations/{experiment_name}"
         old_job_logs = get_old_job_logs(f"{experiment_dir}/logs")
 
         print("Submitting jobs...")
