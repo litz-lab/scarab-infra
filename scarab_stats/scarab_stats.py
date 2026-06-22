@@ -238,6 +238,25 @@ stat_files = ["bp.stat.0.csv",
               "pref.stat.0.csv",
               "stream.stat.0.csv"]
 
+# Per-DFE stat file bases (generated for alt BPs when NUM_BPS > 1).
+# Files are named e.g. bp.stat.0.1.csv (stat.core_id.bp_id.csv).
+# Stats from alt files are prefixed with ALT{bp_id}_ to avoid name collisions.
+_DFE_STAT_BASES = ["bp.stat", "pref.stat"]
+_MAX_ALT_BP_ID = 4  # check bp_id 1..4
+
+def _discover_alt_stat_files(path):
+    """Discover alt DFE stat files in a simpoint directory.
+
+    Returns list of (filename, bp_id) tuples for files that exist.
+    """
+    result = []
+    for base in _DFE_STAT_BASES:
+        for bp_id in range(1, _MAX_ALT_BP_ID + 1):
+            fname = f"{base}.0.{bp_id}.csv"
+            if os.path.exists(f"{path}{fname}"):
+                result.append((fname, bp_id))
+    return result
+
 class stat_aggregator:
     """CSV generator + analysis helper.
 
@@ -404,6 +423,70 @@ class stat_aggregator:
                 values_by_stat[stat] = val
                 groups_by_stat[stat] = grp
 
+        # Discover and parse alt DFE stat files (bp_id > 0)
+        for alt_file, bp_id in _discover_alt_stat_files(path):
+            alt_prefix = f"ALT{bp_id}_"
+            filename = f"{path}{alt_file}"
+
+            per_file = {}
+            per_file_order = []
+            dup_stats = set()
+
+            try:
+                with open(filename, newline="") as f:
+                    reader = csv.reader(f)
+                    try:
+                        next(reader)  # skip header
+                    except StopIteration:
+                        continue
+
+                    for row in reader:
+                        if not row:
+                            continue
+                        if all((c is None) or (str(c).strip() == "") for c in row):
+                            continue
+                        if len(row) < 3:
+                            continue
+
+                        stat = alt_prefix + str(row[0]).strip()
+                        grp_raw = str(row[1]).strip()
+                        val_raw = str(row[2]).strip()
+
+                        if ignore_duplicates and stat in values_by_stat:
+                            continue
+
+                        try:
+                            grp = int(grp_raw)
+                        except Exception:
+                            try:
+                                grp = int(float(grp_raw))
+                            except Exception:
+                                grp = 0
+
+                        val = _to_float(val_raw)
+
+                        if stat in per_file:
+                            dup_stats.add(stat)
+                            prev_grp, prev_val = per_file[stat]
+                            if (prev_grp != grp) or (prev_val != val and not (math.isnan(prev_val) and math.isnan(val))):
+                                print(f"ERR: Unable to resolve duplicates in alt stat file: {filename}")
+                                exit(1)
+                            continue
+
+                        per_file[stat] = (grp, val)
+                        per_file_order.append(stat)
+            except FileNotFoundError:
+                continue
+
+            for stat in per_file_order:
+                grp, val = per_file[stat]
+                if (not ignore_duplicates) and (stat in values_by_stat):
+                    print("ERR: Duplication prevention logic failed")
+                    exit(1)
+                all_stats.append(stat)
+                values_by_stat[stat] = val
+                groups_by_stat[stat] = grp
+
         # NOTE: Ramulator will not be in distribution, group should be 0
         if load_ramulator:
             with open(f"{path}ramulator.stat.out", "r") as f:
@@ -497,6 +580,52 @@ class stat_aggregator:
                 }
             except FileNotFoundError:
                 # Some components may be absent; match old behavior by skipping missing files.
+                continue
+
+        # Build schemas for alt DFE stat files (same logic with ALT prefix)
+        for alt_file, bp_id in _discover_alt_stat_files(sim_dir0):
+            alt_prefix = f"ALT{bp_id}_"
+            filename = f"{sim_dir0}{alt_file}"
+            try:
+                with open(filename, "r", buffering=512 * 512, newline="") as f:
+                    _ = f.readline()  # skip pseudo-header
+                    row_indices = []
+                    check_stats = []
+                    seen_stats = set()
+                    has_dups = False
+
+                    for line in f:
+                        if not line:
+                            continue
+                        line = line.strip()
+                        if not line:
+                            continue
+
+                        parts = line.split(",", 2)
+                        if len(parts) < 3:
+                            continue
+                        stat = alt_prefix + parts[0].strip()
+                        if not stat:
+                            continue
+
+                        if len(check_stats) < verify_k:
+                            check_stats.append(stat)
+
+                        if stat in seen_stats:
+                            has_dups = True
+                        else:
+                            seen_stats.add(stat)
+
+                        row_idx = stat_to_row.get(stat)
+                        row_indices.append(row_idx if row_idx is not None else -1)
+
+                schemas[alt_file] = {
+                    "row_indices": row_indices,
+                    "check_stats": check_stats,
+                    "has_dups": has_dups,
+                    "alt_prefix": alt_prefix,
+                }
+            except FileNotFoundError:
                 continue
 
         return schemas
@@ -729,6 +858,63 @@ class stat_aggregator:
 
             except FileNotFoundError:
                 # Some components may be absent; match old behavior by skipping missing files.
+                tag += 1
+                continue
+
+        # Parse alt DFE stat files (bp_id > 0), prefixing stat names with ALT{bp_id}_
+        for alt_file, bp_id in _discover_alt_stat_files(path):
+            alt_prefix = f"ALT{bp_id}_"
+            filename = f"{path}{alt_file}"
+            try:
+                if schema_cache is not None:
+                    schema = schema_cache.get(alt_file)
+                else:
+                    schema = None
+
+                if schema is not None and not schema.get("has_dups", False):
+                    _parse_component_file_schema_fast(filename, schema, tag)
+                else:
+                    # Robust fallback with ALT prefix
+                    per_file = {}
+                    dup_stats = []
+
+                    with open(filename, "r", buffering=1024 * 1024, newline="") as f:
+                        _ = f.readline()  # skip pseudo-header
+                        for line in f:
+                            if not line:
+                                continue
+                            line = line.strip()
+                            if not line:
+                                continue
+                            parts = line.split(",", 2)
+                            if len(parts) < 3:
+                                continue
+                            stat = alt_prefix + parts[0].strip()
+                            if not stat:
+                                continue
+                            row_idx = s2r_get(stat)
+                            if row_idx is None:
+                                continue
+                            grp_s = parts[1]
+                            try:
+                                val = float(parts[2])
+                            except Exception:
+                                val = nan
+                            if row_idx in per_file:
+                                dup_stats.append(stat)
+                                prev_grp_s, prev_val = per_file[row_idx]
+                                if prev_val != val and not (isnan(prev_val) and isnan(val)):
+                                    print(f"ERR: Unable to resolve duplicates in alt stat file: {filename}")
+                                    exit(1)
+                                if parse_group(prev_grp_s) != parse_group(grp_s):
+                                    print(f"ERR: Unable to resolve duplicates in alt stat file: {filename}")
+                                    exit(1)
+                                continue
+                            per_file[row_idx] = (grp_s, val)
+                            _assign_row(row_idx, val)
+
+                tag += 1
+            except FileNotFoundError:
                 tag += 1
                 continue
 

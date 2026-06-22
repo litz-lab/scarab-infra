@@ -514,10 +514,10 @@ def handle_descriptor_action(descriptor_name: str, action: str, dbg_override: Op
         return
 
     if dtype == "perf":
-        if action != "launch":
-            raise StepError("Perf descriptors only support interactive launch")
+        if action not in ("launch", "collect"):
+            raise StepError(f"Unsupported action '{action}' for perf descriptors (use 'launch' or 'collect')")
         perf_module = import_repo_module("scripts.run_perf")
-        perf_module.run_perf_command(str(path), "launch", dbg_lvl=resolve_dbg(3), infra_dir=infra_dir)
+        perf_module.run_perf_command(str(path), action, dbg_lvl=resolve_dbg(3), infra_dir=infra_dir)
         return
 
     raise StepError(f"Unsupported descriptor type '{dtype}' for action '{action}'")
@@ -4328,7 +4328,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--perf",
         metavar="DESCRIPTOR",
-        help="Open a perf container defined in json/<DESCRIPTOR>.json.",
+        help="Run automated perf top-down collection for json/<DESCRIPTOR>.json.",
+    )
+    parser.add_argument(
+        "--perf-interactive",
+        dest="perf_interactive",
+        metavar="DESCRIPTOR",
+        help="Open an interactive perf container defined in json/<DESCRIPTOR>.json.",
     )
     parser.add_argument(
         "--visualize",
@@ -4509,7 +4515,14 @@ def main() -> int:
             return 1
     if args.perf:
         try:
-            handle_descriptor_action(args.perf, "launch", dbg_override=args.debug_level)
+            handle_descriptor_action(args.perf, "collect", dbg_override=args.debug_level)
+            return 0
+        except (StepError, RuntimeError) as exc:
+            print(exc)
+            return 1
+    if args.perf_interactive:
+        try:
+            handle_descriptor_action(args.perf_interactive, "launch", dbg_override=args.debug_level)
             return 0
         except (StepError, RuntimeError) as exc:
             print(exc)
