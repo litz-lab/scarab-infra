@@ -1,0 +1,244 @@
+{
+  "input": "collected_stats.csv",
+  "output": [
+    {
+      "name": "SPEC2017int IPC",
+      "type": "bar",
+      "format": "multi",
+      "group": "configs",
+      "simpoints_combined": true,
+      "baseline": "bind_amd",
+      "workloads": "spec2017/rate_int_v2/",
+      "configs": [
+        "bind_age",
+        "unbind_amd_rr",
+        "unbind_age_rr"
+      ],
+      "counters": [
+        "IPC"
+      ]
+    },
+    {
+      "name": "SPEC2017int IPC Upper Bound",
+      "type": "bar",
+      "format": "multi",
+      "group": "configs",
+      "simpoints_combined": true,
+      "baseline": "bind_amd",
+      "workloads": "spec2017/rate_int_v2/",
+      "configs": [
+        "unbind_age_rr",
+        "unbind_age_priority_43021",
+        "unbind_age_priority_43210"
+      ],
+      "counters": [
+        "IPC"
+      ]
+    },
+    {
+      "name": "SPEC2017int Ready Op",
+      "type": "bar",
+      "format": "multi",
+      "group": "counters",
+      "simpoints_combined": true,
+      "baseline": null,
+      "workloads": "spec2017/rate_int_v2/",
+      "configs": [
+        "bind_age"
+      ],
+      "counters": [
+        "RS_OP_READY_count",
+        "RS_OP_READY_NOT_ISSUED_TOTAL_count"
+      ]
+    },
+    {
+      "name": "SPEC2017int Int Op Mix",
+      "type": "bar",
+      "format": "multi",
+      "group": "counters",
+      "simpoints_combined": true,
+      "baseline": null,
+      "workloads": "spec2017/rate_int_v2/",
+      "configs": [
+        "bind_age"
+      ],
+      "ratio": "ST_OP_ONPATH_count",
+      "counters": [
+        "ST_OP_CF_count",
+        "ST_OP_IMUL_count",
+        "ST_OP_IDIV_count",
+        "ST_OP_SHIFT_count"
+      ]
+    },
+    {
+      "name": "SPEC2017int Int Op Ready Not Issued Mix",
+      "subfig": [
+        {
+          "name": "bind_amd",
+          "type": "bar",
+          "format": "multi",
+          "group": "counters",
+          "simpoints_combined": true,
+          "baseline": null,
+          "workloads": "spec2017/rate_int_v2/",
+          "configs": [
+            "bind_amd"
+          ],
+          "ratio": "NODE_CYCLE_count",
+          "counters": [
+            "ST_OP_CF_READY_NOT_ISSUED_count",
+            "ST_OP_IMUL_READY_NOT_ISSUED_count",
+            "ST_OP_IDIV_READY_NOT_ISSUED_count",
+            "ST_OP_SHIFT_READY_NOT_ISSUED_count"
+          ]
+        },
+        {
+          "name": "bind_age",
+          "type": "bar",
+          "format": "multi",
+          "group": "counters",
+          "simpoints_combined": true,
+          "baseline": null,
+          "workloads": "spec2017/rate_int_v2/",
+          "configs": [
+            "bind_age"
+          ],
+          "ratio": "NODE_CYCLE_count",
+          "counters": [
+            "ST_OP_CF_READY_NOT_ISSUED_count",
+            "ST_OP_IMUL_READY_NOT_ISSUED_count",
+            "ST_OP_IDIV_READY_NOT_ISSUED_count",
+            "ST_OP_SHIFT_READY_NOT_ISSUED_count"
+          ]
+        },
+        {
+          "name": "unbind_amd_rr",
+          "type": "bar",
+          "format": "multi",
+          "group": "counters",
+          "simpoints_combined": true,
+          "baseline": null,
+          "workloads": "spec2017/rate_int_v2/",
+          "configs": [
+            "unbind_amd_rr"
+          ],
+          "ratio": "NODE_CYCLE_count",
+          "counters": [
+            "ST_OP_CF_READY_NOT_ISSUED_count",
+            "ST_OP_IMUL_READY_NOT_ISSUED_count",
+            "ST_OP_IDIV_READY_NOT_ISSUED_count",
+            "ST_OP_SHIFT_READY_NOT_ISSUED_count"
+          ]
+        },
+        {
+          "name": "unbind_age_rr",
+          "type": "bar",
+          "format": "multi",
+          "group": "counters",
+          "simpoints_combined": true,
+          "baseline": null,
+          "workloads": "spec2017/rate_int_v2/",
+          "configs": [
+            "unbind_age_rr"
+          ],
+          "ratio": "NODE_CYCLE_count",
+          "counters": [
+            "ST_OP_CF_READY_NOT_ISSUED_count",
+            "ST_OP_IMUL_READY_NOT_ISSUED_count",
+            "ST_OP_IDIV_READY_NOT_ISSUED_count",
+            "ST_OP_SHIFT_READY_NOT_ISSUED_count"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Issue Priority",
+      "subfig": [
+        {
+          "name": "unbind_age_priority_43210",
+          "type": "bar",
+          "format": "multi",
+          "group": "counters",
+          "simpoints_combined": true,
+          "baseline": null,
+          "workloads": "spec2017/rate_int_v2/",
+          "configs": [
+            "unbind_age_priority_43210"
+          ],
+          "ratio": "NODE_CYCLE_count",
+          "counters": [
+            "ST_OP_CF_READY_NOT_ISSUED_count",
+            "ST_OP_IMUL_READY_NOT_ISSUED_count",
+            "ST_OP_IDIV_READY_NOT_ISSUED_count",
+            "ST_OP_SHIFT_READY_NOT_ISSUED_count"
+          ]
+        },
+        {
+          "name": "unbind_age_priority_43021",
+          "type": "bar",
+          "format": "multi",
+          "group": "counters",
+          "simpoints_combined": true,
+          "baseline": null,
+          "workloads": "spec2017/rate_int_v2/",
+          "configs": [
+            "unbind_age_priority_43021"
+          ],
+          "ratio": "NODE_CYCLE_count",
+          "counters": [
+            "ST_OP_CF_READY_NOT_ISSUED_count",
+            "ST_OP_IMUL_READY_NOT_ISSUED_count",
+            "ST_OP_IDIV_READY_NOT_ISSUED_count",
+            "ST_OP_SHIFT_READY_NOT_ISSUED_count"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "SPEC2017int Op Mix",
+      "type": "bar",
+      "format": "stacked",
+      "group": "counters",
+      "group_combined": true,
+      "simpoints_combined": true,
+      "baseline": null,
+      "workloads": "spec2017/rate_int_v2/",
+      "configs": [
+        "bind_age"
+      ],
+      "counters": [
+        "ST_OP_INV_count",
+        "ST_OP_NOP_count",
+        "ST_OP_CF_count",
+        "ST_OP_MOV_count",
+        "ST_OP_CMOV_count",
+        "ST_OP_LDA_count",
+        "ST_OP_ILD_count",
+        "ST_OP_IST_count",
+        "ST_OP_IADD_count",
+        "ST_OP_IMUL_count",
+        "ST_OP_IDIV_count",
+        "ST_OP_ICMP_count",
+        "ST_OP_LOGIC_count",
+        "ST_OP_SHIFT_count",
+        "ST_OP_FLD_count",
+        "ST_OP_FST_count",
+        "ST_OP_FCVT_count",
+        "ST_OP_FADD_count",
+        "ST_OP_FMUL_count",
+        "ST_OP_FMA_count",
+        "ST_OP_FDIV_count",
+        "ST_OP_FCMP_count",
+        "ST_OP_FCMOV_count",
+        "ST_OP_GATHER_count",
+        "ST_OP_SCATTER_count",
+        "ST_OP_PIPELINED_FAST_count",
+        "ST_OP_PIPELINED_MEDIUM_count",
+        "ST_OP_PIPELINED_SLOW_count",
+        "ST_OP_NOTPIPELINED_MEDIUM_count",
+        "ST_OP_NOTPIPELINED_SLOW_count",
+        "ST_OP_NOTPIPELINED_VERY_SLOW_count"
+      ]
+    }
+  ]
+}
