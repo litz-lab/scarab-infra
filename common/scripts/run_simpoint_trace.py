@@ -88,7 +88,12 @@ def get_cluster_map(workload_home):
 
     return cluster_map
 
-EMPTY_TRACE_WEIGHT_THRESHOLD = 0.01  # auto-remove segments with weight < 1%
+# Post-tracing safety net: discard segments whose traced output is empty/corrupt
+# AND whose SimPoint weight is negligible (< 1%).  This is distinct from
+# SimPoint's -coveragePct which controls *clustering* (how many clusters to
+# keep); this threshold acts *after* tracing to handle I/O or DR failures on
+# segments that contribute little to overall coverage.
+EMPTY_TRACE_WEIGHT_THRESHOLD = 0.01
 
 # Single-thread the workload during BOTH fingerprinting and tracing. Threading
 # in the workload causes (a) non-deterministic instruction counts that make

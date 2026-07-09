@@ -107,6 +107,11 @@ only selected segments are traced individually.
 2. Run SimPoint clustering on the resulting trace.
 3. Extract representative segments from the full trace.
 
+**Debugging tip:** `trace_then_cluster` is easier to debug because
+everything runs off one fixed trace — any issue can be reproduced exactly.
+`cluster_then_trace` uses two separate executions (fingerprint run, then
+trace run), so non-deterministic failures may not reproduce across runs.
+
 ### `iterative_trace`
 For workloads with discrete timesteps (e.g., server request loops). Each
 timestep is traced separately with a timeout.
