@@ -192,6 +192,7 @@ Create `json/<suite>_trace.json`:
   "scarab_path": "/home/$USER/scarab",
   "scarab_build": "opt",
   "traces_dir": "/home/$USER/traces",
+  "application_dir": "/home/$USER/applications",
   "trace_name": "<suite>_traces",
   "trace_configurations": [
     {
@@ -216,6 +217,12 @@ Run:
 ./sci --trace <suite>_trace
 ./sci --status <suite>_trace          # progress
 ```
+
+`application_dir` is the path to a local benchmark application directory
+(e.g., SPEC CPU installed tree). It is bind-mounted into the container at
+`/tmp_home/application` during image build or tracing, replacing ISO-based
+setups. Set it to `"."` if the application is already installed inside the
+Docker image.
 
 See [`README.trace.md`](README.trace.md) for `trace_type` modes,
 resume semantics, multi-threaded workload handling, and the on-disk
