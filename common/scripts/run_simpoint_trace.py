@@ -440,9 +440,11 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
             # when multiple threads dlopen/dlclose simultaneously. Single-threaded
             # fingerprinting is also more deterministic for SimPoint.
             fp_cmd = f"HOME={dr_home} {THREAD_LIMIT_ENV_PREFIX} {dynamorio_home}/bin64/drrun -max_bb_instrs 4095 -opt_cleancall 2 {drio_extra} -c $tmpdir/libfpg.so -no_use_bb_pc -segment_size {seg_size} -output {workload_home}/fingerprint/bbfp -pcmap_output {workload_home}/fingerprint/pcmap -- {bincmd}"
-            # DynamoRIO has a non-deterministic crash in d_r_strcmp when
-            # multi-threaded Python apps do concurrent dlopen/dlclose during
-            # fingerprinting. Retry up to 3 times on failure.
+            # TEMPORARY WORKAROUND: DynamoRIO has a non-deterministic crash
+            # in d_r_strcmp when multi-threaded Python apps do concurrent
+            # dlopen/dlclose during fingerprinting. Retry up to 3 times on
+            # failure. The root cause should be fixed upstream in DynamoRIO
+            # (e.g., by building a custom DR with a thread-safe d_r_strcmp).
             max_retries = 3
             for attempt in range(1, max_retries + 1):
                 # Clean partial fingerprint output from any prior failed attempt
