@@ -247,6 +247,15 @@ Only valid with `workload_manager: "slurm"` and `trace_type:
 "cluster_then_trace"`. The descriptor validator rejects mixed
 configurations.
 
+**Important: cross-node ISA consistency.** When fingerprinting (Phase 1)
+and segment tracing (Phase 2) land on nodes with different CPU generations,
+runtime CPU dispatch (e.g., glibc `ifunc` resolvers) can change the
+executed instruction stream, silently misaligning the BBV and traced
+segments. The workload binary itself is fixed inside the Docker image, so
+this only affects ISA-dependent runtime dispatchers. To avoid this, pin
+all tracing jobs to the same node type via `slurm_options` (e.g.,
+`"--constraint=icelake"` or `"--nodelist=<node>"`).
+
 ### How it works
 
 1. The host submits Phase 1 as a single Slurm job that runs
