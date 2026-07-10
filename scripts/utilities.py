@@ -1660,7 +1660,7 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
     except Exception as e:
         raise e
 
-def generate_single_trace_run_command(user, workload, image_name, trace_name, binary_cmd, client_bincmd, simpoint_mode, drio_args, clustering_k):
+def generate_single_trace_run_command(user, workload, image_name, trace_name, binary_cmd, client_bincmd, simpoint_mode, drio_args, clustering_k, segment_id=None, cluster_id=None):
     command = ""
     if simpoint_mode == "cluster_then_trace":
         mode = 1
@@ -1668,22 +1668,34 @@ def generate_single_trace_run_command(user, workload, image_name, trace_name, bi
         mode = 2
     elif simpoint_mode == "iterative_trace":
         mode = 3
+    elif simpoint_mode == "cluster_only":
+        mode = 4
+    elif simpoint_mode == "trace_single_segment":
+        mode = 5
     command = f"python3 -u /usr/local/bin/run_simpoint_trace.py --workload {workload} --suite {image_name} --simpoint_mode {mode} --simpoint_home \\\"/home/{user}/simpoint_flow/{trace_name}\\\" --bincmd \\\"{binary_cmd}\\\""
     if client_bincmd != None:
         command = f"{command} --client_bincmd \\\"{client_bincmd}\\\""
     if drio_args != None:
-        command = f"{command} --drio_args {drio_args}"
+        # Quote so dash-prefixed drio_args (e.g. "-disable_rseq") are passed
+        # as a single argparse value rather than being parsed as a flag.
+        command = f"{command} --drio_args=\\\"{drio_args}\\\""
     if clustering_k != None:
         command = f"{command} -userk {clustering_k}"
+    if segment_id is not None:
+        command = f"{command} --segment_id {segment_id}"
+    if cluster_id is not None:
+        command = f"{command} --cluster_id {cluster_id}"
     return command
 
 def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_container_name, githash,
                                        workload, image_name, trace_name, traces_dir, docker_home,
                                        env_vars, binary_cmd, client_bincmd, simpoint_mode, drio_args,
-                                       clustering_k, filename, infra_dir, application_dir, slurm = False):
+                                       clustering_k, filename, infra_dir, application_dir, slurm = False,
+                                       segment_id=None, cluster_id=None):
     try:
         trace_cmd = generate_single_trace_run_command(user, workload, image_name, trace_name, binary_cmd, client_bincmd,
-                                                      simpoint_mode, drio_args, clustering_k)
+                                                      simpoint_mode, drio_args, clustering_k,
+                                                      segment_id=segment_id, cluster_id=cluster_id)
         with open(filename, "w") as f:
             f.write("#!/bin/bash\n")
             f.write(f"echo \"Tracing {workload}\"\n")
@@ -1736,6 +1748,64 @@ def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_contai
             f.write("cleanup_container\n")
     except Exception as e:
         raise e
+
+def write_phase2_sbatch_tail(f, workload, trace_name, docker_home, phase2_script_path,
+                             finalize_cmd, finalize_log_path, segment_mem_mb,
+                             finalize_mem_mb=16384):
+    """Append bash code to Phase 1 sbatch script that submits Phase 2 + Phase 3 jobs.
+
+    After Phase 1 (cluster_only) completes inside its Slurm job, this tail:
+      1. Reads opt.p.lpt0.99 to get (segment_id, cluster_id) pairs.
+      2. Skips segments where traces_simp/trace/{segment_id}.zip already
+         exists (resume).
+      3. Submits one sbatch per remaining segment using the Phase 2 template
+         script (which runs run_simpoint_trace.py in mode 5 for a single
+         segment).
+      4. Submits a Phase 3 finalisation job with --dependency=afterany on
+         all Phase 2 jobs to consolidate traces into traces_dir.
+    """
+    wl_dir = f"{docker_home}/simpoint_flow/{trace_name}/{workload}"
+    f.write("\n# --- Phase 2: submit per-segment jobs ---\n")
+    f.write(f'SIMPOINTS_FILE="{wl_dir}/simpoints/opt.p.lpt0.99"\n')
+    f.write('if [ ! -f "$SIMPOINTS_FILE" ]; then\n')
+    f.write('    echo "ERROR: opt.p.lpt0.99 not found after Phase 1. Aborting Phase 2."\n')
+    f.write('    exit 1\n')
+    f.write('fi\n')
+    f.write('PHASE2_JIDS=""\n')
+    f.write('SUBMITTED=0\n')
+    f.write('SKIPPED=0\n')
+    f.write('while IFS=" " read -r SEGMENT_ID CLUSTER_ID; do\n')
+    f.write('    [ -z "$SEGMENT_ID" ] && continue\n')
+    f.write(f'    DEST_ZIP="{wl_dir}/traces_simp/trace/${{SEGMENT_ID}}.zip"\n')
+    f.write('    if [ -f "$DEST_ZIP" ] && [ -s "$DEST_ZIP" ]; then\n')
+    f.write('        SKIPPED=$((SKIPPED + 1))\n')
+    f.write('        continue\n')
+    f.write('    fi\n')
+    seg_log = f"{wl_dir}/logs/seg_%j_${{SEGMENT_ID}}.out"
+    f.write(f'    mkdir -p "{wl_dir}/logs"\n')
+    f.write(f'    JID=$(sbatch --mem {segment_mem_mb}M -c 1 -o "{seg_log}" '
+            f'{phase2_script_path} "$SEGMENT_ID" "$CLUSTER_ID" 2>&1 | grep -oP "\\d+")\n')
+    f.write('    if [ -n "$JID" ]; then\n')
+    f.write('        PHASE2_JIDS="${PHASE2_JIDS:+$PHASE2_JIDS:}$JID"\n')
+    f.write('        SUBMITTED=$((SUBMITTED + 1))\n')
+    f.write('        echo "Submitted segment $SEGMENT_ID (cluster $CLUSTER_ID) as job $JID"\n')
+    f.write('    else\n')
+    f.write('        echo "WARN: failed to submit segment $SEGMENT_ID"\n')
+    f.write('    fi\n')
+    f.write('done < "$SIMPOINTS_FILE"\n')
+    f.write('echo "Phase 2: submitted $SUBMITTED segment jobs, skipped $SKIPPED already-complete"\n')
+    f.write('\n# --- Phase 3: finalization ---\n')
+    f.write('if [ -n "$PHASE2_JIDS" ]; then\n')
+    f.write(f'    mkdir -p "$(dirname {finalize_log_path})"\n')
+    finalize_cmd_escaped = finalize_cmd.replace('"', '\\"')
+    f.write(f'    FJID=$(sbatch --mem {finalize_mem_mb}M --dependency=afterany:$PHASE2_JIDS '
+            f'-o "{finalize_log_path}" --wrap="{finalize_cmd_escaped}" 2>&1 | grep -oP "\\d+")\n')
+    f.write('    echo "Phase 3 finalization job: $FJID (depends on $SUBMITTED segment jobs)"\n')
+    f.write('elif [ "$SUBMITTED" -eq 0 ] && [ "$SKIPPED" -gt 0 ]; then\n')
+    f.write('    echo "All segments already complete. Submitting finalization directly."\n')
+    f.write(f'    mkdir -p "$(dirname {finalize_log_path})"\n')
+    f.write(f'    sbatch --mem {finalize_mem_mb}M -o "{finalize_log_path}" --wrap="{finalize_cmd_escaped}"\n')
+    f.write('fi\n')
 
 def get_simpoints (workload_data, sim_mode, dbg_lvl = 2):
     simpoints = {}

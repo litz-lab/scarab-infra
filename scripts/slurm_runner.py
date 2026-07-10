@@ -29,6 +29,7 @@ from .utilities import (
         prepare_trace,
         finish_trace,
         write_trace_docker_command_to_file,
+        write_phase2_sbatch_tail,
         get_weight_by_cluster_id,
         image_exist,
         check_can_skip,
@@ -38,6 +39,16 @@ from .utilities import (
         run_on_node,
         normalize_simulations,
         )
+
+# Per-segment memory defaults for parallel_segments mode (PR δ).
+# A single trace_single_segment job runs one drrun then one raw2trace
+# sequentially, so memory requirements are far lower than the full pipeline.
+# These are simple fixed defaults; a follow-up PR can wire peak_rss-based
+# sizing from workloads_db.json on top.
+SEGMENT_MEM_MIN_MB = 10000       # 10 GB per segment job
+PHASE1_MEM_DEFAULT_MB = 32000    # 32 GB for fingerprint + cluster
+PHASE3_FINALIZE_MEM_MB = 16384   # 16 GB for finalisation
+
 
 # Check if the docker image exists on available slurm nodes
 # Inputs: list of available slurm nodes
@@ -743,7 +754,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
 
         kill_jobs(user, experiment_name, docker_prefix_list, dbg_lvl)
 
-def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2):
+def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2, descriptor_path = None):
     trace_name = descriptor_data["trace_name"]
     docker_home = descriptor_data["root_dir"]
     scarab_path = descriptor_data["scarab_path"]
@@ -751,6 +762,7 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
     traces_dir = descriptor_data["traces_dir"]
     trace_configs = descriptor_data["trace_configurations"]
     application_dir = descriptor_data["application_dir"]
+    parallel_segments = descriptor_data.get("parallel_segments", False)
 
     docker_prefix_list = []
     for config in trace_configs:
@@ -785,6 +797,79 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
             _print_sbatch_output(result)
         except Exception as e:
             raise e
+
+    def _run_parallel_segments_trace(workload, image_name, trace_name, env_vars, binary_cmd,
+                                     client_bincmd, drio_args, clustering_k, application_dir,
+                                     slurm_options):
+        """Submit the 3-phase parallel-segment pipeline for one workload.
+
+        Phase 1: fingerprint + cluster (mode 4) — 1 Slurm job.
+        Phase 2: per-segment trace+raw2trace+minimize (mode 5) — N Slurm jobs
+                 submitted by bash code appended to the Phase 1 script.
+        Phase 3: finalisation (./sci --trace-finalize equivalent) — 1 Slurm
+                 job with --dependency=afterany on all Phase 2 jobs.
+        """
+        if descriptor_path is None:
+            raise RuntimeError("parallel_segments mode requires descriptor_path to be passed through to run_tracing")
+
+        info(f"Using docker image with name {image_name}:{githash}", dbg_lvl)
+
+        # --- Phase 2 template script (used by Phase 1's appended bash tail) ---
+        phase2_container_name = f"{image_name}_{workload}_{trace_name}_seg_$1_{user}"
+        phase2_filename = f"{image_name}_{workload}_{trace_name}_phase2_template_{user}_tmp_run.sh"
+        write_trace_docker_command_to_file(
+            user, local_uid, local_gid, phase2_container_name, githash,
+            workload, image_name, trace_name, traces_dir, docker_home,
+            env_vars, binary_cmd, client_bincmd,
+            "trace_single_segment", drio_args, clustering_k,
+            phase2_filename, infra_dir, application_dir, slurm=True,
+            segment_id="$1", cluster_id="$2",
+        )
+        tmp_files.add(phase2_filename)
+
+        # Persist the Phase 2 template alongside the trace state so it
+        # survives the host's tmp-file cleanup. Phase 1 runs asynchronously
+        # under Slurm and needs the template to exist when it submits Phase 2.
+        import shutil as _shutil
+        phase2_persist_dir = os.path.join(trace_dir, workload)
+        os.makedirs(phase2_persist_dir, exist_ok=True)
+        phase2_persist_path = os.path.join(phase2_persist_dir, "phase2_template.sh")
+        _shutil.copy2(phase2_filename, phase2_persist_path)
+        phase2_script_path = os.path.abspath(phase2_persist_path)
+
+        # --- Phase 1 script (mode 4) + appended Phase 2/3 submission tail ---
+        phase1_container_name = f"{image_name}_{workload}_{trace_name}_cluster_only_{user}"
+        phase1_filename = f"{phase1_container_name}_tmp_run.sh"
+        write_trace_docker_command_to_file(
+            user, local_uid, local_gid, phase1_container_name, githash,
+            workload, image_name, trace_name, traces_dir, docker_home,
+            env_vars, binary_cmd, client_bincmd,
+            "cluster_only", drio_args, clustering_k,
+            phase1_filename, infra_dir, application_dir, slurm=True,
+        )
+        tmp_files.add(phase1_filename)
+
+        finalize_cmd = (
+            f"cd {infra_dir} && python -m scripts.run_trace -d {descriptor_path} "
+            f"-f -si {infra_dir}"
+        )
+        finalize_log_path = os.path.join(trace_dir, "logs", "finalize_job_%j.out")
+        with open(phase1_filename, "a") as f:
+            write_phase2_sbatch_tail(
+                f, workload, trace_name, docker_home, phase2_script_path,
+                finalize_cmd, finalize_log_path, SEGMENT_MEM_MIN_MB,
+                finalize_mem_mb=PHASE3_FINALIZE_MEM_MB,
+            )
+
+        sbatch_cmd = generate_sbatch_command(
+            trace_dir, slurm_options=slurm_options, mem_mb=PHASE1_MEM_DEFAULT_MB,
+        )
+        result = subprocess.run((sbatch_cmd + phase1_filename).split(" "),
+                                capture_output=True, text=True)
+        _print_sbatch_output(result)
+        if result.returncode == 0:
+            info(f"Phase 1 (cluster_only) submitted for {workload}. "
+                 f"Phase 2 and Phase 3 will be auto-submitted by the Phase 1 job.", dbg_lvl)
 
     try:
         # Get user for commands
@@ -831,15 +916,24 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
             clustering_k = config["clustering_k"]
             slurm_options = config.get("slurm_options", "")
 
-            run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd,
-                             trace_type, drio_args, clustering_k, application_dir, slurm_options)
+            if parallel_segments and trace_type == "cluster_then_trace":
+                _run_parallel_segments_trace(workload, image_name, trace_name, env_vars,
+                                             binary_cmd, client_bincmd, drio_args,
+                                             clustering_k, application_dir, slurm_options)
+            else:
+                run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd,
+                                 trace_type, drio_args, clustering_k, application_dir, slurm_options)
 
         # Clean up temp files
         for tmp in tmp_files:
             info(f"Removing temporary run script {tmp}", dbg_lvl)
             os.remove(tmp)
 
-        finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl)
+        # In parallel_segments mode, finalisation runs as Phase 3 of the Slurm
+        # pipeline (sbatch'd by the appended bash in Phase 1 with a dependency
+        # on all Phase 2 segment jobs). Host does not call finish_trace here.
+        if not parallel_segments:
+            finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl)
     except Exception as e:
         print("An exception occurred:", e)
         traceback.print_exc()  # Print the full stack trace
