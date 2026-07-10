@@ -155,11 +155,14 @@ Cached images and containers are handled automatically by the commands above; us
 ```
 Uses `json/<descriptor>.json` with `descriptor_type: "trace"` to launch the trace pipeline (see [docs/README.trace.md](docs/README.trace.md) for details).
 
-### Run a perf container
+### Collect perf metrics for a workload
 ```
-./sci --perf perf
+./sci --perf your_perf_descriptor
 ```
-Uses `json/perf.json` or another `json/<descriptor>.json` with `descriptor_type: "perf"` to open the interactive perf container described in the descriptor (see [docs/README.perf.md](docs/README.perf.md)).
+Uses `json/<descriptor>.json` with `descriptor_type: "perf"` to run automated top-down / execution-time / peak-RSS collection across every entry in `perf_configurations` (see [docs/README.perf.md](docs/README.perf.md)). For interactive debugging in a perf-ready container, use `./sci --perf-interactive <descriptor>`.
+
+### Add a new workload suite
+Introducing a new benchmark suite (Dockerfile, descriptors, end-to-end flow through `--perf` / `--trace` / `--sim`) is documented in [docs/README.add_workload.md](docs/README.add_workload.md).
 
 ## Docker Images
 
