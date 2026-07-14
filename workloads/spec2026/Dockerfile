@@ -23,11 +23,9 @@ ARG SPEC2026_TARBALL=workloads/spec2026/spec2026.tar.gz
 RUN cd $tmpdir && wget https://apt.llvm.org/llvm.sh
 RUN chmod u+x llvm.sh
 RUN sudo ./llvm.sh 16
-RUN echo "copying spec2026.tar.gz to $tmpdir/application"
-RUN mkdir -p $tmpdir/application
-COPY ${SPEC2026_TARBALL} $tmpdir/application/spec2026.tar.gz
+# ADD should be used here (not COPY + RUN tar -xzf + rm) to avoid a duplicate tarball layer
 RUN echo "extracting spec2026.tar.gz to $tmpdir/application"
-RUN tar -xzf $tmpdir/application/spec2026.tar.gz -C $tmpdir/application && rm $tmpdir/application/spec2026.tar.gz
+ADD ${SPEC2026_TARBALL} $tmpdir/application/
 # Compilation should be done during ./sci --build-image
 RUN echo "building benchmarks"
 RUN /bin/bash -c "cd $tmpdir/application/cpu2026 && source shrc && runcpu --config=memtrace.cfg --action=build all"
