@@ -436,7 +436,9 @@ def collect_perf_data(user, root_dir, image_name, infra_dir, perf_configs, dbg_l
             else:
                 print(f"    peak_rss: (not captured)")
 
-        write_json_descriptor(workload_db_path, workload_db, dbg_lvl)
+            # Save after each workload so completed results survive any interruptions
+            write_json_descriptor(workload_db_path, workload_db, dbg_lvl)
+
         print(f"Results written to {workload_db_path}")
 
     finally:
