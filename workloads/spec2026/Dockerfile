@@ -49,6 +49,7 @@ ADD ${SPEC2026_TARBALL} $tmpdir/application/
 # Compilation should be done during ./sci --build-image
 RUN echo "building benchmarks"
 RUN /bin/bash -c "cd $tmpdir/application/cpu2026 && source shrc && runcpu --config=memtrace.cfg --action=build intrate fprate"
+RUN /bin/bash -c "cd $tmpdir/application/cpu2026 && source shrc && runcpu --config=memtrace.cfg --action=runsetup intrate fprate"
 RUN echo "done"
 
 # Start your application
