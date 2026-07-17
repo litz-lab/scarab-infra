@@ -48,7 +48,13 @@ RUN echo "extracting spec2026.tar.gz to $tmpdir/application"
 ADD ${SPEC2026_TARBALL} $tmpdir/application/
 # Compilation should be done during ./sci --build-image
 RUN echo "building benchmarks"
-RUN /bin/bash -c "cd $tmpdir/application/cpu2026 && source shrc && runcpu --config=memtrace.cfg --action=build intrate fprate"
+# Build all rate benchmarks in PARALLEL.
+# runcpu takes no cross-invocation lock, so drive one benchmark per xargs worker instead of building them serially.
+# Start the heavy, slow-building benchmarks FIRST so they overlap the many quick builds instead of extending the tail.
+ARG BUILD_WORKERS=8
+RUN /bin/bash -c "cd $tmpdir/application/cpu2026 && source shrc && \
+    { echo 766.femflow_r; echo 723.llvm_r; echo 735.gem5_r; echo 753.ns3_r;  ls -d benchspec/CPU/7[0-9]*_r | xargs -n1 basename | grep -vxF -e 723.llvm_r -e 735.gem5_r -e 753.ns3_r -e 766.femflow_r; } | \
+    xargs -P ${BUILD_WORKERS} -I{} runcpu --config=memtrace.cfg --action=build {}"
 RUN /bin/bash -c "cd $tmpdir/application/cpu2026 && source shrc && runcpu --config=memtrace.cfg --action=runsetup intrate fprate"
 RUN echo "done"
 
