@@ -51,7 +51,7 @@ You only need additional steps if you want to inspect workloads, collect traces,
 ```
 ./sci --visualize <descriptor>
 ```
-Generates bar charts (value and speedup) for each counter listed in `visualize.counters` and saves them next to `collected_stats.csv` under `<root_dir>/simulations/<descriptor>/`.
+Generates bar charts (value and speedup) for each counter listed in `visualize.counters` and saves them next to `collected_stats.csv` under `<root_dir>/simulations/<descriptor>/`. Also, generates IPC S-curves and saves the corresponding per-simpoint data in CSV format.
 
 Use the descriptor structure:
 ```json
