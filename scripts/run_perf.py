@@ -213,6 +213,9 @@ def _parse_peak_rss_mb(stderr_text):
 
 
 TOPLEV_PATH = "/tmp_home/pmu-tools/toplev.py"
+
+# The descriptor json can overwrite these values.
+# Setting PERF_TARGET_SECONDS huge will force exactly PERF_REPEAT_DEFAULT repeats regardless of runtime.
 PERF_CORE = 10  # Pin workloads to a high-numbered core to reduce interference
 PERF_REPEAT_DEFAULT = 15  # Re-run the entire workload binary this many times per measurement
 PERF_TARGET_SECONDS = 600  # Target total measurement time; scale repeats to stay near this
@@ -462,6 +465,17 @@ def run_perf_command(descriptor_path, action, dbg_lvl=2, infra_dir=None):
     user = descriptor_data.get("user")
     root_dir = descriptor_data.get("root_dir")
     image_name = descriptor_data.get("image_name")
+
+    # Let the descriptor set the values; otherwise keep the default.
+    if descriptor_data.get("perf_core") is not None:
+        global PERF_CORE
+        PERF_CORE = int(descriptor_data["perf_core"])
+    if descriptor_data.get("max_repeats") is not None:
+        global PERF_REPEAT_DEFAULT
+        PERF_REPEAT_DEFAULT = int(descriptor_data["max_repeats"])
+    if descriptor_data.get("target_seconds") is not None:
+        global PERF_TARGET_SECONDS
+        PERF_TARGET_SECONDS = int(descriptor_data["target_seconds"])
 
     if action == "launch":
         open_interactive_shell(user, root_dir, image_name, infra_dir, dbg_lvl)

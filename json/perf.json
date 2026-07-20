@@ -6,5 +6,10 @@
   "_root_dir":"Root directory mounted into the docker container home, for instance, $tmp_dir as a root home directory",
   "root_dir":"/home/$USER",
   "_image_name":"A docker image name required to run a benchmark with Perf.",
-  "image_name":"dcperf"
+  "image_name":"dcperf",
+  "_perf_core": "(Optional) Logical CPU to pin all measurements to. Must be a valid core on the target machine. Omit to use the run_perf.py default PERF_CORE.",
+  "_max_repeats": "(Optional) Cap on repeats per workload. Setting target_seconds huge will force exactly this many repeats regardless of runtime. Omit to use the run_perf.py default PERF_REPEAT_DEFAULT.",
+  "_target_seconds": "(Optional) Target wall time per measurement. Omit to use the run_perf.py default PERF_TARGET_SECONDS.",
+  "perf_configurations": [
+  ]
 }
