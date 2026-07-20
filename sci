@@ -4419,6 +4419,7 @@ def main() -> int:
         args.trace,
         args.sim,
         args.perf,
+        args.perf_interactive,
         args.visualize,
         args.collect_mem,
         args.collect_stats,

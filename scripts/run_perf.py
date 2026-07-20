@@ -225,7 +225,11 @@ PERF_SCRIPT = "/tmp/_perf_repeat.sh"
 def _write_repeat_script(container_name, binary_cmd, repeat_count=None):
     """Write a repeat-loop script into the container to avoid quoting issues."""
     n = repeat_count if repeat_count is not None else PERF_REPEAT_DEFAULT
-    script = f"#!/bin/bash\nfor i in $(seq 1 {n}); do\n  {binary_cmd}\ndone\n"
+    script = (
+        f"#!/bin/bash\n"
+        f"source /usr/local/bin/user_entrypoint.sh\n"
+        f"for i in $(seq 1 {n}); do\n  {binary_cmd}\ndone\n"
+    )
     subprocess.run(
         ["docker", "exec", container_name, "/bin/bash", "-c",
          f"cat > {PERF_SCRIPT} << 'PERF_EOF'\n{script}PERF_EOF\nchmod +x {PERF_SCRIPT}"],
@@ -379,7 +383,7 @@ def collect_perf_data(user, root_dir, image_name, infra_dir, perf_configs, dbg_l
             warmup_t0 = _time.monotonic()
             warmup_res = subprocess.run(
                 ["docker", "exec", "--privileged", docker_container_name,
-                 "/bin/bash", "-c", rss_wrapper],
+                 "/bin/bash", "-c", f"source /usr/local/bin/user_entrypoint.sh; {rss_wrapper}"],
                 capture_output=True, text=True, timeout=3600,
             )
             warmup_secs = _time.monotonic() - warmup_t0
@@ -432,7 +436,9 @@ def collect_perf_data(user, root_dir, image_name, infra_dir, perf_configs, dbg_l
             else:
                 print(f"    peak_rss: (not captured)")
 
-        write_json_descriptor(workload_db_path, workload_db, dbg_lvl)
+            # Save after each workload so completed results survive any interruptions
+            write_json_descriptor(workload_db_path, workload_db, dbg_lvl)
+
         print(f"Results written to {workload_db_path}")
 
     finally:
