@@ -391,7 +391,7 @@ def collect_perf_data(user, root_dir, image_name, infra_dir, perf_configs, dbg_l
 
             # Scale repeat count so total measurement time stays near PERF_TARGET_SECONDS
             single_run = max(1.0, warmup_secs)
-            repeat_count = max(1, min(PERF_REPEAT_DEFAULT, int(PERF_TARGET_SECONDS / single_run)))
+            repeat_count = max(1, min(PERF_REPEAT_DEFAULT, int((PERF_TARGET_SECONDS / single_run * 2 + 1) // 2)))
             print(f"    single-run ~{single_run:.0f}s, using {repeat_count}x repeats")
 
             topdown = run_toplev_for_config(docker_container_name, config, repeat_count)
