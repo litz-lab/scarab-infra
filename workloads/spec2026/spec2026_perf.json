@@ -1,0 +1,197 @@
+{
+  "_descriptor_type":"A type of descriptor. One of 'simulation', 'trace', and 'perf'.",
+  "descriptor_type":"perf",
+  "_user":"A username to run perf top-down analysis. Some application requires root permission to get running.",
+  "user":"root",
+  "_root_dir":"Root directory mounted into the docker container home, for instance, $tmp_dir as a root home directory",
+  "root_dir":"/home/$USER",
+  "_image_name":"A docker image name required to run a benchmark with Perf.",
+  "image_name":"spec2026",
+  "perf_core":7,
+  "max_repeats":2,
+  "target_seconds":3600,
+  "perf_configurations":[
+    {
+      "workload":"stockfish_r",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 706.stockfish_r",
+      "env_vars":null
+    },
+    {
+      "workload":"ntest_r",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 707.ntest_r",
+      "env_vars":null
+    },
+    {
+      "workload":"sqlite_r",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 708.sqlite_r",
+      "env_vars":null
+    },
+    {
+      "workload":"omnetpp_r",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 710.omnetpp_r",
+      "env_vars":null
+    },
+    {
+      "workload":"cpython_r",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 714.cpython_r",
+      "env_vars":null
+    },
+    {
+      "workload":"gcc_r",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 721.gcc_r",
+      "env_vars":null
+    },
+    {
+      "workload":"llvm_r",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 723.llvm_r",
+      "env_vars":null
+    },
+    {
+      "workload":"cppcheck_r",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 727.cppcheck_r",
+      "env_vars":null
+    },
+    {
+      "workload":"abc_r",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 729.abc_r",
+      "env_vars":null
+    },
+    {
+      "workload":"vpr_r",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 734.vpr_r",
+      "env_vars":null
+    },
+    {
+      "workload":"gem5_r",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 735.gem5_r",
+      "env_vars":null
+    },
+    {
+      "workload":"sealcrypto_r",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 750.sealcrypto_r",
+      "env_vars":null
+    },
+    {
+      "workload":"ns3_r",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 753.ns3_r",
+      "env_vars":null
+    },
+    {
+      "workload":"zstd_r",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 777.zstd_r",
+      "env_vars":null
+    },
+    {
+      "workload":"cactus_r",
+      "suite":"spec2026",
+      "subsuite":"rate_fp",
+      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 709.cactus_r",
+      "env_vars":null
+    },
+    {
+      "workload":"palm_r",
+      "suite":"spec2026",
+      "subsuite":"rate_fp",
+      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 722.palm_r",
+      "env_vars":null
+    },
+    {
+      "workload":"astcenc_r",
+      "suite":"spec2026",
+      "subsuite":"rate_fp",
+      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 731.astcenc_r",
+      "env_vars":null
+    },
+    {
+      "workload":"ocio_r",
+      "suite":"spec2026",
+      "subsuite":"rate_fp",
+      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 736.ocio_r",
+      "env_vars":null
+    },
+    {
+      "workload":"gmsh_r",
+      "suite":"spec2026",
+      "subsuite":"rate_fp",
+      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 737.gmsh_r",
+      "env_vars":null
+    },
+    {
+      "workload":"flightdm_r",
+      "suite":"spec2026",
+      "subsuite":"rate_fp",
+      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 748.flightdm_r",
+      "env_vars":null
+    },
+    {
+      "workload":"fotonik3d_r",
+      "suite":"spec2026",
+      "subsuite":"rate_fp",
+      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 749.fotonik3d_r",
+      "env_vars":null
+    },
+    {
+      "workload":"roms_r",
+      "suite":"spec2026",
+      "subsuite":"rate_fp",
+      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 765.roms_r",
+      "env_vars":null
+    },
+    {
+      "workload":"femflow_r",
+      "suite":"spec2026",
+      "subsuite":"rate_fp",
+      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 766.femflow_r",
+      "env_vars":null
+    },
+    {
+      "workload":"nest_r",
+      "suite":"spec2026",
+      "subsuite":"rate_fp",
+      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 767.nest_r",
+      "env_vars":null
+    },
+    {
+      "workload":"marian_r",
+      "suite":"spec2026",
+      "subsuite":"rate_fp",
+      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 772.marian_r",
+      "env_vars":null
+    },
+    {
+      "workload":"lbm_r",
+      "suite":"spec2026",
+      "subsuite":"rate_fp",
+      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 782.lbm_r",
+      "env_vars":null
+    }
+  ]
+}
