@@ -36,62 +36,82 @@ jobs:
             echo "tag=" >> $GITHUB_OUTPUT
           fi
 
-      - name: Check if relevant directories changed since last build
+      - name: Determine which images changed since last build
         id: changes
         env:
           LAST_TAG: ${{ steps.last_tag.outputs.tag }}
         run: |
           if [[ -z "$LAST_TAG" ]]; then
-            echo "No previous tag — assuming first build."
-            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "No previous tag — building both images."
+            echo "allbench=true" >> $GITHUB_OUTPUT
+            echo "spec2017=true" >> $GITHUB_OUTPUT
+            echo "any=true" >> $GITHUB_OUTPUT
           else
             git fetch origin main --depth=50
-            CHANGED=$(git diff --name-only "$LAST_TAG" HEAD | grep -E '^(common/|workloads/allbench_traces/)' || true)
-            if [[ -n "$CHANGED" ]]; then
-              echo "Relevant changes detected:"
-              echo "$CHANGED"
-              echo "changed=true" >> $GITHUB_OUTPUT
+            DIFF=$(git diff --name-only "$LAST_TAG" HEAD)
+            # allbench rebuilds on common/ or its own workload dir; spec2017 likewise.
+            ALLBENCH=$(echo "$DIFF" | grep -E '^(common/|workloads/allbench_traces/)' || true)
+            SPEC2017=$(echo "$DIFF" | grep -E '^(common/|workloads/spec2017/)' || true)
+            [[ -n "$ALLBENCH" ]] && echo "allbench=true" >> $GITHUB_OUTPUT || echo "allbench=false" >> $GITHUB_OUTPUT
+            [[ -n "$SPEC2017" ]] && echo "spec2017=true" >> $GITHUB_OUTPUT || echo "spec2017=false" >> $GITHUB_OUTPUT
+            if [[ -n "$ALLBENCH" || -n "$SPEC2017" ]]; then
+              echo "any=true" >> $GITHUB_OUTPUT
             else
-              echo "No relevant changes detected."
-              echo "changed=false" >> $GITHUB_OUTPUT
+              echo "any=false" >> $GITHUB_OUTPUT
             fi
+            echo "allbench changed: ${ALLBENCH:+yes}${ALLBENCH:-no}"
+            echo "spec2017 changed: ${SPEC2017:+yes}${SPEC2017:-no}"
           fi
 
       - name: Log in to GitHub Container Registry
-        if: steps.changes.outputs.changed == 'true'
+        if: steps.changes.outputs.any == 'true'
         uses: docker/login-action@v2
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build Docker image
-        if: steps.changes.outputs.changed == 'true'
+      # Rebuild each image only when common/ or its own workloads/<group>/ changed.
+      - name: Build Docker images
+        if: steps.changes.outputs.any == 'true'
         run: |
-          docker build . \
-          --file ./workloads/allbench_traces/Dockerfile \
-          --no-cache \
-          --tag ghcr.io/litz-lab/scarab-infra/allbench_traces:${{ steps.current_hash.outputs.githash }}
+          if [[ "${{ steps.changes.outputs.allbench }}" == "true" ]]; then
+            docker build . \
+            --file ./workloads/allbench_traces/Dockerfile \
+            --no-cache \
+            --tag ghcr.io/litz-lab/scarab-infra/allbench_traces:${{ steps.current_hash.outputs.githash }}
+          fi
+          if [[ "${{ steps.changes.outputs.spec2017 }}" == "true" ]]; then
+            docker build . \
+            --file ./workloads/spec2017/Dockerfile \
+            --no-cache \
+            --tag ghcr.io/litz-lab/scarab-infra/spec2017:${{ steps.current_hash.outputs.githash }}
+          fi
 
-      - name: Push Docker image to GitHub Packages
-        if: steps.changes.outputs.changed == 'true'
+      - name: Push Docker images to GitHub Packages
+        if: steps.changes.outputs.any == 'true'
         run: |
           # Only push if this is not a manual trigger
-          if [[ "${{ github.event_name }}" == "push" ]]; then
+          if [[ "${{ github.event_name }}" != "push" ]]; then
+            echo "Skipping push (manual workflow_dispatch run)"
+            exit 0
+          fi
+          if [[ "${{ steps.changes.outputs.allbench }}" == "true" ]]; then
             docker push ghcr.io/litz-lab/scarab-infra/allbench_traces:${{ steps.current_hash.outputs.githash }}
-          else
-            echo "Skipping pushing the image to GitHub Packages because this is a manual run (workflow_dispatch)"
+          fi
+          if [[ "${{ steps.changes.outputs.spec2017 }}" == "true" ]]; then
+            docker push ghcr.io/litz-lab/scarab-infra/spec2017:${{ steps.current_hash.outputs.githash }}
           fi
 
       - name: Save short GIT_HASH to last_built_tag.txt
-        if: steps.changes.outputs.changed == 'true'
+        if: steps.changes.outputs.any == 'true'
         run: |
           SHORT_HASH=$(git rev-parse --short HEAD)
           echo "Saving GIT_HASH: $SHORT_HASH"
           echo "$SHORT_HASH" > last_built_tag.txt
 
       - name: Create and auto-merge PR
-        if: steps.changes.outputs.changed == 'true'
+        if: steps.changes.outputs.any == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPO: ${{ github.repository }}
