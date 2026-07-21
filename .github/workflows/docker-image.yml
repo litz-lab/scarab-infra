@@ -46,7 +46,7 @@ jobs:
             echo "changed=true" >> $GITHUB_OUTPUT
           else
             git fetch origin main --depth=50
-            CHANGED=$(git diff --name-only "$LAST_TAG" HEAD | grep -E '^(common/|workloads/allbench_traces/)' || true)
+            CHANGED=$(git diff --name-only "$LAST_TAG" HEAD | grep -E '^(common/|workloads/allbench_traces/|workloads/spec2017/)' || true)
             if [[ -n "$CHANGED" ]]; then
               echo "Relevant changes detected:"
               echo "$CHANGED"
@@ -72,6 +72,10 @@ jobs:
           --file ./workloads/allbench_traces/Dockerfile \
           --no-cache \
           --tag ghcr.io/litz-lab/scarab-infra/allbench_traces:${{ steps.current_hash.outputs.githash }}
+          docker build . \
+          --file ./workloads/spec2017/Dockerfile \
+          --no-cache \
+          --tag ghcr.io/litz-lab/scarab-infra/spec2017:${{ steps.current_hash.outputs.githash }}
 
       - name: Push Docker image to GitHub Packages
         if: steps.changes.outputs.changed == 'true'
@@ -79,6 +83,7 @@ jobs:
           # Only push if this is not a manual trigger
           if [[ "${{ github.event_name }}" == "push" ]]; then
             docker push ghcr.io/litz-lab/scarab-infra/allbench_traces:${{ steps.current_hash.outputs.githash }}
+            docker push ghcr.io/litz-lab/scarab-infra/spec2017:${{ steps.current_hash.outputs.githash }}
           else
             echo "Skipping pushing the image to GitHub Packages because this is a manual run (workflow_dispatch)"
           fi
