@@ -44,8 +44,23 @@ PIN_EXEC="$SCARABHOME/src/pin/pin_exec/obj-intel64/pin_exec_${SCARAB_BIN}.so"
 cp "$PIN_EXEC" "$OUTDIR/$segID/pin_exec.so"
 
 cd $OUTDIR/$segID
-BINARY_DIR=$(dirname ${BINCMD%% *})
-cd $BINARY_DIR
+
+# Run the benchmark with cwd = a PRIVATE, node-local run dir. This keeps the
+# benchmark's output-file writes off the shared app tree, which is bind-mounted
+# read-only from NFS: writing there fails (and, when it didn't, concurrent
+# simpoints/users clobbered each other's outputs). Inputs are symlinked in
+# (shared read-only, no copy); the binary is launched by absolute path from
+# BINCMD, so cwd only governs where the benchmark's own output files land.
+REFDIR=$(dirname ${BINCMD%% *})
+RUNDIR="${SCARAB_RUN_LOCAL_TMP:-/tmp}/scarab_run_${SCARAB_BIN}_$$_${segID}"
+rm -rf "$RUNDIR"
+mkdir -p "$RUNDIR"
+# GNU `cp -rs`: recreate the tree with real directories and symlinked files, so
+# outputs (and writes into subdirs) stay local while inputs are shared via
+# symlink. Fall back to a real copy if cp lacks -s.
+cp -rs "$REFDIR"/. "$RUNDIR"/ 2>/dev/null || cp -a "$REFDIR"/. "$RUNDIR"/
+trap 'rm -rf "$RUNDIR"' EXIT
+cd "$RUNDIR"
 
 roiStart=$(( $segID * $SEGSIZE + 1 ))
 roiEnd=$(( $segID * $SEGSIZE + $SEGSIZE ))
