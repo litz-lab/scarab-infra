@@ -32,6 +32,93 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y \
 RUN cd $tmpdir && git clone https://github.com/andikleen/pmu-tools.git
 ```
 
+## Host preparation (the measurement core)
+
+For clean, low-noise counts, reduce the host activity **before** a collection run and
+restore it **after**. This frees enough general-purpose PMU counters for the
+full event set (see [Counter multiplexing](#counter-multiplexing)) and keeps
+other work off the measurement core. `run_perf.py` also probes for
+multiplexing at startup and warns if the host still needs attention.
+
+> **Core numbers are platform-dependent.**
+>
+> The commands below isolate a single **measurement core**, which must match
+> `perf_core` in the descriptor (default `10`; see [Descriptor JSON](#descriptor-json)).  
+>
+> The examples target an 8-core box (cores `0-7`) and isolate **core 7**,
+> so the "other cores" are `0-6` and the CPU affinity mask is `0x7f`.
+> On a different platform, set the isolated core to your `perf_core`,
+> list the remaining cores as `0-(N-1)` excluding it, and size the hex
+> `smp_affinity` mask to all cores **except** the isolated one.
+>
+> For example, a 32-core box (cores `0-31`) isolating **core 10**:
+> - `AllowedCPUs` for the fenced units → `0-9,11-31` (note the gap at 10);
+>   keep `docker.service` on the full `0-31`.
+> - `smp_affinity` mask → `fffffbff` (all 32 bits set except bit 10).
+
+### Before `--perf`
+
+This example assumes the host has 8 cores and uses core 7.
+
+```bash
+# 1. Free the fixed counter so the full event set doesn't multiplex
+cat /proc/sys/kernel/nmi_watchdog  # If already 0 you can skip the next line (and no need to re-enable afterward)
+sudo sysctl kernel.nmi_watchdog=0
+
+# 2. Verify SMT/HT is off (it halves the per-thread GP counters).
+cat /sys/devices/system/cpu/smt/active
+
+# 3. Quiet the measurement core: stop IRQ balancing and steer IRQs to the
+#    other cores (mask 0x7f = cores 0-6, i.e. everything except core 7)
+sudo systemctl stop irqbalance
+for f in /proc/irq/*/smp_affinity; do echo 7f | sudo tee "$f" >/dev/null 2>&1 || true; done
+
+# 4. Fence non-Docker tasks off the measurement core
+sudo systemctl set-property --runtime system.slice   AllowedCPUs=0-6   # daemons (sshd, cron, journald, …)
+sudo systemctl set-property --runtime user.slice     AllowedCPUs=0-6   # login sessions / user@.service
+sudo systemctl set-property --runtime init.scope     AllowedCPUs=0-6   # systemd (PID 1)
+sudo systemctl set-property --runtime machine.slice  AllowedCPUs=0-6   # VMs / nspawn (harmless if empty)
+sudo systemctl set-property --runtime docker.service AllowedCPUs=0-7   # keep Docker on the measurement core
+
+# 5. Confirm the measurement core is idle before starting
+mpstat -P 7 2 3
+```
+
+### After `--perf`
+
+```bash
+sudo sysctl kernel.nmi_watchdog=1            # re-enable watchdog
+sudo systemctl start irqbalance              # restore IRQ balancing
+for f in /proc/irq/*/smp_affinity; do echo ff | sudo tee "$f" >/dev/null 2>&1 || true; done
+
+# undo the cpuset fences from step 4 (or just reboot)
+for u in system.slice user.slice init.scope machine.slice docker.service; do
+  sudo systemctl set-property --runtime "$u" AllowedCPUs=0-7
+done
+```
+
+### Counter multiplexing
+
+If more events are requested than there are usable general-purpose counters,
+`perf` time-shares them and extrapolates, making the ratio metrics noisier.
+The two most common causes are **SMT/HT** (halves the per-thread GP counters)
+and the **NMI watchdog** (occupies one counter), the two things steps 1-2
+above address. 
+`run_perf.py` reports the minimum counter coverage as `min_coverage_pct` in
+`hw_metrics`; a value below `100.0` indicates multiplexing occurred.
+
+> **Reclaiming the HT counters may require a reboot, not a runtime toggle.**  
+> You *can* offline the sibling threads at runtime with
+> `echo off | sudo tee /sys/devices/system/cpu/smt/control`,
+> but that only takes the logical CPUs offline;
+> it does **not** give the surviving thread its counters back.
+> Intel partitions the general-purpose counters between the two threads at boot
+> based on the firmware HT setting, so the full per-core counter budget is
+> only reclaimed by disabling Hyper-Threading in the BIOS/UEFI and rebooting. 
+> If you can't change firmware / reboot the host, prefer a machine that
+> already has HT disabled, or a CPU without HT, for perf collection.
+> (For example, the 8-core "Bronze" has no HT and avoids multiplexing on the full event set.)
+
 ## Descriptor JSON
 
 Create a perf descriptor (e.g., `json/perf.json`):
@@ -59,6 +146,9 @@ Create a perf descriptor (e.g., `json/perf.json`):
 | `user` | Container user (`root` or a regular username) |
 | `root_dir` | Host directory bind-mounted as the container home |
 | `image_name` | Docker image name (built via `./sci --build-image`) |
+| `perf_core` | (Optional) Logical CPU to pin all measurements to. |
+| `max_repeats` | (Optional) Cap on repeats per workload. <br>You can force exactly this many repeats by setting `target_seconds` large enough. |
+| `target_seconds` | (Optional) Target wall time per measurement. |
 | `perf_configurations[]` | Array of workload configs to measure |
 
 Each `perf_configurations` entry specifies:
@@ -85,7 +175,7 @@ Peak RSS of the process tree is captured via Python's
 The number of measurement repeats is computed from the warmup wall time so
 total measurement targets ~600 seconds:
 ```
-repeat_count = max(1, min(15, int(600 / single_run_seconds)))
+repeat_count = max(1, min(15, int((600 / single_run_seconds * 2 + 1) // 2)))
 ```
 Fast workloads get more repeats for noise reduction; slow workloads run
 fewer times to keep wall clock bounded.
