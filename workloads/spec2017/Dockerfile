@@ -13,21 +13,16 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y \
 
 WORKDIR $tmpdir
 
-# The SPEC CPU2017 installer tarball is not checked in.
-# If the build errors with "file not found in build context" for spec2017.tar.gz,
-# place your licensed tarball at workloads/spec2017/spec2017.tar.gz or pass
-# --build-arg SPEC2017_TARBALL=<relative path inside build context>.
-# If you're not Litz-lab member, please match the location described in workload_user_entrypoint.sh with your spec2017 directory. 
-ARG SPEC2017_TARBALL=workloads/spec2017/spec2017.tar.gz
-
+# The SPEC CPU2017 binaries are NOT baked into the image. They are bind-mounted
+# at runtime from the host onto /tmp_home/application (set the descriptor's
+# "application_dir" to a directory that contains the SPEC install as cpu2017/, so
+# the entrypoint's `cd /tmp_home/application/cpu2017` resolves). Baking the
+# licensed tarball is unnecessary since the mount shadows it anyway; we only
+# create the mount point here.
 RUN cd $tmpdir && wget https://apt.llvm.org/llvm.sh
 RUN chmod u+x llvm.sh
 RUN sudo ./llvm.sh 16
-RUN echo "copying spec2017.tar.gz to $tmpdir/application"
 RUN mkdir -p $tmpdir/application
-COPY ${SPEC2017_TARBALL} $tmpdir/application/spec2017.tar.gz
-RUN echo "extracting spec2017.tar.gz to $tmpdir/application"
-RUN tar -xzf $tmpdir/application/spec2017.tar.gz -C $tmpdir/application && rm $tmpdir/application/spec2017.tar.gz
 RUN echo "done"
 
 # Start your application

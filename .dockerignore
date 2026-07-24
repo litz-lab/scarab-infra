@@ -1,0 +1,18 @@
+# The whole repo directory is the Docker build context for the workload images
+# (allbench_traces, spec2017, ...), but the Dockerfiles only need common/ and
+# workloads/. Exclude local-only artifacts and caches so `docker build` does not
+# stream them into the daemon. The big one is scarab_builds/ (sci's compiled-
+# scarab output cache, tens of GB), which no Dockerfile ever uses; without this
+# ignore, local builds transfer that entire cache as build context and OOM under
+# the Slurm per-job memory limit. (CI builds from a clean checkout and are
+# unaffected either way; this only helps local builds.)
+.git/
+__pycache__/
+**/__pycache__/
+*.pyc
+scarab_builds/
+scarab_stats/
+simulations/
+.vscode/
+*~
+**/#*#
