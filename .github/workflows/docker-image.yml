@@ -110,7 +110,7 @@ jobs:
           echo "Saving GIT_HASH: $SHORT_HASH"
           echo "$SHORT_HASH" > last_built_tag.txt
 
-      - name: Create and auto-merge PR
+      - name: Create and merge the tag-update PR
         if: steps.changes.outputs.any == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -121,67 +121,29 @@ jobs:
           BRANCH_NAME=auto/update-tag-${{ steps.current_hash.outputs.githash }}
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          git checkout -b $BRANCH_NAME
+          git checkout -b "$BRANCH_NAME"
           git add last_built_tag.txt
           git commit -m "Auto update Docker image tag to $BRANCH_NAME"
-          git push origin $BRANCH_NAME
+          git push origin "$BRANCH_NAME"
 
-          # Create PR using jq-based JSON payload
-          PR_PAYLOAD=$(jq -n \
-            --arg title "Auto-generated PR" \
-            --arg head "$BRANCH_NAME" \
-            --arg base "main" \
-            --arg body "This is a PR created to update Docker image tag." \
-            '{title: $title, head: $head, base: $base, body: $body}')
+          gh pr create --repo "$GITHUB_REPO" --base main --head "$BRANCH_NAME" \
+            --title "Auto update Docker image tag" \
+            --body "Automated Docker image-tag bump (last_built_tag.txt)."
 
-          PR_RESPONSE=$(curl -s -X POST \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            -d "$PR_PAYLOAD" \
-            https://api.github.com/repos/$GITHUB_REPO/pulls)
-
-          echo "PR creation response:"
-          echo "$PR_RESPONSE"
-
-          # After you create the PR, capture both number and node_id
-          PR_NUMBER=$(echo "$PR_RESPONSE" | jq -r .number)
-          PR_NODE_ID=$(echo "$PR_RESPONSE" | jq -r .node_id)
-
-          if [[ "$PR_NUMBER" == "null" || -z "$PR_NUMBER" || "$PR_NODE_ID" == "null" || -z "$PR_NODE_ID" ]]; then
-            echo "Failed to create PR or get node_id. Exiting."
-            exit 1
+          # Manual runs (workflow_dispatch): leave the PR open, don't merge.
+          if [[ "${{ github.event_name }}" != "push" ]]; then
+            echo "Manual run; leaving PR open for $BRANCH_NAME."
+            exit 0
           fi
 
-          echo "Created PR #$PR_NUMBER"
-
-          # Optional small delay to let GitHub index the PR
-          sleep 50
-
-          if [[ "${{ github.event_name }}" == "push" ]]; then
-            echo "Enabling auto-merge for PR #$PR_NUMBER"
-
-            read -r -d '' GQL_QUERY <<'EOF'
-            mutation($prId: ID!) {
-              enablePullRequestAutoMerge(input: { pullRequestId: $prId, mergeMethod: SQUASH }) {
-                pullRequest { number, autoMergeRequest { enabledAt } }
-              }
-            }
-          EOF
-
-            curl -s -X POST https://api.github.com/graphql \
-              -H "Authorization: Bearer $GH_TOKEN" \
-              -H "Accept: application/vnd.github+json" \
-              -d "$(jq -n --arg prId "$PR_NODE_ID" --arg q "$GQL_QUERY" '{query:$q,variables:{prId:$prId}}')" \
-            | tee enable_automerge_response.json
-
-            # Basic success check
-            if jq -e '.data.enablePullRequestAutoMerge.pullRequest.autoMergeRequest.enabledAt' enable_automerge_response.json >/dev/null; then
-              echo "Auto-merge enabled."
-            else
-              echo "Failed to enable auto-merge:"
-              cat enable_automerge_response.json
-              exit 1
-            fi
+          # Best-effort merge that never fails the run:
+          #  1. try a direct squash-merge (works if branch protection permits it);
+          #  2. else queue auto-merge to complete once requirements are met;
+          #  3. else leave the PR open and warn (someone merges it manually).
+          if gh pr merge "$BRANCH_NAME" --repo "$GITHUB_REPO" --squash --delete-branch; then
+            echo "Merged $BRANCH_NAME."
+          elif gh pr merge "$BRANCH_NAME" --repo "$GITHUB_REPO" --squash --auto --delete-branch; then
+            echo "Auto-merge queued for $BRANCH_NAME."
           else
-            echo "Skipping auto-merge because this is a manual run (workflow_dispatch)"
+            echo "::warning::Could not merge or queue $BRANCH_NAME; please merge it manually."
           fi
