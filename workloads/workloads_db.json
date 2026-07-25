@@ -2827,7 +2827,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/400.perlbench/run/run_base_ref_gcc43-64bit.0000/perlbench_base.gcc43-64bit -I\\$tmpdir/application/cpu2006/benchspec/CPU2006/400.perlbench/run/run_base_ref_gcc43-64bit.0000/lib \\$tmpdir/application/cpu2006/benchspec/CPU2006/400.perlbench/run/run_base_ref_gcc43-64bit.0000/checkspam.pl 2500 5 25 11 150 1 1 1 1",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/400.perlbench/run/run_base_ref_gcc43-64bit.0000/perlbench_base.gcc43-64bit -I./lib checkspam.pl 2500 5 25 11 150 1 1 1 1",
             "client_bincmd":null
           },
           "memtrace":{
