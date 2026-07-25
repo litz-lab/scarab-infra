@@ -2827,7 +2827,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/400.perlbench/run/run_base_ref_gcc43-64bit.0000 && ./perlbench_base.gcc43-64bit -I./lib checkspam.pl 2500 5 25 11 150 1 1 1 1\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/400.perlbench/run/run_base_ref_gcc43-64bit.0000/perlbench_base.gcc43-64bit -I\\$tmpdir/application/cpu2006/benchspec/CPU2006/400.perlbench/run/run_base_ref_gcc43-64bit.0000/lib \\$tmpdir/application/cpu2006/benchspec/CPU2006/400.perlbench/run/run_base_ref_gcc43-64bit.0000/checkspam.pl 2500 5 25 11 150 1 1 1 1",
             "client_bincmd":null
           },
           "memtrace":{
@@ -2873,7 +2873,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/400.perlbench/run/run_base_ref_gcc43-64bit.0000 && ./perlbench_base.gcc43-64bit -I./lib diffmail.pl 4 800 10 17 19 300\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/400.perlbench/run/run_base_ref_gcc43-64bit.0000/perlbench_base.gcc43-64bit -I./lib diffmail.pl 4 800 10 17 19 300",
             "client_bincmd":null
           },
           "memtrace":{
@@ -2919,7 +2919,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/400.perlbench/run/run_base_ref_gcc43-64bit.0000 && ./perlbench_base.gcc43-64bit -I./lib splitmail.pl 1600 12 26 16 4500\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/400.perlbench/run/run_base_ref_gcc43-64bit.0000/perlbench_base.gcc43-64bit -I./lib splitmail.pl 1600 12 26 16 4500",
             "client_bincmd":null
           },
           "memtrace":{
@@ -3000,7 +3000,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/401.bzip2/run/run_base_ref_gcc43-64bit.0000 && ./bzip2_base.gcc43-64bit input.source 280\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/401.bzip2/run/run_base_ref_gcc43-64bit.0000/bzip2_base.gcc43-64bit input.source 280",
             "client_bincmd":null
           },
           "memtrace":{
@@ -3088,7 +3088,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/401.bzip2/run/run_base_ref_gcc43-64bit.0000 && ./bzip2_base.gcc43-64bit chicken.jpg 30\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/401.bzip2/run/run_base_ref_gcc43-64bit.0000/bzip2_base.gcc43-64bit chicken.jpg 30",
             "client_bincmd":null
           },
           "memtrace":{
@@ -3197,7 +3197,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/401.bzip2/run/run_base_ref_gcc43-64bit.0000 && ./bzip2_base.gcc43-64bit liberty.jpg 30\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/401.bzip2/run/run_base_ref_gcc43-64bit.0000/bzip2_base.gcc43-64bit liberty.jpg 30",
             "client_bincmd":null
           },
           "memtrace":{
@@ -3306,7 +3306,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/401.bzip2/run/run_base_ref_gcc43-64bit.0000 && ./bzip2_base.gcc43-64bit input.program 280\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/401.bzip2/run/run_base_ref_gcc43-64bit.0000/bzip2_base.gcc43-64bit input.program 280",
             "client_bincmd":null
           },
           "memtrace":{
@@ -3408,7 +3408,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/401.bzip2/run/run_base_ref_gcc43-64bit.0000 && ./bzip2_base.gcc43-64bit text.html 280\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/401.bzip2/run/run_base_ref_gcc43-64bit.0000/bzip2_base.gcc43-64bit text.html 280",
             "client_bincmd":null
           },
           "memtrace":{
@@ -3489,7 +3489,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/401.bzip2/run/run_base_ref_gcc43-64bit.0000 && ./bzip2_base.gcc43-64bit input.combined 200\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/401.bzip2/run/run_base_ref_gcc43-64bit.0000/bzip2_base.gcc43-64bit input.combined 200",
             "client_bincmd":null
           },
           "memtrace":{
@@ -3612,7 +3612,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/403.gcc/run/run_base_ref_gcc43-64bit.0000 && ./gcc_base.gcc43-64bit 166.in -o 166.s\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/403.gcc/run/run_base_ref_gcc43-64bit.0000/gcc_base.gcc43-64bit 166.in -o 166.s",
             "client_bincmd":null
           },
           "memtrace":{
@@ -3770,7 +3770,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/403.gcc/run/run_base_ref_gcc43-64bit.0000 && ./gcc_base.gcc43-64bit 200.in -o 200.s\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/403.gcc/run/run_base_ref_gcc43-64bit.0000/gcc_base.gcc43-64bit 200.in -o 200.s",
             "client_bincmd":null
           },
           "memtrace":{
@@ -3928,7 +3928,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/403.gcc/run/run_base_ref_gcc43-64bit.0000 && ./gcc_base.gcc43-64bit c-typeck.in -o c-typeck.s\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/403.gcc/run/run_base_ref_gcc43-64bit.0000/gcc_base.gcc43-64bit c-typeck.in -o c-typeck.s",
             "client_bincmd":null
           },
           "memtrace":{
@@ -4079,7 +4079,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/403.gcc/run/run_base_ref_gcc43-64bit.0000 && ./gcc_base.gcc43-64bit cp-decl.in -o cp-decl.s\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/403.gcc/run/run_base_ref_gcc43-64bit.0000/gcc_base.gcc43-64bit cp-decl.in -o cp-decl.s",
             "client_bincmd":null
           },
           "memtrace":{
@@ -4237,7 +4237,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/403.gcc/run/run_base_ref_gcc43-64bit.0000 && ./gcc_base.gcc43-64bit expr.in -o expr.s\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/403.gcc/run/run_base_ref_gcc43-64bit.0000/gcc_base.gcc43-64bit expr.in -o expr.s",
             "client_bincmd":null
           },
           "memtrace":{
@@ -4395,7 +4395,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/403.gcc/run/run_base_ref_gcc43-64bit.0000 && ./gcc_base.gcc43-64bit expr2.in -o expr2.s\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/403.gcc/run/run_base_ref_gcc43-64bit.0000/gcc_base.gcc43-64bit expr2.in -o expr2.s",
             "client_bincmd":null
           },
           "memtrace":{
@@ -4553,7 +4553,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/403.gcc/run/run_base_ref_gcc43-64bit.0000 && ./gcc_base.gcc43-64bit g23.in -o g23.s\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/403.gcc/run/run_base_ref_gcc43-64bit.0000/gcc_base.gcc43-64bit g23.in -o g23.s",
             "client_bincmd":null
           },
           "memtrace":{
@@ -4704,7 +4704,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/403.gcc/run/run_base_ref_gcc43-64bit.0000 && ./gcc_base.gcc43-64bit s04.in -o s04.s\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/403.gcc/run/run_base_ref_gcc43-64bit.0000/gcc_base.gcc43-64bit s04.in -o s04.s",
             "client_bincmd":null
           },
           "memtrace":{
@@ -4855,7 +4855,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/403.gcc/run/run_base_ref_gcc43-64bit.0000 && ./gcc_base.gcc43-64bit scilab.in -o scilab.s\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/403.gcc/run/run_base_ref_gcc43-64bit.0000/gcc_base.gcc43-64bit scilab.in -o scilab.s",
             "client_bincmd":null
           },
           "memtrace":{
@@ -5013,7 +5013,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/429.mcf/run/run_base_ref_gcc43-64bit.0000 && ./mcf_base.gcc43-64bit inp.in\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/429.mcf/run/run_base_ref_gcc43-64bit.0000/mcf_base.gcc43-64bit inp.in",
             "client_bincmd":null
           },
           "memtrace":{
@@ -5115,7 +5115,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/445.gobmk/run/run_base_ref_gcc43-64bit.0000 && ./gobmk_base.gcc43-64bit --quiet --mode gtp < 13x13.tst\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/445.gobmk/run/run_base_ref_gcc43-64bit.0000/gobmk_base.gcc43-64bit --quiet --mode gtp < 13x13.tst",
             "client_bincmd":null
           },
           "memtrace":{
@@ -5175,7 +5175,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/445.gobmk/run/run_base_ref_gcc43-64bit.0000 && ./gobmk_base.gcc43-64bit --quiet --mode gtp < nngs.tst\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/445.gobmk/run/run_base_ref_gcc43-64bit.0000/gobmk_base.gcc43-64bit --quiet --mode gtp < nngs.tst",
             "client_bincmd":null
           },
           "memtrace":{
@@ -5235,7 +5235,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/445.gobmk/run/run_base_ref_gcc43-64bit.0000 && ./gobmk_base.gcc43-64bit --quiet --mode gtp < score2.tst\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/445.gobmk/run/run_base_ref_gcc43-64bit.0000/gobmk_base.gcc43-64bit --quiet --mode gtp < score2.tst",
             "client_bincmd":null
           },
           "memtrace":{
@@ -5358,7 +5358,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/445.gobmk/run/run_base_ref_gcc43-64bit.0000 && ./gobmk_base.gcc43-64bit --quiet --mode gtp < trevorc.tst\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/445.gobmk/run/run_base_ref_gcc43-64bit.0000/gobmk_base.gcc43-64bit --quiet --mode gtp < trevorc.tst",
             "client_bincmd":null
           },
           "memtrace":{
@@ -5425,7 +5425,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/445.gobmk/run/run_base_ref_gcc43-64bit.0000 && ./gobmk_base.gcc43-64bit --quiet --mode gtp < trevord.tst\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/445.gobmk/run/run_base_ref_gcc43-64bit.0000/gobmk_base.gcc43-64bit --quiet --mode gtp < trevord.tst",
             "client_bincmd":null
           },
           "memtrace":{
@@ -5492,7 +5492,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/456.hmmer/run/run_base_ref_gcc43-64bit.0000 && ./hmmer_base.gcc43-64bit nph3.hmm swiss41\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/456.hmmer/run/run_base_ref_gcc43-64bit.0000/hmmer_base.gcc43-64bit nph3.hmm swiss41",
             "client_bincmd":null
           },
           "memtrace":{
@@ -5538,7 +5538,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/456.hmmer/run/run_base_ref_gcc43-64bit.0000 && ./hmmer_base.gcc43-64bit --fixed 0 --mean 500 --num 500000 --sd 350 --seed 0 retro.hmm\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/456.hmmer/run/run_base_ref_gcc43-64bit.0000/hmmer_base.gcc43-64bit --fixed 0 --mean 500 --num 500000 --sd 350 --seed 0 retro.hmm",
             "client_bincmd":null
           },
           "memtrace":{
@@ -5584,7 +5584,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/458.sjeng/run/run_base_ref_gcc43-64bit.0000 && ./sjeng_base.gcc43-64bit ref.txt\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/458.sjeng/run/run_base_ref_gcc43-64bit.0000/sjeng_base.gcc43-64bit ref.txt",
             "client_bincmd":null
           },
           "memtrace":{
@@ -5630,7 +5630,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/462.libquantum/run/run_base_ref_gcc43-64bit.0000 && ./libquantum_base.gcc43-64bit 1397 8\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/462.libquantum/run/run_base_ref_gcc43-64bit.0000/libquantum_base.gcc43-64bit 1397 8",
             "client_bincmd":null
           },
           "memtrace":{
@@ -5725,7 +5725,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/464.h264ref/run/run_base_ref_gcc43-64bit.0000 && ./h264ref_base.gcc43-64bit -d foreman_ref_encoder_baseline.cfg\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/464.h264ref/run/run_base_ref_gcc43-64bit.0000/h264ref_base.gcc43-64bit -d foreman_ref_encoder_baseline.cfg",
             "client_bincmd":null
           },
           "memtrace":{
@@ -5799,7 +5799,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/464.h264ref/run/run_base_ref_gcc43-64bit.0000 && ./h264ref_base.gcc43-64bit -d foreman_ref_encoder_main.cfg\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/464.h264ref/run/run_base_ref_gcc43-64bit.0000/h264ref_base.gcc43-64bit -d foreman_ref_encoder_main.cfg",
             "client_bincmd":null
           },
           "memtrace":{
@@ -5957,7 +5957,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/464.h264ref/run/run_base_ref_gcc43-64bit.0000 && ./h264ref_base.gcc43-64bit -d sss_encoder_main.cfg\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/464.h264ref/run/run_base_ref_gcc43-64bit.0000/h264ref_base.gcc43-64bit -d sss_encoder_main.cfg",
             "client_bincmd":null
           },
           "memtrace":{
@@ -6045,7 +6045,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/471.omnetpp/run/run_base_ref_gcc43-64bit.0000 && ./omnetpp_base.gcc43-64bit omnetpp.ini\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/471.omnetpp/run/run_base_ref_gcc43-64bit.0000/omnetpp_base.gcc43-64bit omnetpp.ini",
             "client_bincmd":null
           },
           "memtrace":{
@@ -6140,7 +6140,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/473.astar/run/run_base_ref_gcc43-64bit.0000 && ./astar_base.gcc43-64bit BigLakes2048.cfg\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/473.astar/run/run_base_ref_gcc43-64bit.0000/astar_base.gcc43-64bit BigLakes2048.cfg",
             "client_bincmd":null
           },
           "memtrace":{
@@ -6235,7 +6235,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/473.astar/run/run_base_ref_gcc43-64bit.0000 && ./astar_base.gcc43-64bit rivers.cfg\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/473.astar/run/run_base_ref_gcc43-64bit.0000/astar_base.gcc43-64bit rivers.cfg",
             "client_bincmd":null
           },
           "memtrace":{
@@ -6323,7 +6323,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/483.xalancbmk/run/run_base_ref_gcc43-64bit.0000 && ./Xalan_base.gcc43-64bit -v t5.xml xalanc.xsl\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/483.xalancbmk/run/run_base_ref_gcc43-64bit.0000/Xalan_base.gcc43-64bit -v t5.xml xalanc.xsl",
             "client_bincmd":null
           },
           "memtrace":{
@@ -6421,7 +6421,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/410.bwaves/run/run_base_ref_gcc43-64bit.0000 && ./bwaves_base.gcc43-64bit 2\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/410.bwaves/run/run_base_ref_gcc43-64bit.0000/bwaves_base.gcc43-64bit 2",
             "client_bincmd":null
           },
           "memtrace":{
@@ -6488,7 +6488,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/416.gamess/run/run_base_ref_gcc43-64bit.0000 && ./gamess_base.gcc43-64bit < cytosine.2.config\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/416.gamess/run/run_base_ref_gcc43-64bit.0000/gamess_base.gcc43-64bit < cytosine.2.config",
             "client_bincmd":null
           },
           "memtrace":{
@@ -6569,7 +6569,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/416.gamess/run/run_base_ref_gcc43-64bit.0000 && ./gamess_base.gcc43-64bit < h2ocu2+.gradient.config\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/416.gamess/run/run_base_ref_gcc43-64bit.0000/gamess_base.gcc43-64bit < h2ocu2+.gradient.config",
             "client_bincmd":null
           },
           "memtrace":{
@@ -6622,7 +6622,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/416.gamess/run/run_base_ref_gcc43-64bit.0000 && ./gamess_base.gcc43-64bit < triazolium.config\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/416.gamess/run/run_base_ref_gcc43-64bit.0000/gamess_base.gcc43-64bit < triazolium.config",
             "client_bincmd":null
           },
           "memtrace":{
@@ -6675,7 +6675,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/433.milc/run/run_base_ref_gcc43-64bit.0000 && ./milc_base.gcc43-64bit < su3imp.in\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/433.milc/run/run_base_ref_gcc43-64bit.0000/milc_base.gcc43-64bit < su3imp.in",
             "client_bincmd":null
           },
           "memtrace":{
@@ -6777,7 +6777,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/434.zeusmp/run/run_base_ref_gcc43-64bit.0000 && ./zeusmp_base.gcc43-64bit \"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/434.zeusmp/run/run_base_ref_gcc43-64bit.0000/zeusmp_base.gcc43-64bit",
             "client_bincmd":null
           },
           "memtrace":{
@@ -6928,7 +6928,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/435.gromacs/run/run_base_ref_gcc43-64bit.0000 && ./gromacs_base.gcc43-64bit -silent -deffnm gromacs -nice 0 2\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/435.gromacs/run/run_base_ref_gcc43-64bit.0000/gromacs_base.gcc43-64bit -silent -deffnm gromacs -nice 0 2",
             "client_bincmd":null
           },
           "memtrace":{
@@ -6988,7 +6988,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/436.cactusADM/run/run_base_ref_gcc43-64bit.0000 && ./cactusADM_base.gcc43-64bit benchADM.par\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/436.cactusADM/run/run_base_ref_gcc43-64bit.0000/cactusADM_base.gcc43-64bit benchADM.par",
             "client_bincmd":null
           },
           "memtrace":{
@@ -7027,7 +7027,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/437.leslie3d/run/run_base_ref_gcc43-64bit.0000 && ./leslie3d_base.gcc43-64bit < leslie3d.in\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/437.leslie3d/run/run_base_ref_gcc43-64bit.0000/leslie3d_base.gcc43-64bit < leslie3d.in",
             "client_bincmd":null
           },
           "memtrace":{
@@ -7122,7 +7122,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/444.namd/run/run_base_ref_gcc43-64bit.0000 && ./namd_base.gcc43-64bit --input namd.input --iterations 38 --output namd.out\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/444.namd/run/run_base_ref_gcc43-64bit.0000/namd_base.gcc43-64bit --input namd.input --iterations 38 --output namd.out",
             "client_bincmd":null
           },
           "memtrace":{
@@ -7259,7 +7259,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/447.dealII/run/run_base_ref_gcc43-64bit.0000 && ./dealII_base.gcc43-64bit 23\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/447.dealII/run/run_base_ref_gcc43-64bit.0000/dealII_base.gcc43-64bit 23",
             "client_bincmd":null
           },
           "memtrace":{
@@ -7389,7 +7389,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/450.soplex/run/run_base_ref_gcc43-64bit.0000 && ./soplex_base.gcc43-64bit -s1 -e -m45000 pds-50.mps\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/450.soplex/run/run_base_ref_gcc43-64bit.0000/soplex_base.gcc43-64bit -s1 -e -m45000 pds-50.mps",
             "client_bincmd":null
           },
           "memtrace":{
@@ -7519,7 +7519,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/450.soplex/run/run_base_ref_gcc43-64bit.0000 && ./soplex_base.gcc43-64bit -m3500 ref.mps\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/450.soplex/run/run_base_ref_gcc43-64bit.0000/soplex_base.gcc43-64bit -m3500 ref.mps",
             "client_bincmd":null
           },
           "memtrace":{
@@ -7586,7 +7586,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/453.povray/run/run_base_ref_gcc43-64bit.0000 && ./povray_base.gcc43-64bit SPEC-benchmark-ref.ini\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/453.povray/run/run_base_ref_gcc43-64bit.0000/povray_base.gcc43-64bit SPEC-benchmark-ref.ini",
             "client_bincmd":null
           },
           "memtrace":{
@@ -7632,7 +7632,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/454.calculix/run/run_base_ref_gcc43-64bit.0000 && ./calculix_base.gcc43-64bit -i hyperviscoplastic\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/454.calculix/run/run_base_ref_gcc43-64bit.0000/calculix_base.gcc43-64bit -i hyperviscoplastic",
             "client_bincmd":null
           },
           "memtrace":{
@@ -7720,7 +7720,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/459.GemsFDTD/run/run_base_ref_gcc43-64bit.0000 && ./GemsFDTD_base.gcc43-64bit \"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/459.GemsFDTD/run/run_base_ref_gcc43-64bit.0000/GemsFDTD_base.gcc43-64bit",
             "client_bincmd":null
           },
           "memtrace":{
@@ -7857,7 +7857,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/465.tonto/run/run_base_ref_gcc43-64bit.0000 && ./tonto_base.gcc43-64bit \"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/465.tonto/run/run_base_ref_gcc43-64bit.0000/tonto_base.gcc43-64bit",
             "client_bincmd":null
           },
           "memtrace":{
@@ -8015,7 +8015,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/470.lbm/run/run_base_ref_gcc43-64bit.0000 && ./lbm_base.gcc43-64bit 3000 reference.dat 0 0 100_100_130_ldc.of\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/470.lbm/run/run_base_ref_gcc43-64bit.0000/lbm_base.gcc43-64bit 3000 reference.dat 0 0 100_100_130_ldc.of",
             "client_bincmd":null
           },
           "memtrace":{
@@ -8054,7 +8054,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/481.wrf/run/run_base_ref_gcc43-64bit.0000 && ./wrf_base.gcc43-64bit \"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/481.wrf/run/run_base_ref_gcc43-64bit.0000/wrf_base.gcc43-64bit",
             "client_bincmd":null
           },
           "memtrace":{
@@ -8212,7 +8212,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/482.sphinx3/run/run_base_ref_gcc43-64bit.0000 && ./sphinx_livepretend_base.gcc43-64bit ctlfile . args.an4\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/482.sphinx3/run/run_base_ref_gcc43-64bit.0000/sphinx_livepretend_base.gcc43-64bit ctlfile . args.an4",
             "client_bincmd":null
           },
           "memtrace":{
