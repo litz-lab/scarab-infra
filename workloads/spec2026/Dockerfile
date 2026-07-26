@@ -36,27 +36,7 @@ RUN add-apt-repository -y ppa:ubuntu-toolchain-r/test && \
 
 WORKDIR $tmpdir
 
-# The SPEC CPU2026 installer tarball is not checked in.
-# If the build errors with "file not found in build context" for spec2026.tar.gz,
-# place your licensed tarball at workloads/spec2026/spec2026.tar.gz or pass
-# --build-arg SPEC2026_TARBALL=<relative path inside build context>.
-# If you're not Litz-lab member, please match the location described in workload_user_entrypoint.sh with your spec2026 directory. 
-ARG SPEC2026_TARBALL=workloads/spec2026/spec2026.tar.gz
-
-# ADD should be used here (not COPY + RUN tar -xzf + rm) to avoid a duplicate tarball layer
-RUN echo "extracting spec2026.tar.gz to $tmpdir/application"
-ADD ${SPEC2026_TARBALL} $tmpdir/application/
-# Compilation should be done during ./sci --build-image
-RUN echo "building benchmarks"
-# Build all rate benchmarks in PARALLEL.
-# runcpu takes no cross-invocation lock, so drive one benchmark per xargs worker instead of building them serially.
-# Start the heavy, slow-building benchmarks FIRST so they overlap the many quick builds instead of extending the tail.
-ARG BUILD_WORKERS=8
-RUN /bin/bash -c "cd $tmpdir/application/cpu2026 && source shrc && \
-    { echo 766.femflow_r; echo 723.llvm_r; echo 735.gem5_r; echo 753.ns3_r;  ls -d benchspec/CPU/7[0-9]*_r | xargs -n1 basename | grep -vxF -e 723.llvm_r -e 735.gem5_r -e 753.ns3_r -e 766.femflow_r; } | \
-    xargs -P ${BUILD_WORKERS} -I{} runcpu --config=memtrace.cfg --action=build {}"
-RUN /bin/bash -c "cd $tmpdir/application/cpu2026 && source shrc && runcpu --config=memtrace.cfg --action=runsetup intrate fprate"
-RUN echo "done"
+RUN mkdir -p $tmpdir/application/
 
 # Start your application
 CMD ["/bin/bash"]
