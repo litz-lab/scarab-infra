@@ -1568,12 +1568,12 @@ def ghcr_credentials_present() -> Tuple[bool, str]:
 
 
 def prebuilt_image_present() -> Tuple[bool, str]:
-    tag_path = REPO_ROOT / "last_built_tag.txt"
-    if not tag_path.is_file():
-        return False, "No last_built_tag.txt found; cannot verify prebuilt image."
-    tag = tag_path.read_text(encoding="utf-8").strip()
-    if not tag:
-        return False, "last_built_tag.txt empty; cannot verify prebuilt image."
+    # The tag is a hash of the image's own content, so we can ask for exactly
+    # the image this checkout needs rather than trusting a recorded tag.
+    try:
+        tag = load_infra_utilities().image_content_hash("allbench_traces", str(REPO_ROOT))
+    except (StepError, subprocess.CalledProcessError) as exc:
+        return False, f"Could not compute the image content hash: {exc}"
     repos = ["allbench_traces", "ghcr.io/litz-lab/scarab-infra/allbench_traces"]
     patterns = {f"{repo}:{tag}" for repo in repos}
     try:
@@ -1633,14 +1633,6 @@ def run_build_scarab(descriptor_name: str) -> int:
     if build_mode not in {"opt", "opt-avx", "dbg"}:
         raise StepError("Build mode must be 'opt', 'opt-avx', or 'dbg'.")
 
-    try:
-        githash = run_command(["git", "rev-parse", "--short", "HEAD"], capture=True, check=True, input_data=None)
-    except StepError as exc:
-        raise StepError("Failed to obtain scarab-infra git hash.") from exc
-    if githash is None:
-        raise StepError("Git hash query returned no output.")
-    githash = githash.strip()
-
     user = getpass.getuser()
 
     print_heading("Build Scarab")
@@ -1672,7 +1664,6 @@ def run_build_scarab(descriptor_name: str) -> int:
             descriptor.get("experiment", "build"),
             architecture,
             docker_prefix_list,
-            githash,
             str(REPO_ROOT),
             scarab_binaries,
             # `--build-scarab` should force the normal rebuild/validation path.
@@ -1704,7 +1695,7 @@ def run_lint_scarab(descriptor_name: str) -> int:
       - `build/<mode>/compile_commands.json` exists under scarab_path/src
         (enabled by `set(CMAKE_EXPORT_COMPILE_COMMANDS ON)` in
         src/CMakeLists.txt). Produced by --build-scarab.
-      - The docker image tagged `<prefix>:<scarab-infra-githash>` is already
+      - The docker image tagged `<prefix>:<image-content-hash>` is already
         available locally (also guaranteed by --build-scarab).
 
     If the compile DB is missing the container-side script fails fast with
@@ -1737,29 +1728,18 @@ def run_lint_scarab(descriptor_name: str) -> int:
 
     build_mode: str = descriptor.get("scarab_build") or "opt"
 
-    try:
-        githash = run_command(
-            ["git", "rev-parse", "--short", "HEAD"],
-            capture=True, check=True, input_data=None,
-        )
-    except StepError as exc:
-        raise StepError("Failed to obtain scarab-infra git hash.") from exc
-    if githash is None:
-        raise StepError("Git hash query returned no output.")
-    githash = githash.strip()
-
     user = getpass.getuser()
 
     print_heading("Lint Scarab")
     info(f"Descriptor: {descriptor_path.name}")
-    info(f"Image: {docker_prefix}:{githash}")
+    info(f"Image: {infra_utils.image_tag_for(docker_prefix, str(REPO_ROOT))}")
     info(f"Build mode: {build_mode}")
     info(f"Scarab path: {scarab_path}")
 
     try:
         infra_utils.lint_scarab_binary(
             user, scarab_path, build_mode, docker_home, docker_prefix,
-            githash, str(REPO_ROOT), dbg_lvl=2,
+            str(REPO_ROOT), dbg_lvl=2,
         )
     except RuntimeError as exc:
         # lint_scarab_binary raises RuntimeError when findings exist or the
@@ -1778,30 +1758,6 @@ def run_lint_scarab(descriptor_name: str) -> int:
     return 0
 
 
-def image_context_pathspec(workload_group: str) -> List[str]:
-    """Git pathspecs (relative to REPO_ROOT) for content that is baked into the image.
-
-    The scarab-infra workflow scripts under common/scripts and the per-workload
-    workload_*_entrypoint.sh are bind-mounted from the host checkout at run time
-    instead of being COPY'd in (see common/Dockerfile.common). Editing them
-    therefore cannot change image content, so they must not count as a reason to
-    rebuild or block a build -- which is the entire point of mounting them.
-    Everything else under common/ (the Dockerfiles themselves) and under the
-    workload directory still lands in the image and is included here, as does
-    fingerprint_src/, which Dockerfile.common COPYs in and compiles into
-    libfpg.so -- it was previously missing from this check, so edits to the
-    fingerprint client silently reused a stale libfpg.so.
-    """
-    return [
-        "common",
-        "fingerprint_src",
-        f"workloads/{workload_group}",
-        ":(exclude)common/scripts",
-        f":(exclude)workloads/{workload_group}/workload_root_entrypoint.sh",
-        f":(exclude)workloads/{workload_group}/workload_user_entrypoint.sh",
-    ]
-
-
 def run_build_image(workload_group: str) -> int:
     if not workload_group:
         raise StepError("Provide a workload group name (see ./sci --list).")
@@ -1814,37 +1770,21 @@ def run_build_image(workload_group: str) -> int:
     if not shutil.which("docker"):
         raise StepError("Docker CLI not available; install Docker before building images.")
 
-    # Ensure no local edits to the parts of the docker context that are baked
-    # into the image. Uncommitted edits to the bind-mounted scripts are fine and
-    # deliberately do not block a build.
-    status_output = run_command(
-        ["git", "status", "--porcelain", "--"] + image_context_pathspec(workload_group),
+    # The tag is a hash of the content that actually goes into the image, so the
+    # question "do we already have this image?" is answered by a plain tag
+    # lookup. There is no longer a last_built_tag.txt base image to diff
+    # against and retag, and no dirty-worktree guard: an uncommitted Dockerfile
+    # edit simply hashes to its own tag, so it can never be mistaken for the
+    # image built from committed sources.
+    infra_utils = load_infra_utilities()
+    current_ref = infra_utils.image_tag_for(workload_group, str(REPO_ROOT))
+
+    output = run_command(
+        ["docker", "images", "--format", "{{.Repository}}:{{.Tag}}"],
         capture=True,
-        cwd=REPO_ROOT,
     )
-    dirty = [line for line in (status_output or "").splitlines() if line and not line.startswith("??")]
-    if dirty:
-        details = "\n".join(dirty[:10])
-        raise StepError(
-            f"There are uncommitted changes in ./common or ./workloads/{workload_group}.\n"
-            "Commit, stash, or revert them before building.\n"
-            f"Sample status entries:\n{details}"
-        )
+    images = {line.strip() for line in (output or "").splitlines() if line.strip()}
 
-    githash = run_command(["git", "rev-parse", "--short", "HEAD"], capture=True, cwd=REPO_ROOT)
-    if not githash:
-        raise StepError("Unable to determine git hash for tagging the image.")
-    githash = githash.strip()
-    current_ref = f"{workload_group}:{githash}"
-
-    def current_images() -> set[str]:
-        output = run_command(
-            ["docker", "images", "--format", "{{.Repository}}:{{.Tag}}"],
-            capture=True,
-        )
-        return {line.strip() for line in (output or "").splitlines() if line.strip()}
-
-    images = current_images()
     print_heading("Build Docker Image")
     info(f"Workload group: {workload_group}")
     info(f"Target tag: {current_ref}")
@@ -1853,52 +1793,35 @@ def run_build_image(workload_group: str) -> int:
         info(f"Image {current_ref} already available; nothing to do.")
         return 0
 
-    tag_path = REPO_ROOT / "last_built_tag.txt"
-    last_hash = tag_path.read_text(encoding="utf-8").strip() if tag_path.is_file() else ""
-    base_ref = f"{workload_group}:{last_hash}" if last_hash else None
-
-    if base_ref and base_ref not in images:
-        remote_ref = f"ghcr.io/litz-lab/scarab-infra/{workload_group}:{last_hash}"
-        try:
-            info(f"Pulling prebuilt image {remote_ref}")
-            run_command(["docker", "pull", remote_ref])
-            run_command(["docker", "tag", remote_ref, base_ref])
-            run_command(["docker", "rmi", remote_ref], check=False)
-            images = current_images()
-        except StepError:
-            info(f"Unable to pull {remote_ref}; will build from Dockerfile instead.")
-            base_ref = None
+    # Someone else -- CI, or another node -- may have already built this exact
+    # content. Identical content means an identical tag, so a plain pull hits.
+    remote_ref = f"ghcr.io/litz-lab/scarab-infra/{current_ref}"
+    try:
+        info(f"Pulling prebuilt image {remote_ref}")
+        run_command(["docker", "pull", remote_ref])
+        run_command(["docker", "tag", remote_ref, current_ref])
+        run_command(["docker", "rmi", remote_ref], check=False)
+        info(f"Docker image ready: {current_ref}")
+        return 0
+    except StepError:
+        info(f"No prebuilt image published for this content; building from Dockerfile.")
 
     dockerfile_path = target_dir / "Dockerfile"
     if not dockerfile_path.is_file():
         raise StepError(f"Dockerfile not found at {dockerfile_path}")
 
-    rebuild_required = True
-    if base_ref and base_ref in images:
-        diff_output = run_command(
-            ["git", "diff", last_hash, "--"] + image_context_pathspec(workload_group),
-            capture=True,
-            cwd=REPO_ROOT,
-        )
-        rebuild_required = bool(diff_output and diff_output.strip())
-
-    if rebuild_required:
-        info("Changes detected or no base image available; building from source.")
-        run_command(
-            [
-                "docker",
-                "build",
-                str(REPO_ROOT),
-                "-f",
-                str(dockerfile_path),
-                "--no-cache",
-                "-t",
-                current_ref,
-            ],
-        )
-    else:
-        info(f"No Dockerfile changes since {last_hash}; retagging {base_ref} -> {current_ref}")
-        run_command(["docker", "tag", base_ref, current_ref])
+    run_command(
+        [
+            "docker",
+            "build",
+            str(REPO_ROOT),
+            "-f",
+            str(dockerfile_path),
+            "--no-cache",
+            "-t",
+            current_ref,
+        ],
+    )
 
     info(f"Docker image ready: {current_ref}")
     return 0

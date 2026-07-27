@@ -21,6 +21,7 @@ from .utilities import (
     infra_mount_arg,
     ROOT_ENTRYPOINT,
 )
+from .image_identity import image_tag_for
 
 client = docker.from_env()
 
@@ -58,15 +59,6 @@ def open_interactive_shell(user, docker_home, image_name, infra_dir, dbg_lvl = 1
         local_gid = os.getgid()
         container_home = "/tmp_home" if user == "root" else f"/home/{user}"
 
-        # Get GitHash
-        try:
-            githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).decode("utf-8").strip()
-            info(f"Git hash: {githash}", dbg_lvl)
-        except FileNotFoundError:
-            err("Error: 'git' command not found. Make sure Git is installed and in your PATH.")
-        except subprocess.CalledProcessError:
-            err("Error: Not in a Git repository or unable to retrieve Git hash.")
-
         docker_container_name = f"{image_name}_perf_{user}"
         try:
             shell_cmd = f"export HOME={container_home}; source /usr/local/bin/user_entrypoint.sh >/dev/null 2>&1 || true; exec /bin/bash"
@@ -86,7 +78,7 @@ def open_interactive_shell(user, docker_home, image_name, infra_dir, dbg_lvl = 1
                         --name {docker_container_name} \
                         --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
                         --mount {infra_mount_arg(infra_dir)} \
-                        {image_name}:{githash} \
+                        {image_tag_for(image_name, infra_dir)} \
                         /bin/bash"
                 print(command)
                 os.system(command)
@@ -500,11 +492,6 @@ def collect_perf_data(user, root_dir, image_name, infra_dir, perf_configs, dbg_l
     local_gid = os.getgid()
     container_home = "/tmp_home" if user == "root" else f"/home/{user}"
 
-    try:
-        githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).decode("utf-8").strip()
-    except (FileNotFoundError, subprocess.CalledProcessError):
-        raise RuntimeError("Cannot determine git hash for docker image tag")
-
     docker_container_name = f"{image_name}_perf_collect_{user}"
     created_container = False
 
@@ -527,7 +514,7 @@ def collect_perf_data(user, root_dir, image_name, infra_dir, perf_configs, dbg_l
                 f"--name {docker_container_name} "
                 f"--mount type=bind,source={root_dir},target=/home/{user},readonly=false "
                 f"--mount {infra_mount_arg(infra_dir)} "
-                f"{image_name}:{githash} "
+                f"{image_tag_for(image_name, infra_dir)} "
                 f"/bin/bash"
             )
             info(command, dbg_lvl)

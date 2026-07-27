@@ -27,6 +27,8 @@ if project_root not in sys.path:
 import workloads.extract_top_simpoints as extract_top_simpoints
 importlib.reload(extract_top_simpoints)
 
+from scripts.image_identity import image_content_hash, image_context_pathspec, image_tag_for
+
 DEFAULT_CONDA_ENV = "scarabinfra"
 _docker_client = None
 BASE_MEMORY_BY_MODE_KEY = "base_memory_mb_by_mode"
@@ -384,7 +386,7 @@ def prepare_docker_image(docker_prefix, image_tag, dbg_lvl=1):
                 exit(1)
 
 # Locally builds scarab using docker. No caching or skipping logic
-def build_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_prefix, githash, infra_dir, dbg_lvl=1, stream_build=False):
+def build_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_prefix, infra_dir, dbg_lvl=1, stream_build=False):
     local_uid = os.getuid()
     local_gid = os.getgid()
 
@@ -403,12 +405,12 @@ def build_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_pre
                  "--mount", f"type=bind,source={scarab_path},target=/scarab,readonly=false",
                  "--mount", infra_mount_arg(infra_dir),
                  "-e", f"APP_GROUPNAME={docker_prefix}",
-                 f"{docker_prefix}:{githash}", "/bin/bash"], check=True, capture_output=True, text=True)
+                 image_tag_for(docker_prefix, infra_dir), "/bin/bash"], check=True, capture_output=True, text=True)
         subprocess.run(
                 ["docker", "exec", "--privileged", f"{docker_container_name}", "/bin/bash", "-c", ROOT_ENTRYPOINT],
                 check=True, capture_output=True, text=True)
 
-        info(f"Building scarab with image {githash}...", dbg_lvl)
+        info(f"Building scarab with image {image_tag_for(docker_prefix, infra_dir)}...", dbg_lvl)
         build_cmd = [
                 "docker",
                     "exec",
@@ -444,7 +446,7 @@ def build_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_pre
         raise exception
 
 
-def lint_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_prefix, githash, infra_dir, dbg_lvl=1):
+def lint_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_prefix, infra_dir, dbg_lvl=1):
     """Run clang-tidy inside the scarab build container against the compile DB
     produced by the latest scarab build.
 
@@ -580,7 +582,7 @@ def lint_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_pref
     # at --build-scarab, not a cryptic `docker run` failure. We deliberately
     # do NOT rebuild the image here: --lint-scarab is supposed to be a fast
     # linter, not a stealth image builder.
-    image_ref = f"{docker_prefix}:{githash}"
+    image_ref = image_tag_for(docker_prefix, infra_dir)
     if not image_exist(image_ref):
         raise RuntimeError(
             f"Docker image '{image_ref}' not found locally. "
@@ -929,7 +931,6 @@ def _build_missing_scarab_version(
     scarab_build: Optional[str],
     docker_home: str,
     docker_prefix: str,
-    githash: str,
     infra_dir: str,
     dbg_lvl: int,
 ) -> None:
@@ -946,7 +947,6 @@ def _build_missing_scarab_version(
                 build_mode,
                 docker_home,
                 docker_prefix,
-                githash,
                 infra_dir,
                 dbg_lvl=dbg_lvl,
                 stream_build=True,
@@ -976,7 +976,7 @@ def _build_missing_scarab_version(
         raise
 
 # Wrapper function that handles rebuilding scarab if needed, and caching
-def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, githash, scarab_githash, scarab_build, stream_build=False, dbg_lvl=1):
+def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, scarab_githash, scarab_build, stream_build=False, dbg_lvl=1):
     build_mode = scarab_build if scarab_build else "opt"
     current_cache_name = _cache_bin_name("scarab_current", build_mode)
     current_scarab_bin = f"{infra_dir}/scarab_builds/{current_cache_name}"
@@ -1061,7 +1061,6 @@ def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, git
             build_mode,
             docker_home,
             docker_prefix,
-            githash,
             infra_dir,
             dbg_lvl=dbg_lvl,
             stream_build=stream_build,
@@ -1196,12 +1195,12 @@ def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, git
 #           architecture - Architecture name
 #
 # Outputs:  scarab githash
-def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_name, architecture, docker_prefix_list, githash, infra_dir, scarab_binaries, interactive_shell=False, dbg_lvl=1, stream_build=False, rebuild_hint=None):
+def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_name, architecture, docker_prefix_list, infra_dir, scarab_binaries, interactive_shell=False, dbg_lvl=1, stream_build=False, rebuild_hint=None):
     # prepare docker images
     image_tag_list = []
     try:
         for docker_prefix in docker_prefix_list:
-            image_tag = f"{docker_prefix}:{githash}"
+            image_tag = image_tag_for(docker_prefix, infra_dir)
             image_tag_list.append(image_tag)
             prepare_docker_image(docker_prefix, image_tag, dbg_lvl)
     except subprocess.CalledProcessError as e:
@@ -1269,7 +1268,6 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
                 scarab_build,
                 docker_home,
                 docker_prefix,
-                githash,
                 infra_dir,
                 dbg_lvl,
             )
@@ -1315,7 +1313,6 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
                     user,
                     docker_home,
                     docker_prefix,
-                    githash,
                     scarab_githash,
                     scarab_build,
                     stream_build=stream_build,
@@ -1565,7 +1562,7 @@ def generate_single_scarab_run_command(user, workload_home, experiment, config_k
 
 def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_home, experiment_name,
                                  docker_prefix, docker_container_name, traces_dir,
-                                 docker_home, githash, config_key, config, scarab_mode, scarab_binary,
+                                 docker_home, config_key, config, scarab_mode, scarab_binary,
                                  seg_size, architecture, cluster_id, warmup, trace_warmup, trace_type,
                                  trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir, application_dir, slurm=False):
     try:
@@ -1584,7 +1581,7 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
             f.write("}\n")
             f.write("trap cleanup_container EXIT INT TERM HUP\n")
             f.write(f"cd {infra_dir}\n")
-            f.write(f"python -m scripts.prepare_docker_image --docker-prefix {docker_prefix} --githash {githash} \n")
+            f.write(f"python -m scripts.prepare_docker_image --docker-prefix {docker_prefix}\n")
             f.write(f"cd -\n")
             if slurm:
                 f.write("SLURM_CGROUP=$(cat /proc/self/cgroup | cut -d: -f3 | head -n 1)\n")
@@ -1605,7 +1602,7 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
                 --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
                 --mount type=bind,source={application_dir},target=/tmp_home/application,readonly=false \
                 --mount {infra_mount_arg(infra_dir)} \
-                {docker_prefix}:{githash} \
+                {image_tag_for(docker_prefix, infra_dir)} \
                 /bin/bash\n")
             else:
                 f.write(f"docker run --privileged\
@@ -1622,7 +1619,7 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
                 --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
                 --mount type=bind,source={application_dir},target=/tmp_home/application,readonly=false \
                 --mount {infra_mount_arg(infra_dir)} \
-                {docker_prefix}:{githash} \
+                {image_tag_for(docker_prefix, infra_dir)} \
                 /bin/bash\n")
             if scarab_mode == "exec":
                 f.write("docker exec --privileged $CONTAINER_NAME /bin/bash -c \"echo 0 | sudo tee /proc/sys/kernel/randomize_va_space\"\n")
@@ -1664,7 +1661,7 @@ def generate_single_trace_run_command(user, workload, image_name, trace_name, bi
         command = f"{command} --cluster_id {cluster_id}"
     return command
 
-def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_container_name, githash,
+def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_container_name,
                                        workload, image_name, trace_name, traces_dir, docker_home,
                                        env_vars, binary_cmd, client_bincmd, simpoint_mode, drio_args,
                                        clustering_k, filename, infra_dir, application_dir, slurm = False,
@@ -1704,7 +1701,7 @@ def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_contai
                     --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
                     --mount type=bind,source={application_dir},target=/tmp_home/application,readonly=false \
                     --mount {infra_mount_arg(infra_dir)} \
-                    {image_name}:{githash} \
+                    {image_tag_for(image_name, infra_dir)} \
                     /bin/bash\n"
             f.write(f"{command}")
             # No `docker cp` of the infra scripts: they come from the read-only
@@ -2553,7 +2550,7 @@ def get_weight_by_cluster_id(exp_cluster_id, simpoints):
         if simpoint["cluster_id"] == exp_cluster_id:
             return simpoint["weight"]
 
-def prepare_trace(user, scarab_path, scarab_build, docker_home, job_name, infra_dir, docker_prefix_list, githash, interactive_shell=False, available_slurm_nodes=[], dbg_lvl=1, rebuild_hint=None):
+def prepare_trace(user, scarab_path, scarab_build, docker_home, job_name, infra_dir, docker_prefix_list, interactive_shell=False, available_slurm_nodes=[], dbg_lvl=1, rebuild_hint=None):
     try:
         scarab_githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=scarab_path).decode("utf-8").strip()
     except Exception as e:

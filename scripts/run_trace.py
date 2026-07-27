@@ -21,6 +21,7 @@ from .utilities import (
     infra_mount_arg,
     ROOT_ENTRYPOINT,
 )
+from .image_identity import image_tag_for
 from . import slurm_runner, local_runner
 
 client = docker.from_env()
@@ -126,15 +127,6 @@ def open_interactive_shell(user, descriptor_name, descriptor_data, infra_dir, db
         print(local_uid)
         print(local_gid)
 
-        # Get GitHash
-        try:
-            githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).decode("utf-8").strip()
-            info(f"Git hash: {githash}", dbg_lvl)
-        except FileNotFoundError:
-            err("Error: 'git' command not found. Make sure Git is installed and in your PATH.")
-        except subprocess.CalledProcessError:
-            err("Error: Not in a Git repository or unable to retrieve Git hash.")
-
         docker_home = descriptor_data["root_dir"]
         application = descriptor_data["application_dir"]
         trace_scenario = descriptor_data["trace_configurations"][0]
@@ -157,7 +149,6 @@ def open_interactive_shell(user, descriptor_name, descriptor_data, infra_dir, db
             trace_name,
             infra_dir,
             [docker_prefix],
-            githash,
             True,
             [],
             dbg_lvl=dbg_lvl,
@@ -195,7 +186,7 @@ def open_interactive_shell(user, descriptor_name, descriptor_data, infra_dir, db
                         --mount type=bind,source={scarab_path},target=/scarab,readonly=false \
                         --mount type=bind,source={application},target=/tmp_home/application,readonly=false \
                         --mount {infra_mount_arg(infra_dir)} \
-                        {docker_prefix}:{githash} \
+                        {image_tag_for(docker_prefix, infra_dir)} \
                         /bin/bash"
                 print(command)
                 os.system(command)

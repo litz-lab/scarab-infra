@@ -133,10 +133,13 @@ without any `COPY` in the Dockerfile.
 ```
 
 This reads `workloads/<suite>/Dockerfile`, applies
-`common/Dockerfile.common`, and tags the image with the current git hash
-(`last_built_tag.txt` records the tag). Subsequent `--perf` / `--trace`
-runs against descriptors that reference `"image_name": "<suite>"` will
-pick up this image.
+`common/Dockerfile.common`, and tags the image with a hash of the content that
+goes into it (see `scripts/image_identity.py`). Because the tag is derived from
+content rather than from the git hash, the image is rebuilt or re-fetched only
+when it genuinely differs — editing a bind-mounted script leaves the tag
+alone. If another machine or CI already published this exact image, the build
+step pulls it instead. Subsequent `--perf` / `--trace` runs against descriptors
+that reference `"image_name": "<suite>"` will pick up this image.
 
 ## Step 4 — Characterise with `--perf`
 

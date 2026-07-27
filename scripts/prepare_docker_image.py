@@ -1,15 +1,17 @@
 import argparse
 from .utilities import prepare_docker_image
+from .image_identity import image_tag_for
 
 def main():
     print("BEGIN prepare_docker_image")
     parser = argparse.ArgumentParser()
     parser.add_argument("--docker-prefix", required=True)
-    parser.add_argument("--githash", required=True)
     args = parser.parse_args()
     docker_prefix = args.docker_prefix
-    githash = args.githash
-    image_tag = f"{docker_prefix}:{githash}"
+    # The tag is derived from the content of this checkout rather than passed
+    # in: the generated sbatch script cd's into the infra dir before calling us,
+    # so the node computes exactly the hash the submitting host did.
+    image_tag = image_tag_for(docker_prefix)
     # Run the image preparation on the local node only
     try:
         prepare_docker_image(
