@@ -27,6 +27,8 @@ from .utilities import (
     is_container_running,
     count_interactive_shells,
     run_on_node,
+    infra_mount_arg,
+    ROOT_ENTRYPOINT,
 )
 from . import slurm_runner, local_runner
 
@@ -216,29 +218,11 @@ def open_interactive_shell(user, descriptor_name, descriptor_data, workloads_dat
                                 "--mount", f"type=bind,source={docker_home},target=/home/{user},readonly=false",
                                 "--mount", f"type=bind,source={scarab_path},target=/scarab,readonly=false",
                                 "--mount", f"type=bind,source={application_dir},target=/tmp_home/application,readonly=false",
+                                "--mount", infra_mount_arg(infra_dir),
                                 f"{docker_prefix}:{githash}", "/bin/bash"], check=True, capture_output=True, text=True)
-                subprocess.run(["docker", "cp", f"{infra_dir}/scripts/utilities.sh", f"{docker_container_name}:/usr/local/bin"],
-                               check=True, capture_output=True, text=True)
-                subprocess.run(["docker", "cp", f"{infra_dir}/common/scripts/root_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
-                               check=True, capture_output=True, text=True)
-                subprocess.run(["docker", "cp", f"{infra_dir}/common/scripts/user_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
-                               check=True, capture_output=True, text=True)
-                if os.path.exists(f"{infra_dir}/workloads/{docker_prefix}/workload_root_entrypoint.sh"):
-                    subprocess.run(["docker", "cp", f"{infra_dir}/workloads/{docker_prefix}/workload_root_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
-                                   check=True, capture_output=True, text=True)
-                if os.path.exists(f"{infra_dir}/workloads/{docker_prefix}/workload_user_entrypoint.sh"):
-                    subprocess.run(["docker", "cp", f"{infra_dir}/workloads/{docker_prefix}/workload_user_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
-                                   check=True, capture_output=True, text=True)
-                if mode == "memtrace":
-                    subprocess.run(["docker", "cp", f"{infra_dir}/common/scripts/run_memtrace_single_simpoint.sh", f"{docker_container_name}:/usr/local_bin"],
-                                   check=True, capture_output=True, text=True)
-                elif mode == "pt":
-                    subprocess.run(["docker", "cp", f"{infra_dir}/common/scripts/run_pt_single_simpoint.sh", f"{docker_container_name}:/usr/local/bin"],
-                                   check=True, capture_output=True, text=True)
-                elif mode == "exec":
-                    subprocess.run(["docker", "cp", f"{infra_dir}/common/scripts/run_exec_single_simpoint.sh", f"{docker_container_name}:/usr/local/bin"],
-                                   check=True, capture_output=True, text=True)
-                subprocess.run(["docker", "exec", "--privileged", f"{docker_container_name}", "/bin/bash", "-c", "/usr/local/bin/root_entrypoint.sh"],
+                # The infra scripts come from the read-only bind mount above;
+                # root_entrypoint.sh publishes them into /usr/local/bin.
+                subprocess.run(["docker", "exec", "--privileged", f"{docker_container_name}", "/bin/bash", "-c", ROOT_ENTRYPOINT],
                                check=True, capture_output=True, text=True)
                 workdir = experiment_workdir if experiment_workdir else default_workdir
                 subprocess.run(["docker", "exec", "--privileged", "-it", f"--user={user}", f"--workdir={workdir}", docker_container_name, "/bin/bash"])

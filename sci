@@ -1778,6 +1778,30 @@ def run_lint_scarab(descriptor_name: str) -> int:
     return 0
 
 
+def image_context_pathspec(workload_group: str) -> List[str]:
+    """Git pathspecs (relative to REPO_ROOT) for content that is baked into the image.
+
+    The scarab-infra workflow scripts under common/scripts and the per-workload
+    workload_*_entrypoint.sh are bind-mounted from the host checkout at run time
+    instead of being COPY'd in (see common/Dockerfile.common). Editing them
+    therefore cannot change image content, so they must not count as a reason to
+    rebuild or block a build -- which is the entire point of mounting them.
+    Everything else under common/ (the Dockerfiles themselves) and under the
+    workload directory still lands in the image and is included here, as does
+    fingerprint_src/, which Dockerfile.common COPYs in and compiles into
+    libfpg.so -- it was previously missing from this check, so edits to the
+    fingerprint client silently reused a stale libfpg.so.
+    """
+    return [
+        "common",
+        "fingerprint_src",
+        f"workloads/{workload_group}",
+        ":(exclude)common/scripts",
+        f":(exclude)workloads/{workload_group}/workload_root_entrypoint.sh",
+        f":(exclude)workloads/{workload_group}/workload_user_entrypoint.sh",
+    ]
+
+
 def run_build_image(workload_group: str) -> int:
     if not workload_group:
         raise StepError("Provide a workload group name (see ./sci --list).")
@@ -1790,15 +1814,11 @@ def run_build_image(workload_group: str) -> int:
     if not shutil.which("docker"):
         raise StepError("Docker CLI not available; install Docker before building images.")
 
-    # Ensure no local edits to shared docker context dirs.
+    # Ensure no local edits to the parts of the docker context that are baked
+    # into the image. Uncommitted edits to the bind-mounted scripts are fine and
+    # deliberately do not block a build.
     status_output = run_command(
-        [
-            "git",
-            "status",
-            "--porcelain",
-            str(REPO_ROOT / "common"),
-            str(target_dir),
-        ],
+        ["git", "status", "--porcelain", "--"] + image_context_pathspec(workload_group),
         capture=True,
         cwd=REPO_ROOT,
     )
@@ -1856,14 +1876,7 @@ def run_build_image(workload_group: str) -> int:
     rebuild_required = True
     if base_ref and base_ref in images:
         diff_output = run_command(
-            [
-                "git",
-                "diff",
-                last_hash,
-                "--",
-                str(REPO_ROOT / "common"),
-                str(target_dir),
-            ],
+            ["git", "diff", last_hash, "--"] + image_context_pathspec(workload_group),
             capture=True,
             cwd=REPO_ROOT,
         )

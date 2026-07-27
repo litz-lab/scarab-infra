@@ -32,6 +32,29 @@ _docker_client = None
 BASE_MEMORY_BY_MODE_KEY = "base_memory_mb_by_mode"
 VALID_SIMULATION_MODES = ("memtrace", "pt", "exec")
 
+# The container-side scarab-infra scripts are not baked into the images. Every
+# container instead gets the host checkout bind-mounted read-only here, and
+# root_entrypoint.sh publishes the scripts into /usr/local/bin as symlinks. So a
+# script edit takes effect on the next run with no image rebuild, and every
+# Slurm job runs the scripts of the checkout that submitted it.
+#
+# This relies on infra_dir resolving to the same absolute path on every compute
+# node, which is already a hard requirement today: the generated sbatch scripts
+# embed infra_dir literally and execute on the nodes. In practice the checkout
+# lives on NFS.
+INFRA_MOUNT_TARGET = "/scarab_infra"
+
+# root_entrypoint.sh itself lives in the mount, so it has to be invoked through
+# its mounted path; it symlinks everything else (including utilities.sh and the
+# per-workload entrypoints) into /usr/local/bin, which is why the many absolute
+# /usr/local/bin/... references elsewhere keep working untouched.
+ROOT_ENTRYPOINT = f"{INFRA_MOUNT_TARGET}/common/scripts/root_entrypoint.sh"
+
+
+def infra_mount_arg(infra_dir):
+    """Return the `docker --mount` spec exposing the host scarab-infra checkout."""
+    return f"type=bind,source={infra_dir},target={INFRA_MOUNT_TARGET},readonly=true"
+
 def get_docker_client():
     global _docker_client
     if docker is None:
@@ -378,24 +401,11 @@ def build_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_pre
                  "-dit", "--name", f"{docker_container_name}",
                  "--mount", f"type=bind,source={docker_home},target=/home/{user},readonly=false",
                  "--mount", f"type=bind,source={scarab_path},target=/scarab,readonly=false",
+                 "--mount", infra_mount_arg(infra_dir),
+                 "-e", f"APP_GROUPNAME={docker_prefix}",
                  f"{docker_prefix}:{githash}", "/bin/bash"], check=True, capture_output=True, text=True)
         subprocess.run(
-                ["docker", "cp", f"{infra_dir}/common/scripts/root_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
-                check=True, capture_output=True, text=True)
-        subprocess.run(
-                ["docker", "cp", f"{infra_dir}/common/scripts/user_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
-                check=True, capture_output=True, text=True)
-        if os.path.isfile(f"{infra_dir}/workloads/{docker_prefix}/workload_root_entrypoint.sh"):
-            subprocess.run(
-                    ["docker", "cp", f"{infra_dir}/workloads/{docker_prefix}/workload_root_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
-                    check=True, capture_output=True, text=True)
-        if os.path.isfile(f"{infra_dir}/workloads/{docker_prefix}/workload_user_entrypoint.sh"):
-            subprocess.run(
-                    ["docker", "cp", f"{infra_dir}/workloads/{docker_prefix}/workload_user_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
-                    check=True, capture_output=True, text=True)
-
-        subprocess.run(
-                ["docker", "exec", "--privileged", f"{docker_container_name}", "/bin/bash", "-c", "\'/usr/local/bin/root_entrypoint.sh\'"],
+                ["docker", "exec", "--privileged", f"{docker_container_name}", "/bin/bash", "-c", ROOT_ENTRYPOINT],
                 check=True, capture_output=True, text=True)
 
         info(f"Building scarab with image {githash}...", dbg_lvl)
@@ -589,19 +599,13 @@ def lint_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_pref
              "-dit", "--name", f"{docker_container_name}",
              "--mount", f"type=bind,source={docker_home},target=/home/{user},readonly=false",
              "--mount", f"type=bind,source={scarab_path},target=/scarab,readonly=false",
+             "--mount", infra_mount_arg(infra_dir),
+             "-e", f"APP_GROUPNAME={docker_prefix}",
              image_ref, "/bin/bash"],
             check=True, capture_output=True, text=True)
         subprocess.run(
-            ["docker", "cp", f"{infra_dir}/common/scripts/root_entrypoint.sh",
-             f"{docker_container_name}:/usr/local/bin"],
-            check=True, capture_output=True, text=True)
-        subprocess.run(
-            ["docker", "cp", f"{infra_dir}/common/scripts/user_entrypoint.sh",
-             f"{docker_container_name}:/usr/local/bin"],
-            check=True, capture_output=True, text=True)
-        subprocess.run(
             ["docker", "exec", "--privileged", f"{docker_container_name}",
-             "/bin/bash", "-c", "/usr/local/bin/root_entrypoint.sh"],
+             "/bin/bash", "-c", ROOT_ENTRYPOINT],
             check=True, capture_output=True, text=True)
 
         # Stream output so the step log reflects progress in real time.
@@ -1553,31 +1557,11 @@ def generate_single_scarab_run_command(user, workload_home, experiment, config_k
 
     return command
 
-def write_docker_command_to_file_run_by_root(user, local_uid, local_gid, workload, workload_home, experiment_name,
-                                             docker_prefix, docker_container_name, traces_dir,
-                                             docker_home, githash, config_key, config, scarab_mode, seg_size, scarab_githash,
-                                             architecture, cluster_id, warmup, trace_warmup, trace_type, trace_file,
-                                             env_vars, bincmd, client_bincmd, filename):
-    try:
-        scarab_cmd = generate_single_scarab_run_command(user, workload_home, experiment_name, config_key, config,
-                                                        scarab_mode, seg_size, architecture, scarab_githash, cluster_id,
-                                                        warmup, trace_warmup, trace_type, trace_file, env_vars, bincmd, client_bincmd)
-        with open(filename, "w") as f:
-            f.write("#!/bin/bash\n")
-            f.write(f"echo \"Running {config_key} {workload_home} {cluster_id}\"\n")
-            f.write("echo \"Running on $(uname -n)\"\n")
-            f.write(f"docker run --rm \
-            -e user_id={local_uid} \
-            -e group_id={local_gid} \
-            -e username={user} \
-            -e HOME=/home/{user} \
-            --name {docker_container_name} \
-            --mount type=bind,source={traces_dir},target=/simpoint_traces,readonly=true \
-            --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
-            {docker_prefix}:{githash} \
-            /bin/bash {scarab_cmd}\n")
-    except Exception as e:
-        raise e
+# write_docker_command_to_file_run_by_root() used to live here. It was unused
+# (no caller anywhere in the tree) and, unlike write_docker_command_to_file()
+# below, it never invoked root_entrypoint.sh -- so with the scripts now coming
+# from the bind mount it could not have worked. Removed rather than carried
+# along as a broken code path.
 
 def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_home, experiment_name,
                                  docker_prefix, docker_container_name, traces_dir,
@@ -1620,6 +1604,7 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
                 --mount type=bind,source={traces_dir},target=/simpoint_traces,readonly=true \
                 --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
                 --mount type=bind,source={application_dir},target=/tmp_home/application,readonly=false \
+                --mount {infra_mount_arg(infra_dir)} \
                 {docker_prefix}:{githash} \
                 /bin/bash\n")
             else:
@@ -1636,23 +1621,15 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
                 --mount type=bind,source={traces_dir},target=/simpoint_traces,readonly=true \
                 --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
                 --mount type=bind,source={application_dir},target=/tmp_home/application,readonly=false \
+                --mount {infra_mount_arg(infra_dir)} \
                 {docker_prefix}:{githash} \
                 /bin/bash\n")
-            f.write(f"docker cp {infra_dir}/scripts/utilities.sh $CONTAINER_NAME:/usr/local/bin\n")
-            f.write(f"docker cp {infra_dir}/common/scripts/root_entrypoint.sh $CONTAINER_NAME:/usr/local/bin\n")
-            f.write(f"docker cp {infra_dir}/common/scripts/user_entrypoint.sh $CONTAINER_NAME:/usr/local/bin\n")
-            if os.path.exists(f"{infra_dir}/workloads/{docker_prefix}/workload_root_entrypoint.sh"):
-                f.write(f"docker cp {infra_dir}/workloads/{docker_prefix}/workload_root_entrypoint.sh $CONTAINER_NAME:/usr/local/bin\n")
-            if os.path.exists(f"{infra_dir}/workloads/{docker_prefix}/workload_user_entrypoint.sh"):
-                f.write(f"docker cp {infra_dir}/workloads/{docker_prefix}/workload_user_entrypoint.sh $CONTAINER_NAME:/usr/local/bin\n")
-            if scarab_mode == "memtrace":
-                f.write(f"docker cp {infra_dir}/common/scripts/run_memtrace_single_simpoint.sh $CONTAINER_NAME:/usr/local/bin\n")
-            elif scarab_mode == "pt":
-                f.write(f"docker cp {infra_dir}/common/scripts/run_pt_single_simpoint.sh $CONTAINER_NAME:/usr/local/bin\n")
-            elif scarab_mode == "exec":
-                f.write(f"docker cp {infra_dir}/common/scripts/run_exec_single_simpoint.sh $CONTAINER_NAME:/usr/local/bin\n")
+            if scarab_mode == "exec":
                 f.write("docker exec --privileged $CONTAINER_NAME /bin/bash -c \"echo 0 | sudo tee /proc/sys/kernel/randomize_va_space\"\n")
-            f.write("docker exec --privileged $CONTAINER_NAME /bin/bash -c '/usr/local/bin/root_entrypoint.sh'\n")
+            # No `docker cp` of the infra scripts: they come from the read-only
+            # bind mount above, and root_entrypoint.sh publishes them into
+            # /usr/local/bin.
+            f.write(f"docker exec --privileged $CONTAINER_NAME /bin/bash -c '{ROOT_ENTRYPOINT}'\n")
             f.write(f"docker exec --user={user} $CONTAINER_NAME /bin/bash -c \"source /usr/local/bin/user_entrypoint.sh && {scarab_cmd}\" || echo \"Scarab error detected\"\n")
             f.write("cleanup_container\n")
             f.write("echo \"Completed Simulation\"\n")
@@ -1726,23 +1703,14 @@ def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_contai
                     --name $CONTAINER_NAME \
                     --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
                     --mount type=bind,source={application_dir},target=/tmp_home/application,readonly=false \
+                    --mount {infra_mount_arg(infra_dir)} \
                     {image_name}:{githash} \
                     /bin/bash\n"
             f.write(f"{command}")
-            f.write(f"docker cp {infra_dir}/scripts/utilities.sh $CONTAINER_NAME:/usr/local/bin\n")
-            f.write(f"docker cp {infra_dir}/common/scripts/root_entrypoint.sh $CONTAINER_NAME:/usr/local/bin\n")
-            f.write(f"docker cp {infra_dir}/common/scripts/user_entrypoint.sh $CONTAINER_NAME:/usr/local/bin\n")
-            if os.path.exists(f"{infra_dir}/workloads/{image_name}/workload_root_entrypoint.sh"):
-                f.write(f"docker cp {infra_dir}/workloads/{image_name}/workload_root_entrypoint.sh $CONTAINER_NAME:/usr/local/bin\n")
-            if os.path.exists(f"{infra_dir}/workloads/{image_name}/workload_user_entrypoint.sh"):
-                f.write(f"docker cp {infra_dir}/workloads/{image_name}/workload_user_entrypoint.sh $CONTAINER_NAME:/usr/local/bin\n")
-            f.write(f"docker cp {infra_dir}/common/scripts/run_clustering.sh $CONTAINER_NAME:/usr/local/bin\n")
-            f.write(f"docker cp {infra_dir}/common/scripts/run_simpoint_trace.py $CONTAINER_NAME:/usr/local/bin\n")
-            f.write(f"docker cp {infra_dir}/common/scripts/minimize_trace.sh $CONTAINER_NAME:/usr/local/bin\n")
-            f.write(f"docker cp {infra_dir}/common/scripts/replace_oversized_simpoints.py $CONTAINER_NAME:/usr/local/bin\n")
-            f.write(f"docker cp {infra_dir}/common/scripts/run_trace_post_processing.sh $CONTAINER_NAME:/usr/local/bin\n")
-            f.write(f"docker cp {infra_dir}/common/scripts/gather_fp_pieces.py $CONTAINER_NAME:/usr/local/bin\n")
-            f.write("docker exec --privileged $CONTAINER_NAME /bin/bash -c '/usr/local/bin/root_entrypoint.sh'\n")
+            # No `docker cp` of the infra scripts: they come from the read-only
+            # bind mount above, and root_entrypoint.sh publishes them into
+            # /usr/local/bin.
+            f.write(f"docker exec --privileged $CONTAINER_NAME /bin/bash -c '{ROOT_ENTRYPOINT}'\n")
             f.write("docker exec --privileged $CONTAINER_NAME /bin/bash -c \"echo 0 | sudo tee /proc/sys/kernel/randomize_va_space\"\n")
             f.write(f"docker exec --privileged --user={user} --workdir=/home/{user} $CONTAINER_NAME /bin/bash -c \"source /usr/local/bin/user_entrypoint.sh && {trace_cmd}\"\n")
             f.write("cleanup_container\n")

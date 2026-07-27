@@ -48,10 +48,19 @@ jobs:
             echo "any=true" >> $GITHUB_OUTPUT
           else
             git fetch origin main --depth=50
-            DIFF=$(git diff --name-only "$LAST_TAG" HEAD)
-            # allbench rebuilds on common/ or its own workload dir; spec2017 likewise.
-            ALLBENCH=$(echo "$DIFF" | grep -E '^(common/|workloads/allbench_traces/)' || true)
-            SPEC2017=$(echo "$DIFF" | grep -E '^(common/|workloads/spec2017/)' || true)
+            # The workflow scripts under common/scripts and the per-workload
+            # workload_*_entrypoint.sh are bind-mounted into the containers at run
+            # time rather than COPY'd into the image (see common/Dockerfile.common),
+            # so changing them cannot change image content and must not trigger a
+            # --no-cache rebuild and multi-GB publish. Keep this filter in sync with
+            # image_context_pathspec() in ./sci.
+            DIFF=$(git diff --name-only "$LAST_TAG" HEAD \
+              | grep -vE '^common/scripts/' \
+              | grep -vE '^workloads/[^/]+/workload_(root|user)_entrypoint\.sh$' || true)
+            # Each image rebuilds on common/, fingerprint_src/ (COPY'd in and
+            # compiled into libfpg.so), or its own workload dir.
+            ALLBENCH=$(echo "$DIFF" | grep -E '^(common/|fingerprint_src/|workloads/allbench_traces/)' || true)
+            SPEC2017=$(echo "$DIFF" | grep -E '^(common/|fingerprint_src/|workloads/spec2017/)' || true)
             [[ -n "$ALLBENCH" ]] && echo "allbench=true" >> $GITHUB_OUTPUT || echo "allbench=false" >> $GITHUB_OUTPUT
             [[ -n "$SPEC2017" ]] && echo "spec2017=true" >> $GITHUB_OUTPUT || echo "spec2017=false" >> $GITHUB_OUTPUT
             if [[ -n "$ALLBENCH" || -n "$SPEC2017" ]]; then

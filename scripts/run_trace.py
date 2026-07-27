@@ -17,7 +17,9 @@ from .utilities import (
     prepare_trace,
     finish_trace,
     is_container_running,
-    count_interactive_shells
+    count_interactive_shells,
+    infra_mount_arg,
+    ROOT_ENTRYPOINT,
 )
 from . import slurm_runner, local_runner
 
@@ -192,24 +194,14 @@ def open_interactive_shell(user, descriptor_name, descriptor_data, infra_dir, db
                         --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
                         --mount type=bind,source={scarab_path},target=/scarab,readonly=false \
                         --mount type=bind,source={application},target=/tmp_home/application,readonly=false \
+                        --mount {infra_mount_arg(infra_dir)} \
                         {docker_prefix}:{githash} \
                         /bin/bash"
                 print(command)
                 os.system(command)
-                os.system(f"docker cp {infra_dir}/scripts/utilities.sh {docker_container_name}:/usr/local/bin")
-                os.system(f"docker cp {infra_dir}/common/scripts/root_entrypoint.sh {docker_container_name}:/usr/local/bin")
-                os.system(f"docker cp {infra_dir}/common/scripts/user_entrypoint.sh {docker_container_name}:/usr/local/bin")
-                if os.path.exists(f"{infra_dir}/workloads/{docker_prefix}/workload_root_entrypoint.sh"):
-                    os.system(f"docker cp {infra_dir}/workloads/{docker_prefix}/workload_root_entrypoint.sh {docker_container_name}:/usr/local/bin")
-                if os.path.exists(f"{infra_dir}/workloads/{docker_prefix}/workload_user_entrypoint.sh"):
-                    os.system(f"docker cp {infra_dir}/workloads/{docker_prefix}/workload_user_entrypoint.sh {docker_container_name}:/usr/local/bin")
-                os.system(f"docker cp {infra_dir}/common/scripts/run_clustering.sh {docker_container_name}:/usr/local/bin")
-                os.system(f"docker cp {infra_dir}/common/scripts/run_simpoint_trace.py {docker_container_name}:/usr/local/bin")
-                os.system(f"docker cp {infra_dir}/common/scripts/minimize_trace.sh {docker_container_name}:/usr/local/bin")
-                os.system(f"docker cp {infra_dir}/common/scripts/replace_oversized_simpoints.py {docker_container_name}:/usr/local/bin")
-                os.system(f"docker cp {infra_dir}/common/scripts/run_trace_post_processing.sh {docker_container_name}:/usr/local/bin")
-                os.system(f"docker cp {infra_dir}/common/scripts/gather_fp_pieces.py {docker_container_name}:/usr/local/bin")
-                os.system(f"docker exec --privileged {docker_container_name} /bin/bash -c '/usr/local/bin/root_entrypoint.sh'")
+                # The infra scripts come from the read-only bind mount above;
+                # root_entrypoint.sh publishes them into /usr/local/bin.
+                os.system(f"docker exec --privileged {docker_container_name} /bin/bash -c '{ROOT_ENTRYPOINT}'")
                 os.system(f"docker exec --privileged {docker_container_name} /bin/bash -c \"echo 0 | sudo tee /proc/sys/kernel/randomize_va_space\"")
                 subprocess.run(["docker", "exec", "--privileged", "-it", f"--user={user}", f"--workdir=/home/{user}", docker_container_name, "/bin/bash"])
         except KeyboardInterrupt:

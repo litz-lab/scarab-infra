@@ -58,9 +58,8 @@ WORKDIR $tmpdir
 RUN git clone <workload repo> && cd <workload> && git checkout <pinned-sha>
 RUN <build / install steps>
 
-# Optional: register per-workload entrypoints (see Step 2)
-COPY ./workloads/<suite>/workload_root_entrypoint.sh /usr/local/bin/workload_root_entrypoint.sh
-COPY ./workloads/<suite>/workload_user_entrypoint.sh /usr/local/bin/workload_user_entrypoint.sh
+# Per-workload entrypoints (see Step 2) need no COPY: drop them in
+# workloads/<suite>/ and they are picked up from the bind mount at run time.
 
 CMD ["/bin/bash"]
 ```
@@ -122,8 +121,10 @@ cd /tmp_home/<workload-dir>
 export LD_LIBRARY_PATH=$tmpdir/<workload-dir>/lib:$LD_LIBRARY_PATH
 ```
 
-Both scripts are sourced only if present at `/usr/local/bin/`, so
-copying them in the Dockerfile is opt-in.
+Both scripts are optional. `root_entrypoint.sh` symlinks whichever of them
+exist in `workloads/<suite>/` into `/usr/local/bin/` from the read-only
+`/scarab_infra` bind mount, so they take effect without an image rebuild and
+without any `COPY` in the Dockerfile.
 
 ## Step 3 — Build the image
 

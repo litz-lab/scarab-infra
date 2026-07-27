@@ -19,7 +19,8 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y \
     postgresql
 
 RUN chmod -R 755 /var/run/mysqld
-COPY ./workloads/sysbench/workload_root_entrypoint.sh /usr/local/bin/workload_root_entrypoint.sh
+# workload_*_entrypoint.sh is bind-mounted from the host checkout and published
+# into /usr/local/bin by root_entrypoint.sh; see common/Dockerfile.common.
 
 WORKDIR $tmpdir
 RUN cd $tmpdir && git clone https://github.com/akopytov/sysbench.git
