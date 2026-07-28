@@ -52,6 +52,9 @@ RUN npm install -g @anthropic-ai/claude-code
 # pin and SimPoint builds below it -- on every edit, forcing a full --no-cache
 # rebuild of a multi-GB image for a one-line shell change. The image now only
 # owns the toolchain and the workload sources.
+# Must match INFRA_MOUNT_TARGET in scripts/utilities.py (which is what actually
+# gets passed to `docker run --mount`) and the ${INFRA_HOME:-...} default in
+# common/scripts/root_entrypoint.sh.
 ENV INFRA_HOME="/scarab_infra"
 RUN mkdir -p $INFRA_HOME
 

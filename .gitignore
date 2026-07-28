@@ -1,2 +1,12 @@
 workloads/spec2017/cpu2017-1_0_5.iso
 scarab_builds/*
+
+# These are also listed in .dockerignore, and the two must stay in agreement:
+# scripts/image_identity.py hashes untracked-but-not-git-ignored files in the
+# image context, so anything docker leaves out of the build context has to be
+# git-ignored here as well, or editor droppings would change the image tag.
+__pycache__/
+*.pyc
+*~
+# (escaped: an unescaped leading '#' would make this line a comment)
+\#*#

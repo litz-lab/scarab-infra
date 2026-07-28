@@ -13,12 +13,40 @@
 # instead of listing filenames means a newly added script needs no bookkeeping
 # here. /usr/local/bin itself stays writable, which perf_entrypoint.sh relies on
 # for its `perf` symlink.
+# Keep this default in sync with INFRA_MOUNT_TARGET in scripts/utilities.py (the
+# value actually passed to `docker run --mount`) and with ENV INFRA_HOME in
+# common/Dockerfile.common. All three must name the same path.
 INFRA_HOME="${INFRA_HOME:-/scarab_infra}"
 if [ ! -d "$INFRA_HOME/common/scripts" ]; then
   echo "root_entrypoint.sh: scarab-infra scripts not found at '$INFRA_HOME'." >&2
   echo "The container must be started with:" >&2
   echo "  --mount type=bind,source=<scarab-infra checkout>,target=/scarab_infra,readonly=true" >&2
   exit 1
+fi
+
+# Drop symlinks left by a previous run whose target has since been renamed or
+# deleted on the host; a reused container would otherwise keep a dangling
+# /usr/local/bin entry forever. Restricted to links pointing into the mount so
+# that unrelated ones -- notably the `perf` symlink perf_entrypoint.sh creates
+# -- are left alone.
+for link in /usr/local/bin/*; do
+  if [ -L "$link" ] && [ ! -e "$link" ]; then
+    case "$(readlink "$link")" in
+      "$INFRA_HOME"/*) rm -f "$link" ;;
+    esac
+  fi
+done
+
+# APPNAME/APP_GROUPNAME are set by every docker run site, but an empty
+# APP_GROUPNAME would silently collapse the glob below to "workloads//workload_*"
+# and skip the per-workload entrypoints without a word, so say something.
+if [ -z "$APP_GROUPNAME" ]; then
+  echo "root_entrypoint.sh: APP_GROUPNAME is unset; per-workload" \
+       "workload_root_entrypoint.sh / workload_user_entrypoint.sh will not be" \
+       "published into /usr/local/bin." >&2
+elif [ ! -d "$INFRA_HOME/workloads/$APP_GROUPNAME" ]; then
+  echo "root_entrypoint.sh: no workloads/$APP_GROUPNAME in '$INFRA_HOME';" \
+       "per-workload entrypoints will not be published." >&2
 fi
 
 for f in "$INFRA_HOME"/common/scripts/*.sh \

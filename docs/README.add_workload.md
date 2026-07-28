@@ -77,6 +77,11 @@ Key rules:
    container). The pipeline scripts and other infra assume this layout.
 5. **Use `USER root` for installs.** `Dockerfile.common` ends with the
    user switched away.
+6. **`COPY` only from `workloads/<suite>/`, `common/`, or `fingerprint_src/`.**
+   The image tag is a hash of those paths (see `scripts/image_identity.py`). If
+   you must `COPY` from somewhere else, add that path to
+   `image_context_pathspec()` — otherwise changes to it will not change the
+   tag, and your edits will silently reuse a stale image.
 
 ## Step 2 — Workload entrypoints (optional)
 

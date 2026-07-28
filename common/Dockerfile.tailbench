@@ -26,6 +26,9 @@ RUN mkdir -p /root/.ssh && \
 # the scripts this file used to COPY (run_scarab.sh, run_exp_using_descriptor.py,
 # gather_cluster_results.py, ...) no longer exist under common/scripts, so these
 # COPY lines had made this Dockerfile unbuildable.
+# Must match INFRA_MOUNT_TARGET in scripts/utilities.py (which is what actually
+# gets passed to `docker run --mount`) and the ${INFRA_HOME:-...} default in
+# common/scripts/root_entrypoint.sh.
 ENV INFRA_HOME="/scarab_infra"
 RUN mkdir -p $INFRA_HOME
 

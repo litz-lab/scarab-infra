@@ -44,6 +44,13 @@ VALID_SIMULATION_MODES = ("memtrace", "pt", "exec")
 # node, which is already a hard requirement today: the generated sbatch scripts
 # embed infra_dir literally and execute on the nodes. In practice the checkout
 # lives on NFS.
+#
+# This is the value actually handed to `docker run --mount`, so it is the one
+# that decides where the mount lands. Two other places name the same path and
+# must be changed with it: `ENV INFRA_HOME` in common/Dockerfile.common (plus
+# .oss/.tailbench), and the ${INFRA_HOME:-...} default in
+# common/scripts/root_entrypoint.sh. Changing either of those alone would not
+# move the mount, and root_entrypoint.sh would then look in the wrong place.
 INFRA_MOUNT_TARGET = "/scarab_infra"
 
 # root_entrypoint.sh itself lives in the mount, so it has to be invoked through
@@ -2602,7 +2609,7 @@ def prepare_trace(user, scarab_path, scarab_build, docker_home, job_name, infra_
                 )
         else:
             # (Re)build the scarab binary first.
-            rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, githash, scarab_githash, scarab_build, stream_build=False, dbg_lvl=dbg_lvl)
+            rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, scarab_githash, scarab_build, stream_build=False, dbg_lvl=dbg_lvl)
 
         # Copy current scarab binary to trace dir
         cache_name = _cache_bin_name("scarab_current", build_mode)

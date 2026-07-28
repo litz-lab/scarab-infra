@@ -19,6 +19,7 @@ from .utilities import (
     is_container_running,
     count_interactive_shells,
     infra_mount_arg,
+    INFRA_MOUNT_TARGET,
     ROOT_ENTRYPOINT,
 )
 from .image_identity import image_tag_for
@@ -26,6 +27,24 @@ from .image_identity import image_tag_for
 client = docker.from_env()
 
 def perf_container_initialized(docker_container_name):
+    """True only if the container is bootstrapped *and* has the infra mount.
+
+    A --perf container created before the scripts moved to a bind mount carries
+    the readiness sentinel but has no INFRA_MOUNT_TARGET, and nothing refreshes
+    its baked copies any more. Requiring the mount here means such a container
+    is treated as uninitialized, so bootstrap runs and root_entrypoint.sh fails
+    with its actionable "start the container with --mount ..." message instead
+    of the run quietly using stale scripts.
+    """
+    result = subprocess.run(
+        ["docker", "exec", docker_container_name, "test", "-d",
+         f"{INFRA_MOUNT_TARGET}/common/scripts"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    if result.returncode != 0:
+        return False
     result = subprocess.run(
         ["docker", "exec", docker_container_name, "test", "-f", "/tmp_home/.scarab_perf_ready"],
         stdout=subprocess.DEVNULL,
