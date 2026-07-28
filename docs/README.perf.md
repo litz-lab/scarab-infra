@@ -159,12 +159,14 @@ Each `perf_configurations` entry specifies:
 ## Pipeline
 
 ### 1. Container setup
-A privileged Docker container is created from the workload image. Support
-scripts (`root_entrypoint.sh`, `perf_entrypoint.sh`, `user_entrypoint.sh`,
-`utilities.sh`, plus optional per-image `workload_*_entrypoint.sh`) are
-`docker cp`'d in on every run so iterating on host scripts does not require
-an image rebuild. A `/tmp_home/.scarab_perf_ready` sentinel ensures the root
-+ perf entrypoints execute exactly once per container lifetime.
+A privileged Docker container is created from the workload image. The host
+scarab-infra checkout is bind-mounted read-only at `/scarab_infra`, and
+`root_entrypoint.sh` publishes the support scripts (`perf_entrypoint.sh`,
+`user_entrypoint.sh`, `utilities.sh`, plus optional per-image
+`workload_*_entrypoint.sh`) into `/usr/local/bin` as symlinks, so iterating on
+host scripts does not require an image rebuild. A
+`/tmp_home/.scarab_perf_ready` sentinel ensures the root + perf entrypoints
+execute exactly once per container lifetime.
 
 ### 2. Warmup run
 The binary command runs once via `taskset -c 10` (pinned to a single core).

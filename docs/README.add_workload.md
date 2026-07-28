@@ -58,9 +58,8 @@ WORKDIR $tmpdir
 RUN git clone <workload repo> && cd <workload> && git checkout <pinned-sha>
 RUN <build / install steps>
 
-# Optional: register per-workload entrypoints (see Step 2)
-COPY ./workloads/<suite>/workload_root_entrypoint.sh /usr/local/bin/workload_root_entrypoint.sh
-COPY ./workloads/<suite>/workload_user_entrypoint.sh /usr/local/bin/workload_user_entrypoint.sh
+# Per-workload entrypoints (see Step 2) need no COPY: drop them in
+# workloads/<suite>/ and they are picked up from the bind mount at run time.
 
 CMD ["/bin/bash"]
 ```
@@ -78,6 +77,11 @@ Key rules:
    container). The pipeline scripts and other infra assume this layout.
 5. **Use `USER root` for installs.** `Dockerfile.common` ends with the
    user switched away.
+6. **`COPY` only from `workloads/<suite>/`, `common/`, or `fingerprint_src/`.**
+   The image tag is a hash of those paths (see `scripts/image_identity.py`). If
+   you must `COPY` from somewhere else, add that path to
+   `image_context_pathspec()` — otherwise changes to it will not change the
+   tag, and your edits will silently reuse a stale image.
 
 ## Step 2 — Workload entrypoints (optional)
 
@@ -122,8 +126,10 @@ cd /tmp_home/<workload-dir>
 export LD_LIBRARY_PATH=$tmpdir/<workload-dir>/lib:$LD_LIBRARY_PATH
 ```
 
-Both scripts are sourced only if present at `/usr/local/bin/`, so
-copying them in the Dockerfile is opt-in.
+Both scripts are optional. `root_entrypoint.sh` symlinks whichever of them
+exist in `workloads/<suite>/` into `/usr/local/bin/` from the read-only
+`/scarab_infra` bind mount, so they take effect without an image rebuild and
+without any `COPY` in the Dockerfile.
 
 ## Step 3 — Build the image
 
@@ -132,10 +138,13 @@ copying them in the Dockerfile is opt-in.
 ```
 
 This reads `workloads/<suite>/Dockerfile`, applies
-`common/Dockerfile.common`, and tags the image with the current git hash
-(`last_built_tag.txt` records the tag). Subsequent `--perf` / `--trace`
-runs against descriptors that reference `"image_name": "<suite>"` will
-pick up this image.
+`common/Dockerfile.common`, and tags the image with a hash of the content that
+goes into it (see `scripts/image_identity.py`). Because the tag is derived from
+content rather than from the git hash, the image is rebuilt or re-fetched only
+when it genuinely differs — editing a bind-mounted script leaves the tag
+alone. If another machine or CI already published this exact image, the build
+step pulls it instead. Subsequent `--perf` / `--trace` runs against descriptors
+that reference `"image_name": "<suite>"` will pick up this image.
 
 ## Step 4 — Characterise with `--perf`
 

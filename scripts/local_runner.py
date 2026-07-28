@@ -29,6 +29,7 @@ from .utilities import (
         print_simulation_status_summary,
         normalize_simulations,
         )
+from .image_identity import image_tag_for
 
 # Check if a container is running on local
 # Inputs: docker_prefix, job_name, user,
@@ -158,7 +159,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
         nonlocal log_index
         try:
             docker_prefix = get_docker_prefix(sim_mode, workloads_data[suite][subsuite][workload]["simulation"])
-            info(f"Using docker image with name {docker_prefix}:{githash}", dbg_lvl)
+            info(f"Using docker image with name {image_tag_for(docker_prefix, infra_dir)}", dbg_lvl)
             trace_warmup = None
             trace_type = ""
             trace_file = None
@@ -213,7 +214,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                     workload_home = f"{suite}/{subsuite}/{workload}"
                     write_docker_command_to_file(user, local_uid, local_gid, workload, workload_home, experiment_name,
                                                  docker_prefix, docker_container_name, traces_dir,
-                                                 docker_home, githash, config_key, config, sim_mode, scarab_binary,
+                                                 docker_home, config_key, config, sim_mode, scarab_binary,
                                                  seg_size, architecture, cluster_id, warmup, trace_warmup, trace_type,
                                                  trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir, application_dir)
                     tmp_files.add(filename)
@@ -253,15 +254,6 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
         local_uid = os.getuid()
         local_gid = os.getgid()
 
-        # Get GitHash
-        try:
-            githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).decode("utf-8").strip()
-            info(f"Git hash: {githash}", dbg_lvl)
-        except FileNotFoundError:
-            err("Error: 'git' command not found. Make sure Git is installed and in your PATH.")
-        except subprocess.CalledProcessError:
-            err("Error: Not in a Git repository or unable to retrieve Git hash.")
-
         scarab_binaries = []
         for sim in simulations:
             for config_key in configs:
@@ -270,7 +262,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                     scarab_binaries.append(scarab_binary)
 
         try:
-            scarab_githash, image_tag_list = prepare_simulation(user, scarab_path, scarab_build, descriptor_data['root_dir'], experiment_name, architecture, docker_prefix_list, githash, infra_dir, scarab_binaries, interactive_shell=False, dbg_lvl=dbg_lvl)
+            scarab_githash, image_tag_list = prepare_simulation(user, scarab_path, scarab_build, descriptor_data['root_dir'], experiment_name, architecture, docker_prefix_list, infra_dir, scarab_binaries, interactive_shell=False, dbg_lvl=dbg_lvl)
         except RuntimeError as e:
             # This error prints a message. Now stop execution
             return
@@ -400,10 +392,10 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
                 simpoint_mode = "iterative_trace"
             else:
                 raise Exception(f"Invalid trace type: {trace_type}")
-            info(f"Using docker image with name {image_name}:{githash}", dbg_lvl)
+            info(f"Using docker image with name {image_tag_for(image_name, infra_dir)}", dbg_lvl)
             docker_container_name = f"{image_name}_{workload}_{trace_name}_{simpoint_mode}_{user}"
             filename = f"{docker_container_name}_tmp_run.sh"
-            write_trace_docker_command_to_file(user, local_uid, local_gid, docker_container_name, githash,
+            write_trace_docker_command_to_file(user, local_uid, local_gid, docker_container_name,
                                                workload, image_name, trace_name, traces_dir, docker_home,
                                                env_vars, binary_cmd, client_bincmd, simpoint_mode, drio_args,
                                                clustering_k, filename, infra_dir, application_dir)
@@ -426,17 +418,8 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
         local_uid = os.getuid()
         local_gid = os.getgid()
 
-        # Get GitHash
-        try:
-            githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).decode("utf-8").strip()
-            info(f"Git hash: {githash}", dbg_lvl)
-        except FileNotFoundError:
-            err("Error: 'git' command not found. Make sure Git is installed and in your PATH.")
-        except subprocess.CalledProcessError:
-            err("Error: Not in a Git repository or unable to retrieve Git hash.")
 
-
-        prepare_trace(user, scarab_path, scarab_build, docker_home, trace_name, infra_dir, docker_prefix_list, githash, False, [], dbg_lvl=dbg_lvl)
+        prepare_trace(user, scarab_path, scarab_build, docker_home, trace_name, infra_dir, docker_prefix_list, False, [], dbg_lvl=dbg_lvl)
 
         # Iterate over each trace configuration
         for config in trace_configs:

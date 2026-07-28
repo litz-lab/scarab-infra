@@ -160,7 +160,8 @@ RUN mkdir -p $tmpdir/driving_log_replayer_data/yabloc/sample && \
 # Prepare simpoint result
 RUN mkdir -p $tmpdir/simpoint_flow/trace_autoware/result_bag/traces/whole
 
-COPY ./workloads/autoware/workload_user_entrypoint.sh /usr/local/bin/workload_user_entrypoint.sh
+# workload_*_entrypoint.sh is bind-mounted from the host checkout and published
+# into /usr/local/bin by root_entrypoint.sh; see common/Dockerfile.common.
 
 # Default command
 CMD ["/bin/bash"]

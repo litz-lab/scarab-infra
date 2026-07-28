@@ -45,19 +45,18 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
 RUN apt install -y nodejs
 RUN npm install -g @anthropic-ai/claude-code
 
-# Copy workflow simpoint/no_simpoint script
-COPY ./scripts/utilities.sh /usr/local/bin/utilities.sh
-COPY ./common/scripts/run_clustering.sh /usr/local/bin/run_clustering.sh
-COPY ./common/scripts/run_trace_post_processing.sh /usr/local/bin/run_trace_post_processing.sh
-COPY ./common/scripts/gather_fp_pieces.py /usr/local/bin/gather_fp_pieces.py
-COPY ./common/scripts/run_simpoint_trace.py /usr/local/bin/run_simpoint_trace.py
-COPY ./common/scripts/minimize_trace.sh /usr/local/bin/minimize_trace.sh
-COPY ./common/scripts/replace_oversized_simpoints.py /usr/local/bin/replace_oversized_simpoints.py
-COPY ./common/scripts/root_entrypoint.sh /usr/local/bin/root_entrypoint.sh
-COPY ./common/scripts/user_entrypoint.sh /usr/local/bin/user_entrypoint.sh
-COPY ./common/scripts/run_memtrace_single_simpoint.sh /usr/local/bin/run_memtrace_single_simpoint.sh
-COPY ./common/scripts/run_pt_single_simpoint.sh /usr/local/bin/run_pt_single_simpoint.sh
-COPY ./common/scripts/run_exec_single_simpoint.sh /usr/local/bin/run_exec_single_simpoint.sh
+# The scarab-infra workflow scripts are deliberately NOT copied into the image.
+# They are bind-mounted read-only from the host checkout onto $INFRA_HOME at
+# `docker run` time and published into /usr/local/bin by root_entrypoint.sh.
+# Baking them in used to invalidate this layer -- and therefore the DynamoRIO,
+# pin and SimPoint builds below it -- on every edit, forcing a full --no-cache
+# rebuild of a multi-GB image for a one-line shell change. The image now only
+# owns the toolchain and the workload sources.
+# Must match INFRA_MOUNT_TARGET in scripts/utilities.py (which is what actually
+# gets passed to `docker run --mount`) and the ${INFRA_HOME:-...} default in
+# common/scripts/root_entrypoint.sh.
+ENV INFRA_HOME="/scarab_infra"
+RUN mkdir -p $INFRA_HOME
 
 RUN mkdir -p /simpoint_traces
 ENV trace_home="/simpoint_traces"

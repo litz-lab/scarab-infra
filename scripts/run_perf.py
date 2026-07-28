@@ -17,28 +17,34 @@ from .utilities import (
     read_descriptor_from_json,
     write_json_descriptor,
     is_container_running,
-    count_interactive_shells
+    count_interactive_shells,
+    infra_mount_arg,
+    INFRA_MOUNT_TARGET,
+    ROOT_ENTRYPOINT,
 )
+from .image_identity import image_tag_for
 
 client = docker.from_env()
 
-def sync_perf_support_files(docker_container_name, image_name, infra_dir):
-    common_files = [
-        (f"{infra_dir}/scripts/utilities.sh", "/usr/local/bin"),
-        (f"{infra_dir}/common/scripts/root_entrypoint.sh", "/usr/local/bin"),
-        (f"{infra_dir}/common/scripts/user_entrypoint.sh", "/usr/local/bin"),
-        (f"{infra_dir}/common/scripts/perf_entrypoint.sh", "/usr/local/bin"),
-    ]
-    for src, dst in common_files:
-        subprocess.run(["docker", "cp", src, f"{docker_container_name}:{dst}"], check=True)
-
-    for script in ("workload_root_entrypoint.sh", "workload_user_entrypoint.sh"):
-        src = f"{infra_dir}/workloads/{image_name}/{script}"
-        if os.path.exists(src):
-            subprocess.run(["docker", "cp", src, f"{docker_container_name}:/usr/local/bin"], check=True)
-
-
 def perf_container_initialized(docker_container_name):
+    """True only if the container is bootstrapped *and* has the infra mount.
+
+    A --perf container created before the scripts moved to a bind mount carries
+    the readiness sentinel but has no INFRA_MOUNT_TARGET, and nothing refreshes
+    its baked copies any more. Requiring the mount here means such a container
+    is treated as uninitialized, so bootstrap runs and root_entrypoint.sh fails
+    with its actionable "start the container with --mount ..." message instead
+    of the run quietly using stale scripts.
+    """
+    result = subprocess.run(
+        ["docker", "exec", docker_container_name, "test", "-d",
+         f"{INFRA_MOUNT_TARGET}/common/scripts"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    if result.returncode != 0:
+        return False
     result = subprocess.run(
         ["docker", "exec", docker_container_name, "test", "-f", "/tmp_home/.scarab_perf_ready"],
         stdout=subprocess.DEVNULL,
@@ -49,8 +55,11 @@ def perf_container_initialized(docker_container_name):
 
 
 def bootstrap_perf_container(docker_container_name):
+    # root_entrypoint.sh comes from the read-only infra bind mount and publishes
+    # the rest of the scripts -- including perf_entrypoint.sh below -- into
+    # /usr/local/bin, so it has to run first.
     subprocess.run(
-        ["docker", "exec", "--privileged", docker_container_name, "/bin/bash", "-c", "/usr/local/bin/root_entrypoint.sh"],
+        ["docker", "exec", "--privileged", docker_container_name, "/bin/bash", "-c", ROOT_ENTRYPOINT],
         check=True,
     )
     subprocess.run(
@@ -69,21 +78,11 @@ def open_interactive_shell(user, docker_home, image_name, infra_dir, dbg_lvl = 1
         local_gid = os.getgid()
         container_home = "/tmp_home" if user == "root" else f"/home/{user}"
 
-        # Get GitHash
-        try:
-            githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).decode("utf-8").strip()
-            info(f"Git hash: {githash}", dbg_lvl)
-        except FileNotFoundError:
-            err("Error: 'git' command not found. Make sure Git is installed and in your PATH.")
-        except subprocess.CalledProcessError:
-            err("Error: Not in a Git repository or unable to retrieve Git hash.")
-
         docker_container_name = f"{image_name}_perf_{user}"
         try:
             shell_cmd = f"export HOME={container_home}; source /usr/local/bin/user_entrypoint.sh >/dev/null 2>&1 || true; exec /bin/bash"
             needs_bootstrap = False
             if is_container_running(docker_container_name, dbg_lvl):
-                sync_perf_support_files(docker_container_name, image_name, infra_dir)
                 needs_bootstrap = not perf_container_initialized(docker_container_name)
             else:
                 info(f"Create a new container for the interactive mode", dbg_lvl)
@@ -97,11 +96,11 @@ def open_interactive_shell(user, docker_home, image_name, infra_dir, dbg_lvl = 1
                         -dit \
                         --name {docker_container_name} \
                         --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
-                        {image_name}:{githash} \
+                        --mount {infra_mount_arg(infra_dir)} \
+                        {image_tag_for(image_name, infra_dir)} \
                         /bin/bash"
                 print(command)
                 os.system(command)
-                sync_perf_support_files(docker_container_name, image_name, infra_dir)
                 needs_bootstrap = True
             if needs_bootstrap:
                 bootstrap_perf_container(docker_container_name)
@@ -512,18 +511,12 @@ def collect_perf_data(user, root_dir, image_name, infra_dir, perf_configs, dbg_l
     local_gid = os.getgid()
     container_home = "/tmp_home" if user == "root" else f"/home/{user}"
 
-    try:
-        githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).decode("utf-8").strip()
-    except (FileNotFoundError, subprocess.CalledProcessError):
-        raise RuntimeError("Cannot determine git hash for docker image tag")
-
     docker_container_name = f"{image_name}_perf_collect_{user}"
     created_container = False
 
     try:
         # Create or reuse container
         if is_container_running(docker_container_name, dbg_lvl):
-            sync_perf_support_files(docker_container_name, image_name, infra_dir)
             if not perf_container_initialized(docker_container_name):
                 bootstrap_perf_container(docker_container_name)
         else:
@@ -539,13 +532,13 @@ def collect_perf_data(user, root_dir, image_name, infra_dir, perf_configs, dbg_l
                 f"-dit "
                 f"--name {docker_container_name} "
                 f"--mount type=bind,source={root_dir},target=/home/{user},readonly=false "
-                f"{image_name}:{githash} "
+                f"--mount {infra_mount_arg(infra_dir)} "
+                f"{image_tag_for(image_name, infra_dir)} "
                 f"/bin/bash"
             )
             info(command, dbg_lvl)
             os.system(command)
             created_container = True
-            sync_perf_support_files(docker_container_name, image_name, infra_dir)
             bootstrap_perf_container(docker_container_name)
 
         # Validate that the pinned core exists inside the container

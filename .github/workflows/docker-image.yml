@@ -7,143 +7,62 @@ on:
   workflow_dispatch: # Allows manual triggering of the workflow
 
 permissions:
-    contents: write
+    contents: read
     packages: write
-    pull-requests: write
 
 jobs:
   build-and-publish:
     name: Build and Publish Docker Image
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [allbench_traces, spec2017]
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Set current GIT_HASH
-        id: current_hash
-        run: echo "githash=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-
-      - name: Read last built tag from last_built_tag.txt
-        id: last_tag
+      # The tag is a hash of the repository content that actually goes into the
+      # image -- the Dockerfiles, fingerprint_src/ and the workload directory,
+      # but not the scripts that are bind-mounted at run time. So the tag only
+      # changes when the image genuinely differs, and "has this already been
+      # built?" is a registry lookup rather than a diff against a recorded
+      # last_built_tag. See scripts/image_identity.py.
+      - name: Compute image content tag
+        id: tag
         run: |
-          if [[ -f last_built_tag.txt ]]; then
-            TAG=$(cat last_built_tag.txt)
-            echo "Found last built tag: $TAG"
-            echo "tag=$TAG" >> $GITHUB_OUTPUT
-          else
-            echo "No last_built_tag.txt found, assuming first build."
-            echo "tag=" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Determine which images changed since last build
-        id: changes
-        env:
-          LAST_TAG: ${{ steps.last_tag.outputs.tag }}
-        run: |
-          if [[ -z "$LAST_TAG" ]]; then
-            echo "No previous tag — building both images."
-            echo "allbench=true" >> $GITHUB_OUTPUT
-            echo "spec2017=true" >> $GITHUB_OUTPUT
-            echo "any=true" >> $GITHUB_OUTPUT
-          else
-            git fetch origin main --depth=50
-            DIFF=$(git diff --name-only "$LAST_TAG" HEAD)
-            # allbench rebuilds on common/ or its own workload dir; spec2017 likewise.
-            ALLBENCH=$(echo "$DIFF" | grep -E '^(common/|workloads/allbench_traces/)' || true)
-            SPEC2017=$(echo "$DIFF" | grep -E '^(common/|workloads/spec2017/)' || true)
-            [[ -n "$ALLBENCH" ]] && echo "allbench=true" >> $GITHUB_OUTPUT || echo "allbench=false" >> $GITHUB_OUTPUT
-            [[ -n "$SPEC2017" ]] && echo "spec2017=true" >> $GITHUB_OUTPUT || echo "spec2017=false" >> $GITHUB_OUTPUT
-            if [[ -n "$ALLBENCH" || -n "$SPEC2017" ]]; then
-              echo "any=true" >> $GITHUB_OUTPUT
-            else
-              echo "any=false" >> $GITHUB_OUTPUT
-            fi
-            echo "allbench changed: ${ALLBENCH:+yes}${ALLBENCH:-no}"
-            echo "spec2017 changed: ${SPEC2017:+yes}${SPEC2017:-no}"
-          fi
+          TAG=$(python3 -m scripts.image_identity ${{ matrix.image }})
+          echo "Image content tag for ${{ matrix.image }}: $TAG"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "ref=ghcr.io/litz-lab/scarab-infra/${{ matrix.image }}:$TAG" >> $GITHUB_OUTPUT
 
       - name: Log in to GitHub Container Registry
-        if: steps.changes.outputs.any == 'true'
         uses: docker/login-action@v2
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Rebuild each image only when common/ or its own workloads/<group>/ changed.
-      - name: Build Docker images
-        if: steps.changes.outputs.any == 'true'
+      - name: Skip if this exact image was already published
+        id: exists
         run: |
-          if [[ "${{ steps.changes.outputs.allbench }}" == "true" ]]; then
-            docker build . \
-            --file ./workloads/allbench_traces/Dockerfile \
-            --no-cache \
-            --tag ghcr.io/litz-lab/scarab-infra/allbench_traces:${{ steps.current_hash.outputs.githash }}
-          fi
-          if [[ "${{ steps.changes.outputs.spec2017 }}" == "true" ]]; then
-            docker build . \
-            --file ./workloads/spec2017/Dockerfile \
-            --no-cache \
-            --tag ghcr.io/litz-lab/scarab-infra/spec2017:${{ steps.current_hash.outputs.githash }}
-          fi
-
-      - name: Push Docker images to GitHub Packages
-        if: steps.changes.outputs.any == 'true'
-        run: |
-          # Only push if this is not a manual trigger
-          if [[ "${{ github.event_name }}" != "push" ]]; then
-            echo "Skipping push (manual workflow_dispatch run)"
-            exit 0
-          fi
-          if [[ "${{ steps.changes.outputs.allbench }}" == "true" ]]; then
-            docker push ghcr.io/litz-lab/scarab-infra/allbench_traces:${{ steps.current_hash.outputs.githash }}
-          fi
-          if [[ "${{ steps.changes.outputs.spec2017 }}" == "true" ]]; then
-            docker push ghcr.io/litz-lab/scarab-infra/spec2017:${{ steps.current_hash.outputs.githash }}
-          fi
-
-      - name: Save short GIT_HASH to last_built_tag.txt
-        if: steps.changes.outputs.any == 'true'
-        run: |
-          SHORT_HASH=$(git rev-parse --short HEAD)
-          echo "Saving GIT_HASH: $SHORT_HASH"
-          echo "$SHORT_HASH" > last_built_tag.txt
-
-      - name: Create and merge the tag-update PR
-        if: steps.changes.outputs.any == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPO: ${{ github.repository }}
-        run: |
-          set -e
-
-          BRANCH_NAME=auto/update-tag-${{ steps.current_hash.outputs.githash }}
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git checkout -b "$BRANCH_NAME"
-          git add last_built_tag.txt
-          git commit -m "Auto update Docker image tag to $BRANCH_NAME"
-          git push origin "$BRANCH_NAME"
-
-          gh pr create --repo "$GITHUB_REPO" --base main --head "$BRANCH_NAME" \
-            --title "Auto update Docker image tag" \
-            --body "Automated Docker image-tag bump (last_built_tag.txt)."
-
-          # Manual runs (workflow_dispatch): leave the PR open, don't merge.
-          if [[ "${{ github.event_name }}" != "push" ]]; then
-            echo "Manual run; leaving PR open for $BRANCH_NAME."
-            exit 0
-          fi
-
-          # Best-effort merge that never fails the run:
-          #  1. try a direct squash-merge (works if branch protection permits it);
-          #  2. else queue auto-merge to complete once requirements are met;
-          #  3. else leave the PR open and warn (someone merges it manually).
-          if gh pr merge "$BRANCH_NAME" --repo "$GITHUB_REPO" --squash --delete-branch; then
-            echo "Merged $BRANCH_NAME."
-          elif gh pr merge "$BRANCH_NAME" --repo "$GITHUB_REPO" --squash --auto --delete-branch; then
-            echo "Auto-merge queued for $BRANCH_NAME."
+          if docker manifest inspect "${{ steps.tag.outputs.ref }}" >/dev/null 2>&1; then
+            echo "${{ steps.tag.outputs.ref }} already published; nothing to build."
+            echo "published=true" >> $GITHUB_OUTPUT
           else
-            echo "::warning::Could not merge or queue $BRANCH_NAME; please merge it manually."
+            echo "published=false" >> $GITHUB_OUTPUT
           fi
+
+      - name: Build Docker image
+        if: steps.exists.outputs.published == 'false'
+        run: |
+          docker build . \
+            --file ./workloads/${{ matrix.image }}/Dockerfile \
+            --no-cache \
+            --tag "${{ steps.tag.outputs.ref }}"
+
+      - name: Push Docker image to GitHub Packages
+        # Manual workflow_dispatch runs build but never publish.
+        if: steps.exists.outputs.published == 'false' && github.event_name == 'push'
+        run: docker push "${{ steps.tag.outputs.ref }}"
