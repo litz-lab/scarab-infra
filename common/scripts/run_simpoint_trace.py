@@ -835,7 +835,7 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
             print(f"  tracing segments {batch_start+1}-{batch_start+len(batch)} of {len(trace_cmds)}")
             procs = []
             for cmd in batch:
-                p = subprocess.Popen("exec " + cmd, stdout=subprocess.DEVNULL, shell=True, env=trace_env)
+                p = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, shell=True, env=trace_env)
                 procs.append(p)
             for p in procs:
                 p.wait()
