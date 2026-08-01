@@ -2827,7 +2827,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/400.perlbench/run/run_base_ref_gcc43-64bit.0000 && ./perlbench_base.gcc43-64bit -I./lib checkspam.pl 2500 5 25 11 150 1 1 1 1\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/400.perlbench/run/run_base_ref_gcc43-64bit.0000/perlbench_base.gcc43-64bit -I./lib checkspam.pl 2500 5 25 11 150 1 1 1 1",
             "client_bincmd":null
           },
           "memtrace":{
@@ -2873,7 +2873,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/400.perlbench/run/run_base_ref_gcc43-64bit.0000 && ./perlbench_base.gcc43-64bit -I./lib diffmail.pl 4 800 10 17 19 300\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/400.perlbench/run/run_base_ref_gcc43-64bit.0000/perlbench_base.gcc43-64bit -I./lib diffmail.pl 4 800 10 17 19 300",
             "client_bincmd":null
           },
           "memtrace":{
@@ -2919,7 +2919,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/400.perlbench/run/run_base_ref_gcc43-64bit.0000 && ./perlbench_base.gcc43-64bit -I./lib splitmail.pl 1600 12 26 16 4500\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/400.perlbench/run/run_base_ref_gcc43-64bit.0000/perlbench_base.gcc43-64bit -I./lib splitmail.pl 1600 12 26 16 4500",
             "client_bincmd":null
           },
           "memtrace":{
@@ -3000,7 +3000,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/401.bzip2/run/run_base_ref_gcc43-64bit.0000 && ./bzip2_base.gcc43-64bit input.source 280\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/401.bzip2/run/run_base_ref_gcc43-64bit.0000/bzip2_base.gcc43-64bit input.source 280",
             "client_bincmd":null
           },
           "memtrace":{
@@ -3088,7 +3088,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/401.bzip2/run/run_base_ref_gcc43-64bit.0000 && ./bzip2_base.gcc43-64bit chicken.jpg 30\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/401.bzip2/run/run_base_ref_gcc43-64bit.0000/bzip2_base.gcc43-64bit chicken.jpg 30",
             "client_bincmd":null
           },
           "memtrace":{
@@ -3197,7 +3197,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/401.bzip2/run/run_base_ref_gcc43-64bit.0000 && ./bzip2_base.gcc43-64bit liberty.jpg 30\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/401.bzip2/run/run_base_ref_gcc43-64bit.0000/bzip2_base.gcc43-64bit liberty.jpg 30",
             "client_bincmd":null
           },
           "memtrace":{
@@ -3306,7 +3306,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/401.bzip2/run/run_base_ref_gcc43-64bit.0000 && ./bzip2_base.gcc43-64bit input.program 280\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/401.bzip2/run/run_base_ref_gcc43-64bit.0000/bzip2_base.gcc43-64bit input.program 280",
             "client_bincmd":null
           },
           "memtrace":{
@@ -3408,7 +3408,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/401.bzip2/run/run_base_ref_gcc43-64bit.0000 && ./bzip2_base.gcc43-64bit text.html 280\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/401.bzip2/run/run_base_ref_gcc43-64bit.0000/bzip2_base.gcc43-64bit text.html 280",
             "client_bincmd":null
           },
           "memtrace":{
@@ -3489,7 +3489,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/401.bzip2/run/run_base_ref_gcc43-64bit.0000 && ./bzip2_base.gcc43-64bit input.combined 200\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/401.bzip2/run/run_base_ref_gcc43-64bit.0000/bzip2_base.gcc43-64bit input.combined 200",
             "client_bincmd":null
           },
           "memtrace":{
@@ -3612,7 +3612,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/403.gcc/run/run_base_ref_gcc43-64bit.0000 && ./gcc_base.gcc43-64bit 166.in -o 166.s\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/403.gcc/run/run_base_ref_gcc43-64bit.0000/gcc_base.gcc43-64bit 166.in -o 166.s",
             "client_bincmd":null
           },
           "memtrace":{
@@ -3770,7 +3770,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/403.gcc/run/run_base_ref_gcc43-64bit.0000 && ./gcc_base.gcc43-64bit 200.in -o 200.s\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/403.gcc/run/run_base_ref_gcc43-64bit.0000/gcc_base.gcc43-64bit 200.in -o 200.s",
             "client_bincmd":null
           },
           "memtrace":{
@@ -3928,7 +3928,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/403.gcc/run/run_base_ref_gcc43-64bit.0000 && ./gcc_base.gcc43-64bit c-typeck.in -o c-typeck.s\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/403.gcc/run/run_base_ref_gcc43-64bit.0000/gcc_base.gcc43-64bit c-typeck.in -o c-typeck.s",
             "client_bincmd":null
           },
           "memtrace":{
@@ -4079,7 +4079,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/403.gcc/run/run_base_ref_gcc43-64bit.0000 && ./gcc_base.gcc43-64bit cp-decl.in -o cp-decl.s\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/403.gcc/run/run_base_ref_gcc43-64bit.0000/gcc_base.gcc43-64bit cp-decl.in -o cp-decl.s",
             "client_bincmd":null
           },
           "memtrace":{
@@ -4237,7 +4237,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/403.gcc/run/run_base_ref_gcc43-64bit.0000 && ./gcc_base.gcc43-64bit expr.in -o expr.s\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/403.gcc/run/run_base_ref_gcc43-64bit.0000/gcc_base.gcc43-64bit expr.in -o expr.s",
             "client_bincmd":null
           },
           "memtrace":{
@@ -4395,7 +4395,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/403.gcc/run/run_base_ref_gcc43-64bit.0000 && ./gcc_base.gcc43-64bit expr2.in -o expr2.s\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/403.gcc/run/run_base_ref_gcc43-64bit.0000/gcc_base.gcc43-64bit expr2.in -o expr2.s",
             "client_bincmd":null
           },
           "memtrace":{
@@ -4553,7 +4553,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/403.gcc/run/run_base_ref_gcc43-64bit.0000 && ./gcc_base.gcc43-64bit g23.in -o g23.s\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/403.gcc/run/run_base_ref_gcc43-64bit.0000/gcc_base.gcc43-64bit g23.in -o g23.s",
             "client_bincmd":null
           },
           "memtrace":{
@@ -4704,7 +4704,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/403.gcc/run/run_base_ref_gcc43-64bit.0000 && ./gcc_base.gcc43-64bit s04.in -o s04.s\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/403.gcc/run/run_base_ref_gcc43-64bit.0000/gcc_base.gcc43-64bit s04.in -o s04.s",
             "client_bincmd":null
           },
           "memtrace":{
@@ -4855,7 +4855,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/403.gcc/run/run_base_ref_gcc43-64bit.0000 && ./gcc_base.gcc43-64bit scilab.in -o scilab.s\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/403.gcc/run/run_base_ref_gcc43-64bit.0000/gcc_base.gcc43-64bit scilab.in -o scilab.s",
             "client_bincmd":null
           },
           "memtrace":{
@@ -5013,7 +5013,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/429.mcf/run/run_base_ref_gcc43-64bit.0000 && ./mcf_base.gcc43-64bit inp.in\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/429.mcf/run/run_base_ref_gcc43-64bit.0000/mcf_base.gcc43-64bit inp.in",
             "client_bincmd":null
           },
           "memtrace":{
@@ -5115,7 +5115,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/445.gobmk/run/run_base_ref_gcc43-64bit.0000 && ./gobmk_base.gcc43-64bit --quiet --mode gtp < 13x13.tst\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/445.gobmk/run/run_base_ref_gcc43-64bit.0000/gobmk_base.gcc43-64bit --quiet --mode gtp < 13x13.tst",
             "client_bincmd":null
           },
           "memtrace":{
@@ -5175,7 +5175,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/445.gobmk/run/run_base_ref_gcc43-64bit.0000 && ./gobmk_base.gcc43-64bit --quiet --mode gtp < nngs.tst\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/445.gobmk/run/run_base_ref_gcc43-64bit.0000/gobmk_base.gcc43-64bit --quiet --mode gtp < nngs.tst",
             "client_bincmd":null
           },
           "memtrace":{
@@ -5235,7 +5235,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/445.gobmk/run/run_base_ref_gcc43-64bit.0000 && ./gobmk_base.gcc43-64bit --quiet --mode gtp < score2.tst\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/445.gobmk/run/run_base_ref_gcc43-64bit.0000/gobmk_base.gcc43-64bit --quiet --mode gtp < score2.tst",
             "client_bincmd":null
           },
           "memtrace":{
@@ -5358,7 +5358,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/445.gobmk/run/run_base_ref_gcc43-64bit.0000 && ./gobmk_base.gcc43-64bit --quiet --mode gtp < trevorc.tst\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/445.gobmk/run/run_base_ref_gcc43-64bit.0000/gobmk_base.gcc43-64bit --quiet --mode gtp < trevorc.tst",
             "client_bincmd":null
           },
           "memtrace":{
@@ -5425,7 +5425,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/445.gobmk/run/run_base_ref_gcc43-64bit.0000 && ./gobmk_base.gcc43-64bit --quiet --mode gtp < trevord.tst\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/445.gobmk/run/run_base_ref_gcc43-64bit.0000/gobmk_base.gcc43-64bit --quiet --mode gtp < trevord.tst",
             "client_bincmd":null
           },
           "memtrace":{
@@ -5492,7 +5492,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/456.hmmer/run/run_base_ref_gcc43-64bit.0000 && ./hmmer_base.gcc43-64bit nph3.hmm swiss41\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/456.hmmer/run/run_base_ref_gcc43-64bit.0000/hmmer_base.gcc43-64bit nph3.hmm swiss41",
             "client_bincmd":null
           },
           "memtrace":{
@@ -5538,7 +5538,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/456.hmmer/run/run_base_ref_gcc43-64bit.0000 && ./hmmer_base.gcc43-64bit --fixed 0 --mean 500 --num 500000 --sd 350 --seed 0 retro.hmm\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/456.hmmer/run/run_base_ref_gcc43-64bit.0000/hmmer_base.gcc43-64bit --fixed 0 --mean 500 --num 500000 --sd 350 --seed 0 retro.hmm",
             "client_bincmd":null
           },
           "memtrace":{
@@ -5584,7 +5584,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/458.sjeng/run/run_base_ref_gcc43-64bit.0000 && ./sjeng_base.gcc43-64bit ref.txt\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/458.sjeng/run/run_base_ref_gcc43-64bit.0000/sjeng_base.gcc43-64bit ref.txt",
             "client_bincmd":null
           },
           "memtrace":{
@@ -5630,7 +5630,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/462.libquantum/run/run_base_ref_gcc43-64bit.0000 && ./libquantum_base.gcc43-64bit 1397 8\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/462.libquantum/run/run_base_ref_gcc43-64bit.0000/libquantum_base.gcc43-64bit 1397 8",
             "client_bincmd":null
           },
           "memtrace":{
@@ -5725,7 +5725,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/464.h264ref/run/run_base_ref_gcc43-64bit.0000 && ./h264ref_base.gcc43-64bit -d foreman_ref_encoder_baseline.cfg\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/464.h264ref/run/run_base_ref_gcc43-64bit.0000/h264ref_base.gcc43-64bit -d foreman_ref_encoder_baseline.cfg",
             "client_bincmd":null
           },
           "memtrace":{
@@ -5799,7 +5799,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/464.h264ref/run/run_base_ref_gcc43-64bit.0000 && ./h264ref_base.gcc43-64bit -d foreman_ref_encoder_main.cfg\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/464.h264ref/run/run_base_ref_gcc43-64bit.0000/h264ref_base.gcc43-64bit -d foreman_ref_encoder_main.cfg",
             "client_bincmd":null
           },
           "memtrace":{
@@ -5957,7 +5957,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/464.h264ref/run/run_base_ref_gcc43-64bit.0000 && ./h264ref_base.gcc43-64bit -d sss_encoder_main.cfg\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/464.h264ref/run/run_base_ref_gcc43-64bit.0000/h264ref_base.gcc43-64bit -d sss_encoder_main.cfg",
             "client_bincmd":null
           },
           "memtrace":{
@@ -6045,7 +6045,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/471.omnetpp/run/run_base_ref_gcc43-64bit.0000 && ./omnetpp_base.gcc43-64bit omnetpp.ini\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/471.omnetpp/run/run_base_ref_gcc43-64bit.0000/omnetpp_base.gcc43-64bit omnetpp.ini",
             "client_bincmd":null
           },
           "memtrace":{
@@ -6140,7 +6140,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/473.astar/run/run_base_ref_gcc43-64bit.0000 && ./astar_base.gcc43-64bit BigLakes2048.cfg\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/473.astar/run/run_base_ref_gcc43-64bit.0000/astar_base.gcc43-64bit BigLakes2048.cfg",
             "client_bincmd":null
           },
           "memtrace":{
@@ -6235,7 +6235,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/473.astar/run/run_base_ref_gcc43-64bit.0000 && ./astar_base.gcc43-64bit rivers.cfg\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/473.astar/run/run_base_ref_gcc43-64bit.0000/astar_base.gcc43-64bit rivers.cfg",
             "client_bincmd":null
           },
           "memtrace":{
@@ -6323,7 +6323,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/483.xalancbmk/run/run_base_ref_gcc43-64bit.0000 && ./Xalan_base.gcc43-64bit -v t5.xml xalanc.xsl\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/483.xalancbmk/run/run_base_ref_gcc43-64bit.0000/Xalan_base.gcc43-64bit -v t5.xml xalanc.xsl",
             "client_bincmd":null
           },
           "memtrace":{
@@ -6421,7 +6421,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/410.bwaves/run/run_base_ref_gcc43-64bit.0000 && ./bwaves_base.gcc43-64bit 2\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/410.bwaves/run/run_base_ref_gcc43-64bit.0000/bwaves_base.gcc43-64bit 2",
             "client_bincmd":null
           },
           "memtrace":{
@@ -6488,7 +6488,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/416.gamess/run/run_base_ref_gcc43-64bit.0000 && ./gamess_base.gcc43-64bit < cytosine.2.config\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/416.gamess/run/run_base_ref_gcc43-64bit.0000/gamess_base.gcc43-64bit < cytosine.2.config",
             "client_bincmd":null
           },
           "memtrace":{
@@ -6569,7 +6569,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/416.gamess/run/run_base_ref_gcc43-64bit.0000 && ./gamess_base.gcc43-64bit < h2ocu2+.gradient.config\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/416.gamess/run/run_base_ref_gcc43-64bit.0000/gamess_base.gcc43-64bit < h2ocu2+.gradient.config",
             "client_bincmd":null
           },
           "memtrace":{
@@ -6622,7 +6622,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/416.gamess/run/run_base_ref_gcc43-64bit.0000 && ./gamess_base.gcc43-64bit < triazolium.config\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/416.gamess/run/run_base_ref_gcc43-64bit.0000/gamess_base.gcc43-64bit < triazolium.config",
             "client_bincmd":null
           },
           "memtrace":{
@@ -6675,7 +6675,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/433.milc/run/run_base_ref_gcc43-64bit.0000 && ./milc_base.gcc43-64bit < su3imp.in\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/433.milc/run/run_base_ref_gcc43-64bit.0000/milc_base.gcc43-64bit < su3imp.in",
             "client_bincmd":null
           },
           "memtrace":{
@@ -6777,7 +6777,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/434.zeusmp/run/run_base_ref_gcc43-64bit.0000 && ./zeusmp_base.gcc43-64bit \"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/434.zeusmp/run/run_base_ref_gcc43-64bit.0000/zeusmp_base.gcc43-64bit",
             "client_bincmd":null
           },
           "memtrace":{
@@ -6928,7 +6928,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/435.gromacs/run/run_base_ref_gcc43-64bit.0000 && ./gromacs_base.gcc43-64bit -silent -deffnm gromacs -nice 0 2\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/435.gromacs/run/run_base_ref_gcc43-64bit.0000/gromacs_base.gcc43-64bit -silent -deffnm gromacs -nice 0 2",
             "client_bincmd":null
           },
           "memtrace":{
@@ -6988,7 +6988,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/436.cactusADM/run/run_base_ref_gcc43-64bit.0000 && ./cactusADM_base.gcc43-64bit benchADM.par\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/436.cactusADM/run/run_base_ref_gcc43-64bit.0000/cactusADM_base.gcc43-64bit benchADM.par",
             "client_bincmd":null
           },
           "memtrace":{
@@ -7027,7 +7027,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/437.leslie3d/run/run_base_ref_gcc43-64bit.0000 && ./leslie3d_base.gcc43-64bit < leslie3d.in\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/437.leslie3d/run/run_base_ref_gcc43-64bit.0000/leslie3d_base.gcc43-64bit < leslie3d.in",
             "client_bincmd":null
           },
           "memtrace":{
@@ -7122,7 +7122,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/444.namd/run/run_base_ref_gcc43-64bit.0000 && ./namd_base.gcc43-64bit --input namd.input --iterations 38 --output namd.out\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/444.namd/run/run_base_ref_gcc43-64bit.0000/namd_base.gcc43-64bit --input namd.input --iterations 38 --output namd.out",
             "client_bincmd":null
           },
           "memtrace":{
@@ -7259,7 +7259,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/447.dealII/run/run_base_ref_gcc43-64bit.0000 && ./dealII_base.gcc43-64bit 23\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/447.dealII/run/run_base_ref_gcc43-64bit.0000/dealII_base.gcc43-64bit 23",
             "client_bincmd":null
           },
           "memtrace":{
@@ -7389,7 +7389,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/450.soplex/run/run_base_ref_gcc43-64bit.0000 && ./soplex_base.gcc43-64bit -s1 -e -m45000 pds-50.mps\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/450.soplex/run/run_base_ref_gcc43-64bit.0000/soplex_base.gcc43-64bit -s1 -e -m45000 pds-50.mps",
             "client_bincmd":null
           },
           "memtrace":{
@@ -7519,7 +7519,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/450.soplex/run/run_base_ref_gcc43-64bit.0000 && ./soplex_base.gcc43-64bit -m3500 ref.mps\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/450.soplex/run/run_base_ref_gcc43-64bit.0000/soplex_base.gcc43-64bit -m3500 ref.mps",
             "client_bincmd":null
           },
           "memtrace":{
@@ -7586,7 +7586,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/453.povray/run/run_base_ref_gcc43-64bit.0000 && ./povray_base.gcc43-64bit SPEC-benchmark-ref.ini\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/453.povray/run/run_base_ref_gcc43-64bit.0000/povray_base.gcc43-64bit SPEC-benchmark-ref.ini",
             "client_bincmd":null
           },
           "memtrace":{
@@ -7632,7 +7632,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/454.calculix/run/run_base_ref_gcc43-64bit.0000 && ./calculix_base.gcc43-64bit -i hyperviscoplastic\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/454.calculix/run/run_base_ref_gcc43-64bit.0000/calculix_base.gcc43-64bit -i hyperviscoplastic",
             "client_bincmd":null
           },
           "memtrace":{
@@ -7720,7 +7720,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/459.GemsFDTD/run/run_base_ref_gcc43-64bit.0000 && ./GemsFDTD_base.gcc43-64bit \"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/459.GemsFDTD/run/run_base_ref_gcc43-64bit.0000/GemsFDTD_base.gcc43-64bit",
             "client_bincmd":null
           },
           "memtrace":{
@@ -7857,7 +7857,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/465.tonto/run/run_base_ref_gcc43-64bit.0000 && ./tonto_base.gcc43-64bit \"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/465.tonto/run/run_base_ref_gcc43-64bit.0000/tonto_base.gcc43-64bit",
             "client_bincmd":null
           },
           "memtrace":{
@@ -8015,7 +8015,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/470.lbm/run/run_base_ref_gcc43-64bit.0000 && ./lbm_base.gcc43-64bit 3000 reference.dat 0 0 100_100_130_ldc.of\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/470.lbm/run/run_base_ref_gcc43-64bit.0000/lbm_base.gcc43-64bit 3000 reference.dat 0 0 100_100_130_ldc.of",
             "client_bincmd":null
           },
           "memtrace":{
@@ -8054,7 +8054,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/481.wrf/run/run_base_ref_gcc43-64bit.0000 && ./wrf_base.gcc43-64bit \"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/481.wrf/run/run_base_ref_gcc43-64bit.0000/wrf_base.gcc43-64bit",
             "client_bincmd":null
           },
           "memtrace":{
@@ -8212,7 +8212,7 @@
             "image_name":"spec2006",
             "segment_size":10000000,
             "env_vars":null,
-            "binary_cmd":"sh -c \"cd \\$tmpdir/application/cpu2006/benchspec/CPU2006/482.sphinx3/run/run_base_ref_gcc43-64bit.0000 && ./sphinx_livepretend_base.gcc43-64bit ctlfile . args.an4\"",
+            "binary_cmd":"\\$tmpdir/application/cpu2006/benchspec/CPU2006/482.sphinx3/run/run_base_ref_gcc43-64bit.0000/sphinx_livepretend_base.gcc43-64bit ctlfile . args.an4",
             "client_bincmd":null
           },
           "memtrace":{
@@ -12674,6 +12674,792 @@
             }
           }
         ]
+      }
+    }
+  },
+  "spec2026":{
+    "rate_int":{
+      "stockfish_r":{
+        "performance":{
+          "topdown":{
+            "retiring":45.3,
+            "bad_speculation":11.3,
+            "frontend_bound":20.1,
+            "backend_bound":23.3
+          },
+          "execution_time":{
+            "min":8,
+            "sec":7.91
+          },
+          "repeat_count":2,
+          "peak_rss_mb":1671,
+          "hw_metrics":{
+            "instructions":1505806478535,
+            "ipc":1.823,
+            "branch_pct":9.71,
+            "branch_mispred_rate":3.434,
+            "branch_mpki":3.333,
+            "l1i_mpki":5.075,
+            "l1d_mpki":34.073,
+            "l2_mpki":4.344,
+            "l3_mpki":0.31,
+            "itlb_mpmi":5.3,
+            "dtlb_mpmi":214.7,
+            "min_coverage_pct":100.0
+          }
+        }
+      },
+      "ntest_r":{
+        "performance":{
+          "topdown":{
+            "retiring":62.8,
+            "bad_speculation":18.6,
+            "frontend_bound":7.9,
+            "backend_bound":10.7
+          },
+          "execution_time":{
+            "min":9,
+            "sec":14.55
+          },
+          "repeat_count":2,
+          "peak_rss_mb":109,
+          "hw_metrics":{
+            "instructions":2353629345594,
+            "ipc":2.507,
+            "branch_pct":7.92,
+            "branch_mispred_rate":3.522,
+            "branch_mpki":2.79,
+            "l1i_mpki":0.248,
+            "l1d_mpki":5.408,
+            "l2_mpki":0.222,
+            "l3_mpki":0.004,
+            "itlb_mpmi":1.7,
+            "dtlb_mpmi":9.4,
+            "min_coverage_pct":100.0
+          }
+        }
+      },
+      "sqlite_r":{
+        "performance":{
+          "topdown":{
+            "retiring":49.3,
+            "bad_speculation":7.5,
+            "frontend_bound":16.9,
+            "backend_bound":26.3
+          },
+          "execution_time":{
+            "min":8,
+            "sec":56.86
+          },
+          "repeat_count":2,
+          "peak_rss_mb":1186,
+          "hw_metrics":{
+            "instructions":1820689866486,
+            "ipc":2.003,
+            "branch_pct":20.08,
+            "branch_mispred_rate":0.623,
+            "branch_mpki":1.251,
+            "l1i_mpki":1.205,
+            "l1d_mpki":4.559,
+            "l2_mpki":3.145,
+            "l3_mpki":0.758,
+            "itlb_mpmi":5.0,
+            "dtlb_mpmi":197.3,
+            "min_coverage_pct":100.0
+          }
+        }
+      },
+      "omnetpp_r":{
+        "performance":{
+          "topdown":{
+            "retiring":51.3,
+            "bad_speculation":5.5,
+            "frontend_bound":33.4,
+            "backend_bound":9.7
+          },
+          "execution_time":{
+            "min":8,
+            "sec":44.75
+          },
+          "repeat_count":2,
+          "peak_rss_mb":754,
+          "hw_metrics":{
+            "instructions":1617798806352,
+            "ipc":1.964,
+            "branch_pct":19.37,
+            "branch_mispred_rate":0.596,
+            "branch_mpki":1.154,
+            "l1i_mpki":13.032,
+            "l1d_mpki":12.599,
+            "l2_mpki":2.634,
+            "l3_mpki":0.044,
+            "itlb_mpmi":12.1,
+            "dtlb_mpmi":200.7,
+            "min_coverage_pct":100.0
+          }
+        }
+      },
+      "cpython_r":{
+        "performance":{
+          "topdown":{
+            "retiring":62.6,
+            "bad_speculation":1.7,
+            "frontend_bound":33.6,
+            "backend_bound":2.1
+          },
+          "execution_time":{
+            "min":6,
+            "sec":2.85
+          },
+          "repeat_count":2,
+          "peak_rss_mb":1129,
+          "hw_metrics":{
+            "instructions":1589152673290,
+            "ipc":2.59,
+            "branch_pct":19.77,
+            "branch_mispred_rate":0.109,
+            "branch_mpki":0.215,
+            "l1i_mpki":21.582,
+            "l1d_mpki":3.086,
+            "l2_mpki":0.388,
+            "l3_mpki":0.021,
+            "itlb_mpmi":2.6,
+            "dtlb_mpmi":26.9,
+            "min_coverage_pct":100.0
+          }
+        }
+      },
+      "gcc_r":{
+        "performance":{
+          "topdown":{
+            "retiring":31.6,
+            "bad_speculation":9.4,
+            "frontend_bound":25.0,
+            "backend_bound":34.0
+          },
+          "execution_time":{
+            "min":9,
+            "sec":0.52
+          },
+          "repeat_count":2,
+          "peak_rss_mb":969,
+          "hw_metrics":{
+            "instructions":1232617571045,
+            "ipc":1.349,
+            "branch_pct":20.11,
+            "branch_mispred_rate":1.798,
+            "branch_mpki":3.616,
+            "l1i_mpki":14.112,
+            "l1d_mpki":19.294,
+            "l2_mpki":15.851,
+            "l3_mpki":1.592,
+            "itlb_mpmi":43.2,
+            "dtlb_mpmi":656.2,
+            "min_coverage_pct":100.0
+          }
+        }
+      },
+      "llvm_r":{
+        "performance":{
+          "topdown":{
+            "retiring":39.4,
+            "bad_speculation":11.8,
+            "frontend_bound":35.5,
+            "backend_bound":13.3
+          },
+          "execution_time":{
+            "min":9,
+            "sec":25.25
+          },
+          "repeat_count":2,
+          "peak_rss_mb":1379,
+          "hw_metrics":{
+            "instructions":1551639729601,
+            "ipc":1.629,
+            "branch_pct":14.28,
+            "branch_mispred_rate":2.969,
+            "branch_mpki":4.241,
+            "l1i_mpki":19.951,
+            "l1d_mpki":7.665,
+            "l2_mpki":6.233,
+            "l3_mpki":0.734,
+            "itlb_mpmi":68.3,
+            "dtlb_mpmi":195.6,
+            "min_coverage_pct":100.0
+          }
+        }
+      },
+      "cppcheck_r":{
+        "performance":{
+          "topdown":{
+            "retiring":47.5,
+            "bad_speculation":5.0,
+            "frontend_bound":27.1,
+            "backend_bound":20.4
+          },
+          "execution_time":{
+            "min":6,
+            "sec":13.35
+          },
+          "repeat_count":2,
+          "peak_rss_mb":566,
+          "hw_metrics":{
+            "instructions":1368918572733,
+            "ipc":2.174,
+            "branch_pct":24.5,
+            "branch_mispred_rate":0.463,
+            "branch_mpki":1.133,
+            "l1i_mpki":1.494,
+            "l1d_mpki":8.181,
+            "l2_mpki":7.307,
+            "l3_mpki":0.666,
+            "itlb_mpmi":5.8,
+            "dtlb_mpmi":472.3,
+            "min_coverage_pct":100.0
+          }
+        }
+      },
+      "abc_r":{
+        "performance":{
+          "topdown":{
+            "retiring":43.5,
+            "bad_speculation":18.5,
+            "frontend_bound":17.9,
+            "backend_bound":20.1
+          },
+          "execution_time":{
+            "min":7,
+            "sec":4.6
+          },
+          "repeat_count":2,
+          "peak_rss_mb":1450,
+          "hw_metrics":{
+            "instructions":1357330098538,
+            "ipc":1.89,
+            "branch_pct":15.42,
+            "branch_mispred_rate":2.665,
+            "branch_mpki":4.109,
+            "l1i_mpki":0.511,
+            "l1d_mpki":15.229,
+            "l2_mpki":3.507,
+            "l3_mpki":0.674,
+            "itlb_mpmi":3.0,
+            "dtlb_mpmi":270.6,
+            "min_coverage_pct":100.0
+          }
+        }
+      },
+      "vpr_r":{
+        "performance":{
+          "topdown":{
+            "retiring":43.6,
+            "bad_speculation":11.5,
+            "frontend_bound":21.1,
+            "backend_bound":23.8
+          },
+          "execution_time":{
+            "min":7,
+            "sec":28.64
+          },
+          "repeat_count":2,
+          "peak_rss_mb":1607,
+          "hw_metrics":{
+            "instructions":1358371164156,
+            "ipc":1.794,
+            "branch_pct":17.9,
+            "branch_mispred_rate":1.649,
+            "branch_mpki":2.951,
+            "l1i_mpki":1.251,
+            "l1d_mpki":18.027,
+            "l2_mpki":7.288,
+            "l3_mpki":0.493,
+            "itlb_mpmi":6.2,
+            "dtlb_mpmi":271.0,
+            "min_coverage_pct":100.0
+          }
+        }
+      },
+      "gem5_r":{
+        "performance":{
+          "topdown":{
+            "retiring":47.6,
+            "bad_speculation":9.0,
+            "frontend_bound":29.3,
+            "backend_bound":14.1
+          },
+          "execution_time":{
+            "min":8,
+            "sec":13.4
+          },
+          "repeat_count":2,
+          "peak_rss_mb":737,
+          "hw_metrics":{
+            "instructions":1594376360316,
+            "ipc":1.94,
+            "branch_pct":16.62,
+            "branch_mispred_rate":1.348,
+            "branch_mpki":2.241,
+            "l1i_mpki":16.754,
+            "l1d_mpki":18.574,
+            "l2_mpki":1.559,
+            "l3_mpki":0.098,
+            "itlb_mpmi":22.6,
+            "dtlb_mpmi":140.7,
+            "min_coverage_pct":100.0
+          }
+        }
+      },
+      "sealcrypto_r":{
+        "performance":{
+          "topdown":{
+            "retiring":79.2,
+            "bad_speculation":1.9,
+            "frontend_bound":3.8,
+            "backend_bound":15.0
+          },
+          "execution_time":{
+            "min":9,
+            "sec":11.86
+          },
+          "repeat_count":2,
+          "peak_rss_mb":514,
+          "hw_metrics":{
+            "instructions":2506324044660,
+            "ipc":3.049,
+            "branch_pct":3.45,
+            "branch_mispred_rate":0.708,
+            "branch_mpki":0.245,
+            "l1i_mpki":0.231,
+            "l1d_mpki":7.713,
+            "l2_mpki":2.098,
+            "l3_mpki":0.035,
+            "itlb_mpmi":1.9,
+            "dtlb_mpmi":4.9,
+            "min_coverage_pct":100.0
+          }
+        }
+      },
+      "ns3_r":{
+        "performance":{
+          "topdown":{
+            "retiring":40.4,
+            "bad_speculation":6.8,
+            "frontend_bound":45.2,
+            "backend_bound":7.6
+          },
+          "execution_time":{
+            "min":9,
+            "sec":34.82
+          },
+          "repeat_count":2,
+          "peak_rss_mb":109,
+          "hw_metrics":{
+            "instructions":1520832542084,
+            "ipc":1.598,
+            "branch_pct":19.11,
+            "branch_mispred_rate":1.439,
+            "branch_mpki":2.75,
+            "l1i_mpki":33.579,
+            "l1d_mpki":12.425,
+            "l2_mpki":2.776,
+            "l3_mpki":0.052,
+            "itlb_mpmi":68.3,
+            "dtlb_mpmi":180.2,
+            "min_coverage_pct":100.0
+          }
+        }
+      },
+      "zstd_r":{
+        "performance":{
+          "topdown":{
+            "retiring":44.5,
+            "bad_speculation":16.1,
+            "frontend_bound":12.3,
+            "backend_bound":27.0
+          },
+          "execution_time":{
+            "min":9,
+            "sec":48.62
+          },
+          "repeat_count":2,
+          "peak_rss_mb":447,
+          "hw_metrics":{
+            "instructions":1850709640508,
+            "ipc":1.879,
+            "branch_pct":11.9,
+            "branch_mispred_rate":2.919,
+            "branch_mpki":3.473,
+            "l1i_mpki":0.329,
+            "l1d_mpki":12.402,
+            "l2_mpki":4.509,
+            "l3_mpki":0.417,
+            "itlb_mpmi":2.7,
+            "dtlb_mpmi":820.1,
+            "min_coverage_pct":100.0
+          }
+        }
+      }
+    },
+    "rate_fp":{
+      "cactus_r":{
+        "performance":{
+          "topdown":{
+            "retiring":38.8,
+            "bad_speculation":0.2,
+            "frontend_bound":5.7,
+            "backend_bound":55.3
+          },
+          "execution_time":{
+            "min":7,
+            "sec":13.91
+          },
+          "repeat_count":2,
+          "peak_rss_mb":1656,
+          "hw_metrics":{
+            "instructions":993180472052,
+            "ipc":1.359,
+            "branch_pct":1.32,
+            "branch_mispred_rate":0.458,
+            "branch_mpki":0.061,
+            "l1i_mpki":89.151,
+            "l1d_mpki":135.215,
+            "l2_mpki":8.369,
+            "l3_mpki":2.13,
+            "itlb_mpmi":7.6,
+            "dtlb_mpmi":92.4,
+            "min_coverage_pct":100.0
+          }
+        }
+      },
+      "palm_r":{
+        "performance":{
+          "topdown":{
+            "retiring":57.4,
+            "bad_speculation":1.8,
+            "frontend_bound":10.1,
+            "backend_bound":30.8
+          },
+          "execution_time":{
+            "min":14,
+            "sec":25.85
+          },
+          "repeat_count":2,
+          "peak_rss_mb":1763,
+          "hw_metrics":{
+            "instructions":2615028377894,
+            "ipc":2.14,
+            "branch_pct":4.72,
+            "branch_mispred_rate":0.431,
+            "branch_mpki":0.203,
+            "l1i_mpki":10.915,
+            "l1d_mpki":34.18,
+            "l2_mpki":8.792,
+            "l3_mpki":0.811,
+            "itlb_mpmi":14.8,
+            "dtlb_mpmi":252.1,
+            "min_coverage_pct":100.0
+          }
+        }
+      },
+      "astcenc_r":{
+        "performance":{
+          "topdown":{
+            "retiring":46.7,
+            "bad_speculation":24.4,
+            "frontend_bound":12.9,
+            "backend_bound":16.0
+          },
+          "execution_time":{
+            "min":13,
+            "sec":33.02
+          },
+          "repeat_count":2,
+          "peak_rss_mb":109,
+          "hw_metrics":{
+            "instructions":1967550208351,
+            "ipc":1.808,
+            "branch_pct":9.34,
+            "branch_mispred_rate":8.059,
+            "branch_mpki":7.529,
+            "l1i_mpki":2.262,
+            "l1d_mpki":5.09,
+            "l2_mpki":1.162,
+            "l3_mpki":0.005,
+            "itlb_mpmi":3.4,
+            "dtlb_mpmi":8.8,
+            "min_coverage_pct":100.0
+          }
+        }
+      },
+      "ocio_r":{
+        "performance":{
+          "topdown":{
+            "retiring":61.9,
+            "bad_speculation":1.1,
+            "frontend_bound":6.9,
+            "backend_bound":30.2
+          },
+          "execution_time":{
+            "min":9,
+            "sec":27.14
+          },
+          "repeat_count":2,
+          "peak_rss_mb":1529,
+          "hw_metrics":{
+            "instructions":1945571679422,
+            "ipc":2.326,
+            "branch_pct":8.9,
+            "branch_mispred_rate":0.162,
+            "branch_mpki":0.144,
+            "l1i_mpki":0.373,
+            "l1d_mpki":6.989,
+            "l2_mpki":2.678,
+            "l3_mpki":0.034,
+            "itlb_mpmi":5.8,
+            "dtlb_mpmi":14.0,
+            "min_coverage_pct":100.0
+          }
+        }
+      },
+      "gmsh_r":{
+        "performance":{
+          "topdown":{
+            "retiring":37.1,
+            "bad_speculation":12.5,
+            "frontend_bound":16.8,
+            "backend_bound":33.6
+          },
+          "execution_time":{
+            "min":7,
+            "sec":28.64
+          },
+          "repeat_count":2,
+          "peak_rss_mb":992,
+          "hw_metrics":{
+            "instructions":1118633360066,
+            "ipc":1.496,
+            "branch_pct":15.47,
+            "branch_mispred_rate":2.016,
+            "branch_mpki":3.118,
+            "l1i_mpki":1.046,
+            "l1d_mpki":11.837,
+            "l2_mpki":4.825,
+            "l3_mpki":0.877,
+            "itlb_mpmi":19.6,
+            "dtlb_mpmi":1042.2,
+            "min_coverage_pct":100.0
+          }
+        }
+      },
+      "flightdm_r":{
+        "performance":{
+          "topdown":{
+            "retiring":52.6,
+            "bad_speculation":4.9,
+            "frontend_bound":20.9,
+            "backend_bound":21.6
+          },
+          "execution_time":{
+            "min":9,
+            "sec":3.58
+          },
+          "repeat_count":2,
+          "peak_rss_mb":109,
+          "hw_metrics":{
+            "instructions":1783619501377,
+            "ipc":2.076,
+            "branch_pct":18.18,
+            "branch_mispred_rate":0.429,
+            "branch_mpki":0.78,
+            "l1i_mpki":18.466,
+            "l1d_mpki":25.123,
+            "l2_mpki":0.061,
+            "l3_mpki":0.006,
+            "itlb_mpmi":68.2,
+            "dtlb_mpmi":8.9,
+            "min_coverage_pct":100.0
+          }
+        }
+      },
+      "fotonik3d_r":{
+        "performance":{
+          "topdown":{
+            "retiring":31.0,
+            "bad_speculation":1.9,
+            "frontend_bound":6.6,
+            "backend_bound":60.5
+          },
+          "execution_time":{
+            "min":7,
+            "sec":31.01
+          },
+          "repeat_count":2,
+          "peak_rss_mb":1726,
+          "hw_metrics":{
+            "instructions":680859746919,
+            "ipc":1.149,
+            "branch_pct":4.52,
+            "branch_mispred_rate":0.227,
+            "branch_mpki":0.103,
+            "l1i_mpki":0.703,
+            "l1d_mpki":74.403,
+            "l2_mpki":78.689,
+            "l3_mpki":11.382,
+            "itlb_mpmi":5.4,
+            "dtlb_mpmi":1264.9,
+            "min_coverage_pct":100.0
+          }
+        }
+      },
+      "roms_r":{
+        "performance":{
+          "topdown":{
+            "retiring":34.7,
+            "bad_speculation":0.8,
+            "frontend_bound":4.3,
+            "backend_bound":60.2
+          },
+          "execution_time":{
+            "min":13,
+            "sec":6.88
+          },
+          "repeat_count":2,
+          "peak_rss_mb":1163,
+          "hw_metrics":{
+            "instructions":1315386318467,
+            "ipc":1.237,
+            "branch_pct":9.7,
+            "branch_mispred_rate":0.361,
+            "branch_mpki":0.35,
+            "l1i_mpki":0.584,
+            "l1d_mpki":99.417,
+            "l2_mpki":74.405,
+            "l3_mpki":4.534,
+            "itlb_mpmi":14.8,
+            "dtlb_mpmi":478.2,
+            "min_coverage_pct":100.0
+          }
+        }
+      },
+      "femflow_r":{
+        "performance":{
+          "topdown":{
+            "retiring":65.8,
+            "bad_speculation":1.1,
+            "frontend_bound":8.3,
+            "backend_bound":24.8
+          },
+          "execution_time":{
+            "min":10,
+            "sec":5.68
+          },
+          "repeat_count":2,
+          "peak_rss_mb":326,
+          "hw_metrics":{
+            "instructions":2206961593421,
+            "ipc":2.649,
+            "branch_pct":3.61,
+            "branch_mispred_rate":0.684,
+            "branch_mpki":0.247,
+            "l1i_mpki":1.418,
+            "l1d_mpki":23.922,
+            "l2_mpki":5.639,
+            "l3_mpki":0.326,
+            "itlb_mpmi":4.6,
+            "dtlb_mpmi":28.5,
+            "min_coverage_pct":100.0
+          }
+        }
+      },
+      "nest_r":{
+        "performance":{
+          "topdown":{
+            "retiring":56.9,
+            "bad_speculation":4.6,
+            "frontend_bound":6.7,
+            "backend_bound":31.8
+          },
+          "execution_time":{
+            "min":8,
+            "sec":18.11
+          },
+          "repeat_count":2,
+          "peak_rss_mb":1064,
+          "hw_metrics":{
+            "instructions":1773054156158,
+            "ipc":2.209,
+            "branch_pct":13.92,
+            "branch_mispred_rate":0.417,
+            "branch_mpki":0.581,
+            "l1i_mpki":0.457,
+            "l1d_mpki":31.378,
+            "l2_mpki":3.634,
+            "l3_mpki":0.193,
+            "itlb_mpmi":4.4,
+            "dtlb_mpmi":457.7,
+            "min_coverage_pct":100.0
+          }
+        }
+      },
+      "marian_r":{
+        "performance":{
+          "topdown":{
+            "retiring":57.0,
+            "bad_speculation":3.9,
+            "frontend_bound":9.2,
+            "backend_bound":30.0
+          },
+          "execution_time":{
+            "min":9,
+            "sec":32.56
+          },
+          "repeat_count":2,
+          "peak_rss_mb":1038,
+          "hw_metrics":{
+            "instructions":1990692196390,
+            "ipc":2.259,
+            "branch_pct":7.05,
+            "branch_mispred_rate":0.987,
+            "branch_mpki":0.696,
+            "l1i_mpki":0.338,
+            "l1d_mpki":32.896,
+            "l2_mpki":8.25,
+            "l3_mpki":0.133,
+            "itlb_mpmi":3.2,
+            "dtlb_mpmi":100.2,
+            "min_coverage_pct":100.0
+          }
+        }
+      },
+      "lbm_r":{
+        "performance":{
+          "topdown":{
+            "retiring":45.6,
+            "bad_speculation":0.2,
+            "frontend_bound":0.9,
+            "backend_bound":53.3
+          },
+          "execution_time":{
+            "min":8,
+            "sec":54.73
+          },
+          "repeat_count":2,
+          "peak_rss_mb":1638,
+          "hw_metrics":{
+            "instructions":1657512415299,
+            "ipc":1.831,
+            "branch_pct":1.36,
+            "branch_mispred_rate":0.384,
+            "branch_mpki":0.052,
+            "l1i_mpki":0.257,
+            "l1d_mpki":47.571,
+            "l2_mpki":29.605,
+            "l3_mpki":0.055,
+            "itlb_mpmi":2.6,
+            "dtlb_mpmi":12.2,
+            "min_coverage_pct":100.0
+          }
+        }
       }
     }
   },

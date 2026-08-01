@@ -27,7 +27,10 @@ from .utilities import (
     is_container_running,
     count_interactive_shells,
     run_on_node,
+    infra_mount_arg,
+    ROOT_ENTRYPOINT,
 )
+from .image_identity import image_tag_for
 from . import slurm_runner, local_runner
 
 client = docker.from_env()
@@ -131,15 +134,6 @@ def open_interactive_shell(user, descriptor_name, descriptor_data, workloads_dat
         local_uid = os.getuid()
         local_gid = os.getgid()
 
-        # Get GitHash
-        try:
-            githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).decode("utf-8").strip()
-            info(f"Git hash: {githash}", dbg_lvl)
-        except FileNotFoundError:
-            err("Error: 'git' command not found. Make sure Git is installed and in your PATH.")
-        except subprocess.CalledProcessError:
-            err("Error: Not in a Git repository or unable to retrieve Git hash.")
-
         scarab_git_hash = None
         try:
             scarab_git_hash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=scarab_path).decode("utf-8").strip()
@@ -181,7 +175,6 @@ def open_interactive_shell(user, descriptor_name, descriptor_data, workloads_dat
                                                 experiment_name,
                                                 descriptor_data['architecture'],
                                                 docker_prefix_list,
-                                                githash,
                                                 infra_dir,
                                                 scarab_binaries,
                                                 interactive_shell=True,
@@ -190,7 +183,7 @@ def open_interactive_shell(user, descriptor_name, descriptor_data, workloads_dat
         except Exception as exc:
             warn(f"Scarab build failed; continuing to interactive shell anyway: {exc}", dbg_lvl)
             scarab_githash = scarab_git_hash if scarab_git_hash else "unknown"
-            image_tag_list = [f"{docker_prefix}:{githash}"]
+            image_tag_list = [image_tag_for(docker_prefix, infra_dir)]
         workload = descriptor_data['simulations'][0]['workload']
         mode = descriptor_data['simulations'][0]['simulation_type']
 
@@ -216,29 +209,11 @@ def open_interactive_shell(user, descriptor_name, descriptor_data, workloads_dat
                                 "--mount", f"type=bind,source={docker_home},target=/home/{user},readonly=false",
                                 "--mount", f"type=bind,source={scarab_path},target=/scarab,readonly=false",
                                 "--mount", f"type=bind,source={application_dir},target=/tmp_home/application,readonly=false",
-                                f"{docker_prefix}:{githash}", "/bin/bash"], check=True, capture_output=True, text=True)
-                subprocess.run(["docker", "cp", f"{infra_dir}/scripts/utilities.sh", f"{docker_container_name}:/usr/local/bin"],
-                               check=True, capture_output=True, text=True)
-                subprocess.run(["docker", "cp", f"{infra_dir}/common/scripts/root_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
-                               check=True, capture_output=True, text=True)
-                subprocess.run(["docker", "cp", f"{infra_dir}/common/scripts/user_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
-                               check=True, capture_output=True, text=True)
-                if os.path.exists(f"{infra_dir}/workloads/{docker_prefix}/workload_root_entrypoint.sh"):
-                    subprocess.run(["docker", "cp", f"{infra_dir}/workloads/{docker_prefix}/workload_root_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
-                                   check=True, capture_output=True, text=True)
-                if os.path.exists(f"{infra_dir}/workloads/{docker_prefix}/workload_user_entrypoint.sh"):
-                    subprocess.run(["docker", "cp", f"{infra_dir}/workloads/{docker_prefix}/workload_user_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
-                                   check=True, capture_output=True, text=True)
-                if mode == "memtrace":
-                    subprocess.run(["docker", "cp", f"{infra_dir}/common/scripts/run_memtrace_single_simpoint.sh", f"{docker_container_name}:/usr/local_bin"],
-                                   check=True, capture_output=True, text=True)
-                elif mode == "pt":
-                    subprocess.run(["docker", "cp", f"{infra_dir}/common/scripts/run_pt_single_simpoint.sh", f"{docker_container_name}:/usr/local/bin"],
-                                   check=True, capture_output=True, text=True)
-                elif mode == "exec":
-                    subprocess.run(["docker", "cp", f"{infra_dir}/common/scripts/run_exec_single_simpoint.sh", f"{docker_container_name}:/usr/local/bin"],
-                                   check=True, capture_output=True, text=True)
-                subprocess.run(["docker", "exec", "--privileged", f"{docker_container_name}", "/bin/bash", "-c", "/usr/local/bin/root_entrypoint.sh"],
+                                "--mount", infra_mount_arg(infra_dir),
+                                image_tag_for(docker_prefix, infra_dir), "/bin/bash"], check=True, capture_output=True, text=True)
+                # The infra scripts come from the read-only bind mount above;
+                # root_entrypoint.sh publishes them into /usr/local/bin.
+                subprocess.run(["docker", "exec", "--privileged", f"{docker_container_name}", "/bin/bash", "-c", ROOT_ENTRYPOINT],
                                check=True, capture_output=True, text=True)
                 workdir = experiment_workdir if experiment_workdir else default_workdir
                 subprocess.run(["docker", "exec", "--privileged", "-it", f"--user={user}", f"--workdir={workdir}", docker_container_name, "/bin/bash"])
