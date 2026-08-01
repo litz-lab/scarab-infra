@@ -402,12 +402,18 @@ def build_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_pre
     scarab_bin = f"{scarab_path}/src/build/{scarab_build}/scarab"
     info(f"Scarab binary at '{scarab_bin}', building it first, please wait...", dbg_lvl)
     docker_container_name = f"{docker_prefix}_{user}_scarab_build"
+    # The container name is deterministic, so one left over from an earlier run makes
+    # this `docker run` fail with a bare exit 125 and no explanation. Clear it first:
+    # the finally below does not cover a SIGTERM'd sci (slurm timeout, CI kill, or a
+    # wrapper timeout), because Python does not unwind the stack on SIGTERM.
+    subprocess.run(["docker", "rm", "-f", f"{docker_container_name}"],
+                   check=False, capture_output=True, text=True)
     try:
         subprocess.run(
                 ["docker", "run", "-e", f"user_id={local_uid}",
                  "-e", f"group_id={local_gid}",
                  "-e", f"username={user}",
-                 "-dit", "--name", f"{docker_container_name}",
+                 "-dit", "--rm", "--name", f"{docker_container_name}",
                  "--mount", f"type=bind,source={docker_home},target=/home/{user},readonly=false",
                  "--mount", f"type=bind,source={scarab_path},target=/scarab,readonly=false",
                  "--mount", infra_mount_arg(infra_dir),
@@ -446,8 +452,10 @@ def build_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_pre
     except Exception as e:
         exception = e
     finally:
-        # Always clean up build container
-        subprocess.run(["docker", "rm", "-f", f"{docker_container_name}"], check=True, capture_output=True, text=True)
+        # Always clean up build container. check=False because with --rm the daemon may
+        # have reaped it already; raising here would replace the real build exception
+        # with a misleading "No such container" failure.
+        subprocess.run(["docker", "rm", "-f", f"{docker_container_name}"], check=False, capture_output=True, text=True)
 
     if exception != None:
         raise exception
@@ -599,13 +607,17 @@ def lint_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_pref
 
     info(f"Linting scarab with image {image_ref}...", dbg_lvl)
     exception = None
+    # Same deterministic-name hazard as build_scarab_binary: clear any leftover
+    # container so a previously killed lint run does not block this one.
+    subprocess.run(["docker", "rm", "-f", f"{docker_container_name}"],
+                   check=False, capture_output=True, text=True)
     try:
         subprocess.run(
             ["docker", "run",
              "-e", f"user_id={local_uid}",
              "-e", f"group_id={local_gid}",
              "-e", f"username={user}",
-             "-dit", "--name", f"{docker_container_name}",
+             "-dit", "--rm", "--name", f"{docker_container_name}",
              "--mount", f"type=bind,source={docker_home},target=/home/{user},readonly=false",
              "--mount", f"type=bind,source={scarab_path},target=/scarab,readonly=false",
              "--mount", infra_mount_arg(infra_dir),
@@ -1703,7 +1715,13 @@ def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_contai
             if env_vars:
                 for env in env_vars:
                     command = command + f"-e {env} "
+            # --rm matches the simulation path: it lets the docker daemon reap the
+            # container even when this script is SIGKILLed and never reaches
+            # cleanup_container. Without it, a cancelled trace job leaves the
+            # container running forever, which keeps the job's cgroup non-empty;
+            # slurmd then reports "Kill task failed" and drains the node.
             command = command + f"-dit \
+                    --rm \
                     --name $CONTAINER_NAME \
                     --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
                     --mount type=bind,source={application_dir},target=/tmp_home/application,readonly=false \
