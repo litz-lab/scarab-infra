@@ -1746,16 +1746,15 @@ def write_phase2_sbatch_tail(f, workload, trace_name, docker_home, phase2_script
 
     After Phase 1 (cluster_only) completes inside its Slurm job, this tail:
       1. Reads opt.p.lpt0.99 to get (segment_id, cluster_id) pairs.
-      2. Skips segments where traces_simp/trace/{segment_id}.zip already
-         exists (resume).
+      2. Skips segments where traces_simp/trace/{segment_id}.zip already exists (resume).
       3. Submits one sbatch per remaining segment using the Phase 2 template
-         script (which runs run_simpoint_trace.py in mode 5 for a single
-         segment).
+         script (which runs run_simpoint_trace.py in mode 5 for a single segment).
       4. Submits a Phase 3 finalisation job with --dependency=afterany on
          all Phase 2 jobs to consolidate traces into traces_dir.
     """
     wl_dir = f"{docker_home}/simpoint_flow/{trace_name}/{workload}"
     f.write("\n# --- Phase 2: submit per-segment jobs ---\n")
+    f.write('echo "Phase 2: submit per-segment jobs"\n')
     f.write(f'SIMPOINTS_FILE="{wl_dir}/simpoints/opt.p.lpt0.99"\n')
     f.write('if [ ! -f "$SIMPOINTS_FILE" ]; then\n')
     f.write('    echo "ERROR: opt.p.lpt0.99 not found after Phase 1. Aborting Phase 2."\n')
@@ -1784,7 +1783,9 @@ def write_phase2_sbatch_tail(f, workload, trace_name, docker_home, phase2_script
     f.write('    fi\n')
     f.write('done < "$SIMPOINTS_FILE"\n')
     f.write('echo "Phase 2: submitted $SUBMITTED segment jobs, skipped $SKIPPED already-complete"\n')
+    f.write('echo "PHASE2_JIDS: $PHASE2_JIDS"\n')
     f.write('\n# --- Phase 3: finalization ---\n')
+    f.write('echo "Phase 3: finalization"\n')
     f.write('if [ -n "$PHASE2_JIDS" ]; then\n')
     f.write(f'    mkdir -p "$(dirname {finalize_log_path})"\n')
     finalize_cmd_escaped = finalize_cmd.replace('"', '\\"')
@@ -2755,6 +2756,7 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
                 os.system(f"cp -r {trace_dir}/{workload}/traces_simp/trace/* {target_traces_path}/traces/simp/")
                 memtrace_dict['warmup'] = 50000000
                 memtrace_dict['whole_trace_file'] = None
+                info("cluster_then_trace doesn't need trace_clustering_info for finish_trace", dbg_lvl)
                 print("cluster_then_trace doesn't have a whole trace file.")
             else: # iterative_trace
                 largest_traces = trace_clustering_info['trace_file']
