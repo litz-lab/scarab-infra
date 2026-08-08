@@ -841,7 +841,7 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2,
             write_phase2_sbatch_tail(
                 f, workload, trace_name, docker_home, phase2_script_path,
                 finalize_cmd, finalize_log_path, SEGMENT_MEM_MIN_MB,
-                finalize_mem_mb=PHASE3_FINALIZE_MEM_MB,
+                finalize_mem_mb=PHASE3_FINALIZE_MEM_MB, slurm_options=slurm_options,
             )
 
         sbatch_cmd = generate_sbatch_command(
