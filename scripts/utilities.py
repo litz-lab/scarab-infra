@@ -1753,6 +1753,10 @@ def write_phase2_sbatch_tail(f, workload, trace_name, docker_home, phase2_script
          all Phase 2 jobs to consolidate traces into traces_dir.
     """
     wl_dir = f"{docker_home}/simpoint_flow/{trace_name}/{workload}"
+    # Propagate slurm_options (e.g. --nodelist / --constraint) to Phase 2 and 3.
+    # Strip any --mem (each phase sets --mem explicitly below).
+    slurm_options = re.sub(r'--mem\s+\S+', '', slurm_options or '').strip()
+
     f.write("\n# --- Phase 2: submit per-segment jobs ---\n")
     f.write('echo "Phase 2: submit per-segment jobs"\n')
     f.write(f'SIMPOINTS_FILE="{wl_dir}/simpoints/opt.p.lpt0.99"\n')
