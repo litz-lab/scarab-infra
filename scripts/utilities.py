@@ -1753,6 +1753,8 @@ def write_phase2_sbatch_tail(f, workload, trace_name, docker_home, phase2_script
          all Phase 2 jobs to consolidate traces into traces_dir.
     """
     wl_dir = f"{docker_home}/simpoint_flow/{trace_name}/{workload}"
+    phase2_job = f"{workload}_{trace_name}_phase2_seg_$SEGMENT_ID"
+    phase3_job = f"{workload}_{trace_name}_phase3"
     # Propagate slurm_options (e.g. --nodelist / --constraint) to Phase 2 and 3.
     # Strip any --mem (each phase sets --mem explicitly below).
     slurm_options = re.sub(r'--mem\s+\S+', '', slurm_options or '').strip()
@@ -1776,7 +1778,7 @@ def write_phase2_sbatch_tail(f, workload, trace_name, docker_home, phase2_script
     f.write('    fi\n')
     seg_log = f"{wl_dir}/logs/seg_%j_${{SEGMENT_ID}}.out"
     f.write(f'    mkdir -p "{wl_dir}/logs"\n')
-    f.write(f'    JID=$(sbatch {slurm_options} --mem {segment_mem_mb}M -c 1 -o "{seg_log}" '
+    f.write(f'    JID=$(sbatch -J "{phase2_job}" {slurm_options} --mem {segment_mem_mb}M -c 1 -o "{seg_log}" '
             f'{phase2_script_path} "$SEGMENT_ID" "$CLUSTER_ID" 2>&1 | grep -oP "\\d+")\n')
     f.write('    if [ -n "$JID" ]; then\n')
     f.write('        PHASE2_JIDS="${PHASE2_JIDS:+$PHASE2_JIDS:}$JID"\n')
@@ -1793,13 +1795,14 @@ def write_phase2_sbatch_tail(f, workload, trace_name, docker_home, phase2_script
     f.write('if [ -n "$PHASE2_JIDS" ]; then\n')
     f.write(f'    mkdir -p "$(dirname {finalize_log_path})"\n')
     finalize_cmd_escaped = finalize_cmd.replace('"', '\\"')
-    f.write(f'    FJID=$(sbatch {slurm_options} --mem {finalize_mem_mb}M --dependency=afterany:$PHASE2_JIDS '
+    f.write(f'    FJID=$(sbatch -J "{phase3_job}" {slurm_options} --mem {finalize_mem_mb}M --dependency=afterany:$PHASE2_JIDS '
             f'-o "{finalize_log_path}" --wrap="{finalize_cmd_escaped}" 2>&1 | grep -oP "\\d+")\n')
     f.write('    echo "Phase 3 finalization job: $FJID (depends on $SUBMITTED segment jobs)"\n')
     f.write('elif [ "$SUBMITTED" -eq 0 ] && [ "$SKIPPED" -gt 0 ]; then\n')
     f.write('    echo "All segments already complete. Submitting finalization directly."\n')
     f.write(f'    mkdir -p "$(dirname {finalize_log_path})"\n')
-    f.write(f'    sbatch {slurm_options} --mem {finalize_mem_mb}M -o "{finalize_log_path}" --wrap="{finalize_cmd_escaped}"\n')
+    f.write(f'    sbatch -J "{phase3_job}" {slurm_options} --mem {finalize_mem_mb}M '
+            f'-o "{finalize_log_path}" --wrap="{finalize_cmd_escaped}"\n')
     f.write('fi\n')
 
 def get_simpoints (workload_data, sim_mode, dbg_lvl = 2):
