@@ -2786,8 +2786,9 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
             # Copy successfully collected traces to target_traces_dir (simpoints are recorded in workloads_db.json)
             os.system(f"mkdir -p {target_traces_path}/traces/whole")
             os.system(f"mkdir -p {target_traces_path}/traces/simp")
-            trace_clustering_info = read_descriptor_from_json(os.path.join(trace_dir, workload, "trace_clustering_info.json"), dbg_lvl)
+            trace_clustering_info_file = os.path.join(trace_dir, workload, "trace_clustering_info.json")
             if config['trace_type'] == "trace_then_cluster":
+                trace_clustering_info = read_descriptor_from_json(trace_clustering_info_file, dbg_lvl)
                 os.system(f"cp -r {trace_dir}/{workload}/traces_simp/* {target_traces_path}/traces/simp/")
                 os.system(f"mkdir -p {target_traces_path}/traces/whole/")
                 whole_trace_dir = trace_clustering_info['dr_folder']
@@ -2799,9 +2800,9 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
                 os.system(f"cp -r {trace_dir}/{workload}/traces_simp/trace/* {target_traces_path}/traces/simp/")
                 memtrace_dict['warmup'] = 50000000
                 memtrace_dict['whole_trace_file'] = None
-                info("cluster_then_trace doesn't need trace_clustering_info for finish_trace", dbg_lvl)
                 print("cluster_then_trace doesn't have a whole trace file.")
             else: # iterative_trace
+                trace_clustering_info = read_descriptor_from_json(trace_clustering_info_file, dbg_lvl)
                 largest_traces = trace_clustering_info['trace_file']
                 for trace_path in largest_traces:
                     print("Processing trace:", trace_path)
