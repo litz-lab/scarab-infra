@@ -2708,6 +2708,42 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
         target_traces_dir = descriptor_data["traces_dir"]
         docker_home = descriptor_data["root_dir"]
 
+        # Completeness check (all-or-nothing):
+        # Do not finalize unless EVERY cluster_then_trace workload in this descriptor is fully
+        # traced, i.e. every segment in opt.p.lpt0.99 has a non-empty <segment_id>.zip.
+        # Each parallel-segments Phase 3 job runs finish_trace over ALL configs but depends
+        # (--dependency=afterany) only on its own workload's Phase 2 completion, so a Phase 3
+        # can fire while other workloads are still tracing, or after a Phase 2 failure (afterok
+        # is not the right choice here, as it would strand Phase 3 as DependencyNeverSatisfied).
+        # Checking here up front, before the copy/write loop below, avoids partial copies and
+        # keeps incomplete runs out of workloads_db so `./sci --trace` can be resubmitted to resume.
+        # Whichever Phase 3 runs after all workloads complete passes this check, and finalizes the whole descriptor.
+        for config in trace_configs:
+            if config['trace_type'] != 'cluster_then_trace':
+                continue
+            workload = config['workload']
+            simpoints_file = os.path.join(trace_dir, workload, "simpoints", "opt.p.lpt0.99")
+            segments_dir = os.path.join(trace_dir, workload, "traces_simp", "trace")
+            missing = []
+            if not os.path.isfile(simpoints_file):
+                missing = ["opt.p.lpt0.99 (clustering incomplete)"]
+            else:
+                with open(simpoints_file) as _sf:
+                    for _line in _sf:
+                        parts = _line.split()
+                        if not parts:
+                            continue
+                        seg = parts[0]
+                        zpath = os.path.join(segments_dir, f"{seg}.zip")
+                        if not (os.path.isfile(zpath) and os.path.getsize(zpath) > 0):
+                            missing.append(seg)
+            if missing:
+                raise RuntimeError(
+                    f"Refusing to finalize: workload '{workload}' has {len(missing)} untraced segment(s): {missing}.\n"
+                    "Not copying traces or updating workloads_db.json so `./sci --trace` "
+                    "can be resubmitted to resume the missing segments."
+                )
+
         print("Copying the successfully collected traces and update workloads_db.json...")
 
         for config in trace_configs:

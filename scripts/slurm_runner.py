@@ -832,6 +832,14 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2,
         )
         tmp_files.add(phase1_filename)
 
+        # Finalisation is intentionally whole-descriptor (instead of per-workload):
+        # every workload's Phase 3 runs finish_trace over all workloads/configs, and its
+        # upfront completeness check ensures finish_trace writes only after every workload
+        # has finished, so the actual update lands on whichever Phase 3 runs last.
+        # Because each finalize writes the complete workloads_db, two Phase 3 jobs writing
+        # at once still produce the same full file; neither can drop another's entry.
+        # Scoping this per-workload would turn the write into a per-entry read-modify-write
+        # and need a file lock to avoid lost updates, so we deliberately keep it whole-descriptor.
         finalize_cmd = (
             f"cd {infra_dir} && python -m scripts.run_trace -d {descriptor_path} "
             f"-f -si {infra_dir}"
