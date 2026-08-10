@@ -1698,6 +1698,9 @@ def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_contai
             f.write("    docker rm -f \"$CONTAINER_NAME\" >/dev/null 2>&1 || true\n")
             f.write("}\n")
             f.write("trap cleanup_container EXIT INT TERM HUP\n")
+            f.write(f"cd {infra_dir}\n")
+            f.write(f"python -m scripts.prepare_docker_image --docker-prefix {image_name}\n")
+            f.write(f"cd -\n")
             command = f"docker run --privileged \
                     -e user_id={local_uid} \
                     -e group_id={local_gid} \
