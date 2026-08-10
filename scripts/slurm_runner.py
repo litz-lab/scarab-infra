@@ -28,6 +28,7 @@ from .utilities import (
         get_docker_prefix,
         prepare_trace,
         finish_trace,
+        missing_cluster_then_trace_segments,
         write_trace_docker_command_to_file,
         write_phase2_sbatch_tail,
         get_weight_by_cluster_id,
@@ -898,6 +899,11 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2,
             clustering_k = config["clustering_k"]
             slurm_options = config.get("slurm_options", "")
 
+            if trace_type == "cluster_then_trace" and not missing_cluster_then_trace_segments(trace_dir, workload):
+                # If there are no missing segments, we can skip this workload
+                info(f"Skipping {workload}; no missing segments.", dbg_lvl)
+                continue
+
             if parallel_segments and trace_type == "cluster_then_trace":
                 _run_parallel_segments_trace(workload, image_name, trace_name, env_vars,
                                              binary_cmd, client_bincmd, drio_args,
@@ -914,7 +920,8 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2,
         # In parallel_segments mode, finalisation runs as Phase 3 of the Slurm
         # pipeline (sbatch'd by the appended bash in Phase 1 with a dependency
         # on all Phase 2 segment jobs). Host does not call finish_trace here.
-        if not parallel_segments:
+        # If no jobs were submitted, finish_trace should run here.
+        if not parallel_segments or len(tmp_files) == 0:
             finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl)
     except Exception as e:
         print("An exception occurred:", e)

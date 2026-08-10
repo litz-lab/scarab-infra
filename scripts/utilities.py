@@ -1762,8 +1762,8 @@ def write_phase2_sbatch_tail(f, workload, trace_name, docker_home, phase2_script
     f.write("\n# --- Phase 2: submit per-segment jobs ---\n")
     f.write('echo "Phase 2: submit per-segment jobs"\n')
     f.write(f'SIMPOINTS_FILE="{wl_dir}/simpoints/opt.p.lpt0.99"\n')
-    f.write('if [ ! -f "$SIMPOINTS_FILE" ]; then\n')
-    f.write('    echo "ERROR: opt.p.lpt0.99 not found after Phase 1. Aborting Phase 2."\n')
+    f.write('if [ ! -s "$SIMPOINTS_FILE" ]; then\n')
+    f.write('    echo "ERROR: opt.p.lpt0.99 missing/empty after Phase 1. Aborting Phase 2."\n')
     f.write('    exit 1\n')
     f.write('fi\n')
     f.write('PHASE2_JIDS=""\n')
@@ -2674,6 +2674,25 @@ def prepare_trace(user, scarab_path, scarab_build, docker_home, job_name, infra_
         info(f"Unexpected error during scarab build: {str(e)}", dbg_lvl)
         raise e
 
+def missing_cluster_then_trace_segments(trace_dir, workload) -> list[str]:
+    """Checks missing segments in the same way as `write_phase2_sbatch_tail()` does."""
+    simpoints_file = os.path.join(trace_dir, workload, "simpoints", "opt.p.lpt0.99")
+    segments_dir = os.path.join(trace_dir, workload, "traces_simp", "trace")
+    if not os.path.isfile(simpoints_file) or os.path.getsize(simpoints_file) == 0:
+        missing = ["opt.p.lpt0.99 (clustering incomplete)"]
+    else:
+        missing = []
+        with open(simpoints_file) as _sf:
+            for _line in _sf:
+                parts = _line.split()
+                if not parts:
+                    continue
+                seg = parts[0]
+                zpath = os.path.join(segments_dir, f"{seg}.zip")
+                if not (os.path.isfile(zpath) and os.path.getsize(zpath) > 0):
+                    missing.append(seg)
+    return missing
+
 def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
     def read_first_line(file_path):
         with open(file_path, 'r') as f:
@@ -2722,21 +2741,7 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
             if config['trace_type'] != 'cluster_then_trace':
                 continue
             workload = config['workload']
-            simpoints_file = os.path.join(trace_dir, workload, "simpoints", "opt.p.lpt0.99")
-            segments_dir = os.path.join(trace_dir, workload, "traces_simp", "trace")
-            missing = []
-            if not os.path.isfile(simpoints_file):
-                missing = ["opt.p.lpt0.99 (clustering incomplete)"]
-            else:
-                with open(simpoints_file) as _sf:
-                    for _line in _sf:
-                        parts = _line.split()
-                        if not parts:
-                            continue
-                        seg = parts[0]
-                        zpath = os.path.join(segments_dir, f"{seg}.zip")
-                        if not (os.path.isfile(zpath) and os.path.getsize(zpath) > 0):
-                            missing.append(seg)
+            missing = missing_cluster_then_trace_segments(trace_dir, workload)
             if missing:
                 raise RuntimeError(
                     f"Refusing to finalize: workload '{workload}' has {len(missing)} untraced segment(s): {missing}.\n"
