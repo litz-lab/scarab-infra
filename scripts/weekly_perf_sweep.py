@@ -20,6 +20,7 @@ import csv
 import datetime as _dt
 import fcntl
 import json
+import math
 import os
 import shutil
 import smtplib
@@ -249,6 +250,19 @@ def read_history(path: Path) -> List[Dict[str, str]]:
 # Plots
 # ---------------------------------------------------------------------------
 
+def short_name(workload: str) -> str:
+    """spec2017/rate_int_v2/gcc_r_2 -> gcc_r_2, so the legend stays narrow."""
+    return workload.rsplit("/", 1)[-1]
+
+
+def app_color(i: int):
+    import matplotlib.pyplot as plt
+    # tab20+tab20b+tab20c = 60 distinct colors, enough for SPEC17 without reuse.
+    palette = [c for name in ("tab20", "tab20b", "tab20c")
+               for c in plt.get_cmap(name).colors]
+    return palette[i % len(palette)]
+
+
 def make_plots(history: List[Dict[str, str]], outdir: Path) -> List[Path]:
     import matplotlib
     matplotlib.use("Agg")
@@ -260,9 +274,10 @@ def make_plots(history: List[Dict[str, str]], outdir: Path) -> List[Path]:
 
     for column, title, ylabel in PLOTS:
         fig, axes = plt.subplots(
-            len(modes), 1, figsize=(13, 4.2 * len(modes)), sharex=True, squeeze=False
+            len(modes), 1, figsize=(15, 4.6 * len(modes)), sharex=True, squeeze=False
         )
         drew_anything = False
+        legend_handles, legend_labels = [], []
 
         for ax, mode in zip((a[0] for a in axes), modes):
             subset = [r for r in history if r["mode"] == mode]
@@ -280,24 +295,26 @@ def make_plots(history: List[Dict[str, str]], outdir: Path) -> List[Path]:
                     continue
                 by_workload.setdefault(row["workload"], {})[row["date"]] = value
 
-            # 36 apps: thin/translucent context, no per-app legend.
-            for workload, series in sorted(by_workload.items()):
-                if workload == "Avg":
-                    continue
+            apps = [w for w in sorted(by_workload) if w != "Avg"]
+            for i, workload in enumerate(apps):
+                series = by_workload[workload]
                 xs = [d for d in dates if d in series]
-                if len(xs) < 1:
+                if not xs:
                     continue
-                ax.plot(xs, [series[d] for d in xs], linewidth=0.8, alpha=0.35)
+                ax.plot(xs, [series[d] for d in xs], linewidth=1.0, alpha=0.75,
+                        color=app_color(i), label=short_name(workload))
                 drew_anything = True
 
             avg = by_workload.get("Avg", {})
             xs = [d for d in dates if d in avg]
             if xs:
-                ax.plot(xs, [avg[d] for d in xs], color="black", linewidth=2.6,
+                ax.plot(xs, [avg[d] for d in xs], color="black", linewidth=2.8,
                         marker="o", markersize=4, label="Average", zorder=5)
-                ax.legend(loc="best", fontsize=9)
                 drew_anything = True
 
+
+            if not legend_handles:
+                legend_handles, legend_labels = ax.get_legend_handles_labels()
             ax.set_title(f"{title} — {mode}")
             ax.set_ylabel(ylabel)
             ax.grid(True, alpha=0.3)
@@ -310,7 +327,12 @@ def make_plots(history: List[Dict[str, str]], outdir: Path) -> List[Path]:
             continue
 
         fig.suptitle(f"{title} over time — SPEC CPU2017", fontsize=13)
-        fig.tight_layout()
+        fig.tight_layout(rect=(0, 0, 0.79, 0.97))
+        # One shared legend: the same 36 workloads appear in every subplot.
+        if legend_handles:
+            fig.legend(legend_handles, legend_labels, loc="center left",
+                       bbox_to_anchor=(0.80, 0.5), fontsize=8, ncol=2,
+                       frameon=False, handlelength=1.8, labelspacing=0.4)
         out = outdir / f"{column}.png"
         fig.savefig(out, dpi=110)
         plt.close(fig)
@@ -344,14 +366,16 @@ def build_report(history: List[Dict[str, str]], scarab_sha: str, infra_sha: str)
         for row in history:
             if row["mode"] == mode and row["date"] == date and row["workload"] == "Avg":
                 try:
-                    return float(row[column])
+                    value = float(row[column])
                 except (TypeError, ValueError):
                     return None
+                # A failed simpoint can leave nan in the CSV; never report it.
+                return value if math.isfinite(value) else None
         return None
 
     def drift(mode: str, column: str) -> Optional[float]:
         now, was = avg_for(mode, current, column), avg_for(mode, previous, column)
-        if now is None or was in (None, 0):
+        if now is None or was is None or was == 0:
             return None
         return (now / was - 1.0) * 100.0
 
