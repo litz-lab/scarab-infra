@@ -338,8 +338,39 @@ def build_report(history: List[Dict[str, str]], scarab_sha: str, infra_sha: str)
         f"scarab {scarab_sha}, scarab-infra {infra_sha}",
         "",
     ]
+    def avg_for(mode: str, date: Optional[str], column: str) -> Optional[float]:
+        if date is None:
+            return None
+        for row in history:
+            if row["mode"] == mode and row["date"] == date and row["workload"] == "Avg":
+                try:
+                    return float(row[column])
+                except (TypeError, ValueError):
+                    return None
+        return None
+
+    def drift(mode: str, column: str) -> Optional[float]:
+        now, was = avg_for(mode, current, column), avg_for(mode, previous, column)
+        if now is None or was in (None, 0):
+            return None
+        return (now / was - 1.0) * 100.0
+
+    # Headline first: the whole point is seeing drift without opening a plot.
     if previous:
-        lines.append(f"Comparing against the previous run ({previous}).")
+        lines.append(f"Average drift vs previous run ({previous}):")
+        for _, mode in MODES:
+            parts = []
+            for column, _, _ in PLOTS:
+                d = drift(mode, column)
+                parts.append(f"{column}={'n/a' if d is None else f'{d:+.2f}%'}")
+            lines.append(f"  {mode:<14} " + "  ".join(parts))
+        flagged = [
+            f"{mode} {column} {drift(mode, column):+.2f}%"
+            for _, mode in MODES for column, _, _ in PLOTS
+            if drift(mode, column) is not None and abs(drift(mode, column)) >= 2.0
+        ]
+        lines.append("")
+        lines.append("  >2% moves: " + (", ".join(flagged) if flagged else "none"))
     else:
         lines.append("First recorded run; no previous data to compare against.")
     lines.append("")
@@ -347,21 +378,10 @@ def build_report(history: List[Dict[str, str]], scarab_sha: str, infra_sha: str)
     for _, mode in MODES:
         lines.append(f"== {mode} ==")
 
-        def avg_for(date: Optional[str], column: str) -> Optional[float]:
-            if date is None:
-                return None
-            for row in history:
-                if row["mode"] == mode and row["date"] == date and row["workload"] == "Avg":
-                    try:
-                        return float(row[column])
-                    except (TypeError, ValueError):
-                        return None
-            return None
-
         any_row = False
         for column, title, unit in PLOTS:
-            now = avg_for(current, column)
-            was = avg_for(previous, column)
+            now = avg_for(mode, current, column)
+            was = avg_for(mode, previous, column)
             if now is None:
                 continue
             any_row = True
