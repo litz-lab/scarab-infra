@@ -275,12 +275,13 @@ all tracing jobs to the same node type via `slurm_options` (e.g.,
 ### Per-segment memory
 
 A Phase 2 segment job runs one drrun then one raw2trace sequentially, so its
-memory footprint is much smaller than a full single-job trace. PR δ ships
-fixed defaults; a follow-up can wire `peak_rss_mb` from `workloads_db.json`:
+memory footprint is much smaller than a full single-job trace.
+PR δ ships fixed defaults, overwritten by the environment variables;
+a follow-up can wire `peak_rss_mb` from `workloads_db.json`:
 
 | Constant | Default | Description |
 |----------|---------|-------------|
-| `PHASE1_MEM_DEFAULT_MB` | 32000 | Phase 1 (fingerprint + cluster) |
+| `PHASE1_MEM_MB` | 32000 | Phase 1 (fingerprint + cluster) |
 | `SEGMENT_MEM_MIN_MB` | 10000 | Per-segment Phase 2 job |
 | `PHASE3_FINALIZE_MEM_MB` | 16384 | Phase 3 finalisation |
 

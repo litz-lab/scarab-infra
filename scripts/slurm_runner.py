@@ -43,12 +43,13 @@ from .utilities import (
 from .image_identity import image_tag_for
 
 # Per-segment memory defaults for parallel_segments mode (PR δ).
+# Overwritten by the environment variables.
 # A single trace_single_segment job runs one drrun then one raw2trace
 # sequentially, so memory requirements are far lower than the full pipeline.
 # These are simple fixed defaults; a follow-up PR can wire peak_rss-based
 # sizing from workloads_db.json on top.
 SEGMENT_MEM_MIN_MB = 10000       # 10 GB per segment job
-PHASE1_MEM_DEFAULT_MB = 32000    # 32 GB for fingerprint + cluster
+PHASE1_MEM_MB = 32000            # 32 GB for fingerprint + cluster
 PHASE3_FINALIZE_MEM_MB = 16384   # 16 GB for finalisation
 
 
@@ -796,6 +797,8 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2,
         if descriptor_path is None:
             raise RuntimeError("parallel_segments mode requires descriptor_path to be passed through to run_tracing")
 
+        env_vars_dict = {key: val for key, sep, val in [t.partition('=') for t in env_vars] if sep}
+
         info(f"Using docker image with name {image_tag_for(image_name, infra_dir)}", dbg_lvl)
 
         # --- Phase 2 template script (used by Phase 1's appended bash tail) ---
@@ -849,12 +852,15 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2,
         with open(phase1_filename, "a") as f:
             write_phase2_sbatch_tail(
                 f, workload, trace_name, docker_home, phase2_script_path,
-                finalize_cmd, finalize_log_path, SEGMENT_MEM_MIN_MB,
-                finalize_mem_mb=PHASE3_FINALIZE_MEM_MB, slurm_options=slurm_options,
+                finalize_cmd, finalize_log_path,
+                env_vars_dict.get("SEGMENT_MEM_MIN_MB", SEGMENT_MEM_MIN_MB),
+                finalize_mem_mb=env_vars_dict.get("PHASE3_FINALIZE_MEM_MB", PHASE3_FINALIZE_MEM_MB),
+                slurm_options=slurm_options,
             )
 
         sbatch_cmd = generate_sbatch_command(
-            trace_dir, slurm_options=slurm_options, mem_mb=PHASE1_MEM_DEFAULT_MB,
+            trace_dir, slurm_options=slurm_options,
+            mem_mb=env_vars_dict.get("PHASE1_MEM_MB", PHASE1_MEM_MB),
         )
         result = subprocess.run((sbatch_cmd + phase1_filename).split(" "),
                                 capture_output=True, text=True)
