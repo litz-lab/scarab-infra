@@ -95,6 +95,30 @@ def get_cluster_map(workload_home):
 # segments that contribute little to overall coverage.
 EMPTY_TRACE_WEIGHT_THRESHOLD = 0.01
 
+# Set a hard limit on how much drrun executes/records per segment.
+#
+# -trace_for_instrs alone is approximate (DR counts instructions with a deferred, optimized check)
+# and overshoots badly here (10-140x observed on spec2026 cactus_r), producing 3-41GB intermediate
+# .trace.zip files that drraw2trace then fails to finalize, leaving a truncated archive with no
+# central directory. -exit_after_tracing caps the recorded output itself and kills the app once the
+# cap is hit, so it cannot be defeated by a miscounting heuristic.
+#
+# -exit_after_tracing is a drcachesim client option, so it must sit after "-t drcachesim".
+# Placed before it (e.g. folded into drio_trace_extra), DR reports "unknown option -exit_after_tracing.
+# Continuing" and exits 0, so the cap silently does nothing. For the same reason a descriptor setting
+# -exit_after_tracing in dynamorio_args is a no-op on this path and does not override the cap.
+#
+# While roi_length specifies the number of instructions, -exit_after_tracing counts trace "references"
+# (one record per trace entry of any type such as instruction, load, store, marker).
+# Measured on SPEC 2026 cactus_r, 10M-instruction chunk has 18,416,883 records = 1.8417 refs/instruction.
+# Rounding up to 2.0 below so the cap errs toward tracing too much, because overshooting only wastes time,
+# whereas undershooting silently yields a trace with fewer than warmup_chunks + 1 chunks.
+REFS_PER_INSTR_ESTIMATE = 2.0
+# Trace at most this many times the ROI before hard-stopping. Adjustable via env_vars.
+# 2x leaves enough room for the 6 chunks minimize while capping the intermediate near 650MB.
+TRACE_ROI_HEADROOM = float(os.environ.get("TRACE_ROI_HEADROOM", "2"))
+assert TRACE_ROI_HEADROOM > 1.5
+
 # Single-thread the workload during BOTH fingerprinting and tracing. Threading
 # in the workload causes (a) non-deterministic instruction counts that make
 # SimPoint segments fall past end-of-execution on the trace run, and (b)
@@ -242,6 +266,7 @@ def minimize_simpoint_traces(cluster_map, workload_home, warmup_chunks):
             if num_chunk < 2:
                 print(f"WARN: the big trace {segment_id} contains less than 2 chunks: {num_chunk} !")
 
+            print(f"minimizing {segment_id} out of recorded {num_chunk} chunks")
             chunk_list = ' '.join([f'chunk.{i:04d}' for i in range(warmup_chunks)])
             subprocess.run(f"zip {big_zip_file} --copy {chunk_list} --out {os.path.join(dest_trace_dir, f'{segment_id}.zip')}", shell=True)
 
@@ -540,6 +565,9 @@ def trace_single_segment(workload, suite, simpoint_home, bincmd, client_bincmd, 
 
             drio_trace_extra = drio_args if drio_args else ""
             drio_trace_extra += " -disable_rseq"
+            # Hard stop on recorded output generation. Must sit after "-t drcachesim" below.
+            # See REFS_PER_INSTR_ESTIMATE & TRACE_ROI_HEADROOM for units and placement.
+            ref_cap = f"-exit_after_tracing {int(roi_length * REFS_PER_INSTR_ESTIMATE * TRACE_ROI_HEADROOM)}"
             # Isolate drcachesim per-segment to avoid collisions between
             # concurrent Phase 2 jobs on the same slurm node. Observed symptom
             # (seg 1994): drrun wrote its trace under traces_simp/496/ when
@@ -554,9 +582,9 @@ def trace_single_segment(workload, suite, simpoint_home, bincmd, client_bincmd, 
             # segment trace, so the workload binary runs sequentially under
             # DR during Phase 2 too.
             if roi_start == 0:
-                trace_cmd = f"{THREAD_LIMIT_ENV_PREFIX} {dynamorio_home}/bin64/drrun -opt_cleancall 2 {drio_trace_extra} -t drcachesim {dr_flags} -jobs {DR_JOBS} -outdir {seg_dir} -offline -count_fetched_instrs -trace_for_instrs {roi_length} -- {bincmd}"
+                trace_cmd = f"{THREAD_LIMIT_ENV_PREFIX} {dynamorio_home}/bin64/drrun -opt_cleancall 2 {drio_trace_extra} -t drcachesim {dr_flags} -jobs {DR_JOBS} -outdir {seg_dir} -offline -count_fetched_instrs -trace_for_instrs {roi_length} {ref_cap} -- {bincmd}"
             else:
-                trace_cmd = f"{THREAD_LIMIT_ENV_PREFIX} {dynamorio_home}/bin64/drrun -opt_cleancall 2 {drio_trace_extra} -t drcachesim {dr_flags} -jobs {DR_JOBS} -outdir {seg_dir} -offline -count_fetched_instrs -trace_after_instrs {roi_start} -trace_for_instrs {roi_length} -- {bincmd}"
+                trace_cmd = f"{THREAD_LIMIT_ENV_PREFIX} {dynamorio_home}/bin64/drrun -opt_cleancall 2 {drio_trace_extra} -t drcachesim {dr_flags} -jobs {DR_JOBS} -outdir {seg_dir} -offline -count_fetched_instrs -trace_after_instrs {roi_start} -trace_for_instrs {roi_length} {ref_cap} -- {bincmd}"
 
             trace_env = os.environ.copy()
             trace_env["HOME"] = dr_home
@@ -803,6 +831,9 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
 
             drio_trace_extra = drio_args if drio_args else ""
             drio_trace_extra += " -disable_rseq"
+            # Hard stop on recorded output generation. Must sit after "-t drcachesim" below.
+            # See REFS_PER_INSTR_ESTIMATE & TRACE_ROI_HEADROOM for units and placement.
+            ref_cap = f"-exit_after_tracing {int(roi_length * REFS_PER_INSTR_ESTIMATE * TRACE_ROI_HEADROOM)}"
             # Note: do NOT use -max_bb_instrs here. With drcachesim -offline,
             # hitting the BB size limit is fatal (exit 255, empty output).
             # The fingerprint client (libfpg.so) tolerates it as a warning,
@@ -818,9 +849,9 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
             # collide with the per-segment -ipc_name when many concurrent
             # drrun instances share /tmp.
             if roi_start == 0:
-                trace_cmd = f"{THREAD_LIMIT_ENV_PREFIX} {dynamorio_home}/bin64/drrun -opt_cleancall 2 {drio_trace_extra} -t drcachesim {dr_flags} -jobs {DR_JOBS} -outdir {seg_dir} -offline -count_fetched_instrs -trace_for_instrs {roi_length} -- {bincmd}"
+                trace_cmd = f"{THREAD_LIMIT_ENV_PREFIX} {dynamorio_home}/bin64/drrun -opt_cleancall 2 {drio_trace_extra} -t drcachesim {dr_flags} -jobs {DR_JOBS} -outdir {seg_dir} -offline -count_fetched_instrs -trace_for_instrs {roi_length} {ref_cap} -- {bincmd}"
             else:
-                trace_cmd = f"{THREAD_LIMIT_ENV_PREFIX} {dynamorio_home}/bin64/drrun -opt_cleancall 2 {drio_trace_extra} -t drcachesim {dr_flags} -jobs {DR_JOBS} -outdir {seg_dir} -offline -count_fetched_instrs -trace_after_instrs {roi_start} -trace_for_instrs {roi_length} -- {bincmd}"
+                trace_cmd = f"{THREAD_LIMIT_ENV_PREFIX} {dynamorio_home}/bin64/drrun -opt_cleancall 2 {drio_trace_extra} -t drcachesim {dr_flags} -jobs {DR_JOBS} -outdir {seg_dir} -offline -count_fetched_instrs -trace_after_instrs {roi_start} -trace_for_instrs {roi_length} {ref_cap} -- {bincmd}"
 
             trace_cmds.append(trace_cmd)
 
