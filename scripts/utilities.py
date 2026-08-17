@@ -2758,6 +2758,7 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
             workload = config['workload']
             suite = config['suite']
             subsuite = config['subsuite']
+            print(f"Finalizing {suite}/{subsuite}/{workload}")
 
             # Update workload_db_data
             trace_dict = {}
