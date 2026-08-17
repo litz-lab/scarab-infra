@@ -889,6 +889,15 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
                 f.endswith(".trace.zip")
                 for _, _, fns in os.walk(trace_out) for f in fns
             ):
+                print(f"Skipping {segment_id}; raw2trace done, {trace_out}/*.trace.zip exists.")
+                continue
+
+            # minimize renames the .trace.zip to <seg>.big.zip and deletes it,
+            # so the check above never matches after a completed run.
+            # Check the artifact that survives: traces_simp/trace/<seg>.zip.
+            dest_zip = os.path.join(workload_home, "traces_simp", "trace", f"{segment_id}.zip")
+            if os.path.isfile(dest_zip) and os.path.getsize(dest_zip) > 0:
+                print(f"Skipping {segment_id}; minimize done, {dest_zip} exists.")
                 continue
 
             trace_files, dr_folders = find_trace_files(trace_path)
