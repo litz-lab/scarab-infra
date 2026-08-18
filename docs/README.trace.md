@@ -247,6 +247,15 @@ Only valid with `workload_manager: "slurm"` and `trace_type:
 "cluster_then_trace"`. The descriptor validator rejects mixed
 configurations.
 
+```
+  "workload_manager":"slurm",
+  "parallel_segments":true,
+  "trace_configurations":[
+    {
+      ...
+      "trace_type":"cluster_then_trace",
+```
+
 **Important: cross-node ISA consistency.** When fingerprinting (Phase 1)
 and segment tracing (Phase 2) land on nodes with different CPU generations,
 runtime CPU dispatch (e.g., glibc `ifunc` resolvers) can change the
@@ -275,13 +284,12 @@ all tracing jobs to the same node type via `slurm_options` (e.g.,
 ### Per-segment memory
 
 A Phase 2 segment job runs one drrun then one raw2trace sequentially, so its
-memory footprint is much smaller than a full single-job trace.
-PR δ ships fixed defaults, overwritten by the environment variables;
-a follow-up can wire `peak_rss_mb` from `workloads_db.json`:
+memory footprint is much smaller than a full single-job trace. PR δ ships
+fixed defaults; a follow-up can wire `peak_rss_mb` from `workloads_db.json`:
 
 | Constant | Default | Description |
 |----------|---------|-------------|
-| `PHASE1_MEM_MB` | 32000 | Phase 1 (fingerprint + cluster) |
+| `PHASE1_MEM_DEFAULT_MB` | 32000 | Phase 1 (fingerprint + cluster) |
 | `SEGMENT_MEM_MIN_MB` | 10000 | Per-segment Phase 2 job |
 | `PHASE3_FINALIZE_MEM_MB` | 16384 | Phase 3 finalisation |
 
