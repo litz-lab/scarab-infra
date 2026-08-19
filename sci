@@ -523,6 +523,31 @@ def handle_descriptor_action(descriptor_name: str, action: str, dbg_override: Op
     raise StepError(f"Unsupported descriptor type '{dtype}' for action '{action}'")
 
 
+def handle_status_tui(
+    descriptor_name: str,
+    dbg_override: Optional[int] = None,
+    refresh_interval: float = 30.0,
+) -> int:
+    """Open the interactive status view for a simulation descriptor."""
+    path, descriptor = read_descriptor(descriptor_name)
+    if descriptor.get("descriptor_type") != "simulation":
+        raise StepError(
+            "--tui is only supported for simulation descriptors "
+            f"(got '{descriptor.get('descriptor_type')}')"
+        )
+    if descriptor.get("workload_manager") == "manual":
+        print(
+            "Note: workload_manager is 'manual', so node and queue columns will be empty.\n"
+        )
+    tui = import_repo_module("scripts.status_tui")
+    return tui.run_tui(
+        str(path),
+        str(REPO_ROOT),
+        dbg_lvl=dbg_override if dbg_override is not None else 1,
+        refresh_interval=refresh_interval,
+    )
+
+
 def confirm(prompt: str, *, default: bool) -> bool:
     if not sys.stdin.isatty():
         return default
@@ -4312,6 +4337,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="Remove containers and state for json/<DESCRIPTOR>.json.",
     )
     parser.add_argument(
+        "--tui",
+        action="store_true",
+        help="With --status: open an interactive view instead of printing once. "
+             "Select a count cell to drill into the individual simpoints and see "
+             "live per-simpoint progress.",
+    )
+    parser.add_argument(
         "--debug-level",
         dest="debug_level",
         type=int,
@@ -4345,6 +4377,10 @@ def main() -> int:
     ]
     if sum(requested) > 1:
         print("Use only one primary action per invocation.")
+        return 1
+
+    if args.tui and not args.status:
+        print("--tui is a modifier for --status. Try: ./sci --status <DESCRIPTOR> --tui")
         return 1
 
     needs_env = any([
@@ -4481,6 +4517,11 @@ def main() -> int:
             return 1
     if args.status:
         try:
+            if args.tui:
+                return handle_status_tui(
+                    args.status,
+                    dbg_override=args.debug_level
+                )
             handle_descriptor_action(args.status, "info", dbg_override=args.debug_level)
             return 0
         except (StepError, RuntimeError) as exc:
