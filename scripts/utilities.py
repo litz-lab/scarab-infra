@@ -2199,7 +2199,29 @@ def print_simulation_status_summary(
     strict_log_count = False,
     log_count_offset = 0,
     prep_failed_label = "Failed - Slurm",
+    record_sink = None,
 ):
+    """Print the status summary table.
+
+    If ``record_sink`` is a list, one dict per accounted simpoint is appended to it
+    describing (config, suite, subsuite, workload, cluster_id, state, log_path).
+    This lets callers (e.g. the interactive TUI) reuse the exact same
+    classification logic instead of re-deriving state from logs.
+    """
+    def _record(state, config, suite, subsuite, workload, cluster_id, log_path=None, detail=None):
+        if record_sink is None:
+            return
+        record_sink.append({
+            "config": config,
+            "suite": suite,
+            "subsuite": subsuite,
+            "workload": workload,
+            "cluster_id": str(cluster_id),
+            "state": state,
+            "log_path": str(log_path) if log_path is not None else None,
+            "detail": detail,
+        })
+
     all_jobs = get_simulation_jobs(descriptor_data, workloads_data, docker_prefix_list, user, dbg_lvl)
 
     root_directory = os.path.join(
@@ -2314,12 +2336,15 @@ def print_simulation_status_summary(
                 if is_running:
                     skipped += 1
                     running[config] += 1
+                    _record("Running", config, suite, subsuite, workload, cluster_id, log_path)
                     continue
 
             if "BEGIN prepare_docker_image" in contents:
                 if "FAILED prepare_docker_image" in contents:
                     prep_failed[config] += 1
                     error_runs.add(str(log_path))
+                    _record(prep_failed_label, config, suite, subsuite, workload, cluster_id, log_path,
+                            "prepare_docker_image reported FAILED")
                     print("Docker image preparation failed, Simulation is not running (Error message in log file)")
                     continue
 
@@ -2328,17 +2353,23 @@ def print_simulation_status_summary(
                 else:
                     prep_failed[config] += 1
                     error_runs.add(str(log_path))
+                    _record(prep_failed_label, config, suite, subsuite, workload, cluster_id, log_path,
+                            "image prep never completed (no failure message)")
                     print("Docker image preparation failed, Simulation is not running (Image prep never completed; no failure message)")
                     continue
             else:
                 print("Docker image preparation failed (Image prep never started)")
                 prep_failed[config] += 1
                 error_runs.add(str(log_path))
+                _record(prep_failed_label, config, suite, subsuite, workload, cluster_id, log_path,
+                        "image prep never started")
                 continue
 
             if 'docker: Error' in contents_after_docker:
                 prep_failed[config] += 1
                 error_runs.add(str(log_path))
+                _record(prep_failed_label, config, suite, subsuite, workload, cluster_id, log_path,
+                        "docker: Error in job log")
                 continue
 
             prep_err = 0
@@ -2356,6 +2387,8 @@ def print_simulation_status_summary(
             # If slurm cancelled wrapper execution but results were already produced, treat as completed.
             if "cancelled" in status_scan_text.lower() and has_csv:
                 completed[config] += 1
+                _record("Completed", config, suite, subsuite, workload, cluster_id, log_path,
+                        "slurm cancelled after stats were produced")
                 continue
 
             if all_nodes:
@@ -2371,6 +2404,8 @@ def print_simulation_status_summary(
                                 oom_killed.append(config)
 
             if prep_err:
+                _record(prep_failed_label, config, suite, subsuite, workload, cluster_id, log_path,
+                        "oom_kill" if "oom_kill" in status_scan_text else "slurm node error")
                 continue
 
             error = 0
@@ -2383,11 +2418,27 @@ def print_simulation_status_summary(
             if "Completed Simulation" in status_scan_text and not error:
                 if has_csv:
                     completed[config] += 1
+                    _record("Completed", config, suite, subsuite, workload, cluster_id, log_path)
                     continue
                 err("Stat files not generated, despite being completed with no errors.", 1)
 
             error_runs.add(scarab_logfile_path)
             failed[config] += 1
+            _record("Failed", config, suite, subsuite, workload, cluster_id, log_path,
+                    "error text found in job log" if error else "no 'Completed Simulation' marker")
+
+    if record_sink is not None:
+        # Anything expected by the descriptor but not accounted for above is either
+        # sitting in the slurm queue or has never been submitted.
+        seen = {(r["config"], r["suite"], r["subsuite"], r["workload"], r["cluster_id"])
+                for r in record_sink}
+        for config, suite, subsuite, workload, cluster_id in all_job_ids:
+            if (config, suite, subsuite, workload, str(cluster_id)) in seen:
+                continue
+            needle = f"_{workload}_{experiment_name}_{config}_{cluster_id}_"
+            is_queued = any(needle in sim for sim in queued_sims)
+            _record("Pending" if is_queued else "Non-existant",
+                    config, suite, subsuite, workload, cluster_id)
 
     print(f"Currently running {len(running_sims)} simulations (from logs: {skipped})")
 
