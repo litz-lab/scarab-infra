@@ -34,15 +34,6 @@ _docker_client = None
 BASE_MEMORY_BY_MODE_KEY = "base_memory_mb_by_mode"
 VALID_SIMULATION_MODES = ("memtrace", "pt", "exec")
 
-# Workload images whose system-default compiler is too new for scarab and its
-# vendored deps (dynamorio, ramulator) need an older, compatible compiler that
-# is also present in them. Keys are docker image prefixes; values are (CC, CXX).
-SCARAB_BUILD_COMPILER = {
-    # spec2026 defaults to gcc-15 (required for SPEC CPU2026 workload binaries).
-    # gcc-11 (jammy's default, already installed) builds cleanly.
-    "spec2026": ("gcc-11", "g++-11"),
-}
-
 # The container-side scarab-infra scripts are not baked into the images. Every
 # container instead gets the host checkout bind-mounted read-only here, and
 # root_entrypoint.sh publishes the scripts into /usr/local/bin as symlinks. So a
@@ -433,24 +424,6 @@ def build_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_pre
                 check=True, capture_output=True, text=True)
 
         info(f"Building scarab with image {image_tag_for(docker_prefix, infra_dir)}...", dbg_lvl)
-
-        # Pin an older compiler for images whose default toolchain is too new for scarab.
-        make_env = ""
-        reconfigure = ""
-        cc_cxx = SCARAB_BUILD_COMPILER.get(docker_prefix)
-        if cc_cxx:
-            cc, cxx = cc_cxx
-            make_env = f"CC={cc} CXX={cxx}"
-            # CMake caches the compiler in build/<mode>/ and only reconfigures when
-            # build/<mode>/Makefile is absent, so the CC/CXX override is a no-op against
-            # a stale cache. Clean the build dir only when its cached compiler isn't
-            # already ours, which preserves incremental rebuilds in the steady state.
-            reconfigure = (
-                f'grep -q "CMAKE_CXX_COMPILER:.*{cxx}" build/{scarab_build}/CMakeCache.txt 2>/dev/null'
-                f' || make clean{scarab_build}; '
-            )
-            info(f"Pinning scarab build compiler for '{docker_prefix}': CC={cc} CXX={cxx}", dbg_lvl)
-
         build_cmd = [
                 "docker",
                     "exec",
@@ -459,7 +432,7 @@ def build_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_pre
                     f"{docker_container_name}",
                     "/bin/bash",
                     "-c",
-                    f"cd /scarab/src && {reconfigure}{make_env} make {scarab_build} -j{os.cpu_count()}"
+                    f"cd /scarab/src && make {scarab_build} -j{os.cpu_count()}"
             ]
 
         if stream_build:

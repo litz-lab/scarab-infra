@@ -29,10 +29,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y \
 # Jammy's native repos only go up to gcc-12, so pull gcc-15 from ubuntu-toolchain-r/test PPA.
 RUN add-apt-repository -y ppa:ubuntu-toolchain-r/test && \
     apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y gcc-15 g++-15 gfortran-15 && \
-    update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-15 100 && \
-    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-15 100 && \
-    update-alternatives --install /usr/bin/gfortran gfortran /usr/bin/gfortran-15 100
+    DEBIAN_FRONTEND=noninteractive apt-get install -y gcc-15 g++-15 gfortran-15
 
 WORKDIR $tmpdir
 
