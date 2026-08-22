@@ -1,0 +1,11 @@
+# Weekly SPEC17 perf-regression sweep. Install with:
+#   crontab scripts/weekly_perf_sweep.cron        # replaces the whole crontab
+# or append the last line to an existing `crontab -e`.
+#
+# Needs the scarabinfra conda env (pandas/matplotlib) and gh on PATH; cron's
+# PATH is minimal, so both are set explicitly below.
+SHELL=/bin/bash
+PATH=/soe/hlitz/miniconda3/envs/scarabinfra/bin:/usr/local/bin:/usr/bin:/bin
+MAILTO=""
+
+0 0 * * 0 cd /soe/hlitz/git/scarab-infra && python3 scripts/weekly_perf_sweep.py >> /soe/hlitz/logs/weekly_perf_sweep.log 2>&1
