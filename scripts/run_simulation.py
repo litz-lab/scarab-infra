@@ -208,7 +208,7 @@ def open_interactive_shell(user, descriptor_name, descriptor_data, workloads_dat
                                 "--mount", f"type=bind,source={traces_dir},target=/simpoint_traces,readonly=true",
                                 "--mount", f"type=bind,source={docker_home},target=/home/{user},readonly=false",
                                 "--mount", f"type=bind,source={scarab_path},target=/scarab,readonly=false",
-                                "--mount", f"type=bind,source={application_dir},target=/tmp_home/application,readonly=false",
+                                "--mount", f"type=bind,source={application_dir},target=/tmp_home/application,readonly=true",
                                 "--mount", infra_mount_arg(infra_dir),
                                 image_tag_for(docker_prefix, infra_dir), "/bin/bash"], check=True, capture_output=True, text=True)
                 # The infra scripts come from the read-only bind mount above;

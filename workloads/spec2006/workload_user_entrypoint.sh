@@ -1,1 +1,1 @@
-cd /tmp_home/application/cpu2006 && source shrc
+# No-op: the SPEC binaries are run directly under PIN by absolute path, so we do NOT source shrc.

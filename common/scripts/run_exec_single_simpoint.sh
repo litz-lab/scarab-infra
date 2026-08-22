@@ -43,16 +43,6 @@ cp "$PARAMS_FILE" "$OUTDIR/$segID/PARAMS.in"
 PIN_EXEC="$SCARABHOME/src/pin/pin_exec/obj-intel64/pin_exec_${SCARAB_BIN}.so"
 cp "$PIN_EXEC" "$OUTDIR/$segID/pin_exec.so"
 
-# The program runs under Pin with CWD=simdir ($OUTDIR/$segID).
-# For workloads that open inputs by a hard-coded relative path
-# (e.g. in SPEC 2026, ntest uses resource/, gem5 uses Resource(...,".")),
-# stage the run dir's data (not the binary) into simdir so those reads resolve.
-# Gated by the workload's env varible, set via the descriptor's env_vars.
-# BINCMD is still the original here ($tmpdir/REFDIR rewrite below has not run yet).
-if [ "${SCARAB_COPY_LOCAL_RUNDIR:-0}" = "1" ]; then
-  stage_local_rundir "$BINCMD" "$OUTDIR/$segID"
-fi
-
 cd $OUTDIR/$segID
 
 # Run each simpoint in a PRIVATE, node-local run dir so the benchmark never
@@ -82,7 +72,19 @@ cp -rL --preserve=timestamps "$REFDIR"/. "$RUNDIR"/
 chmod -R u+rwX "$RUNDIR"
 # Point the command's binary/inputs/outputs at the private RUNDIR.
 BINCMD="${BINCMD//$REFDIR/$RUNDIR}"
-trap 'rm -rf "$RUNDIR"' EXIT
+# Unlink the simdir below before dropping $RUNDIR.
+# `-type l` tests the link itself and `-lname` globs the link's stored target.
+# Matching by target keeps an unrelated symlink in the simdir safe.
+trap 'find "$OUTDIR/$segID" -maxdepth 1 -type l -lname "$RUNDIR/*" -delete; rm -rf "$RUNDIR"' EXIT
+
+# The program runs under Pin with CWD=simdir ($OUTDIR/$segID), NOT $RUNDIR, as scarab_launch.py
+# passes run_dir=--simdir. For workloads that open inputs by a hard-coded relative path, symlink
+# the private run dir's entries into the simdir so those reads resolve without a second copy of
+# the data. Gated by the workload's env variable, set via env_vars.
+if [ "${SCARAB_COPY_LOCAL_RUNDIR:-0}" = "1" ]; then
+  link_local_rundir "$RUNDIR" "$OUTDIR/$segID"
+fi
+
 cd "$RUNDIR"
 
 roiStart=$(( $segID * $SEGSIZE + 1 ))
