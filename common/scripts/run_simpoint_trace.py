@@ -26,6 +26,10 @@ def stage_local_rundir(bincmd):
     """
     binary = bincmd.split()[0]
     refdir = os.path.dirname(binary)
+    if not os.path.isdir(refdir):
+        # os.walk() on a missing dir yields nothing and raises nothing.
+        # Most likely the app tree is not mounted (see application_dir in the descriptor).
+        raise FileNotFoundError(f"{refdir} not found. Wrong application_dir in the descriptor?")
     dest = tempfile.mkdtemp(prefix="scarab_trace_",
                             dir=os.environ.get("SCARAB_RUN_LOCAL_TMP", "/tmp"))
     skip = os.path.basename(binary)
