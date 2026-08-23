@@ -94,13 +94,16 @@ RUN mkdir $tmpdir/fingerprint_src/build && \
     cp ./libfpg.so $tmpdir/libfpg.so
 
 # Install Scarab dependencies
-RUN cd $tmpdir && wget -nc https://software.intel.com/sites/landingpage/pintool/downloads/pin-3.15-98253-gb56e429b1-gcc-linux.tar.gz && tar -xzvf pin-3.15-98253-gb56e429b1-gcc-linux.tar.gz
+RUN cd $tmpdir && wget -q https://github.com/litz-lab/scarab-infra/releases/download/sde-9.44.0/sde-external-9.44.0-2024-08-22-lin.tar.xz -O sde.tar.xz && \
+    echo "c6bc16fc6d1855049ea22daf214a8c00331713bc6a7b0c4d6955d6ed84148b9b  sde.tar.xz" | sha256sum -c - && \
+    tar -xJf sde.tar.xz && rm sde.tar.xz
 
 # Env to build Scarab
-ENV PIN_ROOT $tmpdir/pin-3.15-98253-gb56e429b1-gcc-linux
+ENV PIN_ROOT $tmpdir/sde-external-9.44.0-2024-08-22-lin/pinkit
 ENV SCARAB_ENABLE_PT_MEMTRACE 1
-ENV LD_LIBRARY_PATH $tmpdir/pin-3.15-98253-gb56e429b1-gcc-linux/extras/xed-intel64/lib
-ENV LD_LIBRARY_PATH $tmpdir/pin-3.15-98253-gb56e429b1-gcc-linux/intel64/runtime/pincrt:$LD_LIBRARY_PATH
+ENV SCARAB_ENABLE_PINPLAY 1
+ENV LD_LIBRARY_PATH $tmpdir/sde-external-9.44.0-2024-08-22-lin/pinkit/extras/xed-intel64/lib
+ENV LD_LIBRARY_PATH $tmpdir/sde-external-9.44.0-2024-08-22-lin/pinkit/intel64/runtime/pincrt:$LD_LIBRARY_PATH
 ENV LD_LIBRARY_PATH $DYNAMORIO_HOME/lib64/release:$LD_LIBRARY_PATH
 
 # Build SimPoint 3.2
