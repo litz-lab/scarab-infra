@@ -4,7 +4,9 @@
   "_user":"A username to run perf top-down analysis. Some application requires root permission to get running.",
   "user":"root",
   "_root_dir":"Root directory mounted into the docker container home, for instance, $tmp_dir as a root home directory",
-  "root_dir":"/home/$USER",
+  "root_dir":"/home/$USER/root_dir",
+  "_application_dir":"(Optional) The path to the benchmark application directory. This directory replaces ISO-based setups by mounting a local application folder (e.g., SPEC CPU2026) into the container during image build or runtime.",
+  "application_dir":"/home/$USER/applications",
   "_image_name":"A docker image name required to run a benchmark with Perf.",
   "image_name":"spec2026",
   "perf_core":7,
@@ -15,182 +17,630 @@
       "workload":"stockfish_r",
       "suite":"spec2026",
       "subsuite":"rate_int",
-      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 706.stockfish_r",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/706.stockfish_r/run/run_base_refrate_memtrace.0000/stockfish_base.memtrace bench 1600 1 26 $tmpdir/application/cpu2026/benchspec/CPU/706.stockfish_r/run/run_base_refrate_memtrace.0000/spec_ref_pos_1to6.fen depth classical",
+      "env_vars":null
+    },
+    {
+      "workload":"stockfish_r_2",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/706.stockfish_r/run/run_base_refrate_memtrace.0000/stockfish_base.memtrace bench 1600 1 26 $tmpdir/application/cpu2026/benchspec/CPU/706.stockfish_r/run/run_base_refrate_memtrace.0000/spec_ref_pos_1to6.fen depth nnue",
+      "env_vars":null
+    },
+    {
+      "workload":"stockfish_r_3",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/706.stockfish_r/run/run_base_refrate_memtrace.0000/stockfish_base.memtrace bench 1600 1 26 $tmpdir/application/cpu2026/benchspec/CPU/706.stockfish_r/run/run_base_refrate_memtrace.0000/spec_ref_pos_7to11.fen depth nnue",
       "env_vars":null
     },
     {
       "workload":"ntest_r",
       "suite":"spec2026",
       "subsuite":"rate_int",
-      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 707.ntest_r",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/707.ntest_r/run/run_base_refrate_memtrace.0000/ntest_r_base.memtrace $tmpdir/application/cpu2026/benchspec/CPU/707.ntest_r/run/run_base_refrate_memtrace.0000/Othello.154.ggf 20 16",
       "env_vars":null
     },
     {
       "workload":"sqlite_r",
       "suite":"spec2026",
       "subsuite":"rate_int",
-      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 708.sqlite_r",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/708.sqlite_r/run/run_base_refrate_memtrace.0000/sqlite_r_base.memtrace --memdb --size 2000 --testset main --verify",
+      "env_vars":null
+    },
+    {
+      "workload":"sqlite_r_2",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/708.sqlite_r/run/run_base_refrate_memtrace.0000/sqlite_r_base.memtrace --memdb --size 2000 --testset cte --verify",
+      "env_vars":null
+    },
+    {
+      "workload":"sqlite_r_3",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/708.sqlite_r/run/run_base_refrate_memtrace.0000/sqlite_r_base.memtrace --memdb --size 1000 --testset fp --verify",
       "env_vars":null
     },
     {
       "workload":"omnetpp_r",
       "suite":"spec2026",
       "subsuite":"rate_int",
-      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 710.omnetpp_r",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/710.omnetpp_r/run/run_base_refrate_memtrace.0000/omnetpp_r_base.memtrace -f randomMesh.ini -c General",
+      "env_vars":null
+    },
+    {
+      "workload":"omnetpp_r_2",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/710.omnetpp_r/run/run_base_refrate_memtrace.0000/omnetpp_r_base.memtrace -f queuenet.ini -c OneFifo",
+      "env_vars":null
+    },
+    {
+      "workload":"omnetpp_r_3",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/710.omnetpp_r/run/run_base_refrate_memtrace.0000/omnetpp_r_base.memtrace -f queuenet.ini -c TandemFifos",
+      "env_vars":null
+    },
+    {
+      "workload":"omnetpp_r_4",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/710.omnetpp_r/run/run_base_refrate_memtrace.0000/omnetpp_r_base.memtrace -f queuenet.ini -c SmallCQN",
+      "env_vars":null
+    },
+    {
+      "workload":"omnetpp_r_5",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/710.omnetpp_r/run/run_base_refrate_memtrace.0000/omnetpp_r_base.memtrace -f queuenet.ini -c Ring",
+      "env_vars":null
+    },
+    {
+      "workload":"omnetpp_r_6",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/710.omnetpp_r/run/run_base_refrate_memtrace.0000/omnetpp_r_base.memtrace -f queuenet.ini -c Terminal",
+      "env_vars":null
+    },
+    {
+      "workload":"omnetpp_r_7",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/710.omnetpp_r/run/run_base_refrate_memtrace.0000/omnetpp_r_base.memtrace -f queuenet.ini -c CallCenter",
+      "env_vars":null
+    },
+    {
+      "workload":"omnetpp_r_8",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/710.omnetpp_r/run/run_base_refrate_memtrace.0000/omnetpp_r_base.memtrace -f queuenet.ini -c ForkJoin",
+      "env_vars":null
+    },
+    {
+      "workload":"omnetpp_r_9",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/710.omnetpp_r/run/run_base_refrate_memtrace.0000/omnetpp_r_base.memtrace -f queuenet.ini -c ResourceAllocation",
+      "env_vars":null
+    },
+    {
+      "workload":"omnetpp_r_10",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/710.omnetpp_r/run/run_base_refrate_memtrace.0000/omnetpp_r_base.memtrace -f queuenet.ini -c AllocDealloc",
       "env_vars":null
     },
     {
       "workload":"cpython_r",
       "suite":"spec2026",
       "subsuite":"rate_int",
-      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 714.cpython_r",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/714.cpython_r/run/run_base_refrate_memtrace.0000/cpython_r_base.memtrace -I -B $tmpdir/application/cpu2026/benchspec/CPU/714.cpython_r/run/run_base_refrate_memtrace.0000/coreml_pb.py -i 2 -a -m $tmpdir/application/cpu2026/benchspec/CPU/714.cpython_r/run/run_base_refrate_memtrace.0000/Resnet50Headless.mlmodel -d 10",
+      "env_vars":null
+    },
+    {
+      "workload":"cpython_r_2",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/714.cpython_r/run/run_base_refrate_memtrace.0000/cpython_r_base.memtrace -I -B $tmpdir/application/cpu2026/benchspec/CPU/714.cpython_r/run/run_base_refrate_memtrace.0000/coreml_pb.py -i 5 -a -c -m $tmpdir/application/cpu2026/benchspec/CPU/714.cpython_r/run/run_base_refrate_memtrace.0000/MobileNetV2.mlmodel -d 20",
+      "env_vars":null
+    },
+    {
+      "workload":"cpython_r_3",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/714.cpython_r/run/run_base_refrate_memtrace.0000/cpython_r_base.memtrace -I -B $tmpdir/application/cpu2026/benchspec/CPU/714.cpython_r/run/run_base_refrate_memtrace.0000/dna_bench.py 600000",
       "env_vars":null
     },
     {
       "workload":"gcc_r",
       "suite":"spec2026",
       "subsuite":"rate_int",
-      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 721.gcc_r",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/721.gcc_r/run/run_base_refrate_memtrace.0000/cc1_r_base.memtrace $tmpdir/application/cpu2026/benchspec/CPU/721.gcc_r/run/run_base_refrate_memtrace.0000/gcc-pp.c -O2 -fpic -o gcc-pp.c.opts-O2_-fpic.s",
+      "env_vars":null
+    },
+    {
+      "workload":"gcc_r_2",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/721.gcc_r/run/run_base_refrate_memtrace.0000/cc1_r_base.memtrace $tmpdir/application/cpu2026/benchspec/CPU/721.gcc_r/run/run_base_refrate_memtrace.0000/gcc-smaller.c -O3 -fipa-pta -o gcc-smaller.c.opts-O3_-fipa-pta.s",
+      "env_vars":null
+    },
+    {
+      "workload":"gcc_r_3",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/721.gcc_r/run/run_base_refrate_memtrace.0000/cc1_r_base.memtrace $tmpdir/application/cpu2026/benchspec/CPU/721.gcc_r/run/run_base_refrate_memtrace.0000/ref32.c -O3 -finline-limit=12000 -fno-tree-vrp -o ref32.c.opts-O3_-finline-limit_12000_-fno-tree-vrp.s",
       "env_vars":null
     },
     {
       "workload":"llvm_r",
       "suite":"spec2026",
       "subsuite":"rate_int",
-      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 723.llvm_r",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/723.llvm_r/run/run_base_refrate_memtrace.0000/llvm-opt_r_base.memtrace $tmpdir/application/cpu2026/benchspec/CPU/723.llvm_r/run/run_base_refrate_memtrace.0000/transformsplus.bc -S -O3 -mcpu=pwr9 --sha512 -o transformsplus.bc.opts-S_-O3_-mcpu_pwr9.ll",
+      "env_vars":null
+    },
+    {
+      "workload":"llvm_r_2",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/723.llvm_r/run/run_base_refrate_memtrace.0000/llvm-opt_r_base.memtrace $tmpdir/application/cpu2026/benchspec/CPU/723.llvm_r/run/run_base_refrate_memtrace.0000/codegen.bc -S -O3 -mcpu=pwr9 --sha512 -o codegen.bc.opts-S_-O3_-mcpu_pwr9.ll",
       "env_vars":null
     },
     {
       "workload":"cppcheck_r",
       "suite":"spec2026",
       "subsuite":"rate_int",
-      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 727.cppcheck_r",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/727.cppcheck_r/run/run_base_refrate_memtrace.0000/cppcheck_r_base.memtrace --force $tmpdir/application/cpu2026/benchspec/CPU/727.cppcheck_r/run/run_base_refrate_memtrace.0000/738-diamond-record.cpp --checkers-report=738_report.txt --enable=all --output-file=738_bogey.txt --platform=unix64",
+      "env_vars":null
+    },
+    {
+      "workload":"cppcheck_r_2",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/727.cppcheck_r/run/run_base_refrate_memtrace.0000/cppcheck_r_base.memtrace --force $tmpdir/application/cpu2026/benchspec/CPU/727.cppcheck_r/run/run_base_refrate_memtrace.0000/747-dealii-data_out_base.cc --checkers-report=747_report.txt --enable=all --output-file=747_bogey.txt --platform=unix64",
+      "env_vars":null
+    },
+    {
+      "workload":"cppcheck_r_3",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/727.cppcheck_r/run/run_base_refrate_memtrace.0000/cppcheck_r_base.memtrace --force $tmpdir/application/cpu2026/benchspec/CPU/727.cppcheck_r/run/run_base_refrate_memtrace.0000/770-7z-SystemPage.cpp --checkers-report=770_report.txt --output-file=770_bogey.txt --platform=unix64",
       "env_vars":null
     },
     {
       "workload":"abc_r",
       "suite":"spec2026",
       "subsuite":"rate_int",
-      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 729.abc_r",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/729.abc_r/run/run_base_refrate_memtrace.0000/abc_r_base.memtrace -F $tmpdir/application/cpu2026/benchspec/CPU/729.abc_r/run/run_base_refrate_memtrace.0000/twoexact.in",
+      "env_vars":null
+    },
+    {
+      "workload":"abc_r_2",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/729.abc_r/run/run_base_refrate_memtrace.0000/abc_r_base.memtrace -F $tmpdir/application/cpu2026/benchspec/CPU/729.abc_r/run/run_base_refrate_memtrace.0000/beem6-fraig.in",
+      "env_vars":null
+    },
+    {
+      "workload":"abc_r_3",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/729.abc_r/run/run_base_refrate_memtrace.0000/abc_r_base.memtrace -F $tmpdir/application/cpu2026/benchspec/CPU/729.abc_r/run/run_base_refrate_memtrace.0000/mem_ctrl.in",
+      "env_vars":null
+    },
+    {
+      "workload":"abc_r_4",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/729.abc_r/run/run_base_refrate_memtrace.0000/abc_r_base.memtrace -F $tmpdir/application/cpu2026/benchspec/CPU/729.abc_r/run/run_base_refrate_memtrace.0000/vga_lcd_miter.in",
+      "env_vars":null
+    },
+    {
+      "workload":"abc_r_5",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/729.abc_r/run/run_base_refrate_memtrace.0000/abc_r_base.memtrace -F $tmpdir/application/cpu2026/benchspec/CPU/729.abc_r/run/run_base_refrate_memtrace.0000/mcml.in",
+      "env_vars":null
+    },
+    {
+      "workload":"abc_r_6",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/729.abc_r/run/run_base_refrate_memtrace.0000/abc_r_base.memtrace -F $tmpdir/application/cpu2026/benchspec/CPU/729.abc_r/run/run_base_refrate_memtrace.0000/des_system90.in",
       "env_vars":null
     },
     {
       "workload":"vpr_r",
       "suite":"spec2026",
       "subsuite":"rate_int",
-      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 734.vpr_r",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/734.vpr_r/run/run_base_refrate_memtrace.0000/vpr_base.memtrace $tmpdir/application/cpu2026/benchspec/CPU/734.vpr_r/run/run_base_refrate_memtrace.0000/stratixiv_arch.timing.xml $tmpdir/application/cpu2026/benchspec/CPU/734.vpr_r/run/run_base_refrate_memtrace.0000/JPEG_stratixiv_arch_timing.blif --RL_agent_placement off --place_algorithm bounding_box --max_criticality 0.0 --init_t 512 --alpha_t 0.75 --exit_t 1 --router_initial_timing all_critical --routing_failure_predictor off --route_chan_width 300 --max_router_iterations 20 --router_lookahead classic --initial_pres_fac 1.0 --pres_fac_mult 2.0 --astar_fac 1.5 --router_profiler_astar_fac 1.5 --seed 3 --sdc_file $tmpdir/application/cpu2026/benchspec/CPU/734.vpr_r/run/run_base_refrate_memtrace.0000/JPEG_stratixiv_arch_timing.sdc --pack_verbosity 0 --netlist_verbosity 0 --base_cost_type demand_only --inner_num 4 --read_initial_place_file $tmpdir/application/cpu2026/benchspec/CPU/734.vpr_r/run/run_base_refrate_memtrace.0000/ref_JPEG_stratixiv_arch_timing.init.place --place",
+      "env_vars":null
+    },
+    {
+      "workload":"vpr_r_2",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/734.vpr_r/run/run_base_refrate_memtrace.0000/vpr_base.memtrace $tmpdir/application/cpu2026/benchspec/CPU/734.vpr_r/run/run_base_refrate_memtrace.0000/stratixiv_arch.timing.xml $tmpdir/application/cpu2026/benchspec/CPU/734.vpr_r/run/run_base_refrate_memtrace.0000/JPEG_stratixiv_arch_timing.blif --place_algorithm bounding_box --place_static_notiming_move_prob 50 25 25 --max_criticality 0.0 --router_initial_timing all_critical --routing_failure_predictor off --route_chan_width 300 --max_router_iterations 20 --router_lookahead classic --initial_pres_fac 1.0 --pres_fac_mult 2.0 --astar_fac 1.5 --router_profiler_astar_fac 1.5 --seed 3 --sdc_file $tmpdir/application/cpu2026/benchspec/CPU/734.vpr_r/run/run_base_refrate_memtrace.0000/JPEG_stratixiv_arch_timing.sdc --pack_verbosity 0 --netlist_verbosity 0 --base_cost_type demand_only --place_file $tmpdir/application/cpu2026/benchspec/CPU/734.vpr_r/run/run_base_refrate_memtrace.0000/ref_JPEG_stratixiv_arch_timing.place --analysis --route",
+      "env_vars":null
+    },
+    {
+      "workload":"vpr_r_3",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/734.vpr_r/run/run_base_refrate_memtrace.0000/vpr_base.memtrace $tmpdir/application/cpu2026/benchspec/CPU/734.vpr_r/run/run_base_refrate_memtrace.0000/stratixiv_arch.timing.xml $tmpdir/application/cpu2026/benchspec/CPU/734.vpr_r/run/run_base_refrate_memtrace.0000/smithwaterman_stratixiv_arch_timing.blif --RL_agent_placement off --place_algorithm bounding_box --max_criticality 0.0 --init_t 512 --alpha_t 0.75 --exit_t 1 --router_initial_timing all_critical --routing_failure_predictor off --route_chan_width 300 --max_router_iterations 20 --router_lookahead classic --initial_pres_fac 1.0 --pres_fac_mult 2.0 --astar_fac 1.5 --router_profiler_astar_fac 1.5 --seed 3 --sdc_file $tmpdir/application/cpu2026/benchspec/CPU/734.vpr_r/run/run_base_refrate_memtrace.0000/smithwaterman_stratixiv_arch_timing.sdc --pack_verbosity 0 --netlist_verbosity 0 --base_cost_type demand_only --inner_num 1.8 --read_initial_place_file $tmpdir/application/cpu2026/benchspec/CPU/734.vpr_r/run/run_base_refrate_memtrace.0000/ref_smithwaterman_stratixiv_arch_timing.init.place --place",
+      "env_vars":null
+    },
+    {
+      "workload":"vpr_r_4",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/734.vpr_r/run/run_base_refrate_memtrace.0000/vpr_base.memtrace $tmpdir/application/cpu2026/benchspec/CPU/734.vpr_r/run/run_base_refrate_memtrace.0000/stratixiv_arch.timing.xml $tmpdir/application/cpu2026/benchspec/CPU/734.vpr_r/run/run_base_refrate_memtrace.0000/smithwaterman_stratixiv_arch_timing.blif --place_algorithm bounding_box --place_static_notiming_move_prob 50 25 25 --max_criticality 0.0 --router_initial_timing all_critical --routing_failure_predictor off --route_chan_width 300 --max_router_iterations 20 --router_lookahead classic --initial_pres_fac 1.0 --pres_fac_mult 2.0 --astar_fac 1.5 --router_profiler_astar_fac 1.5 --seed 3 --sdc_file $tmpdir/application/cpu2026/benchspec/CPU/734.vpr_r/run/run_base_refrate_memtrace.0000/smithwaterman_stratixiv_arch_timing.sdc --pack_verbosity 0 --netlist_verbosity 0 --base_cost_type demand_only --place_file $tmpdir/application/cpu2026/benchspec/CPU/734.vpr_r/run/run_base_refrate_memtrace.0000/ref_smithwaterman_stratixiv_arch_timing.place --analysis --route",
       "env_vars":null
     },
     {
       "workload":"gem5_r",
       "suite":"spec2026",
       "subsuite":"rate_int",
-      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 735.gem5_r",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/735.gem5_r/run/run_base_refrate_memtrace.0000/gem5sim_base.memtrace --stats-file=run_riscv_boot.py_o3_10_--max-ticks_10_000_000_000.stats.txt $tmpdir/application/cpu2026/benchspec/CPU/735.gem5_r/run/run_base_refrate_memtrace.0000/run_riscv_boot.py o3 10 --max-ticks 10_000_000_000",
+      "env_vars":null
+    },
+    {
+      "workload":"gem5_r_2",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/735.gem5_r/run/run_base_refrate_memtrace.0000/gem5sim_base.memtrace --stats-file=run_riscv_boot.py_timing_4_--max-ticks_20_000_000_000.stats.txt $tmpdir/application/cpu2026/benchspec/CPU/735.gem5_r/run/run_base_refrate_memtrace.0000/run_riscv_boot.py timing 4 --max-ticks 20_000_000_000",
+      "env_vars":null
+    },
+    {
+      "workload":"gem5_r_3",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/735.gem5_r/run/run_base_refrate_memtrace.0000/gem5sim_base.memtrace --stats-file=synthetic_traffic.py_LinearGenerator_21.stats.txt $tmpdir/application/cpu2026/benchspec/CPU/735.gem5_r/run/run_base_refrate_memtrace.0000/synthetic_traffic.py LinearGenerator 21",
+      "env_vars":null
+    },
+    {
+      "workload":"gem5_r_4",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/735.gem5_r/run/run_base_refrate_memtrace.0000/gem5sim_base.memtrace --stats-file=synthetic_traffic.py_LinearGenerator_74_--ruby.stats.txt $tmpdir/application/cpu2026/benchspec/CPU/735.gem5_r/run/run_base_refrate_memtrace.0000/synthetic_traffic.py LinearGenerator 74 --ruby",
       "env_vars":null
     },
     {
       "workload":"sealcrypto_r",
       "suite":"spec2026",
       "subsuite":"rate_int",
-      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 750.sealcrypto_r",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/750.sealcrypto_r/run/run_base_refrate_memtrace.0000/sealcrypto_r_base.memtrace refrate $tmpdir/application/cpu2026/benchspec/CPU/750.sealcrypto_r/run/run_base_refrate_memtrace.0000/ecuador_province_capitals_refrate.csv Galapagos",
       "env_vars":null
     },
     {
       "workload":"ns3_r",
       "suite":"spec2026",
       "subsuite":"rate_int",
-      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 753.ns3_r",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/753.ns3_r/run/run_base_refrate_memtrace.0000/ns3_r_base.memtrace mobile-scenario --simTimeMinutes=3 --RngSeed=1 --RngRun=1",
+      "env_vars":null
+    },
+    {
+      "workload":"ns3_r_2",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/753.ns3_r/run/run_base_refrate_memtrace.0000/ns3_r_base.memtrace tcp-pacing --simulationEndTime=500 --useEcn=false --RngSeed=1 --RngRun=1",
+      "env_vars":null
+    },
+    {
+      "workload":"ns3_r_3",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/753.ns3_r/run/run_base_refrate_memtrace.0000/ns3_r_base.memtrace lena-radio-link-failure --numberOfEnbs=2 --interSiteDistance=800 --simTime=200 --RngSeed=1 --RngRun=1",
+      "env_vars":null
+    },
+    {
+      "workload":"ns3_r_4",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/753.ns3_r/run/run_base_refrate_memtrace.0000/ns3_r_base.memtrace dctcp-example --enableSwitchEcn=true --flowStartupWindow=0.4 --convergenceTime=0.4 --measurementWindow=0.4 --RngSeed=1 --RngRun=1",
+      "env_vars":null
+    },
+    {
+      "workload":"ns3_r_5",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/753.ns3_r/run/run_base_refrate_memtrace.0000/ns3_r_base.memtrace wifi-mixed-network --isUdp=0 --payloadSize=3072 --simulationTime=25 --RngSeed=1 --RngRun=1",
+      "env_vars":null
+    },
+    {
+      "workload":"ns3_r_6",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/753.ns3_r/run/run_base_refrate_memtrace.0000/ns3_r_base.memtrace wifi-eht-network --simulationTime=0.2 --frequency=5 --useRts=1 --minExpectedThroughput=6 --maxExpectedThroughput=547 --RngSeed=1 --RngRun=1",
       "env_vars":null
     },
     {
       "workload":"zstd_r",
       "suite":"spec2026",
       "subsuite":"rate_int",
-      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 777.zstd_r",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/777.zstd_r/run/run_base_refrate_memtrace.0000/zstd_base.memtrace -b3 -e3 --verbose -i40 $tmpdir/application/cpu2026/benchspec/CPU/777.zstd_r/run/run_base_refrate_memtrace.0000/cld.tar",
+      "env_vars":null
+    },
+    {
+      "workload":"zstd_r_2",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/777.zstd_r/run/run_base_refrate_memtrace.0000/zstd_base.memtrace -b5 -e5 --verbose -i25 $tmpdir/application/cpu2026/benchspec/CPU/777.zstd_r/run/run_base_refrate_memtrace.0000/cld.tar",
+      "env_vars":null
+    },
+    {
+      "workload":"zstd_r_3",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/777.zstd_r/run/run_base_refrate_memtrace.0000/zstd_base.memtrace -b7 -e7 --verbose -i12 $tmpdir/application/cpu2026/benchspec/CPU/777.zstd_r/run/run_base_refrate_memtrace.0000/cld.tar",
+      "env_vars":null
+    },
+    {
+      "workload":"zstd_r_4",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/777.zstd_r/run/run_base_refrate_memtrace.0000/zstd_base.memtrace -b10 -e10 --verbose -i6 $tmpdir/application/cpu2026/benchspec/CPU/777.zstd_r/run/run_base_refrate_memtrace.0000/cld.tar",
+      "env_vars":null
+    },
+    {
+      "workload":"zstd_r_5",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/777.zstd_r/run/run_base_refrate_memtrace.0000/zstd_base.memtrace -b14 -e14 --verbose -i4 $tmpdir/application/cpu2026/benchspec/CPU/777.zstd_r/run/run_base_refrate_memtrace.0000/cld.tar",
+      "env_vars":null
+    },
+    {
+      "workload":"zstd_r_6",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/777.zstd_r/run/run_base_refrate_memtrace.0000/zstd_base.memtrace -b16 -e16 --verbose -i1 $tmpdir/application/cpu2026/benchspec/CPU/777.zstd_r/run/run_base_refrate_memtrace.0000/cld.tar",
+      "env_vars":null
+    },
+    {
+      "workload":"zstd_r_7",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/777.zstd_r/run/run_base_refrate_memtrace.0000/zstd_base.memtrace -b18 -e18 --verbose -i1 $tmpdir/application/cpu2026/benchspec/CPU/777.zstd_r/run/run_base_refrate_memtrace.0000/cld.tar",
+      "env_vars":null
+    },
+    {
+      "workload":"zstd_r_8",
+      "suite":"spec2026",
+      "subsuite":"rate_int",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/777.zstd_r/run/run_base_refrate_memtrace.0000/zstd_base.memtrace -b19 -e19 --verbose -i1 $tmpdir/application/cpu2026/benchspec/CPU/777.zstd_r/run/run_base_refrate_memtrace.0000/cld.tar",
       "env_vars":null
     },
     {
       "workload":"cactus_r",
       "suite":"spec2026",
       "subsuite":"rate_fp",
-      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 709.cactus_r",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/709.cactus_r/run/run_base_refrate_memtrace.0000/cactus_base.memtrace $tmpdir/application/cpu2026/benchspec/CPU/709.cactus_r/run/run_base_refrate_memtrace.0000/ShiftedGaugeWave.par",
       "env_vars":null
     },
     {
       "workload":"palm_r",
       "suite":"spec2026",
       "subsuite":"rate_fp",
-      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 722.palm_r",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/722.palm_r/run/run_base_refrate_memtrace.0000/palm_r_base.memtrace < $tmpdir/application/cpu2026/benchspec/CPU/722.palm_r/run/run_base_refrate_memtrace.0000/runfile_atmos",
       "env_vars":null
     },
     {
       "workload":"astcenc_r",
       "suite":"spec2026",
       "subsuite":"rate_fp",
-      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 731.astcenc_r",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/731.astcenc_r/run/run_base_refrate_memtrace.0000/astcenc_r_base.memtrace $tmpdir/application/cpu2026/benchspec/CPU/731.astcenc_r/run/run_base_refrate_memtrace.0000/ref-inputs-linear.txt",
+      "env_vars":null
+    },
+    {
+      "workload":"astcenc_r_2",
+      "suite":"spec2026",
+      "subsuite":"rate_fp",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/731.astcenc_r/run/run_base_refrate_memtrace.0000/astcenc_r_base.memtrace $tmpdir/application/cpu2026/benchspec/CPU/731.astcenc_r/run/run_base_refrate_memtrace.0000/ref-inputs-hdr.txt",
+      "env_vars":null
+    },
+    {
+      "workload":"astcenc_r_3",
+      "suite":"spec2026",
+      "subsuite":"rate_fp",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/731.astcenc_r/run/run_base_refrate_memtrace.0000/astcenc_r_base.memtrace $tmpdir/application/cpu2026/benchspec/CPU/731.astcenc_r/run/run_base_refrate_memtrace.0000/ref-inputs-precision.txt",
       "env_vars":null
     },
     {
       "workload":"ocio_r",
       "suite":"spec2026",
       "subsuite":"rate_fp",
-      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 736.ocio_r",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/736.ocio_r/run/run_base_refrate_memtrace.0000/ocioperf_base.memtrace --spec-validation-offset 101 --spec-validation-stride 17 --spec-validation-pixels 131 --bitdepths ui16 ui16 --iter 100 --test -1 --transform $tmpdir/application/cpu2026/benchspec/CPU/736.ocio_r/run/run_base_refrate_memtrace.0000/ctf/lut1d_halfdom.ctf",
+      "env_vars":null
+    },
+    {
+      "workload":"ocio_r_2",
+      "suite":"spec2026",
+      "subsuite":"rate_fp",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/736.ocio_r/run/run_base_refrate_memtrace.0000/ocioperf_base.memtrace --spec-validation-offset 202 --spec-validation-stride 19 --spec-validation-pixels 132 --bitdepths ui16 f32 --iter 200 --8kres --test 0 --transform $tmpdir/application/cpu2026/benchspec/CPU/736.ocio_r/run/run_base_refrate_memtrace.0000/ctf/mntr_srgb_identity.ctf",
+      "env_vars":null
+    },
+    {
+      "workload":"ocio_r_3",
+      "suite":"spec2026",
+      "subsuite":"rate_fp",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/736.ocio_r/run/run_base_refrate_memtrace.0000/ocioperf_base.memtrace --spec-validation-offset 303 --spec-validation-stride 23 --spec-validation-pixels 133 --bitdepths f32 f32 --iter 20 --8kres --test -1 --transform $tmpdir/application/cpu2026/benchspec/CPU/736.ocio_r/run/run_base_refrate_memtrace.0000/clf/aces_to_video_with_look.clf",
+      "env_vars":null
+    },
+    {
+      "workload":"ocio_r_4",
+      "suite":"spec2026",
+      "subsuite":"rate_fp",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/736.ocio_r/run/run_base_refrate_memtrace.0000/ocioperf_base.memtrace --spec-validation-offset 404 --spec-validation-stride 29 --spec-validation-pixels 134 --bitdepths f32 f32 --iter 25 --test -1 --transform $tmpdir/application/cpu2026/benchspec/CPU/736.ocio_r/run/run_base_refrate_memtrace.0000/clf/heavy_transform.clf",
       "env_vars":null
     },
     {
       "workload":"gmsh_r",
       "suite":"spec2026",
       "subsuite":"rate_fp",
-      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 737.gmsh_r",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/737.gmsh_r/run/run_base_refrate_memtrace.0000/gmsh_r_base.memtrace -option $tmpdir/application/cpu2026/benchspec/CPU/737.gmsh_r/run/run_base_refrate_memtrace.0000/gmsh.opts -nt 0 choi.geo",
+      "env_vars":null
+    },
+    {
+      "workload":"gmsh_r_2",
+      "suite":"spec2026",
+      "subsuite":"rate_fp",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/737.gmsh_r/run/run_base_refrate_memtrace.0000/gmsh_r_base.memtrace -option $tmpdir/application/cpu2026/benchspec/CPU/737.gmsh_r/run/run_base_refrate_memtrace.0000/gmsh.opts -nt 0 mediterranean.geo",
+      "env_vars":null
+    },
+    {
+      "workload":"gmsh_r_3",
+      "suite":"spec2026",
+      "subsuite":"rate_fp",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/737.gmsh_r/run/run_base_refrate_memtrace.0000/gmsh_r_base.memtrace -option $tmpdir/application/cpu2026/benchspec/CPU/737.gmsh_r/run/run_base_refrate_memtrace.0000/gmsh.opts -nt 0 projection.geo",
+      "env_vars":null
+    },
+    {
+      "workload":"gmsh_r_4",
+      "suite":"spec2026",
+      "subsuite":"rate_fp",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/737.gmsh_r/run/run_base_refrate_memtrace.0000/gmsh_r_base.memtrace -option $tmpdir/application/cpu2026/benchspec/CPU/737.gmsh_r/run/run_base_refrate_memtrace.0000/gmsh.opts -nt 0 gasdis.geo",
+      "env_vars":null
+    },
+    {
+      "workload":"gmsh_r_5",
+      "suite":"spec2026",
+      "subsuite":"rate_fp",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/737.gmsh_r/run/run_base_refrate_memtrace.0000/gmsh_r_base.memtrace -option $tmpdir/application/cpu2026/benchspec/CPU/737.gmsh_r/run/run_base_refrate_memtrace.0000/gmsh.opts -nt 0 Torus.geo",
+      "env_vars":null
+    },
+    {
+      "workload":"gmsh_r_6",
+      "suite":"spec2026",
+      "subsuite":"rate_fp",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/737.gmsh_r/run/run_base_refrate_memtrace.0000/gmsh_r_base.memtrace -option $tmpdir/application/cpu2026/benchspec/CPU/737.gmsh_r/run/run_base_refrate_memtrace.0000/gmsh.opts -nt 0 spec.geo -clscale 0.175 -algo del2d -algo hxt",
+      "env_vars":null
+    },
+    {
+      "workload":"gmsh_r_7",
+      "suite":"spec2026",
+      "subsuite":"rate_fp",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/737.gmsh_r/run/run_base_refrate_memtrace.0000/gmsh_r_base.memtrace -option $tmpdir/application/cpu2026/benchspec/CPU/737.gmsh_r/run/run_base_refrate_memtrace.0000/gmsh.opts -nt 0 p19.geo",
       "env_vars":null
     },
     {
       "workload":"flightdm_r",
       "suite":"spec2026",
       "subsuite":"rate_fp",
-      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 748.flightdm_r",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/748.flightdm_r/run/run_base_refrate_memtrace.0000/JSBSim_base.memtrace --nohighlight $tmpdir/application/cpu2026/benchspec/CPU/748.flightdm_r/run/run_base_refrate_memtrace.0000/scripts/weather-balloon2.xml",
+      "env_vars":null
+    },
+    {
+      "workload":"flightdm_r_2",
+      "suite":"spec2026",
+      "subsuite":"rate_fp",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/748.flightdm_r/run/run_base_refrate_memtrace.0000/JSBSim_base.memtrace --nohighlight $tmpdir/application/cpu2026/benchspec/CPU/748.flightdm_r/run/run_base_refrate_memtrace.0000/scripts/B747_script1.xml",
+      "env_vars":null
+    },
+    {
+      "workload":"flightdm_r_3",
+      "suite":"spec2026",
+      "subsuite":"rate_fp",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/748.flightdm_r/run/run_base_refrate_memtrace.0000/JSBSim_base.memtrace --nohighlight $tmpdir/application/cpu2026/benchspec/CPU/748.flightdm_r/run/run_base_refrate_memtrace.0000/scripts/x153.xml",
+      "env_vars":null
+    },
+    {
+      "workload":"flightdm_r_4",
+      "suite":"spec2026",
+      "subsuite":"rate_fp",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/748.flightdm_r/run/run_base_refrate_memtrace.0000/JSBSim_base.memtrace --nohighlight $tmpdir/application/cpu2026/benchspec/CPU/748.flightdm_r/run/run_base_refrate_memtrace.0000/scripts/c3104.xml",
+      "env_vars":null
+    },
+    {
+      "workload":"flightdm_r_5",
+      "suite":"spec2026",
+      "subsuite":"rate_fp",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/748.flightdm_r/run/run_base_refrate_memtrace.0000/JSBSim_base.memtrace --nohighlight $tmpdir/application/cpu2026/benchspec/CPU/748.flightdm_r/run/run_base_refrate_memtrace.0000/scripts/ah1s_flight_test.xml",
+      "env_vars":null
+    },
+    {
+      "workload":"flightdm_r_6",
+      "suite":"spec2026",
+      "subsuite":"rate_fp",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/748.flightdm_r/run/run_base_refrate_memtrace.0000/JSBSim_base.memtrace --nohighlight $tmpdir/application/cpu2026/benchspec/CPU/748.flightdm_r/run/run_base_refrate_memtrace.0000/scripts/ball_orbit_g_torque.xml",
+      "env_vars":null
+    },
+    {
+      "workload":"flightdm_r_7",
+      "suite":"spec2026",
+      "subsuite":"rate_fp",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/748.flightdm_r/run/run_base_refrate_memtrace.0000/JSBSim_base.memtrace --nohighlight $tmpdir/application/cpu2026/benchspec/CPU/748.flightdm_r/run/run_base_refrate_memtrace.0000/scripts/ball_orbit_g_torque2.xml",
+      "env_vars":null
+    },
+    {
+      "workload":"flightdm_r_8",
+      "suite":"spec2026",
+      "subsuite":"rate_fp",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/748.flightdm_r/run/run_base_refrate_memtrace.0000/JSBSim_base.memtrace --nohighlight $tmpdir/application/cpu2026/benchspec/CPU/748.flightdm_r/run/run_base_refrate_memtrace.0000/scripts/ball_orbit.xml",
       "env_vars":null
     },
     {
       "workload":"fotonik3d_r",
       "suite":"spec2026",
       "subsuite":"rate_fp",
-      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 749.fotonik3d_r",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/749.fotonik3d_r/run/run_base_refrate_memtrace.0000/fotonik3d_r_base.memtrace",
       "env_vars":null
     },
     {
       "workload":"roms_r",
       "suite":"spec2026",
       "subsuite":"rate_fp",
-      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 765.roms_r",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/765.roms_r/run/run_base_refrate_memtrace.0000/roms_r_base.memtrace < $tmpdir/application/cpu2026/benchspec/CPU/765.roms_r/run/run_base_refrate_memtrace.0000/roms_benchmark2.in.x",
       "env_vars":null
     },
     {
       "workload":"femflow_r",
       "suite":"spec2026",
       "subsuite":"rate_fp",
-      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 766.femflow_r",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/766.femflow_r/run/run_base_refrate_memtrace.0000/femflow_r_base.memtrace $tmpdir/application/cpu2026/benchspec/CPU/766.femflow_r/run/run_base_refrate_memtrace.0000/refrate.prm",
       "env_vars":null
     },
     {
       "workload":"nest_r",
       "suite":"spec2026",
       "subsuite":"rate_fp",
-      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 767.nest_r",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/767.nest_r/run/run_base_refrate_memtrace.0000/nest_r_base.memtrace $tmpdir/application/cpu2026/benchspec/CPU/767.nest_r/run/run_base_refrate_memtrace.0000/cuba_stdp.sli",
+      "env_vars":null
+    },
+    {
+      "workload":"nest_r_2",
+      "suite":"spec2026",
+      "subsuite":"rate_fp",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/767.nest_r/run/run_base_refrate_memtrace.0000/nest_r_base.memtrace $tmpdir/application/cpu2026/benchspec/CPU/767.nest_r/run/run_base_refrate_memtrace.0000/structural_plasticity_benchmark.sli",
+      "env_vars":null
+    },
+    {
+      "workload":"nest_r_3",
+      "suite":"spec2026",
+      "subsuite":"rate_fp",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/767.nest_r/run/run_base_refrate_memtrace.0000/nest_r_base.memtrace $tmpdir/application/cpu2026/benchspec/CPU/767.nest_r/run/run_base_refrate_memtrace.0000/ArtificialSynchrony.sli",
       "env_vars":null
     },
     {
       "workload":"marian_r",
       "suite":"spec2026",
       "subsuite":"rate_fp",
-      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 772.marian_r",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/772.marian_r/run/run_base_refrate_memtrace.0000/marian-decoder_base.memtrace --cpu-threads 1 -m $tmpdir/application/cpu2026/benchspec/CPU/772.marian_r/run/run_base_refrate_memtrace.0000/model.alphas.npz -v $tmpdir/application/cpu2026/benchspec/CPU/772.marian_r/run/run_base_refrate_memtrace.0000/vocab.spm $tmpdir/application/cpu2026/benchspec/CPU/772.marian_r/run/run_base_refrate_memtrace.0000/vocab.spm --beam-size 1 --mini-batch 32 --maxi-batch 100 --maxi-batch-sort src -w 512 --skip-cost --gemm-type intgemm8 --intgemm-options precomputed-alpha standard-only --quiet --quiet-translation -i $tmpdir/application/cpu2026/benchspec/CPU/772.marian_r/run/run_base_refrate_memtrace.0000/TildeMODEL-spec.en --log TildeMODEL-spec.log --log-level off -o TildeMODEL-spec.out",
+      "env_vars":null
+    },
+    {
+      "workload":"marian_r_2",
+      "suite":"spec2026",
+      "subsuite":"rate_fp",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/772.marian_r/run/run_base_refrate_memtrace.0000/marian-decoder_base.memtrace --cpu-threads 1 -m $tmpdir/application/cpu2026/benchspec/CPU/772.marian_r/run/run_base_refrate_memtrace.0000/model.alphas.npz -v $tmpdir/application/cpu2026/benchspec/CPU/772.marian_r/run/run_base_refrate_memtrace.0000/vocab.spm $tmpdir/application/cpu2026/benchspec/CPU/772.marian_r/run/run_base_refrate_memtrace.0000/vocab.spm --beam-size 1 --mini-batch 32 --maxi-batch 100 --maxi-batch-sort src -w 512 --skip-cost --gemm-type intgemm8 --intgemm-options precomputed-alpha standard-only --quiet --quiet-translation -i $tmpdir/application/cpu2026/benchspec/CPU/772.marian_r/run/run_base_refrate_memtrace.0000/EuroPat-spec.en --log EuroPat-spec.log --log-level off -o EuroPat-spec.out",
       "env_vars":null
     },
     {
       "workload":"lbm_r",
       "suite":"spec2026",
       "subsuite":"rate_fp",
-      "binary_cmd":"runcpu --config=memtrace.cfg --action=onlyrun 782.lbm_r",
+      "binary_cmd":"$tmpdir/application/cpu2026/benchspec/CPU/782.lbm_r/run/run_base_refrate_memtrace.0000/lbm_r_base.memtrace 900 reference.dat 0 0 $tmpdir/application/cpu2026/benchspec/CPU/782.lbm_r/run/run_base_refrate_memtrace.0000/200_200_130_ldc.of",
       "env_vars":null
     }
   ]
