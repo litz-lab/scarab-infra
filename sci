@@ -523,6 +523,31 @@ def handle_descriptor_action(descriptor_name: str, action: str, dbg_override: Op
     raise StepError(f"Unsupported descriptor type '{dtype}' for action '{action}'")
 
 
+def handle_status_tui(
+    descriptor_name: str,
+    dbg_override: Optional[int] = None,
+    refresh_interval: float = 30.0,
+) -> int:
+    """Open the interactive status view for a simulation descriptor."""
+    path, descriptor = read_descriptor(descriptor_name)
+    if descriptor.get("descriptor_type") != "simulation":
+        raise StepError(
+            "--tui is only supported for simulation descriptors "
+            f"(got '{descriptor.get('descriptor_type')}')"
+        )
+    if descriptor.get("workload_manager") == "manual":
+        print(
+            "Note: workload_manager is 'manual', so node and queue columns will be empty.\n"
+        )
+    tui = import_repo_module("scripts.status_tui")
+    return tui.run_tui(
+        str(path),
+        str(REPO_ROOT),
+        dbg_lvl=dbg_override if dbg_override is not None else 1,
+        refresh_interval=refresh_interval,
+    )
+
+
 def confirm(prompt: str, *, default: bool) -> bool:
     if not sys.stdin.isatty():
         return default
@@ -2932,14 +2957,20 @@ def run_visualize(descriptor_name: str) -> int:
         formatted = formatted.rstrip("0").rstrip(".")
         return f"{formatted}%" if as_percent else formatted
 
+    # {stat: {config: {workload: value, ..., "Avg": value}}}, emitted as JSON below.
+    aggregates: Dict[str, Dict[str, Dict[str, Optional[float]]]] = {}
+
     def print_markdown_table(stat_name: str, *, display_name: Optional[str] = None) -> None:
         """
         Render a markdown table for the given stat across workloads/configs, including speedup vs baseline.
+
+        Also records the values into `aggregates` for the JSON emit.
         """
         label = display_name or stat_name
         all_data = experiment.retrieve_stats(configs, [stat_name], workloads)
         if all_data is None:
             return
+        recorded = aggregates.setdefault(stat_name, {})
 
         def average(values: List[float], *, use_geomean: bool) -> Optional[float]:
             if not values:
@@ -2982,6 +3013,7 @@ def run_visualize(descriptor_name: str) -> int:
             base_val = baseline_avg if wl == "Avg" else baseline_values.get(wl)
 
             row.append(format_numeric(base_val))
+            recorded.setdefault(baseline, {})[wl] = base_val
 
             values_by_cfg: Dict[str, Optional[float]] = {}
             for cfg in non_baseline_configs:
@@ -2998,6 +3030,7 @@ def run_visualize(descriptor_name: str) -> int:
                     value = all_data.get(f"{cfg} {wl} {stat_name}")
 
                 values_by_cfg[cfg] = value
+                recorded.setdefault(cfg, {})[wl] = value
                 row.append(format_numeric(value))
 
             for cfg in non_baseline_configs:
@@ -3177,6 +3210,26 @@ def run_visualize(descriptor_name: str) -> int:
                     print(f"  {wl} / {cfg}: +{delta_pct:.1f}%")
         except Exception as exc:
             print(f"Skipping memory table: {exc}")
+
+    # For consumers tracking numbers over time (scripts/weekly_perf_sweep.py);
+    # reuses this function's weighting instead of re-deriving it.
+    if aggregates:
+        aggregates_path = stats_path.with_name("aggregates.json")
+        payload = {
+            "experiment": descriptor.get("experiment"),
+            "stats_file": str(stats_path),
+            "baseline": baseline,
+            "configs": list(configs),
+            "workloads": list(workloads),
+            "aggregates": aggregates,
+        }
+        try:
+            with aggregates_path.open("w", encoding="utf-8") as fh:
+                json.dump(payload, fh, indent=2, sort_keys=True)
+                fh.write("\n")
+            print(f"Wrote aggregates → {aggregates_path.name}")
+        except OSError as exc:
+            print(f"Could not write {aggregates_path.name}: {exc}")
 
     return 0
 
@@ -4312,6 +4365,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="Remove containers and state for json/<DESCRIPTOR>.json.",
     )
     parser.add_argument(
+        "--tui",
+        action="store_true",
+        help="With --status: open an interactive view instead of printing once. "
+             "Select a count cell to drill into the individual simpoints and see "
+             "live per-simpoint progress.",
+    )
+    parser.add_argument(
         "--debug-level",
         dest="debug_level",
         type=int,
@@ -4345,6 +4405,10 @@ def main() -> int:
     ]
     if sum(requested) > 1:
         print("Use only one primary action per invocation.")
+        return 1
+
+    if args.tui and not args.status:
+        print("--tui is a modifier for --status. Try: ./sci --status <DESCRIPTOR> --tui")
         return 1
 
     needs_env = any([
@@ -4481,6 +4545,11 @@ def main() -> int:
             return 1
     if args.status:
         try:
+            if args.tui:
+                return handle_status_tui(
+                    args.status,
+                    dbg_override=args.debug_level
+                )
             handle_descriptor_action(args.status, "info", dbg_override=args.debug_level)
             return 0
         except (StepError, RuntimeError) as exc:
