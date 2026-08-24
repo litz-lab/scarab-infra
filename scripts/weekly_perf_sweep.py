@@ -29,6 +29,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import traceback
 from email.message import EmailMessage
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -62,6 +63,9 @@ SMTP_HOST = "smtp.soe.ucsc.edu"
 SMTP_PORT = 25
 MAIL_FROM = "scarab-perf@soe.ucsc.edu"
 GITHUB_ORG = "litz-lab"
+# Used when the org lookup comes up empty (no gh on cron's PATH, no token, no
+# public emails). Mailing one person beats mailing nobody.
+FALLBACK_RECIPIENTS = ["hlitz@ucsc.edu"]
 
 FIELDNAMES = [
     "date",
@@ -496,12 +500,27 @@ def org_recipients() -> List[str]:
     return addresses
 
 
+def notify(subject: str, body: str, attachments: List[Path], args) -> None:
+    """Mail the lab, whatever happened.
+
+    The sweep exists to say something once a week. A week that produced no
+    mail is indistinguishable from a week nobody looked at, which is how it sat
+    broken for two runs -- so failures, crashes and skips all mail too.
+    """
+    if args.no_email or args.dry_run:
+        log(f"not mailing '{subject}' (--no-email/--dry-run)")
+        return
+    recipients = org_recipients() or FALLBACK_RECIPIENTS
+    send_email(subject, body, attachments, recipients)
+
+
 def send_email(subject: str, body: str, attachments: List[Path],
                recipients: List[str]) -> None:
     if not recipients:
         log("no recipients resolved; skipping email")
         return
 
+    delivered = 0
     for recipient in recipients:
         message = EmailMessage()
         message["From"] = MAIL_FROM
@@ -521,8 +540,14 @@ def send_email(subject: str, body: str, attachments: List[Path],
             with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as smtp:
                 smtp.send_message(message)
             log(f"emailed {recipient}")
+            delivered += 1
         except Exception as exc:  # noqa: BLE001 - report and continue
             log(f"WARNING: could not email {recipient}: {exc}")
+
+    if not delivered:
+        # Nothing else can carry the news out of here; make the log say it.
+        log(f"ERROR: '{subject}' reached nobody ({len(recipients)} recipients "
+            f"tried via {SMTP_HOST}:{SMTP_PORT})")
 
 
 # ---------------------------------------------------------------------------
@@ -542,14 +567,31 @@ def main() -> int:
                         help="Override the dated experiment suffix (testing).")
     args = parser.parse_args()
 
+    today = _dt.date.today().isoformat()
+    try:
+        return run_sweep(args, today)
+    except Exception:  # noqa: BLE001 - any crash must still reach the lab
+        report = traceback.format_exc()
+        log("CRASHED:\n" + report)
+        notify(f"SPEC17 weekly perf sweep CRASHED - {today}",
+               f"The sweep raised before it could report.\n\n{report}\n"
+               f"Log: {LOG_PATH}",
+               [], args)
+        return 1
+
+
+def run_sweep(args, today: str) -> int:
     lock = LOCK_PATH.open("w")
     try:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
         log("another sweep is already running; exiting")
+        notify(f"SPEC17 weekly perf sweep SKIPPED - {today}",
+               "Another sweep still held the lock, so this run did nothing.\n"
+               f"Log: {LOG_PATH}",
+               [], args)
         return 0
 
-    today = _dt.date.today().isoformat()
     suffix = args.experiment_suffix or today.replace("-", "")
     infra_sha = git_sha(REPO_ROOT)
     scarab_sha = "skipped" if args.skip_sim else refresh_scarab()
@@ -590,9 +632,7 @@ def main() -> int:
         )
         print()
         print(body)
-        if not args.dry_run and not args.no_email:
-            send_email(f"SPEC17 weekly perf sweep FAILED - {today}", body, [],
-                       org_recipients())
+        notify(f"SPEC17 weekly perf sweep FAILED - {today}", body, [], args)
         return 1
 
     if args.dry_run:
@@ -617,9 +657,12 @@ def main() -> int:
             cwd=HISTORY_DIR, check=False)
         run(["git", "push"], cwd=HISTORY_DIR, check=False)
 
-    if not args.no_email:
-        send_email(f"SPEC17 weekly perf sweep — {today}", report, plots,
-                   org_recipients())
+    # A run where some modes died still reports, but says so in the subject.
+    if failures:
+        report += "\n\nModes that produced nothing:\n" + "\n".join(
+            f"  {f}" for f in failures) + f"\nLog: {LOG_PATH}"
+    suffix_note = " (partial)" if failures else ""
+    notify(f"SPEC17 weekly perf sweep{suffix_note} - {today}", report, plots, args)
 
     return 0
 
