@@ -3,10 +3,11 @@
 
 export tmpdir="/tmp_home"
 export DYNAMORIO_HOME=$tmpdir/DynamoRIO-Linux-10.0.0/
-export PIN_ROOT=$tmpdir/pin-3.15-98253-gb56e429b1-gcc-linux
+export PIN_ROOT=$tmpdir/sde-external-9.44.0-2024-08-22-lin/pinkit
 export SCARAB_ENABLE_PT_MEMTRACE=1
-export LD_LIBRARY_PATH=$tmpdir/pin-3.15-98253-gb56e429b1-gcc-linux/extras/xed-intel64/lib
-export LD_LIBRARY_PATH=$tmpdir/pin-3.15-98253-gb56e429b1-gcc-linux/intel64/runtime/pincrt:$LD_LIBRARY_PATH
+export SCARAB_ENABLE_PINPLAY=1
+export LD_LIBRARY_PATH=$tmpdir/sde-external-9.44.0-2024-08-22-lin/pinkit/extras/xed-intel64/lib
+export LD_LIBRARY_PATH=$tmpdir/sde-external-9.44.0-2024-08-22-lin/pinkit/intel64/runtime/pincrt:$LD_LIBRARY_PATH
 export LD_LIBRARY_PATH=$DYNAMORIO_HOME/lib64/release:$LD_LIBRARY_PATH
 
 export DOCKER_BUILDKIT=1
