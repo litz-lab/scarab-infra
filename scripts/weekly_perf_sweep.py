@@ -19,6 +19,7 @@ import argparse
 import csv
 import datetime as _dt
 import fcntl
+import getpass
 import json
 import math
 import os
@@ -27,6 +28,7 @@ import smtplib
 import subprocess
 import sys
 import tempfile
+import time
 from email.message import EmailMessage
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -49,6 +51,12 @@ HISTORY_CSV = "history.csv"
 PLOT_SUBDIR = "plots"
 
 LOCK_PATH = Path("/tmp/scarab_weekly_sweep.lock")
+# Where the cron entry sends this script's output; quoted in the failure mail.
+LOG_PATH = Path("/soe/hlitz/logs/weekly_perf_sweep.log")
+
+POLL_SECONDS = 300
+# A full SPEC17 sweep behind a busy queue; past this we take what finished.
+SIM_TIMEOUT_SECONDS = 24 * 3600
 
 SMTP_HOST = "smtp.soe.ucsc.edu"
 SMTP_PORT = 25
@@ -151,6 +159,41 @@ def experiment_dir(descriptor_stem: str) -> Path:
     return root / "simulations" / descriptor["experiment"]
 
 
+def sims_pending(experiment: str) -> bool:
+    """Any of this experiment's Slurm jobs still queued or running?"""
+    try:
+        names = subprocess.run(
+            ["squeue", "-u", getpass.getuser(), "-h", "-o", "%j"],
+            check=True, text=True, capture_output=True,
+        ).stdout.split()
+    except (subprocess.CalledProcessError, FileNotFoundError) as exc:
+        log(f"WARNING: could not query squeue ({exc}); not waiting")
+        return False
+    return any(experiment in name for name in names)
+
+
+def wait_for_sims(experiment: str) -> None:
+    """`--sim` returns once Slurm has the jobs; the results land hours later.
+
+    Collecting stats before then reads a half-empty experiment dir and dies on
+    the first missing ramulator.stat.out, which is what made every sweep so far
+    record nothing.
+    """
+    deadline = time.monotonic() + SIM_TIMEOUT_SECONDS
+    waited = False
+    while sims_pending(experiment):
+        if time.monotonic() > deadline:
+            log(f"{experiment}: jobs still queued after "
+                f"{SIM_TIMEOUT_SECONDS // 3600}h; collecting what finished")
+            return
+        if not waited:
+            log(f"{experiment}: waiting for Slurm jobs to finish")
+            waited = True
+        time.sleep(POLL_SECONDS)
+    if waited:
+        log(f"{experiment}: all jobs finished")
+
+
 def run_mode(stem: str, experiment: str, *, skip_sim: bool) -> Optional[Path]:
     """Run one mode; return its aggregates.json."""
     descriptor_stem = render_descriptor(stem, experiment)
@@ -161,6 +204,7 @@ def run_mode(stem: str, experiment: str, *, skip_sim: bool) -> Optional[Path]:
             return None
         if not sci(["--sim", descriptor_stem]):
             return None
+        wait_for_sims(experiment)
         if not sci(["--collect-stats", descriptor_stem]):
             return None
 
@@ -515,12 +559,14 @@ def main() -> int:
     log(f"weekly sweep {today}: scarab={scarab_sha} infra={infra_sha}")
 
     rows: List[Dict[str, object]] = []
+    failures: List[str] = []
     for stem, label in MODES:
         experiment = f"{stem}_{suffix}"
         log(f"--- {label} ({experiment}) ---")
         aggregates_path = run_mode(stem, experiment, skip_sim=args.skip_sim)
         if aggregates_path is None:
             log(f"{label}: no results, continuing with the other modes")
+            failures.append(f"{label} ({experiment}): no results")
             continue
         metrics = derive_metrics(aggregates_path)
         for workload, values in metrics.items():
@@ -534,7 +580,19 @@ def main() -> int:
             })
 
     if not rows:
+        # Say so out loud: a silent week is indistinguishable from a healthy
+        # one, which is how the sweep sat broken without anyone noticing.
         log("ERROR: every mode failed; nothing to record")
+        body = "\n".join(
+            [f"SPEC CPU2017 weekly sweep {today} recorded nothing.",
+             f"scarab {scarab_sha}, scarab-infra {infra_sha}",
+             ""] + failures + ["", f"Log: {LOG_PATH}"]
+        )
+        print()
+        print(body)
+        if not args.dry_run and not args.no_email:
+            send_email(f"SPEC17 weekly perf sweep FAILED - {today}", body, [],
+                       org_recipients())
         return 1
 
     if args.dry_run:
