@@ -2416,6 +2416,53 @@ def resolve_visualize_settings(
     return stats_to_plot, baseline, plot_configs
 
 
+def resolve_visualize_scurve_settings(descriptor: Dict[str, Any]) -> Dict[str, Any]:
+    visualize = descriptor.get("visualize") or {}
+    if not isinstance(visualize, dict):
+        return {"enabled": False, "top_n": 10, "width": 60, "height": 12}
+
+    raw_scurve = visualize.get("scurve", False)
+    settings: Dict[str, Any] = {
+        "enabled": False,
+        "top_n": 10,
+        "width": 60,
+        "height": 12,
+    }
+
+    if isinstance(raw_scurve, bool):
+        settings["enabled"] = raw_scurve
+        return settings
+    if raw_scurve is None:
+        return settings
+    if not isinstance(raw_scurve, dict):
+        print("Descriptor field 'visualize.scurve' must be a boolean or object; disabling IPC S-curves.")
+        return settings
+
+    raw_enabled = raw_scurve.get("enabled", True)
+    if isinstance(raw_enabled, bool):
+        settings["enabled"] = raw_enabled
+    else:
+        print("Descriptor field 'visualize.scurve.enabled' must be a boolean; disabling IPC S-curves.")
+        return settings
+
+    def apply_int(name: str, *, minimum: int) -> None:
+        raw_value = raw_scurve.get(name)
+        if raw_value is None:
+            return
+        if isinstance(raw_value, bool) or not isinstance(raw_value, int) or raw_value < minimum:
+            print(
+                f"Descriptor field 'visualize.scurve.{name}' must be an integer >= {minimum}; "
+                f"using {settings[name]}."
+            )
+            return
+        settings[name] = raw_value
+
+    apply_int("top_n", minimum=1)
+    apply_int("width", minimum=20)
+    apply_int("height", minimum=5)
+    return settings
+
+
 def resolve_perf_analyze_settings(
     descriptor: Dict[str, Any],
     configs: List[str],
@@ -2888,6 +2935,7 @@ def run_visualize(descriptor_name: str) -> int:
     except StepError as exc:
         print(exc)
         return 1
+    scurve_settings = resolve_visualize_scurve_settings(descriptor)
 
     def normalize_counter_entry(entry: object) -> Optional[Dict[str, object]]:
         """
@@ -3158,6 +3206,44 @@ def run_visualize(descriptor_name: str) -> int:
             )
         except Exception as exc:  # pragma: no cover - matplotlib backend dependent
             print(f"Failed to generate plots for '{stat_name}': {exc}")
+
+    if scurve_settings["enabled"]:
+        print("\nGenerating IPC S-curves...")
+        try:
+            from scarab_stats.ipc_scurve import generate_ipc_scurves, format_ipc_scurve_report
+        except Exception as exc:  # pragma: no cover - depends on optional plotting deps
+            print(f"Failed to load IPC S-curve generator: {exc}")
+        else:
+            try:
+                scurve_outputs = generate_ipc_scurves(
+                    stats_path,
+                    baseline_config=baseline,
+                    configs=configs,
+                )
+            except Exception as exc:  # pragma: no cover - depends on user data
+                print(f"Failed to generate IPC S-curves: {exc}")
+            else:
+                if not scurve_outputs:
+                    print("No IPC S-curves generated. Need at least two configs with common simpoints.")
+                for item in scurve_outputs:
+                    print(
+                        f"Wrote IPC S-curve {item['baseline']} vs {item['candidate']} -> "
+                        f"{item['graph']} and {item['data']}"
+                    )
+                    try:
+                        print(
+                            format_ipc_scurve_report(
+                                item,
+                                width=int(scurve_settings["width"]),
+                                height=int(scurve_settings["height"]),
+                                top_n=int(scurve_settings["top_n"]),
+                            )
+                        )
+                    except Exception as exc:  # pragma: no cover - console-only formatting
+                        print(
+                            f"Failed to print IPC S-curve console report for "
+                            f"{item.get('baseline')} vs {item.get('candidate')}: {exc}"
+                        )
 
     # Memory delta table — printed if --collect-mem has been run for this experiment
     memory_stats_path = stats_path.parent / "memory_stats.json"

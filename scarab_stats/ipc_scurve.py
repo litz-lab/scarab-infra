@@ -7,7 +7,7 @@ import argparse
 import csv
 import math
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 import matplotlib
 
@@ -20,10 +20,21 @@ DATA_START_COL = 3
 DEFAULT_OUTDIR = "ipc_scurves"
 GRAPH_NAME = "ipc_scurve_graph.pdf"
 DATA_NAME = "ipc_scurve_data.csv"
+DEFAULT_ASCII_WIDTH = 60
+DEFAULT_ASCII_HEIGHT = 12
+DEFAULT_EXTREME_COUNT = 10
 
 
 def _safe_filename(stem: str) -> str:
     return "".join(c if c.isalnum() or c in {"-", "_"} else "_" for c in stem)
+
+
+def _ipc_col(config: str) -> str:
+    return f"ipc_{config}"
+
+
+def _pct_col(baseline: str, candidate: str) -> str:
+    return f"percent_change({candidate}_vs_{baseline})"
 
 
 def _ordered_unique(values: Iterable[str]) -> List[str]:
@@ -164,13 +175,13 @@ def _build_pair_rows(
             {
                 "workload": workload,
                 "simpoint": simpoint,
-                f"ipc_{baseline}": base,
-                f"ipc_{candidate}": cand,
-                f"percent_change({candidate}_vs_{baseline})": pct,
+                _ipc_col(baseline): base,
+                _ipc_col(candidate): cand,
+                _pct_col(baseline, candidate): pct,
             }
         )
 
-    pct_col = f"percent_change({candidate}_vs_{baseline})"
+    pct_col = _pct_col(baseline, candidate)
     rows.sort(key=lambda row: float(row[pct_col]))
     for rank, row in enumerate(rows, start=1):
         row["rank"] = rank
@@ -187,13 +198,21 @@ def _write_pair_csv(rows: List[Dict[str, object]], csv_path: Path) -> None:
         writer.writerows(rows)
 
 
+def _format_float(value: object, digits: int = 4) -> str:
+    numeric = _as_float(value)
+    if numeric is None:
+        return "N/A"
+    formatted = f"{numeric:.{digits}f}".rstrip("0").rstrip(".")
+    return formatted or "0"
+
+
 def _write_pair_plot(
     rows: List[Dict[str, object]],
     baseline: str,
     candidate: str,
     graph_path: Path,
 ) -> None:
-    pct_col = f"percent_change({candidate}_vs_{baseline})"
+    pct_col = _pct_col(baseline, candidate)
     ranks = [int(row["rank"]) for row in rows]
     deltas = [float(row[pct_col]) for row in rows]
 
@@ -205,7 +224,7 @@ def _write_pair_plot(
         color="tab:blue",
     )
     ax.axhline(0.0, linestyle="--", linewidth=0.8, color="tab:gray")
-    ax.set_title(f"IPC S-curve: {candidate} vs {baseline}", fontsize=10, pad=6)
+    ax.set_title(f"IPC S-curve: {baseline} vs {candidate}", fontsize=10, pad=6)
     ax.set_xlabel(f"Simpoints sorted by IPC change (n={len(rows)})", fontsize=9, labelpad=6)
     ax.set_ylabel("Relative IPC change (%)", fontsize=9, labelpad=6)
     ax.tick_params(axis="both", labelsize=8)
@@ -213,6 +232,136 @@ def _write_pair_plot(
     ax.grid(True, axis="y", linestyle=":", linewidth=0.6, alpha=0.6)
     fig.savefig(graph_path, format="pdf")
     plt.close(fig)
+
+
+def format_ipc_scurve_ascii(
+    rows: Sequence[Dict[str, object]],
+    baseline: str,
+    candidate: str,
+    *,
+    width: int = DEFAULT_ASCII_WIDTH,
+    height: int = DEFAULT_ASCII_HEIGHT,
+) -> str:
+    """Return an ASCII S-curve for rows sorted by percent IPC change."""
+    if not rows:
+        return "No common simpoints to draw."
+
+    pct_col = _pct_col(baseline, candidate)
+    deltas = [float(row[pct_col]) for row in rows]
+    width = max(2, int(width))
+    height = max(3, int(height))
+
+    if len(deltas) <= width:
+        sampled = deltas
+    else:
+        sampled = [
+            deltas[round(i * (len(deltas) - 1) / (width - 1))]
+            for i in range(width)
+        ]
+
+    grid_width = max(1, len(sampled))
+    lo = min(min(sampled), 0.0)
+    hi = max(max(sampled), 0.0)
+    if lo == hi:
+        lo -= 1.0
+        hi += 1.0
+
+    def row_for(value: float) -> int:
+        scaled = (value - lo) / (hi - lo)
+        return height - 1 - int(round(scaled * (height - 1)))
+
+    grid = [[" " for _ in range(grid_width)] for _ in range(height)]
+    zero_row = row_for(0.0)
+    for x in range(grid_width):
+        grid[zero_row][x] = "-"
+    for x, value in enumerate(sampled):
+        grid[row_for(value)][x] = "*"
+
+    lines = [f"ASCII IPC S-curve: {baseline} vs {candidate} ({candidate} relative to {baseline})"]
+    for row_idx, cells in enumerate(grid):
+        value = hi - row_idx * (hi - lo) / (height - 1)
+        label = f"{value:8.2f}%"
+        if row_idx == zero_row:
+            label = f"{0.0:8.2f}%"
+        lines.append(f"{label} |{''.join(cells)}")
+    lines.append(f"{'':>9}+{'-' * grid_width}")
+    lines.append(f"{'':>10}worst -> best simpoints sorted by IPC change")
+    return "\n".join(lines)
+
+
+def format_extreme_simpoints(
+    rows: Sequence[Dict[str, object]],
+    baseline: str,
+    candidate: str,
+    *,
+    count: int = DEFAULT_EXTREME_COUNT,
+) -> str:
+    """Return negative and positive simpoint IPC deltas as plain text tables."""
+    if not rows:
+        return "No common simpoints to summarize."
+
+    count = max(1, int(count))
+    pct_col = _pct_col(baseline, candidate)
+    base_col = _ipc_col(baseline)
+    cand_col = _ipc_col(candidate)
+
+    def render_table(title: str, selected_rows: Sequence[Dict[str, object]]) -> List[str]:
+        lines = [
+            title,
+            "rank  delta%     baseline_ipc  candidate_ipc  workload  simpoint",
+        ]
+        for row in selected_rows:
+            lines.append(
+                f"{int(row['rank']):>4}  "
+                f"{_format_float(row[pct_col], 2):>7}  "
+                f"{_format_float(row[base_col], 4):>12}  "
+                f"{_format_float(row[cand_col], 4):>13}  "
+                f"{row['workload']}  {row['simpoint']}"
+            )
+        return lines
+
+    negative_rows = [row for row in rows if float(row[pct_col]) < 0.0]
+    positive_rows = [row for row in rows if float(row[pct_col]) > 0.0]
+    worst = negative_rows[:count]
+    top = list(reversed(positive_rows[-count:]))
+    lines: List[str] = []
+    if worst:
+        lines.extend(render_table(f"Worst {len(worst)} negative simpoints", worst))
+    else:
+        lines.append("Worst 0 negative simpoints")
+        lines.append("No negative IPC changes.")
+    lines.append("")
+    if top:
+        lines.extend(render_table(f"Top {len(top)} positive simpoints", top))
+    else:
+        lines.append("Top 0 positive simpoints")
+        lines.append("No positive IPC changes.")
+    return "\n".join(lines)
+
+
+def format_ipc_scurve_report(
+    output: Dict[str, Any],
+    *,
+    width: int = DEFAULT_ASCII_WIDTH,
+    height: int = DEFAULT_ASCII_HEIGHT,
+    top_n: int = DEFAULT_EXTREME_COUNT,
+) -> str:
+    """Return the console report for one generated baseline/candidate S-curve."""
+    baseline = str(output["baseline"])
+    candidate = str(output["candidate"])
+    rows = output.get("rows") or []
+    lines = [
+        f"IPC S-curve: {baseline} vs {candidate} ({len(rows)} simpoints; {candidate} relative to {baseline})",
+        format_ipc_scurve_ascii(
+            rows,
+            baseline,
+            candidate,
+            width=width,
+            height=height,
+        ),
+        format_extreme_simpoints(rows, baseline, candidate, count=top_n),
+    ]
+    return "\n\n".join(lines)
 
 
 def generate_ipc_scurves(
@@ -259,6 +408,7 @@ def generate_ipc_scurves(
                 "points": len(rows),
                 "graph": graph_path,
                 "data": data_path,
+                "rows": rows,
             }
         )
 
@@ -272,6 +422,9 @@ def main() -> None:
     parser.add_argument("--input", required=True, help="Path to collected_stats.csv.")
     parser.add_argument("--outdir", default=None, help="Output directory.")
     parser.add_argument("--baseline", default=None, help="Baseline configuration name.")
+    parser.add_argument("--ascii-width", type=int, default=DEFAULT_ASCII_WIDTH)
+    parser.add_argument("--ascii-height", type=int, default=DEFAULT_ASCII_HEIGHT)
+    parser.add_argument("--top", type=int, default=DEFAULT_EXTREME_COUNT)
     parser.add_argument(
         "--configs",
         nargs="*",
@@ -293,6 +446,14 @@ def main() -> None:
         print(
             f"{item['baseline']} vs {item['candidate']}: "
             f"{item['graph']} {item['data']} ({item['points']} simpoints)"
+        )
+        print(
+            format_ipc_scurve_report(
+                item,
+                width=args.ascii_width,
+                height=args.ascii_height,
+                top_n=args.top,
+            )
         )
 
 
