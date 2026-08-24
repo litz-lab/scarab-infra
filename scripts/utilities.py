@@ -1600,7 +1600,12 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
             f.write("}\n")
             f.write("trap cleanup_container EXIT INT TERM HUP\n")
             f.write(f"cd {infra_dir}\n")
-            f.write(f"python -m scripts.prepare_docker_image --docker-prefix {docker_prefix}\n")
+            # Every step below is checked: an unstarted container used to leave the
+            # script exiting 0, so Slurm recorded COMPLETED for a sim that never ran.
+            f.write(f"if ! python -m scripts.prepare_docker_image --docker-prefix {docker_prefix}; then\n")
+            f.write(f"    echo \"ERROR: prepare_docker_image failed for {docker_prefix}\"\n")
+            f.write("    exit 1\n")
+            f.write("fi\n")
             f.write(f"cd -\n")
             if slurm:
                 f.write("SLURM_CGROUP=$(cat /proc/self/cgroup | cut -d: -f3 | head -n 1)\n")
@@ -1640,16 +1645,30 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
                 --mount {infra_mount_arg(infra_dir)} \
                 {image_tag_for(docker_prefix, infra_dir)} \
                 /bin/bash\n")
+            f.write("if [ $? -ne 0 ]; then\n")
+            f.write("    echo \"ERROR: docker run failed for $CONTAINER_NAME\"\n")
+            f.write("    exit 1\n")
+            f.write("fi\n")
+            # -dit can exit 0 and still leave no running container.
+            f.write("if ! docker inspect -f '{{.State.Running}}' \"$CONTAINER_NAME\" 2>/dev/null | grep -q true; then\n")
+            f.write("    echo \"ERROR: container $CONTAINER_NAME is not running after docker run\"\n")
+            f.write("    exit 1\n")
+            f.write("fi\n")
             if scarab_mode == "exec":
-                f.write("docker exec --privileged $CONTAINER_NAME /bin/bash -c \"echo 0 | sudo tee /proc/sys/kernel/randomize_va_space\"\n")
+                f.write("docker exec --privileged $CONTAINER_NAME /bin/bash -c \"echo 0 | sudo tee /proc/sys/kernel/randomize_va_space\" || echo \"WARN: could not disable VA randomization\"\n")
             # No `docker cp` of the infra scripts: they come from the read-only
             # bind mount above, and root_entrypoint.sh publishes them into
             # /usr/local/bin.
-            f.write(f"docker exec --privileged $CONTAINER_NAME /bin/bash -c '{ROOT_ENTRYPOINT}'\n")
-            f.write(f"docker exec --user={user} $CONTAINER_NAME /bin/bash -c \"source /usr/local/bin/user_entrypoint.sh && {scarab_cmd}\" || echo \"Scarab error detected\"\n")
+            f.write(f"if ! docker exec --privileged $CONTAINER_NAME /bin/bash -c '{ROOT_ENTRYPOINT}'; then\n")
+            f.write("    echo \"ERROR: root_entrypoint.sh failed in $CONTAINER_NAME\"\n")
+            f.write("    exit 1\n")
+            f.write("fi\n")
+            f.write("RC=0\n")
+            f.write(f"docker exec --user={user} $CONTAINER_NAME /bin/bash -c \"source /usr/local/bin/user_entrypoint.sh && {scarab_cmd}\" || {{ echo \"Scarab error detected\"; RC=1; }}\n")
             f.write("cleanup_container\n")
             f.write("echo \"Completed Simulation\"\n")
-            f.write(f"sync {docker_home}/simulations/{experiment_name}/logs")
+            f.write(f"sync {docker_home}/simulations/{experiment_name}/logs || true\n")
+            f.write("exit $RC\n")
     except Exception as e:
         raise e
 
