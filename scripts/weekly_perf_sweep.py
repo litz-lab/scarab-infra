@@ -19,6 +19,7 @@ import argparse
 import csv
 import datetime as _dt
 import fcntl
+import getpass
 import json
 import math
 import os
@@ -27,6 +28,8 @@ import smtplib
 import subprocess
 import sys
 import tempfile
+import time
+import traceback
 from email.message import EmailMessage
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -49,11 +52,20 @@ HISTORY_CSV = "history.csv"
 PLOT_SUBDIR = "plots"
 
 LOCK_PATH = Path("/tmp/scarab_weekly_sweep.lock")
+# Where the cron entry sends this script's output; quoted in the failure mail.
+LOG_PATH = Path("/soe/hlitz/logs/weekly_perf_sweep.log")
+
+POLL_SECONDS = 300
+# A full SPEC17 sweep behind a busy queue; past this we take what finished.
+SIM_TIMEOUT_SECONDS = 24 * 3600
 
 SMTP_HOST = "smtp.soe.ucsc.edu"
 SMTP_PORT = 25
 MAIL_FROM = "scarab-perf@soe.ucsc.edu"
 GITHUB_ORG = "litz-lab"
+# Used when the org lookup comes up empty (no gh on cron's PATH, no token, no
+# public emails). Mailing one person beats mailing nobody.
+FALLBACK_RECIPIENTS = ["hlitz@ucsc.edu"]
 
 FIELDNAMES = [
     "date",
@@ -151,6 +163,41 @@ def experiment_dir(descriptor_stem: str) -> Path:
     return root / "simulations" / descriptor["experiment"]
 
 
+def sims_pending(experiment: str) -> bool:
+    """Any of this experiment's Slurm jobs still queued or running?"""
+    try:
+        names = subprocess.run(
+            ["squeue", "-u", getpass.getuser(), "-h", "-o", "%j"],
+            check=True, text=True, capture_output=True,
+        ).stdout.split()
+    except (subprocess.CalledProcessError, FileNotFoundError) as exc:
+        log(f"WARNING: could not query squeue ({exc}); not waiting")
+        return False
+    return any(experiment in name for name in names)
+
+
+def wait_for_sims(experiment: str) -> None:
+    """`--sim` returns once Slurm has the jobs; the results land hours later.
+
+    Collecting stats before then reads a half-empty experiment dir and dies on
+    the first missing ramulator.stat.out, which is what made every sweep so far
+    record nothing.
+    """
+    deadline = time.monotonic() + SIM_TIMEOUT_SECONDS
+    waited = False
+    while sims_pending(experiment):
+        if time.monotonic() > deadline:
+            log(f"{experiment}: jobs still queued after "
+                f"{SIM_TIMEOUT_SECONDS // 3600}h; collecting what finished")
+            return
+        if not waited:
+            log(f"{experiment}: waiting for Slurm jobs to finish")
+            waited = True
+        time.sleep(POLL_SECONDS)
+    if waited:
+        log(f"{experiment}: all jobs finished")
+
+
 def run_mode(stem: str, experiment: str, *, skip_sim: bool) -> Optional[Path]:
     """Run one mode; return its aggregates.json."""
     descriptor_stem = render_descriptor(stem, experiment)
@@ -161,6 +208,7 @@ def run_mode(stem: str, experiment: str, *, skip_sim: bool) -> Optional[Path]:
             return None
         if not sci(["--sim", descriptor_stem]):
             return None
+        wait_for_sims(experiment)
         if not sci(["--collect-stats", descriptor_stem]):
             return None
 
@@ -452,12 +500,27 @@ def org_recipients() -> List[str]:
     return addresses
 
 
+def notify(subject: str, body: str, attachments: List[Path], args) -> None:
+    """Mail the lab, whatever happened.
+
+    The sweep exists to say something once a week. A week that produced no
+    mail is indistinguishable from a week nobody looked at, which is how it sat
+    broken for two runs -- so failures, crashes and skips all mail too.
+    """
+    if args.no_email or args.dry_run:
+        log(f"not mailing '{subject}' (--no-email/--dry-run)")
+        return
+    recipients = org_recipients() or FALLBACK_RECIPIENTS
+    send_email(subject, body, attachments, recipients)
+
+
 def send_email(subject: str, body: str, attachments: List[Path],
                recipients: List[str]) -> None:
     if not recipients:
         log("no recipients resolved; skipping email")
         return
 
+    delivered = 0
     for recipient in recipients:
         message = EmailMessage()
         message["From"] = MAIL_FROM
@@ -477,8 +540,14 @@ def send_email(subject: str, body: str, attachments: List[Path],
             with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as smtp:
                 smtp.send_message(message)
             log(f"emailed {recipient}")
+            delivered += 1
         except Exception as exc:  # noqa: BLE001 - report and continue
             log(f"WARNING: could not email {recipient}: {exc}")
+
+    if not delivered:
+        # Nothing else can carry the news out of here; make the log say it.
+        log(f"ERROR: '{subject}' reached nobody ({len(recipients)} recipients "
+            f"tried via {SMTP_HOST}:{SMTP_PORT})")
 
 
 # ---------------------------------------------------------------------------
@@ -498,14 +567,31 @@ def main() -> int:
                         help="Override the dated experiment suffix (testing).")
     args = parser.parse_args()
 
+    today = _dt.date.today().isoformat()
+    try:
+        return run_sweep(args, today)
+    except Exception:  # noqa: BLE001 - any crash must still reach the lab
+        report = traceback.format_exc()
+        log("CRASHED:\n" + report)
+        notify(f"SPEC17 weekly perf sweep CRASHED - {today}",
+               f"The sweep raised before it could report.\n\n{report}\n"
+               f"Log: {LOG_PATH}",
+               [], args)
+        return 1
+
+
+def run_sweep(args, today: str) -> int:
     lock = LOCK_PATH.open("w")
     try:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
         log("another sweep is already running; exiting")
+        notify(f"SPEC17 weekly perf sweep SKIPPED - {today}",
+               "Another sweep still held the lock, so this run did nothing.\n"
+               f"Log: {LOG_PATH}",
+               [], args)
         return 0
 
-    today = _dt.date.today().isoformat()
     suffix = args.experiment_suffix or today.replace("-", "")
     infra_sha = git_sha(REPO_ROOT)
     scarab_sha = "skipped" if args.skip_sim else refresh_scarab()
@@ -515,12 +601,14 @@ def main() -> int:
     log(f"weekly sweep {today}: scarab={scarab_sha} infra={infra_sha}")
 
     rows: List[Dict[str, object]] = []
+    failures: List[str] = []
     for stem, label in MODES:
         experiment = f"{stem}_{suffix}"
         log(f"--- {label} ({experiment}) ---")
         aggregates_path = run_mode(stem, experiment, skip_sim=args.skip_sim)
         if aggregates_path is None:
             log(f"{label}: no results, continuing with the other modes")
+            failures.append(f"{label} ({experiment}): no results")
             continue
         metrics = derive_metrics(aggregates_path)
         for workload, values in metrics.items():
@@ -534,7 +622,17 @@ def main() -> int:
             })
 
     if not rows:
+        # Say so out loud: a silent week is indistinguishable from a healthy
+        # one, which is how the sweep sat broken without anyone noticing.
         log("ERROR: every mode failed; nothing to record")
+        body = "\n".join(
+            [f"SPEC CPU2017 weekly sweep {today} recorded nothing.",
+             f"scarab {scarab_sha}, scarab-infra {infra_sha}",
+             ""] + failures + ["", f"Log: {LOG_PATH}"]
+        )
+        print()
+        print(body)
+        notify(f"SPEC17 weekly perf sweep FAILED - {today}", body, [], args)
         return 1
 
     if args.dry_run:
@@ -559,9 +657,12 @@ def main() -> int:
             cwd=HISTORY_DIR, check=False)
         run(["git", "push"], cwd=HISTORY_DIR, check=False)
 
-    if not args.no_email:
-        send_email(f"SPEC17 weekly perf sweep — {today}", report, plots,
-                   org_recipients())
+    # A run where some modes died still reports, but says so in the subject.
+    if failures:
+        report += "\n\nModes that produced nothing:\n" + "\n".join(
+            f"  {f}" for f in failures) + f"\nLog: {LOG_PATH}"
+    suffix_note = " (partial)" if failures else ""
+    notify(f"SPEC17 weekly perf sweep{suffix_note} - {today}", report, plots, args)
 
     return 0
 
