@@ -14454,29 +14454,29 @@
       "astcenc_r":{
         "performance":{
           "topdown":{
-            "retiring":45.4,
-            "bad_speculation":11.9,
-            "frontend_bound":24.6,
-            "backend_bound":18.1
+            "retiring":50.3,
+            "bad_speculation":20.0,
+            "frontend_bound":12.3,
+            "backend_bound":17.5
           },
           "execution_time":{
-            "min":0,
-            "sec":0.04
+            "min":3,
+            "sec":48.91
           },
           "repeat_count":2,
-          "peak_rss_mb":13,
+          "peak_rss_mb":45,
           "hw_metrics":{
-            "instructions":97007094,
-            "ipc":1.729,
-            "branch_pct":12.34,
-            "branch_mispred_rate":2.418,
-            "branch_mpki":2.984,
-            "l1i_mpki":4.238,
-            "l1d_mpki":8.407,
-            "l2_mpki":3.722,
-            "l3_mpki":0.134,
-            "itlb_mpmi":74.1,
-            "dtlb_mpmi":126.1,
+            "instructions":603322633389,
+            "ipc":1.885,
+            "branch_pct":8.0,
+            "branch_mispred_rate":7.043,
+            "branch_mpki":5.632,
+            "l1i_mpki":1.398,
+            "l1d_mpki":5.918,
+            "l2_mpki":1.638,
+            "l3_mpki":0.0,
+            "itlb_mpmi":1.5,
+            "dtlb_mpmi":2.4,
             "min_coverage_pct":100.0
           }
         }
@@ -14484,29 +14484,29 @@
       "astcenc_r_2":{
         "performance":{
           "topdown":{
-            "retiring":46.0,
-            "bad_speculation":12.3,
-            "frontend_bound":24.1,
-            "backend_bound":17.6
+            "retiring":45.9,
+            "bad_speculation":23.2,
+            "frontend_bound":15.6,
+            "backend_bound":15.3
           },
           "execution_time":{
-            "min":0,
-            "sec":0.07
+            "min":5,
+            "sec":45.96
           },
           "repeat_count":2,
-          "peak_rss_mb":24,
+          "peak_rss_mb":27,
           "hw_metrics":{
-            "instructions":192058500,
-            "ipc":1.738,
-            "branch_pct":12.71,
-            "branch_mispred_rate":2.382,
-            "branch_mpki":3.028,
-            "l1i_mpki":3.011,
-            "l1d_mpki":8.815,
-            "l2_mpki":3.205,
-            "l3_mpki":0.12,
-            "itlb_mpmi":97.0,
-            "dtlb_mpmi":96.7,
+            "instructions":805581139721,
+            "ipc":1.752,
+            "branch_pct":9.24,
+            "branch_mispred_rate":7.91,
+            "branch_mpki":7.311,
+            "l1i_mpki":3.016,
+            "l1d_mpki":4.843,
+            "l2_mpki":0.632,
+            "l3_mpki":0.001,
+            "itlb_mpmi":1.4,
+            "dtlb_mpmi":0.9,
             "min_coverage_pct":100.0
           }
         }
@@ -14514,29 +14514,29 @@
       "astcenc_r_3":{
         "performance":{
           "topdown":{
-            "retiring":37.2,
-            "bad_speculation":12.2,
-            "frontend_bound":31.5,
-            "backend_bound":19.1
+            "retiring":39.0,
+            "bad_speculation":29.1,
+            "frontend_bound":18.6,
+            "backend_bound":13.4
           },
           "execution_time":{
-            "min":0,
-            "sec":0.03
+            "min":4,
+            "sec":24.48
           },
           "repeat_count":2,
-          "peak_rss_mb":9,
+          "peak_rss_mb":25,
           "hw_metrics":{
-            "instructions":46016861,
-            "ipc":1.404,
-            "branch_pct":14.8,
-            "branch_mispred_rate":2.787,
-            "branch_mpki":4.126,
-            "l1i_mpki":8.001,
-            "l1d_mpki":8.979,
-            "l2_mpki":5.408,
-            "l3_mpki":0.213,
-            "itlb_mpmi":118.2,
-            "dtlb_mpmi":219.6,
+            "instructions":535735311153,
+            "ipc":1.547,
+            "branch_pct":9.86,
+            "branch_mispred_rate":11.514,
+            "branch_mpki":11.349,
+            "l1i_mpki":2.047,
+            "l1d_mpki":4.276,
+            "l2_mpki":1.017,
+            "l3_mpki":0.0,
+            "itlb_mpmi":1.0,
+            "dtlb_mpmi":0.6,
             "min_coverage_pct":100.0
           }
         }
