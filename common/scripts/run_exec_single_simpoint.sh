@@ -113,5 +113,8 @@ scarabCmd="python3 $SCARABHOME/bin/scarab_launch.py --program=\"$BINCMD\" \
 
 printf '%q ' "${scarabCmd[@]}" > $SIMHOME/launch_cmd.txt
 
-eval $scarabCmd &
+# Counts the whole launcher subtree: python, PIN and the benchmark as well as
+# Scarab itself.
+PERF_PREFIX=$(perf_stat_prefix "$OUTDIR/$segID/perf_stat.txt")
+eval $PERF_PREFIX $scarabCmd &
 wait $!

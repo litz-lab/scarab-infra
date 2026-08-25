@@ -25,10 +25,28 @@ RUN apt update && DEBIAN_FRONTEND=noninteractive apt install -y \
     gdb \
     graphviz \
     curl \
-    time \
-    clang-tidy-18 \
- && update-alternatives --install /usr/bin/clang-tidy clang-tidy \
-      /usr/bin/clang-tidy-18 100
+    time
+
+# clang-tidy-18 isn't in every base OS's own repos this file is INCLUDE+'d into
+# (e.g. Ubuntu 22.04 tops out at clang-tidy-15 natively; Ubuntu 20.04 gets it
+# via a targeted Canonical backport), and it's only needed by `sci --lint-scarab`,
+# not by any workload build. Install it separately so a missing pinned version
+# doesn't fail the whole image for every workload.
+# Where the native repos lack it, fall back to the official apt.llvm.org repo
+# (same trusted source already used via llvm.sh elsewhere) so every OS still
+# gets the identical clang-tidy-18, rather than silently linting with a
+# different/older version depending on the base OS.
+RUN if apt-cache show clang-tidy-18 >/dev/null 2>&1; then \
+        DEBIAN_FRONTEND=noninteractive apt install -y clang-tidy-18; \
+    else \
+        DEBIAN_FRONTEND=noninteractive apt install -y wget gnupg lsb-release software-properties-common && \
+        wget -q https://apt.llvm.org/llvm.sh -O /tmp/llvm.sh && \
+        chmod +x /tmp/llvm.sh && \
+        /tmp/llvm.sh 18 && \
+        rm /tmp/llvm.sh && \
+        DEBIAN_FRONTEND=noninteractive apt install -y clang-tidy-18; \
+    fi && \
+    update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-18 100
 
 # Restore libpthread.so linker script on distros that omit it: Ubuntu jammy's
 # libc6-dev no longer ships /usr/lib/x86_64-linux-gnu/libpthread.so because
@@ -94,13 +112,16 @@ RUN mkdir $tmpdir/fingerprint_src/build && \
     cp ./libfpg.so $tmpdir/libfpg.so
 
 # Install Scarab dependencies
-RUN cd $tmpdir && wget -nc https://software.intel.com/sites/landingpage/pintool/downloads/pin-3.15-98253-gb56e429b1-gcc-linux.tar.gz && tar -xzvf pin-3.15-98253-gb56e429b1-gcc-linux.tar.gz
+RUN cd $tmpdir && wget -q https://github.com/litz-lab/scarab-infra/releases/download/sde-9.44.0/sde-external-9.44.0-2024-08-22-lin.tar.xz -O sde.tar.xz && \
+    echo "c6bc16fc6d1855049ea22daf214a8c00331713bc6a7b0c4d6955d6ed84148b9b  sde.tar.xz" | sha256sum -c - && \
+    tar -xJf sde.tar.xz && rm sde.tar.xz
 
 # Env to build Scarab
-ENV PIN_ROOT $tmpdir/pin-3.15-98253-gb56e429b1-gcc-linux
+ENV PIN_ROOT $tmpdir/sde-external-9.44.0-2024-08-22-lin/pinkit
 ENV SCARAB_ENABLE_PT_MEMTRACE 1
-ENV LD_LIBRARY_PATH $tmpdir/pin-3.15-98253-gb56e429b1-gcc-linux/extras/xed-intel64/lib
-ENV LD_LIBRARY_PATH $tmpdir/pin-3.15-98253-gb56e429b1-gcc-linux/intel64/runtime/pincrt:$LD_LIBRARY_PATH
+ENV SCARAB_ENABLE_PINPLAY 1
+ENV LD_LIBRARY_PATH $tmpdir/sde-external-9.44.0-2024-08-22-lin/pinkit/extras/xed-intel64/lib
+ENV LD_LIBRARY_PATH $tmpdir/sde-external-9.44.0-2024-08-22-lin/pinkit/intel64/runtime/pincrt:$LD_LIBRARY_PATH
 ENV LD_LIBRARY_PATH $DYNAMORIO_HOME/lib64/release:$LD_LIBRARY_PATH
 
 # Build SimPoint 3.2
