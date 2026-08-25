@@ -6,6 +6,7 @@
 import subprocess
 import argparse
 import os
+import sys
 import traceback
 import time
 import re
@@ -115,9 +116,37 @@ EMPTY_TRACE_WEIGHT_THRESHOLD = 0.01
 # whereas undershooting silently yields a trace with fewer than warmup_chunks + 1 chunks.
 REFS_PER_INSTR_ESTIMATE = 2.0
 # Trace at most this many times the ROI before hard-stopping. Adjustable via env_vars.
-# 2x leaves enough room for the 6 chunks minimize while capping the intermediate near 650MB.
-TRACE_ROI_HEADROOM = float(os.environ.get("TRACE_ROI_HEADROOM", "2"))
+# 3x leaves enough room for the 6 chunks minimize while capping the intermediate file size.
+TRACE_ROI_HEADROOM = float(os.environ.get("TRACE_ROI_HEADROOM", "3"))
 assert TRACE_ROI_HEADROOM > 1.5
+
+# DR prints this marker on stderr (NOTIFY level 0, always on) exactly when -trace_for_instrs
+# is satisfied. -exit_after_tracing can fire before roi_length is reached because it counts
+# references, in which case this marker is not printed.
+DR_ROI_DONE_RE = re.compile(r"Hit tracing window #\d+ limit: disabling tracing")
+DR_EXIT_RE = re.compile(r"Exiting process after ~\d+ references")
+
+
+def check_traced_roi(segment_id, seg_dir, roi_length, err_path):
+    """Fail unless drrun traced the whole ROI without exiting in the middle."""
+    # This is not guaranteed to be UTF-8 as the workload's own stderr lands here too.
+    with open(err_path, errors="replace") as f:
+        err_text = f.read()
+    sys.stderr.write(err_text)
+    sys.stderr.flush()
+    if DR_ROI_DONE_RE.search(err_text):
+        return
+    # Discard the short output to make sure a re-run does not skip and re-traces.
+    for d in glob.glob(os.path.join(seg_dir, "drmemtrace.*")):
+        shutil.rmtree(d, ignore_errors=True)
+    if DR_EXIT_RE.search(err_text):
+        raise RuntimeError(
+            f"segment {segment_id}: drrun stopped before tracing {roi_length} instructions "
+            f"as -exit_after_tracing fired. Raise TRACE_ROI_HEADROOM from {TRACE_ROI_HEADROOM}. "
+            f"See {err_path} for errors.")
+    raise RuntimeError(
+        f"segment {segment_id}: drrun stopped before tracing {roi_length} instructions "
+        f"as the workload ended early. See {err_path} for errors.")
 
 # Single-thread the workload during BOTH fingerprinting and tracing. Threading
 # in the workload causes (a) non-deterministic instruction counts that make
@@ -190,7 +219,7 @@ def _get_weight_for_cluster(workload_home, cluster_id):
     return None
 
 
-def minimize_simpoint_traces(cluster_map, workload_home, warmup_chunks):
+def minimize_simpoint_traces(cluster_map, workload_home, needed_chunks):
     ################################################################
     # minimize traces, rename traces
     # it is possible that SimPoint picks interval zero,
@@ -258,16 +287,19 @@ def minimize_simpoint_traces(cluster_map, workload_home, warmup_chunks):
                         os.remove(f)
             else:
                 trace_file = trace_files[0]
+
+            # Final check on trace roi_length
+            unzip_output = subprocess.getoutput(f"unzip -l {trace_file}")
+            num_chunk = len([line for line in unzip_output.splitlines() if 'chunk.' in line])
+            needed_chunks = min(segment_id + 1, needed_chunks)
+            if num_chunk < needed_chunks:
+                # trace_file is left in place so the next run still finds it.
+                raise RuntimeError(f"segment {segment_id}: trace has {num_chunk} chunks, ROI needs {needed_chunks}")
+
             big_zip_file = os.path.join(trace_dir, "trace", f"{segment_id}.big.zip")
             subprocess.run(f"mv {trace_file} {big_zip_file}", check=True, shell=True)
-            unzip_output = subprocess.getoutput(f"unzip -l {big_zip_file}")
-            num_chunk = len([line for line in unzip_output.splitlines() if 'chunk.' in line])
-
-            if num_chunk < 2:
-                print(f"WARN: the big trace {segment_id} contains less than 2 chunks: {num_chunk} !")
-
             print(f"minimizing {segment_id} out of recorded {num_chunk} chunks")
-            chunk_list = ' '.join([f'chunk.{i:04d}' for i in range(warmup_chunks)])
+            chunk_list = ' '.join([f'chunk.{i:04d}' for i in range(needed_chunks)])
             subprocess.run(f"zip {big_zip_file} --copy {chunk_list} --out {os.path.join(dest_trace_dir, f'{segment_id}.zip')}", shell=True)
 
             # Remove the big zip file
@@ -588,9 +620,12 @@ def trace_single_segment(workload, suite, simpoint_home, bincmd, client_bincmd, 
 
             trace_env = os.environ.copy()
             trace_env["HOME"] = dr_home
-            result = subprocess.run(trace_cmd, shell=True, stdout=subprocess.DEVNULL, env=trace_env)
+            err_path = os.path.join(seg_dir, "drrun.err")
+            with open(err_path, "w") as err_f:
+                result = subprocess.run(trace_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=err_f, env=trace_env)
             end_time = time.perf_counter()
             report_time(f"segment {segment_id} tracing done", start_time, end_time)
+            check_traced_roi(segment_id, seg_dir, roi_length, err_path)
 
         # --- 2. Portabilize + thread filter + raw2trace ---
         trace_path = f"{workload_home}/traces_simp/{segment_id}"
@@ -853,7 +888,7 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
             else:
                 trace_cmd = f"{THREAD_LIMIT_ENV_PREFIX} {dynamorio_home}/bin64/drrun -opt_cleancall 2 {drio_trace_extra} -t drcachesim {dr_flags} -jobs {DR_JOBS} -outdir {seg_dir} -offline -count_fetched_instrs -trace_after_instrs {roi_start} -trace_for_instrs {roi_length} {ref_cap} -- {bincmd}"
 
-            trace_cmds.append(trace_cmd)
+            trace_cmds.append((segment_id, seg_dir, roi_start, roi_length, trace_cmd))
 
         if skipped_segments > 0:
             print(f"  resuming: {skipped_segments} segments already traced, {len(trace_cmds)} remaining")
@@ -865,11 +900,24 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
             batch = trace_cmds[batch_start:batch_start + max_parallel]
             print(f"  tracing segments {batch_start+1}-{batch_start+len(batch)} of {len(trace_cmds)}")
             procs = []
-            for cmd in batch:
-                p = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, shell=True, env=trace_env)
-                procs.append(p)
-            for p in procs:
+            for seg_id, seg_dir, roi_start, roi_len, cmd in batch:
+                print(f"    segment {seg_id}: from {roi_start} for {roi_len}")
+                err_f = open(os.path.join(seg_dir, "drrun.err"), "w")
+                p = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=err_f, shell=True, env=trace_env)
+                procs.append((p, err_f, seg_id, seg_dir, roi_len))
+            # Wait and close files before validations
+            for p, err_f, seg_id, seg_dir, roi_len in procs:
                 p.wait()
+                err_f.close()
+            # Check the whole batch before raising to make sure failed segments' short output are discarded
+            failed = []
+            for _, _, seg_id, seg_dir, roi_len in procs:
+                try:
+                    check_traced_roi(seg_id, seg_dir, roi_len, os.path.join(seg_dir, "drrun.err"))
+                except RuntimeError as e:
+                    failed.append(str(e))
+            if failed:
+                raise RuntimeError("\n".join(failed))
 
         end_time = time.perf_counter()
         report_time("cluster tracing done", start_time, end_time)

@@ -153,6 +153,7 @@ the region of interest plus warmup:
 drrun -opt_cleancall 2 -disable_rseq -t drcachesim -jobs <DR_JOBS> \
   -outdir <seg_dir> -offline -count_fetched_instrs \
   -trace_after_instrs <roi_start> -trace_for_instrs <roi_length> \
+  -exit_after_tracing <ref_cap> \
   -- <binary_cmd>
 ```
 
@@ -216,6 +217,9 @@ renormalised. Segments at or above 1% still fail hard even with the flag.
 Silent removal biases the simulated workload toward earlier phases, so the
 conservative default is recommended unless you have characterised the
 workload and accepted the bias.
+
+A trace that holds fewer chunks than its ROI needs is rejected here rather
+than packaged silently.
 
 **Resume**: skipped if `<segment_id>.zip` already exists and is non-empty.
 
@@ -362,6 +366,7 @@ pipeline:
 | `DR_JOBS` | auto (2–40, clamped by CPU count) | DynamoRIO `-jobs` fanout |
 | `TRACE_PARALLEL` | 1 | Max concurrent segment traces (set via descriptor `trace_parallel`) |
 | `RAW2TRACE_PARALLEL` | 1 | Max concurrent raw2trace processes (set via descriptor `raw2trace_parallel`) |
+| `TRACE_ROI_HEADROOM` | 3 | Multiplier on the `-exit_after_tracing` reference cap (must be > 1.5) |
 | `OMP_NUM_THREADS` | 1 (set in Dockerfile) | OpenMP thread count |
 | `MKL_NUM_THREADS` | 1 (set in Dockerfile) | MKL thread count |
 | `OPENBLAS_NUM_THREADS` | 1 (set in Dockerfile) | OpenBLAS thread count |
