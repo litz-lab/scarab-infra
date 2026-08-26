@@ -2911,9 +2911,14 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
                 "simpoints":simpoints
             }
 
+            preserved_fields = {}
             if suite in workload_db_data.keys() and subsuite in workload_db_data[suite].keys() and workload in workload_db_data[suite][subsuite].keys():
-                print("WARNING: workload name should be unique within a subsuite. db will be overwritten!")
-            workload_db_data[suite][subsuite][workload] = workload_dict
+                print("WARNING: workload name should be unique within a subsuite. Existing trace/simulation/simpoints fields will be overwritten!")
+                preserved_fields = {
+                    key: value for key, value in workload_db_data[suite][subsuite][workload].items() if key not in workload_dict
+                }
+            # Update/insert only the related fields and leave the other existing fields unchanged
+            workload_db_data[suite][subsuite][workload] = workload_dict | preserved_fields
 
         write_json_descriptor(workload_db_path, workload_db_data, dbg_lvl)
         extract_top_simpoints.modify_simpoints_in_place(workload_db_data)
