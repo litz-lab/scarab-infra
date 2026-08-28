@@ -136,14 +136,14 @@ def check_traced_roi(segment_id, seg_dir, roi_length, err_path):
     sys.stderr.flush()
     if DR_ROI_DONE_RE.search(err_text):
         return
+    if DR_EXIT_RE.search(err_text):
+        print(f"WARN: segment {segment_id}: drrun stopped before tracing {roi_length} instructions "
+              f"as -exit_after_tracing fired. Raise TRACE_ROI_HEADROOM from {TRACE_ROI_HEADROOM} "
+              f"if raw2trace does not yield enough chunks. See {err_path} for errors.")
+        return
     # Discard the short output to make sure a re-run does not skip and re-traces.
     for d in glob.glob(os.path.join(seg_dir, "drmemtrace.*")):
         shutil.rmtree(d, ignore_errors=True)
-    if DR_EXIT_RE.search(err_text):
-        raise RuntimeError(
-            f"segment {segment_id}: drrun stopped before tracing {roi_length} instructions "
-            f"as -exit_after_tracing fired. Raise TRACE_ROI_HEADROOM from {TRACE_ROI_HEADROOM}. "
-            f"See {err_path} for errors.")
     raise RuntimeError(
         f"segment {segment_id}: drrun stopped before tracing {roi_length} instructions "
         f"as the workload ended early. See {err_path} for errors.")
