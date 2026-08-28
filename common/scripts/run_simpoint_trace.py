@@ -570,7 +570,6 @@ def trace_single_segment(workload, suite, simpoint_home, bincmd, client_bincmd, 
     try:
         workload_home = f"{simpoint_home}/{workload}"
         dynamorio_home = os.environ.get('DYNAMORIO_HOME')
-        dr_home = workload_home
 
         # Read segment_size from fingerprint (should already exist from Phase 1)
         segment_size_path = os.path.join(workload_home, "fingerprint", "segment_size")
@@ -581,6 +580,8 @@ def trace_single_segment(workload, suite, simpoint_home, bincmd, client_bincmd, 
 
         seg_dir = os.path.join(workload_home, "traces_simp", str(segment_id))
         os.makedirs(seg_dir, exist_ok=True)
+        # Give DR per-segment output dir so concurrent jobs don't collide
+        dr_home = seg_dir
 
         # --- Check if already fully minimized ---
         dest_trace_dir = os.path.join(workload_home, "traces_simp", "trace")
