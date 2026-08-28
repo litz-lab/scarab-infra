@@ -293,8 +293,21 @@ def minimize_simpoint_traces(cluster_map, workload_home, needed_chunks):
             num_chunk = len([line for line in unzip_output.splitlines() if 'chunk.' in line])
             needed_chunks = min(segment_id + 1, needed_chunks)
             if num_chunk < needed_chunks:
+                if 'End-of-central-directory signature not found.' in unzip_output:
+                    # Discard the corrupted files to make sure a re-run does not skip.
+                    shutil.rmtree(os.path.join(trace_dir, "raw"), ignore_errors=True)
+                    shutil.rmtree(os.path.join(trace_dir, "trace"), ignore_errors=True)
+                    for d in glob.glob(os.path.join(trace_dir, "drmemtrace.*")):
+                        shutil.rmtree(d, ignore_errors=True)
+                    raise RuntimeError(f"segment {segment_id}: trace zip {trace_file} is broken.\n"
+                        "It is likely drrun overran and produced too large raw file to convert, "
+                        f"in which case lowering TRACE_ROI_HEADROOM from {TRACE_ROI_HEADROOM} may "
+                        f"fix the issue. unzip's output:\n{unzip_output}")
                 # trace_file is left in place so the next run still finds it.
                 raise RuntimeError(f"segment {segment_id}: trace has {num_chunk} chunks, ROI needs {needed_chunks}")
+            elif num_chunk == needed_chunks:
+                # False-positive (trace stops at the exactly last instruction) is extremely rare
+                raise RuntimeError(f"segment {segment_id}: last chunk may not be full.")
 
             big_zip_file = os.path.join(trace_dir, "trace", f"{segment_id}.big.zip")
             subprocess.run(f"mv {trace_file} {big_zip_file}", check=True, shell=True)
