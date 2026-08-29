@@ -1717,6 +1717,9 @@ def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_contai
             f.write("    docker rm -f \"$CONTAINER_NAME\" >/dev/null 2>&1 || true\n")
             f.write("}\n")
             f.write("trap cleanup_container EXIT INT TERM HUP\n")
+            f.write(f"cd {infra_dir}\n")
+            f.write(f"python -m scripts.prepare_docker_image --docker-prefix {image_name}\n")
+            f.write(f"cd -\n")
             command = f"docker run --privileged \
                     -e user_id={local_uid} \
                     -e group_id={local_gid} \
@@ -1760,24 +1763,29 @@ def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_contai
 
 def write_phase2_sbatch_tail(f, workload, trace_name, docker_home, phase2_script_path,
                              finalize_cmd, finalize_log_path, segment_mem_mb,
-                             finalize_mem_mb=16384):
+                             finalize_mem_mb=16384, slurm_options=""):
     """Append bash code to Phase 1 sbatch script that submits Phase 2 + Phase 3 jobs.
 
     After Phase 1 (cluster_only) completes inside its Slurm job, this tail:
       1. Reads opt.p.lpt0.99 to get (segment_id, cluster_id) pairs.
-      2. Skips segments where traces_simp/trace/{segment_id}.zip already
-         exists (resume).
+      2. Skips segments where traces_simp/trace/{segment_id}.zip already exists (resume).
       3. Submits one sbatch per remaining segment using the Phase 2 template
-         script (which runs run_simpoint_trace.py in mode 5 for a single
-         segment).
+         script (which runs run_simpoint_trace.py in mode 5 for a single segment).
       4. Submits a Phase 3 finalisation job with --dependency=afterany on
          all Phase 2 jobs to consolidate traces into traces_dir.
     """
     wl_dir = f"{docker_home}/simpoint_flow/{trace_name}/{workload}"
+    phase2_job = f"{workload}_{trace_name}_phase2_seg_$SEGMENT_ID"
+    phase3_job = f"{workload}_{trace_name}_phase3"
+    # Propagate slurm_options (e.g. --nodelist / --constraint) to Phase 2 and 3.
+    # Strip any --mem (each phase sets --mem explicitly below).
+    slurm_options = re.sub(r'--mem\s+\S+', '', slurm_options or '').strip()
+
     f.write("\n# --- Phase 2: submit per-segment jobs ---\n")
+    f.write('echo "Phase 2: submit per-segment jobs"\n')
     f.write(f'SIMPOINTS_FILE="{wl_dir}/simpoints/opt.p.lpt0.99"\n')
-    f.write('if [ ! -f "$SIMPOINTS_FILE" ]; then\n')
-    f.write('    echo "ERROR: opt.p.lpt0.99 not found after Phase 1. Aborting Phase 2."\n')
+    f.write('if [ ! -s "$SIMPOINTS_FILE" ]; then\n')
+    f.write('    echo "ERROR: opt.p.lpt0.99 missing/empty after Phase 1. Aborting Phase 2."\n')
     f.write('    exit 1\n')
     f.write('fi\n')
     f.write('PHASE2_JIDS=""\n')
@@ -1792,7 +1800,7 @@ def write_phase2_sbatch_tail(f, workload, trace_name, docker_home, phase2_script
     f.write('    fi\n')
     seg_log = f"{wl_dir}/logs/seg_%j_${{SEGMENT_ID}}.out"
     f.write(f'    mkdir -p "{wl_dir}/logs"\n')
-    f.write(f'    JID=$(sbatch --mem {segment_mem_mb}M -c 1 -o "{seg_log}" '
+    f.write(f'    JID=$(sbatch -J "{phase2_job}" {slurm_options} --mem {segment_mem_mb}M -c 1 -o "{seg_log}" '
             f'{phase2_script_path} "$SEGMENT_ID" "$CLUSTER_ID" 2>&1 | grep -oP "\\d+")\n')
     f.write('    if [ -n "$JID" ]; then\n')
     f.write('        PHASE2_JIDS="${PHASE2_JIDS:+$PHASE2_JIDS:}$JID"\n')
@@ -1803,17 +1811,20 @@ def write_phase2_sbatch_tail(f, workload, trace_name, docker_home, phase2_script
     f.write('    fi\n')
     f.write('done < "$SIMPOINTS_FILE"\n')
     f.write('echo "Phase 2: submitted $SUBMITTED segment jobs, skipped $SKIPPED already-complete"\n')
+    f.write('echo "PHASE2_JIDS: $PHASE2_JIDS"\n')
     f.write('\n# --- Phase 3: finalization ---\n')
+    f.write('echo "Phase 3: finalization"\n')
     f.write('if [ -n "$PHASE2_JIDS" ]; then\n')
     f.write(f'    mkdir -p "$(dirname {finalize_log_path})"\n')
     finalize_cmd_escaped = finalize_cmd.replace('"', '\\"')
-    f.write(f'    FJID=$(sbatch --mem {finalize_mem_mb}M --dependency=afterany:$PHASE2_JIDS '
+    f.write(f'    FJID=$(sbatch -J "{phase3_job}" {slurm_options} --mem {finalize_mem_mb}M --dependency=afterany:$PHASE2_JIDS '
             f'-o "{finalize_log_path}" --wrap="{finalize_cmd_escaped}" 2>&1 | grep -oP "\\d+")\n')
     f.write('    echo "Phase 3 finalization job: $FJID (depends on $SUBMITTED segment jobs)"\n')
     f.write('elif [ "$SUBMITTED" -eq 0 ] && [ "$SKIPPED" -gt 0 ]; then\n')
     f.write('    echo "All segments already complete. Submitting finalization directly."\n')
     f.write(f'    mkdir -p "$(dirname {finalize_log_path})"\n')
-    f.write(f'    sbatch --mem {finalize_mem_mb}M -o "{finalize_log_path}" --wrap="{finalize_cmd_escaped}"\n')
+    f.write(f'    sbatch -J "{phase3_job}" {slurm_options} --mem {finalize_mem_mb}M '
+            f'-o "{finalize_log_path}" --wrap="{finalize_cmd_escaped}"\n')
     f.write('fi\n')
 
 def get_simpoints (workload_data, sim_mode, dbg_lvl = 2):
@@ -2736,6 +2747,25 @@ def prepare_trace(user, scarab_path, scarab_build, docker_home, job_name, infra_
         info(f"Unexpected error during scarab build: {str(e)}", dbg_lvl)
         raise e
 
+def missing_cluster_then_trace_segments(trace_dir, workload) -> list[str]:
+    """Checks missing segments in the same way as `write_phase2_sbatch_tail()` does."""
+    simpoints_file = os.path.join(trace_dir, workload, "simpoints", "opt.p.lpt0.99")
+    segments_dir = os.path.join(trace_dir, workload, "traces_simp", "trace")
+    if not os.path.isfile(simpoints_file) or os.path.getsize(simpoints_file) == 0:
+        missing = ["opt.p.lpt0.99 (clustering incomplete)"]
+    else:
+        missing = []
+        with open(simpoints_file) as _sf:
+            for _line in _sf:
+                parts = _line.split()
+                if not parts:
+                    continue
+                seg = parts[0]
+                zpath = os.path.join(segments_dir, f"{seg}.zip")
+                if not (os.path.isfile(zpath) and os.path.getsize(zpath) > 0):
+                    missing.append(seg)
+    return missing
+
 def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
     def read_first_line(file_path):
         with open(file_path, 'r') as f:
@@ -2770,12 +2800,35 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
         target_traces_dir = descriptor_data["traces_dir"]
         docker_home = descriptor_data["root_dir"]
 
+        # Completeness check (all-or-nothing):
+        # Do not finalize unless EVERY cluster_then_trace workload in this descriptor is fully
+        # traced, i.e. every segment in opt.p.lpt0.99 has a non-empty <segment_id>.zip.
+        # Each parallel-segments Phase 3 job runs finish_trace over ALL configs but depends
+        # (--dependency=afterany) only on its own workload's Phase 2 completion, so a Phase 3
+        # can fire while other workloads are still tracing, or after a Phase 2 failure (afterok
+        # is not the right choice here, as it would strand Phase 3 as DependencyNeverSatisfied).
+        # Checking here up front, before the copy/write loop below, avoids partial copies and
+        # keeps incomplete runs out of workloads_db so `./sci --trace` can be resubmitted to resume.
+        # Whichever Phase 3 runs after all workloads complete passes this check, and finalizes the whole descriptor.
+        for config in trace_configs:
+            if config['trace_type'] != 'cluster_then_trace':
+                continue
+            workload = config['workload']
+            missing = missing_cluster_then_trace_segments(trace_dir, workload)
+            if missing:
+                raise RuntimeError(
+                    f"Refusing to finalize: workload '{workload}' has {len(missing)} untraced segment(s): {missing}.\n"
+                    "Not copying traces or updating workloads_db.json so `./sci --trace` "
+                    "can be resubmitted to resume the missing segments."
+                )
+
         print("Copying the successfully collected traces and update workloads_db.json...")
 
         for config in trace_configs:
             workload = config['workload']
             suite = config['suite']
             subsuite = config['subsuite']
+            print(f"Finalizing {suite}/{subsuite}/{workload}")
 
             # Update workload_db_data
             trace_dict = {}
@@ -2812,8 +2865,9 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
             # Copy successfully collected traces to target_traces_dir (simpoints are recorded in workloads_db.json)
             os.system(f"mkdir -p {target_traces_path}/traces/whole")
             os.system(f"mkdir -p {target_traces_path}/traces/simp")
-            trace_clustering_info = read_descriptor_from_json(os.path.join(trace_dir, workload, "trace_clustering_info.json"), dbg_lvl)
+            trace_clustering_info_file = os.path.join(trace_dir, workload, "trace_clustering_info.json")
             if config['trace_type'] == "trace_then_cluster":
+                trace_clustering_info = read_descriptor_from_json(trace_clustering_info_file, dbg_lvl)
                 os.system(f"cp -r {trace_dir}/{workload}/traces_simp/* {target_traces_path}/traces/simp/")
                 os.system(f"mkdir -p {target_traces_path}/traces/whole/")
                 whole_trace_dir = trace_clustering_info['dr_folder']
@@ -2827,6 +2881,7 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
                 memtrace_dict['whole_trace_file'] = None
                 print("cluster_then_trace doesn't have a whole trace file.")
             else: # iterative_trace
+                trace_clustering_info = read_descriptor_from_json(trace_clustering_info_file, dbg_lvl)
                 largest_traces = trace_clustering_info['trace_file']
                 for trace_path in largest_traces:
                     print("Processing trace:", trace_path)
@@ -2856,9 +2911,14 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
                 "simpoints":simpoints
             }
 
+            preserved_fields = {}
             if suite in workload_db_data.keys() and subsuite in workload_db_data[suite].keys() and workload in workload_db_data[suite][subsuite].keys():
-                print("WARNING: workload name should be unique within a subsuite. db will be overwritten!")
-            workload_db_data[suite][subsuite][workload] = workload_dict
+                print("WARNING: workload name should be unique within a subsuite. Existing trace/simulation/simpoints fields will be overwritten!")
+                preserved_fields = {
+                    key: value for key, value in workload_db_data[suite][subsuite][workload].items() if key not in workload_dict
+                }
+            # Update/insert only the related fields and leave the other existing fields unchanged
+            workload_db_data[suite][subsuite][workload] = workload_dict | preserved_fields
 
         write_json_descriptor(workload_db_path, workload_db_data, dbg_lvl)
         extract_top_simpoints.modify_simpoints_in_place(workload_db_data)
