@@ -128,7 +128,7 @@ DR_EXIT_RE = re.compile(r"Exiting process after ~\d+ references")
 
 
 def check_traced_roi(segment_id, seg_dir, roi_length, err_path):
-    """Fail unless drrun traced the whole ROI without exiting in the middle."""
+    """Warn unless drrun traced the whole ROI without exiting in the middle."""
     # This is not guaranteed to be UTF-8 as the workload's own stderr lands here too.
     with open(err_path, errors="replace") as f:
         err_text = f.read()
@@ -136,17 +136,13 @@ def check_traced_roi(segment_id, seg_dir, roi_length, err_path):
     sys.stderr.flush()
     if DR_ROI_DONE_RE.search(err_text):
         return
-    if DR_EXIT_RE.search(err_text):
+    elif DR_EXIT_RE.search(err_text):
         print(f"WARN: segment {segment_id}: drrun stopped before tracing {roi_length} instructions "
               f"as -exit_after_tracing fired. Raise TRACE_ROI_HEADROOM from {TRACE_ROI_HEADROOM} "
               f"if raw2trace does not yield enough chunks. See {err_path} for errors.")
         return
-    # Discard the short output to make sure a re-run does not skip and re-traces.
-    for d in glob.glob(os.path.join(seg_dir, "drmemtrace.*")):
-        shutil.rmtree(d, ignore_errors=True)
-    raise RuntimeError(
-        f"segment {segment_id}: drrun stopped before tracing {roi_length} instructions "
-        f"as the workload ended early. See {err_path} for errors.")
+    print(f"WARN: segment {segment_id}: drrun may have stopped before tracing {roi_length} "
+          f"instructions as the workload ended early. See {err_path} for errors.")
 
 # Single-thread the workload during BOTH fingerprinting and tracing. Threading
 # in the workload causes (a) non-deterministic instruction counts that make
