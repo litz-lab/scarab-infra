@@ -102,6 +102,46 @@ def run(cmd: List[str], *, cwd: Optional[Path] = None, check: bool = True,
     )
 
 
+# Set once per run; prepended to every mail so a stale checkout is never a
+# silent explanation for a weird result.
+_INFRA_WARNING = ""
+
+
+def infra_warning() -> str:
+    """Warn when this checkout is not main, or is behind it.
+
+    The sweep resets its Scarab clone to origin/main but runs whatever
+    scarab-infra it was started from. On 2026-08-30 that was a branch predating
+    the SDE/PIN-3.31 image switch, so a PIN-3.15 image tried to build a Scarab
+    main that needs PIN 3.31 and every mode died in --build-scarab.
+    """
+    run(["git", "fetch", "origin", "main"], cwd=REPO_ROOT, check=False)
+
+    def git(*args: str) -> Optional[str]:
+        try:
+            return subprocess.run(["git", *args], cwd=str(REPO_ROOT), check=True,
+                                  text=True, capture_output=True).stdout.strip()
+        except subprocess.CalledProcessError:
+            return None
+
+    head = git("rev-parse", "--short", "HEAD")
+    target = git("rev-parse", "--short", "origin/main")
+    behind = git("rev-list", "--count", "HEAD..origin/main")
+    dirty = git("status", "--porcelain")
+    if head is None or target is None:
+        return ""
+    if head == target and not dirty:
+        return ""
+    detail = [f"checkout {head}, origin/main {target}"]
+    if behind and behind != "0":
+        detail.append(f"{behind} commits behind")
+    if dirty:
+        detail.append("uncommitted changes")
+    return (f"WARNING: scarab-infra at {REPO_ROOT} is not main ("
+            + "; ".join(detail) + ").\n"
+            "The images and run scripts under test are not the ones on main.")
+
+
 def git_sha(repo: Path) -> str:
     try:
         out = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=str(repo),
@@ -127,6 +167,11 @@ def refresh_scarab() -> str:
     run(["git", "fetch", "origin", "main"], cwd=SCARAB_DIR)
     # Reset, not pull: a stray local commit must not change what we measure.
     run(["git", "reset", "--hard", "origin/main"], cwd=SCARAB_DIR)
+    # And clean the PIN tool: its objects keep .d files naming the PIN path of
+    # the image that built them, so a container upgrade turns into "No rule to
+    # make target /tmp_home/pin-3.15-.../algorithm" until they are gone. Only
+    # src/pin -- wiping the whole tree would rebuild DynamoRIO every week.
+    run(["git", "clean", "-xfd", "--", "src/pin"], cwd=SCARAB_DIR, check=False)
     run(["git", "submodule", "update", "--init", "--recursive"], cwd=SCARAB_DIR, check=False)
     return git_sha(SCARAB_DIR)
 
@@ -510,6 +555,8 @@ def notify(subject: str, body: str, attachments: List[Path], args) -> None:
     if args.no_email or args.dry_run:
         log(f"not mailing '{subject}' (--no-email/--dry-run)")
         return
+    if _INFRA_WARNING:
+        body = f"{_INFRA_WARNING}\n\n{body}"
     recipients = org_recipients() or FALLBACK_RECIPIENTS
     send_email(subject, body, attachments, recipients)
 
@@ -581,6 +628,11 @@ def main() -> int:
 
 
 def run_sweep(args, today: str) -> int:
+    global _INFRA_WARNING
+    _INFRA_WARNING = infra_warning()
+    if _INFRA_WARNING:
+        log(_INFRA_WARNING)
+
     lock = LOCK_PATH.open("w")
     try:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)

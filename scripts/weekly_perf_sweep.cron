@@ -4,8 +4,18 @@
 #
 # Needs the scarabinfra conda env (pandas/matplotlib) and gh on PATH; cron's
 # PATH is minimal, so both are set explicitly below.
+#
+# The host runs UTC and this cron build has no CRON_TZ, so the schedule is
+# written in UTC: Monday 05:00 UTC is Sunday 22:00 Pacific (21:00 under PST),
+# i.e. Sunday night here. The old "Sunday 00:00 UTC" fired Saturday afternoon.
+#
+# It runs from a clone of its own, reset to main first. The sweep resets its
+# Scarab clone to origin/main, and pairing that with whatever branch someone
+# left checked out in a shared working tree is how 2026-08-30 came to build a
+# PIN-3.31 Scarab inside a PIN-3.15 image. Create the clone once with:
+#   git clone git@github.com:litz-lab/scarab-infra.git /soe/hlitz/git/scarab-infra-weekly
 SHELL=/bin/bash
 PATH=/soe/hlitz/miniconda3/envs/scarabinfra/bin:/usr/local/bin:/usr/bin:/bin
 MAILTO=""
 
-0 0 * * 0 cd /soe/hlitz/git/scarab-infra && python3 scripts/weekly_perf_sweep.py >> /soe/hlitz/logs/weekly_perf_sweep.log 2>&1
+0 5 * * 1 cd /soe/hlitz/git/scarab-infra-weekly && git fetch -q origin main && git reset -q --hard origin/main && python3 scripts/weekly_perf_sweep.py >> /soe/hlitz/logs/weekly_perf_sweep.log 2>&1
