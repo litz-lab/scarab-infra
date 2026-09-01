@@ -2957,14 +2957,20 @@ def run_visualize(descriptor_name: str) -> int:
         formatted = formatted.rstrip("0").rstrip(".")
         return f"{formatted}%" if as_percent else formatted
 
+    # {stat: {config: {workload: value, ..., "Avg": value}}}, emitted as JSON below.
+    aggregates: Dict[str, Dict[str, Dict[str, Optional[float]]]] = {}
+
     def print_markdown_table(stat_name: str, *, display_name: Optional[str] = None) -> None:
         """
         Render a markdown table for the given stat across workloads/configs, including speedup vs baseline.
+
+        Also records the values into `aggregates` for the JSON emit.
         """
         label = display_name or stat_name
         all_data = experiment.retrieve_stats(configs, [stat_name], workloads)
         if all_data is None:
             return
+        recorded = aggregates.setdefault(stat_name, {})
 
         def average(values: List[float], *, use_geomean: bool) -> Optional[float]:
             if not values:
@@ -3007,6 +3013,7 @@ def run_visualize(descriptor_name: str) -> int:
             base_val = baseline_avg if wl == "Avg" else baseline_values.get(wl)
 
             row.append(format_numeric(base_val))
+            recorded.setdefault(baseline, {})[wl] = base_val
 
             values_by_cfg: Dict[str, Optional[float]] = {}
             for cfg in non_baseline_configs:
@@ -3023,6 +3030,7 @@ def run_visualize(descriptor_name: str) -> int:
                     value = all_data.get(f"{cfg} {wl} {stat_name}")
 
                 values_by_cfg[cfg] = value
+                recorded.setdefault(cfg, {})[wl] = value
                 row.append(format_numeric(value))
 
             for cfg in non_baseline_configs:
@@ -3202,6 +3210,26 @@ def run_visualize(descriptor_name: str) -> int:
                     print(f"  {wl} / {cfg}: +{delta_pct:.1f}%")
         except Exception as exc:
             print(f"Skipping memory table: {exc}")
+
+    # For consumers tracking numbers over time (scripts/weekly_perf_sweep.py);
+    # reuses this function's weighting instead of re-deriving it.
+    if aggregates:
+        aggregates_path = stats_path.with_name("aggregates.json")
+        payload = {
+            "experiment": descriptor.get("experiment"),
+            "stats_file": str(stats_path),
+            "baseline": baseline,
+            "configs": list(configs),
+            "workloads": list(workloads),
+            "aggregates": aggregates,
+        }
+        try:
+            with aggregates_path.open("w", encoding="utf-8") as fh:
+                json.dump(payload, fh, indent=2, sort_keys=True)
+                fh.write("\n")
+            print(f"Wrote aggregates → {aggregates_path.name}")
+        except OSError as exc:
+            print(f"Could not write {aggregates_path.name}: {exc}")
 
     return 0
 

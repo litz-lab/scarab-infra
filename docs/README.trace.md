@@ -251,6 +251,15 @@ Only valid with `workload_manager: "slurm"` and `trace_type:
 "cluster_then_trace"`. The descriptor validator rejects mixed
 configurations.
 
+```
+  "workload_manager":"slurm",
+  "parallel_segments":true,
+  "trace_configurations":[
+    {
+      ...
+      "trace_type":"cluster_then_trace",
+```
+
 **Important: cross-node ISA consistency.** When fingerprinting (Phase 1)
 and segment tracing (Phase 2) land on nodes with different CPU generations,
 runtime CPU dispatch (e.g., glibc `ifunc` resolvers) can change the
