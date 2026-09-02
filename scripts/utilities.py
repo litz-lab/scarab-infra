@@ -393,6 +393,46 @@ def prepare_docker_image(docker_prefix, image_tag, dbg_lvl=1):
                 exit(1)
 
 # Locally builds scarab using docker. No caching or skipping logic
+def own_container_name(base: str) -> str:
+    """A container name nobody else's run shares.
+
+    Build and lint containers used to be named just <image>_<user>_scarab_build,
+    and every run began by force-removing that name. Two builds by the same user
+    therefore destroyed each other's container, and the loser's `make` died
+    mid-compile with no error text at all -- only a truncated log.
+    """
+    return f"{base}_{os.getpid()}"
+
+
+def remove_stale_containers(base: str, dbg_lvl: int = 1) -> None:
+    """Remove leftovers of runs that were killed before their cleanup ran.
+
+    Only ones whose pid is gone: a sibling run's container must survive, which
+    is the whole point of the pid suffix.
+    """
+    try:
+        names = subprocess.run(
+            ["docker", "ps", "-a", "--filter", f"name=^{base}_[0-9]+$",
+             "--format", "{{.Names}}"],
+            check=True, capture_output=True, text=True).stdout.split()
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return
+    for name in names:
+        pid = name.rsplit("_", 1)[-1]
+        if not pid.isdigit():
+            continue
+        try:
+            os.kill(int(pid), 0)
+            continue  # still running: not ours to remove
+        except PermissionError:
+            continue  # someone else's live process
+        except OSError:
+            pass
+        info(f"Removing stale container {name} (pid {pid} is gone)", dbg_lvl)
+        subprocess.run(["docker", "rm", "-f", name], check=False,
+                       capture_output=True, text=True)
+
+
 def build_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_prefix, infra_dir, dbg_lvl=1, stream_build=False):
     local_uid = os.getuid()
     local_gid = os.getgid()
@@ -401,13 +441,12 @@ def build_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_pre
 
     scarab_bin = f"{scarab_path}/src/build/{scarab_build}/scarab"
     info(f"Scarab binary at '{scarab_bin}', building it first, please wait...", dbg_lvl)
-    docker_container_name = f"{docker_prefix}_{user}_scarab_build"
-    # The container name is deterministic, so one left over from an earlier run makes
-    # this `docker run` fail with a bare exit 125 and no explanation. Clear it first:
-    # the finally below does not cover a SIGTERM'd sci (slurm timeout, CI kill, or a
-    # wrapper timeout), because Python does not unwind the stack on SIGTERM.
-    subprocess.run(["docker", "rm", "-f", f"{docker_container_name}"],
-                   check=False, capture_output=True, text=True)
+    docker_container_name = own_container_name(f"{docker_prefix}_{user}_scarab_build")
+    # A leftover of the same name makes `docker run` fail with a bare exit 125 and no
+    # explanation, and the finally below does not cover a SIGTERM'd sci (slurm timeout,
+    # CI kill, or a wrapper timeout) because Python does not unwind on SIGTERM. Clear
+    # only dead runs' containers -- never a concurrent build's.
+    remove_stale_containers(f"{docker_prefix}_{user}_scarab_build", dbg_lvl)
     try:
         subprocess.run(
                 ["docker", "run", "-e", f"user_id={local_uid}",
@@ -479,7 +518,7 @@ def lint_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_pref
     local_uid = os.getuid()
     local_gid = os.getgid()
     build_mode = scarab_build if scarab_build else "opt"
-    docker_container_name = f"{docker_prefix}_{user}_scarab_lint"
+    docker_container_name = own_container_name(f"{docker_prefix}_{user}_scarab_lint")
 
     # Keep the enabled check set narrow. Expand intentionally by editing this
     # list; every consumer of --lint-scarab picks up the change automatically.
@@ -607,10 +646,9 @@ def lint_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_pref
 
     info(f"Linting scarab with image {image_ref}...", dbg_lvl)
     exception = None
-    # Same deterministic-name hazard as build_scarab_binary: clear any leftover
-    # container so a previously killed lint run does not block this one.
-    subprocess.run(["docker", "rm", "-f", f"{docker_container_name}"],
-                   check=False, capture_output=True, text=True)
+    # Same hazard as build_scarab_binary: clear leftovers of runs that died before
+    # their cleanup, but never a concurrent lint's container.
+    remove_stale_containers(f"{docker_prefix}_{user}_scarab_lint", dbg_lvl)
     try:
         subprocess.run(
             ["docker", "run",
