@@ -51,12 +51,14 @@ You only need additional steps if you want to inspect workloads, collect traces,
 ```
 ./sci --visualize <descriptor>
 ```
-Generates bar charts (value and speedup) for each counter listed in `visualize.counters` and saves them next to `collected_stats.csv` under `<root_dir>/simulations/<descriptor>/`.
+Generates bar charts (value and speedup) for each counter listed in `visualize.counters` and saves them next to `collected_stats.csv` under `<root_dir>/simulations/<descriptor>/`. When `visualize.scurve` is enabled, it also generates per-simpoint IPC S-curves and prints an ASCII S-curve plus the best/worst simpoints to the console.
 
 Use the descriptor structure:
 ```json
 "visualize": {
   "baseline": "baseline",
+  "configs": ["candidate"],
+  "scurve": true,
   "counters": ["IPC"]
 }
 ```
@@ -78,6 +80,16 @@ For additional control you may instead supply objects such as:
 The `name` (optional) governs the output filename stem, while `title` and `y_label` adjust plot annotations.
 
 Set `visualize.baseline` to force the speedup plots to use a specific configuration as their reference (defaults to the first configuration present in the stats file).
+
+Set `visualize.scurve` to `true` to emit IPC S-curves for the same baseline/config selection. Outputs are written under `ipc_scurves/<baseline>_vs_<candidate>/` beside `collected_stats.csv`; each pair contains `ipc_scurve_graph.pdf` and `ipc_scurve_data.csv`. For console tuning, use object form:
+```json
+"scurve": {
+  "enabled": true,
+  "top_n": 10,
+  "width": 60,
+  "height": 12
+}
+```
 
 ### Analyze performance drift
 ```
