@@ -801,7 +801,9 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2,
         if descriptor_path is None:
             raise RuntimeError("parallel_segments mode requires descriptor_path to be passed through to run_tracing")
 
-        env_vars_dict = {key: val for key, sep, val in [t.partition('=') for t in env_vars] if sep}
+        env_vars_dict = {}
+        if isinstance(env_vars, list):
+            env_vars_dict = {key: val for key, sep, val in [t.partition('=') for t in env_vars] if sep}
 
         info(f"Using docker image with name {image_tag_for(image_name, infra_dir)}", dbg_lvl)
 
@@ -899,10 +901,11 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2,
         for config in trace_configs:
             workload = config["workload"]
             image_name = config["image_name"]
-            if config["env_vars"] != None:
+            if config["env_vars"]:
+                assert isinstance(config["env_vars"], str)
                 env_vars = config["env_vars"].split()
             else:
-                env_vars = config["env_vars"]
+                env_vars = []
             binary_cmd = config["binary_cmd"]
             client_bincmd = config["client_bincmd"]
             trace_type = config["trace_type"]
