@@ -1662,7 +1662,7 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
                 --name $CONTAINER_NAME \
                 --mount type=bind,source={traces_dir},target=/simpoint_traces,readonly=true \
                 --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
-                --mount type=bind,source={application_dir},target=/tmp_home/application,readonly=false \
+                --mount type=bind,source={application_dir},target=/tmp_home/application,readonly=true \
                 --mount {infra_mount_arg(infra_dir)} \
                 {image_tag_for(docker_prefix, infra_dir)} \
                 /bin/bash\n")
@@ -1679,7 +1679,7 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
                 --name $CONTAINER_NAME \
                 --mount type=bind,source={traces_dir},target=/simpoint_traces,readonly=true \
                 --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
-                --mount type=bind,source={application_dir},target=/tmp_home/application,readonly=false \
+                --mount type=bind,source={application_dir},target=/tmp_home/application,readonly=true \
                 --mount {infra_mount_arg(infra_dir)} \
                 {image_tag_for(docker_prefix, infra_dir)} \
                 /bin/bash\n")
@@ -1784,7 +1784,7 @@ def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_contai
                     --rm \
                     --name $CONTAINER_NAME \
                     --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
-                    --mount type=bind,source={application_dir},target=/tmp_home/application,readonly=false \
+                    --mount type=bind,source={application_dir},target=/tmp_home/application,readonly=true \
                     --mount {infra_mount_arg(infra_dir)} \
                     {image_tag_for(image_name, infra_dir)} \
                     /bin/bash\n"

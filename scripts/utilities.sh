@@ -54,6 +54,24 @@ wait_for_non_child () {
   done
 }
 
+link_local_rundir () {
+  # 1: src:  private, node-local copy of the run dir ($RUNDIR)
+  # 2: dest: simdir, which is the program's CWD under Pin
+  # Symlink each top-level entry of <src> into <dest>, so a workload that opens an input by a
+  # hard-coded CWD-relative path resolves it without a second copy of the data.
+  # Linking is safe here because the targets are the private copy, not the shared app tree.
+  local src="$1" dest="$2" path name
+  mkdir -p "$dest"
+  for path in "$src"/*; do
+    [ -e "$path" ] || continue
+    name=$(basename "$path")
+    case "$name" in
+      PARAMS.in|pin_exec.so|scarab.out|scarab.err|pin.out|pin.err|launch_cmd.txt) continue ;;
+    esac
+    ln -sfn "$path" "$dest/$name"
+  done
+}
+
 perf_stat_prefix () {
   # Prefix that makes `perf stat` count the host instructions a simulation
   # retires, written to $1. Wall-clock speed (KIPS) tracks machine load as much
