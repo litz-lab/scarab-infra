@@ -9956,7 +9956,7 @@
       },
       "fotonik3d_r":{
         "trace":{
-          "dynamorio_args":null,
+          "dynamorio_args":"-max_bb_instrs 1024",
           "clustering_k":20
         },
         "simulation":{
