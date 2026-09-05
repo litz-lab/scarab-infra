@@ -4,8 +4,18 @@
 #
 # Needs the scarabinfra conda env (pandas/matplotlib) and gh on PATH; cron's
 # PATH is minimal, so both are set explicitly below.
+#
+# The host runs UTC and this cron build has no CRON_TZ, so the schedule is
+# written in UTC: Monday 05:00 UTC is Sunday 22:00 Pacific (21:00 under PST),
+# i.e. Sunday night here. The old "Sunday 00:00 UTC" fired Saturday afternoon.
+#
+# The script clones/resets both repos itself -- scarab-infra into
+# /soe/hlitz/git/scarab-infra-weekly and Scarab into /soe/hlitz/git/scarab-weekly,
+# each at origin/main -- and re-execs from the fresh infra before it does
+# anything, the same way CI checks out both. Whichever checkout cron starts it
+# from only provides that first line of code.
 SHELL=/bin/bash
 PATH=/soe/hlitz/miniconda3/envs/scarabinfra/bin:/usr/local/bin:/usr/bin:/bin
 MAILTO=""
 
-0 0 * * 0 cd /soe/hlitz/git/scarab-infra && python3 scripts/weekly_perf_sweep.py >> /soe/hlitz/logs/weekly_perf_sweep.log 2>&1
+0 5 * * 1 cd /soe/hlitz/git/scarab-infra-weekly && python3 scripts/weekly_perf_sweep.py >> /soe/hlitz/logs/weekly_perf_sweep.log 2>&1

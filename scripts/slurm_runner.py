@@ -239,7 +239,7 @@ def list_cluster_nodes(dbg_lvl = 1):
 # mem_mb: when provided, sets --mem explicitly; any --mem present in slurm_options is stripped
 #         (deprecated) and a warning is emitted. When None, slurm_options is passed through
 #         unchanged (used for trace jobs where memory is not auto-managed).
-def generate_sbatch_command(experiment_dir, slurm_options="", mem_mb=None):
+def generate_sbatch_command(experiment_dir, slurm_options="", mem_mb=None, job_out_suffix=''):
     if mem_mb is not None:
         cleaned = re.sub(r'--mem\s+\S+', '', slurm_options or '').strip()
         if cleaned != (slurm_options or '').strip():
@@ -252,7 +252,11 @@ def generate_sbatch_command(experiment_dir, slurm_options="", mem_mb=None):
     else:
         slurm_options = ""
 
-    return f"sbatch -c 1{slurm_options} -o {experiment_dir}/logs/job_%j.out "
+    if job_out_suffix:
+        assert isinstance(job_out_suffix, str)
+        job_out_suffix = '_' + job_out_suffix
+
+    return f"sbatch -c 1{slurm_options} -o {experiment_dir}/logs/job_%j{job_out_suffix}.out "
 #return f"sbatch -c 1 --ntasks-per-core=2 --oversubscribe -o {experiment_dir}/logs/job_%j.out "
 
 
@@ -759,7 +763,7 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2,
 
     def run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd, trace_type, drio_args, clustering_k, application_dir, slurm_options):
         try:
-            sbatch_cmd = generate_sbatch_command(trace_dir, slurm_options=slurm_options)
+            sbatch_cmd = generate_sbatch_command(trace_dir, slurm_options=slurm_options, job_out_suffix=workload)
 
             if trace_type == "cluster_then_trace":
                 simpoint_mode = "cluster_then_trace"
@@ -848,7 +852,7 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2,
             f"cd {infra_dir} && python -m scripts.run_trace -d {descriptor_path} "
             f"-f -si {infra_dir}"
         )
-        finalize_log_path = os.path.join(trace_dir, "logs", "finalize_job_%j.out")
+        finalize_log_path = os.path.join(trace_dir, "logs", f"finalize_job_%j_{workload}.out")
         with open(phase1_filename, "a") as f:
             write_phase2_sbatch_tail(
                 f, workload, trace_name, docker_home, phase2_script_path,
@@ -861,6 +865,7 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2,
         sbatch_cmd = generate_sbatch_command(
             trace_dir, slurm_options=slurm_options,
             mem_mb=env_vars_dict.get("PHASE1_MEM_MB", PHASE1_MEM_MB),
+            job_out_suffix=workload,
         )
         result = subprocess.run((sbatch_cmd + phase1_filename).split(" "),
                                 capture_output=True, text=True)

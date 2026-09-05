@@ -2815,7 +2815,7 @@
   },
   "spec2006":{
     "rate_int":{
-      "_scarab_sim_githash":null,
+      "_scarab_sim_githash":"63b467f",
       "perlbench":{
         "trace":{
           "dynamorio_args":null,
@@ -2844,21 +2844,30 @@
             "segment_id":0,
             "weight":0.34236464,
             "drive_id":"1Q39w7PG-ihI8-3zRRT9RheRNCpXFei59",
-            "size_bytes":52706683
+            "size_bytes":52706683,
+            "base_memory_mb_by_mode":{
+              "exec":2547
+            }
           },
           {
             "cluster_id":83702,
             "segment_id":1,
             "weight":0.20289466,
             "drive_id":"1M5TnWJa42ZaTwePHzDYSLjneO2-uTxZS",
-            "size_bytes":62647665
+            "size_bytes":62647665,
+            "base_memory_mb_by_mode":{
+              "exec":2697
+            }
           },
           {
             "cluster_id":21291,
             "segment_id":2,
             "weight":0.4547407,
             "drive_id":"18bI8pUwvhDwgykiCq0VV_-uRXuogm5Vn",
-            "size_bytes":83576399
+            "size_bytes":83576399,
+            "base_memory_mb_by_mode":{
+              "exec":3577
+            }
           }
         ]
       },
@@ -2890,21 +2899,30 @@
             "segment_id":0,
             "weight":0.81920236,
             "drive_id":"1PRo22cu8NmWIzo6dkqgK0yfIArLhHrOj",
-            "size_bytes":63475157
+            "size_bytes":63475157,
+            "base_memory_mb_by_mode":{
+              "exec":1129
+            }
           },
           {
             "cluster_id":43,
             "segment_id":1,
             "weight":0.02158945,
             "drive_id":"1YbcIG3e9kbzbnwaupgGBilKhquwIHLAK",
-            "size_bytes":73780916
+            "size_bytes":73780916,
+            "base_memory_mb_by_mode":{
+              "exec":713
+            }
           },
           {
             "cluster_id":30930,
             "segment_id":2,
             "weight":0.15920819,
             "drive_id":"1WsKYE5IKfRhtlA1rDrJejnbwWMl4PAqQ",
-            "size_bytes":90691153
+            "size_bytes":90691153,
+            "base_memory_mb_by_mode":{
+              "exec":1074
+            }
           }
         ]
       },
@@ -2936,56 +2954,80 @@
             "segment_id":0,
             "weight":0.00906843,
             "drive_id":"1MX5FEPfkczSZipDISbi49FIoxHdPvxE8",
-            "size_bytes":19472442
+            "size_bytes":19472442,
+            "base_memory_mb_by_mode":{
+              "exec":845
+            }
           },
           {
             "cluster_id":44979,
             "segment_id":1,
             "weight":0.01640831,
             "drive_id":"1AvMLHk6uHZn6vTueBEkELBzibQSYbm3K",
-            "size_bytes":25763123
+            "size_bytes":25763123,
+            "base_memory_mb_by_mode":{
+              "exec":1408
+            }
           },
           {
             "cluster_id":62378,
             "segment_id":2,
             "weight":0.61258197,
             "drive_id":"1x26PqSH7pCc03w_B7EmcAkGqvjIXMTPU",
-            "size_bytes":14332943
+            "size_bytes":14332943,
+            "base_memory_mb_by_mode":{
+              "exec":1012
+            }
           },
           {
             "cluster_id":16673,
             "segment_id":3,
             "weight":0.01481105,
             "drive_id":"1dfPmdwUGjxPXOVlVirKTM_aaZlPvMEdu",
-            "size_bytes":81057135
+            "size_bytes":81057135,
+            "base_memory_mb_by_mode":{
+              "exec":1434
+            }
           },
           {
             "cluster_id":5174,
             "segment_id":4,
             "weight":0.06694012,
             "drive_id":"1ZPF0w3iOZnsDZGUJfD_tYK7qN_sJ-bHL",
-            "size_bytes":52024091
+            "size_bytes":52024091,
+            "base_memory_mb_by_mode":{
+              "exec":1511
+            }
           },
           {
             "cluster_id":6538,
             "segment_id":7,
             "weight":0.03413801,
             "drive_id":"1dboaWWHAhYdWoQB1hSOa2Nfnm7Jr3-2E",
-            "size_bytes":54126794
+            "size_bytes":54126794,
+            "base_memory_mb_by_mode":{
+              "exec":1880
+            }
           },
           {
             "cluster_id":40688,
             "segment_id":8,
             "weight":0.01135513,
             "drive_id":"1bON3eP4TwHds5gqld57GZSldIcAJv_kS",
-            "size_bytes":84966135
+            "size_bytes":84966135,
+            "base_memory_mb_by_mode":{
+              "exec":1401
+            }
           },
           {
             "cluster_id":54240,
             "segment_id":9,
             "weight":0.22795942,
             "drive_id":"1Olb-OSNsRxnynhze6CEfh4CffhZnIb95",
-            "size_bytes":38093607
+            "size_bytes":38093607,
+            "base_memory_mb_by_mode":{
+              "exec":1074
+            }
           }
         ]
       },
@@ -3017,63 +3059,90 @@
             "segment_id":0,
             "weight":0.10996985,
             "drive_id":"1rfLy2ZCulU1kHu7X4L2tbFdEToY06dK7",
-            "size_bytes":35256668
+            "size_bytes":35256668,
+            "base_memory_mb_by_mode":{
+              "exec":1775
+            }
           },
           {
             "cluster_id":21310,
             "segment_id":1,
             "weight":0.01837452,
             "drive_id":"1L9_BkpPFdSS1ttUCcZR-AEnqDtqFBXNV",
-            "size_bytes":61271211
+            "size_bytes":61271211,
+            "base_memory_mb_by_mode":{
+              "exec":1793
+            }
           },
           {
             "cluster_id":24437,
             "segment_id":2,
             "weight":0.06932688,
             "drive_id":"1oqKdlJUMoNznlI79ElIjcyLnXYr3rF0N",
-            "size_bytes":35396696
+            "size_bytes":35396696,
+            "base_memory_mb_by_mode":{
+              "exec":1591
+            }
           },
           {
             "cluster_id":5853,
             "segment_id":3,
             "weight":0.07432984,
             "drive_id":"1RnY2WBurXPNfe27JxdTHlE4s5SmnoEP7",
-            "size_bytes":49419345
+            "size_bytes":49419345,
+            "base_memory_mb_by_mode":{
+              "exec":1425
+            }
           },
           {
             "cluster_id":3419,
             "segment_id":4,
             "weight":0.05938322,
             "drive_id":"185w1tBSLoePlBzGujq5yNi6zaPEltMSh",
-            "size_bytes":57670337
+            "size_bytes":57670337,
+            "base_memory_mb_by_mode":{
+              "exec":1430
+            }
           },
           {
             "cluster_id":5137,
             "segment_id":5,
             "weight":0.06986853,
             "drive_id":"1kqFF8vQAphu4p8YGi3laz9_VcmyqIhBA",
-            "size_bytes":51113584
+            "size_bytes":51113584,
+            "base_memory_mb_by_mode":{
+              "exec":1610
+            }
           },
           {
             "cluster_id":20416,
             "segment_id":6,
             "weight":0.4542211,
             "drive_id":"1rC6IZnku64ydmHtYNnhBBFJ0VodjPRVX",
-            "size_bytes":69463311
+            "size_bytes":69463311,
+            "base_memory_mb_by_mode":{
+              "exec":1556
+            }
           },
           {
             "cluster_id":16013,
             "segment_id":7,
             "weight":0.10543294,
             "drive_id":"1qTiJDcyTqPKnwC7oZhAOj0xOHpw3BBwW",
-            "size_bytes":57639430
+            "size_bytes":57639430,
+            "base_memory_mb_by_mode":{
+              "exec":1462
+            }
           },
           {
             "cluster_id":10992,
             "segment_id":8,
             "weight":0.03909311,
             "drive_id":"1z7lL8XduC5KckFhorQoEa2PS6GZAKQ2P",
-            "size_bytes":34382523
+            "size_bytes":34382523,
+            "base_memory_mb_by_mode":{
+              "exec":1573
+            }
           }
         ]
       },
@@ -3105,84 +3174,120 @@
             "segment_id":0,
             "weight":0.02563678,
             "drive_id":"1eFW9j39itmCkRn3Oz4me-kL8kAihbRJA",
-            "size_bytes":45594693
+            "size_bytes":45594693,
+            "base_memory_mb_by_mode":{
+              "exec":756
+            }
           },
           {
             "cluster_id":14627,
             "segment_id":1,
             "weight":0.03864397,
             "drive_id":"1Lln4y9UxDD0LIJ1I18geLdHAUU0hOOqp",
-            "size_bytes":58465852
+            "size_bytes":58465852,
+            "base_memory_mb_by_mode":{
+              "exec":490
+            }
           },
           {
             "cluster_id":2857,
             "segment_id":2,
             "weight":0.02907216,
             "drive_id":"1wetc0Jz8f9kYMKrZx4203OaixCGynlIS",
-            "size_bytes":47797099
+            "size_bytes":47797099,
+            "base_memory_mb_by_mode":{
+              "exec":712
+            }
           },
           {
             "cluster_id":13503,
             "segment_id":3,
             "weight":0.08388715,
             "drive_id":"12UuuyCKahbEsjffDvtfIPzYl3NzKCoLE",
-            "size_bytes":25230610
+            "size_bytes":25230610,
+            "base_memory_mb_by_mode":{
+              "exec":437
+            }
           },
           {
             "cluster_id":11222,
             "segment_id":4,
             "weight":0.10404147,
             "drive_id":"12Zo9BNkQRpy_wsOPuIjbZdLYVNyYedVe",
-            "size_bytes":25207620
+            "size_bytes":25207620,
+            "base_memory_mb_by_mode":{
+              "exec":433
+            }
           },
           {
             "cluster_id":4291,
             "segment_id":5,
             "weight":0.03870343,
             "drive_id":"1Nie5jKFxAljmcx2keawTEcIlbmJftDoc",
-            "size_bytes":35724033
+            "size_bytes":35724033,
+            "base_memory_mb_by_mode":{
+              "exec":523
+            }
           },
           {
             "cluster_id":4347,
             "segment_id":6,
             "weight":0.03174751,
             "drive_id":"1Z8ry6u7xTGm5XEkdVkDCM0UXxjBB0tdd",
-            "size_bytes":39396099
+            "size_bytes":39396099,
+            "base_memory_mb_by_mode":{
+              "exec":403
+            }
           },
           {
             "cluster_id":3216,
             "segment_id":7,
             "weight":0.04512427,
             "drive_id":"1XIJz3KIvjDU6DQnlVFuwsA27mciX5hGb",
-            "size_bytes":42615487
+            "size_bytes":42615487,
+            "base_memory_mb_by_mode":{
+              "exec":847
+            }
           },
           {
             "cluster_id":4626,
             "segment_id":8,
             "weight":0.13150841,
             "drive_id":"1ES5ZKT4GcaPAaD5YrhxtX-gVfBePXDu4",
-            "size_bytes":67042084
+            "size_bytes":67042084,
+            "base_memory_mb_by_mode":{
+              "exec":447
+            }
           },
           {
             "cluster_id":16800,
             "segment_id":9,
             "weight":0.10255516,
             "drive_id":"1n04Kg79v1FkzsP5bOFWWXsWwyiyT6imm",
-            "size_bytes":42523559
+            "size_bytes":42523559,
+            "base_memory_mb_by_mode":{
+              "exec":829
+            }
           },
           {
             "cluster_id":6606,
             "segment_id":10,
             "weight":0.33834285,
             "drive_id":"1wAtSpeL4CHVy4q7W2smEdGpXsCARLRQK",
-            "size_bytes":47564369
+            "size_bytes":47564369,
+            "base_memory_mb_by_mode":{
+              "exec":1002
+            }
           },
           {
             "cluster_id":5734,
             "segment_id":11,
             "weight":0.03073682,
             "drive_id":"1fKCHe-w3nB7iL_R6_k912K8CCU_oFdro",
-            "size_bytes":86492853
+            "size_bytes":86492853,
+            "base_memory_mb_by_mode":{
+              "exec":627
+            }
           }
         ]
       },
@@ -3214,84 +3319,120 @@
             "segment_id":0,
             "weight":0.14314306,
             "drive_id":"1FWYQLfgxCDaZVvziF98xB34LryGHtCNN",
-            "size_bytes":27450433
+            "size_bytes":27450433,
+            "base_memory_mb_by_mode":{
+              "exec":528
+            }
           },
           {
             "cluster_id":18780,
             "segment_id":1,
             "weight":0.03914405,
             "drive_id":"1gB6e5iBDsD2IduNgllPrmyhPIoZzrzfY",
-            "size_bytes":74349635
+            "size_bytes":74349635,
+            "base_memory_mb_by_mode":{
+              "exec":661
+            }
           },
           {
             "cluster_id":26,
             "segment_id":2,
             "weight":0.22579502,
             "drive_id":"1YO5NRHOKvxh9-mh_DN27WSsFdF84T5pq",
-            "size_bytes":80576897
+            "size_bytes":80576897,
+            "base_memory_mb_by_mode":{
+              "exec":416
+            }
           },
           {
             "cluster_id":19902,
             "segment_id":3,
             "weight":0.08608074,
             "drive_id":"1XZcOlNk1n8nBa0FSB7QdaBH59G2nFzSN",
-            "size_bytes":29933723
+            "size_bytes":29933723,
+            "base_memory_mb_by_mode":{
+              "exec":458
+            }
           },
           {
             "cluster_id":1765,
             "segment_id":4,
             "weight":0.02660021,
             "drive_id":"109dyo9599C0ZnLg87haGPPTXFLFT7aSJ",
-            "size_bytes":62879066
+            "size_bytes":62879066,
+            "base_memory_mb_by_mode":{
+              "exec":501
+            }
           },
           {
             "cluster_id":7439,
             "segment_id":5,
             "weight":0.09272177,
             "drive_id":"1qIKYDvR7e9kh_msmbv0d61xhUItnsPUI",
-            "size_bytes":24808669
+            "size_bytes":24808669,
+            "base_memory_mb_by_mode":{
+              "exec":583
+            }
           },
           {
             "cluster_id":9338,
             "segment_id":6,
             "weight":0.06803446,
             "drive_id":"1E6bIe9gSLDUaPJ7-N1zf9IJruK5ahS1p",
-            "size_bytes":37477856
+            "size_bytes":37477856,
+            "base_memory_mb_by_mode":{
+              "exec":785
+            }
           },
           {
             "cluster_id":17946,
             "segment_id":7,
             "weight":0.0426614,
             "drive_id":"1wiiGxb9dtplZb7OYuDsHLWrGEW6jOQFt",
-            "size_bytes":54400722
+            "size_bytes":54400722,
+            "base_memory_mb_by_mode":{
+              "exec":859
+            }
           },
           {
             "cluster_id":15837,
             "segment_id":8,
             "weight":0.02429029,
             "drive_id":"1PmmkoNRkW9lNzdeVGYJcc632y9_WlvNj",
-            "size_bytes":47976863
+            "size_bytes":47976863,
+            "base_memory_mb_by_mode":{
+              "exec":760
+            }
           },
           {
             "cluster_id":15721,
             "segment_id":9,
             "weight":0.04637893,
             "drive_id":"11UYOT8TdYjmc8JRXK-0pjLcSPtHdHcHp",
-            "size_bytes":27440902
+            "size_bytes":27440902,
+            "base_memory_mb_by_mode":{
+              "exec":490
+            }
           },
           {
             "cluster_id":15523,
             "segment_id":10,
             "weight":0.0959701,
             "drive_id":"1dgTBD7OXBlkmxnJLWEj_Xs48aTTMxUvS",
-            "size_bytes":27535673
+            "size_bytes":27535673,
+            "base_memory_mb_by_mode":{
+              "exec":482
+            }
           },
           {
             "cluster_id":7583,
             "segment_id":11,
             "weight":0.10917997,
             "drive_id":"1ZQ7obnzw-juf8pC3DPrf30MEsCwD3ebE",
-            "size_bytes":26372818
+            "size_bytes":26372818,
+            "base_memory_mb_by_mode":{
+              "exec":440
+            }
           }
         ]
       },
@@ -3323,77 +3464,110 @@
             "segment_id":0,
             "weight":0.08348759,
             "drive_id":"1BVb4tIPntDEDsgQg91G3f0fAjGnWqznZ",
-            "size_bytes":59809850
+            "size_bytes":59809850,
+            "base_memory_mb_by_mode":{
+              "exec":1268
+            }
           },
           {
             "cluster_id":43811,
             "segment_id":1,
             "weight":0.1272008,
             "drive_id":"1QXG80DXDEUzegUTxbpUXAuW8D-CQznFp",
-            "size_bytes":68208539
+            "size_bytes":68208539,
+            "base_memory_mb_by_mode":{
+              "exec":1588
+            }
           },
           {
             "cluster_id":13746,
             "segment_id":2,
             "weight":0.06825361,
             "drive_id":"1sJeGeW6KDdLUJeX7PJIc4fmLDkiRZ1JL",
-            "size_bytes":38787748
+            "size_bytes":38787748,
+            "base_memory_mb_by_mode":{
+              "exec":1645
+            }
           },
           {
             "cluster_id":45324,
             "segment_id":3,
             "weight":0.07016511,
             "drive_id":"1SMzAGJaISvUe4GGPzFO2E49lStOmm3lU",
-            "size_bytes":54027758
+            "size_bytes":54027758,
+            "base_memory_mb_by_mode":{
+              "exec":1582
+            }
           },
           {
             "cluster_id":45237,
             "segment_id":4,
             "weight":0.06921902,
             "drive_id":"15ORBdU246LADdDERl_alJdZeaIqWP-zN",
-            "size_bytes":78321618
+            "size_bytes":78321618,
+            "base_memory_mb_by_mode":{
+              "exec":1287
+            }
           },
           {
             "cluster_id":43909,
             "segment_id":5,
             "weight":0.01448097,
             "drive_id":"1X3Toqrc9fk5KKkMHy9Sm1OB5M8mU3thO",
-            "size_bytes":45152955
+            "size_bytes":45152955,
+            "base_memory_mb_by_mode":{
+              "exec":1540
+            }
           },
           {
             "cluster_id":42035,
             "segment_id":6,
             "weight":0.0468604,
             "drive_id":"1LwQbJr14t5Gsk04tHpiramNd1bH_LZ1Z",
-            "size_bytes":39480281
+            "size_bytes":39480281,
+            "base_memory_mb_by_mode":{
+              "exec":1242
+            }
           },
           {
             "cluster_id":26518,
             "segment_id":7,
             "weight":0.08366136,
             "drive_id":"16RZ_FwsDIF19NvJdn_lLJvlwWv3yS-qE",
-            "size_bytes":68018761
+            "size_bytes":68018761,
+            "base_memory_mb_by_mode":{
+              "exec":1407
+            }
           },
           {
             "cluster_id":25085,
             "segment_id":8,
             "weight":0.2522198,
             "drive_id":"1Uq3o2wlD15MbuVBq9vp7nNMC8fGUF4ul",
-            "size_bytes":25930728
+            "size_bytes":25930728,
+            "base_memory_mb_by_mode":{
+              "exec":1159
+            }
           },
           {
             "cluster_id":31075,
             "segment_id":9,
             "weight":0.07738876,
             "drive_id":"1-3ck6AAkBW4CwLJ8_UhfkO1wliVlyXDc",
-            "size_bytes":33771286
+            "size_bytes":33771286,
+            "base_memory_mb_by_mode":{
+              "exec":1460
+            }
           },
           {
             "cluster_id":49154,
             "segment_id":10,
             "weight":0.1070626,
             "drive_id":"1hbgNWFn-fJ7tnDcWS3DK9zufFXv_BbES",
-            "size_bytes":33900270
+            "size_bytes":33900270,
+            "base_memory_mb_by_mode":{
+              "exec":1605
+            }
           }
         ]
       },
@@ -3425,56 +3599,80 @@
             "segment_id":0,
             "weight":0.0592545,
             "drive_id":"1PtHAbtz_uln1bOoD6w4MPyq-lsksJQGR",
-            "size_bytes":58810850
+            "size_bytes":58810850,
+            "base_memory_mb_by_mode":{
+              "exec":1576
+            }
           },
           {
             "cluster_id":9885,
             "segment_id":1,
             "weight":0.0873677,
             "drive_id":"1ngXfntaG_VztNp0pbMFS-MOd2bm7LbuG",
-            "size_bytes":86280121
+            "size_bytes":86280121,
+            "base_memory_mb_by_mode":{
+              "exec":1294
+            }
           },
           {
             "cluster_id":469,
             "segment_id":2,
             "weight":0.04203723,
             "drive_id":"10wmFTI5VqWQZlPmYx-Cjk7U0YyNSMU2D",
-            "size_bytes":45513641
+            "size_bytes":45513641,
+            "base_memory_mb_by_mode":{
+              "exec":1366
+            }
           },
           {
             "cluster_id":19995,
             "segment_id":3,
             "weight":0.2978493,
             "drive_id":"1Cwt19Wwghzce-L-gfVZtmC8lsQzDR_2-",
-            "size_bytes":83667464
+            "size_bytes":83667464,
+            "base_memory_mb_by_mode":{
+              "exec":1202
+            }
           },
           {
             "cluster_id":16556,
             "segment_id":4,
             "weight":0.0499372,
             "drive_id":"1ea2j_ZUeEyAUPaxNQlBSvWen0YI4KlUL",
-            "size_bytes":34524284
+            "size_bytes":34524284,
+            "base_memory_mb_by_mode":{
+              "exec":1461
+            }
           },
           {
             "cluster_id":23262,
             "segment_id":5,
             "weight":0.33461684,
             "drive_id":"1-nThnQ7NAAmzpF2VPSQAlF8ePdxTQsio",
-            "size_bytes":75687335
+            "size_bytes":75687335,
+            "base_memory_mb_by_mode":{
+              "exec":1531
+            }
           },
           {
             "cluster_id":45660,
             "segment_id":6,
             "weight":0.07324839,
             "drive_id":"1mjYNFJeyblwTudvRu6WpIHzXHSGjizeD",
-            "size_bytes":46644479
+            "size_bytes":46644479,
+            "base_memory_mb_by_mode":{
+              "exec":1432
+            }
           },
           {
             "cluster_id":16771,
             "segment_id":7,
             "weight":0.05568884,
             "drive_id":"17zXhjmOoeZrDd_BeOqxSDf5RvmQ_6gy2",
-            "size_bytes":32897441
+            "size_bytes":32897441,
+            "base_memory_mb_by_mode":{
+              "exec":1492
+            }
           }
         ]
       },
@@ -3506,98 +3704,140 @@
             "segment_id":0,
             "weight":0.05399485,
             "drive_id":"1pOPQzfXIeFsfvmtJ04ItGS3nMDlUzq1L",
-            "size_bytes":40526339
+            "size_bytes":40526339,
+            "base_memory_mb_by_mode":{
+              "exec":1131
+            }
           },
           {
             "cluster_id":21385,
             "segment_id":1,
             "weight":0.05572848,
             "drive_id":"1ExLMs9k15XoiZghXDNt4KfH0klel_rSu",
-            "size_bytes":56995881
+            "size_bytes":56995881,
+            "base_memory_mb_by_mode":{
+              "exec":1370
+            }
           },
           {
             "cluster_id":27477,
             "segment_id":2,
             "weight":0.04501146,
             "drive_id":"1vKRnR15ABhC_ajc9gTWc_LGMvWJbgALz",
-            "size_bytes":43368903
+            "size_bytes":43368903,
+            "base_memory_mb_by_mode":{
+              "exec":1187
+            }
           },
           {
             "cluster_id":5923,
             "segment_id":3,
             "weight":0.0349879,
             "drive_id":"16_zfqY7QsF1t3iMBjgjuOGzZVb5oPNYP",
-            "size_bytes":56643667
+            "size_bytes":56643667,
+            "base_memory_mb_by_mode":{
+              "exec":1202
+            }
           },
           {
             "cluster_id":28047,
             "segment_id":4,
             "weight":0.20620799,
             "drive_id":"1uIp62OSlloC3uUuutrLVKLl8jy8wXvEp",
-            "size_bytes":70201747
+            "size_bytes":70201747,
+            "base_memory_mb_by_mode":{
+              "exec":1321
+            }
           },
           {
             "cluster_id":1182,
             "segment_id":5,
             "weight":0.08765888,
             "drive_id":"1eos9DdOL2zetUFSGyGt2ibMZn_ayaNVa",
-            "size_bytes":51506710
+            "size_bytes":51506710,
+            "base_memory_mb_by_mode":{
+              "exec":1281
+            }
           },
           {
             "cluster_id":3910,
             "segment_id":6,
             "weight":0.14326128,
             "drive_id":"1mfZp4tgsPZ3bH3vZDau0KC1Tz3k32zxV",
-            "size_bytes":71782110
+            "size_bytes":71782110,
+            "base_memory_mb_by_mode":{
+              "exec":1344
+            }
           },
           {
             "cluster_id":21715,
             "segment_id":7,
             "weight":0.02149707,
             "drive_id":"1T9PPOGXmPkm_gxrjFhEhTdYng_aZ1d1-",
-            "size_bytes":60025181
+            "size_bytes":60025181,
+            "base_memory_mb_by_mode":{
+              "exec":1123
+            }
           },
           {
             "cluster_id":8868,
             "segment_id":8,
             "weight":0.03634329,
             "drive_id":"1_4iDgGRJcEUdj4UWXzK7mQ1YQ8Imx8C1",
-            "size_bytes":35756540
+            "size_bytes":35756540,
+            "base_memory_mb_by_mode":{
+              "exec":1333
+            }
           },
           {
             "cluster_id":12990,
             "segment_id":9,
             "weight":0.07167792,
             "drive_id":"1ZXK4l-lXPNORZ_OsJDzh3tVSpi9Vmhy8",
-            "size_bytes":49529478
+            "size_bytes":49529478,
+            "base_memory_mb_by_mode":{
+              "exec":1086
+            }
           },
           {
             "cluster_id":8676,
             "segment_id":10,
             "weight":0.05753304,
             "drive_id":"1ASjJts9ftDBX8f-JAzaRsWD0-A0Y-WOF",
-            "size_bytes":34845373
+            "size_bytes":34845373,
+            "base_memory_mb_by_mode":{
+              "exec":1404
+            }
           },
           {
             "cluster_id":5108,
             "segment_id":11,
             "weight":0.02446001,
             "drive_id":"1Q6gxJ6cc-LcW1cQmXmE5xwD0uKWdhzmL",
-            "size_bytes":56226792
+            "size_bytes":56226792,
+            "base_memory_mb_by_mode":{
+              "exec":1189
+            }
           },
           {
             "cluster_id":7863,
             "segment_id":12,
             "weight":0.11331668,
             "drive_id":"1z-CFqvpbR3NjlZ5mMwCzIzmLW_NFEtHA",
-            "size_bytes":41088784
+            "size_bytes":41088784,
+            "base_memory_mb_by_mode":{
+              "exec":1364
+            }
           },
           {
             "cluster_id":12098,
             "segment_id":13,
             "weight":0.04832113,
             "drive_id":"1eKeu-V2QVYFfXApvZmnMcLakN-e6ll0D",
-            "size_bytes":55582640
+            "size_bytes":55582640,
+            "base_memory_mb_by_mode":{
+              "exec":1029
+            }
           }
         ]
       },
@@ -3629,133 +3869,190 @@
             "segment_id":0,
             "weight":0.01533421,
             "drive_id":"1wPwY-OIxgnJndQyeWMh0l05pZmXjh2p1",
-            "size_bytes":67171591
+            "size_bytes":67171591,
+            "base_memory_mb_by_mode":{
+              "exec":7379
+            }
           },
           {
             "cluster_id":5867,
             "segment_id":1,
             "weight":0.1185177,
             "drive_id":"1RPQMPhPAl6fI5W5djJB69ArecutuY20k",
-            "size_bytes":153674762
+            "size_bytes":153674762,
+            "base_memory_mb_by_mode":{
+              "exec":868
+            }
           },
           {
             "cluster_id":2023,
             "segment_id":2,
             "weight":0.1282628,
             "drive_id":"1oL88f_iLmsNu5QAtGO2jQFDLtBJoFgor",
-            "size_bytes":64838669
+            "size_bytes":64838669,
+            "base_memory_mb_by_mode":{
+              "exec":1622
+            }
           },
           {
             "cluster_id":6543,
             "segment_id":3,
             "weight":0.01490428,
             "drive_id":"1NzZjaRhtxTWESkprUUgbZDEMMUh4xJAQ",
-            "size_bytes":487883041
+            "size_bytes":487883041,
+            "base_memory_mb_by_mode":{
+              "exec":9825
+            }
           },
           {
             "cluster_id":207,
             "segment_id":4,
             "weight":0.02550925,
             "drive_id":"1Q0vdrGJJh3ZNDKRswVdXbQ-Ub9kkMkEu",
-            "size_bytes":26824417
+            "size_bytes":26824417,
+            "base_memory_mb_by_mode":{
+              "exec":433
+            }
           },
           {
             "cluster_id":74,
             "segment_id":5,
             "weight":0.01877366,
             "drive_id":"1xFNIOhqstqyk52HDnvKJ9J7-Xm-zRUn_",
-            "size_bytes":177273710
+            "size_bytes":177273710,
+            "base_memory_mb_by_mode":{
+              "exec":10650
+            }
           },
           {
             "cluster_id":6567,
             "segment_id":6,
             "weight":0.08799259,
             "drive_id":"1d1zVoKiCVqshNskBzn6Djzuz0gKEPB4_",
-            "size_bytes":635986955
+            "size_bytes":635986955,
+            "base_memory_mb_by_mode":{
+              "exec":2613
+            }
           },
           {
             "cluster_id":2223,
             "segment_id":7,
             "weight":0.08369327,
             "drive_id":"1f7nXg5C7NH9DwfAOUyQ3K1klZ8QTRH5I",
-            "size_bytes":158284485
+            "size_bytes":158284485,
+            "base_memory_mb_by_mode":{
+              "exec":15322
+            }
           },
           {
             "cluster_id":3573,
             "segment_id":8,
             "weight":0.03738403,
             "drive_id":"1WR2GKay2hTtPZuaZ_QipuB0fTYW7fWYN",
-            "size_bytes":135358616
+            "size_bytes":135358616,
+            "base_memory_mb_by_mode":{
+              "exec":8645
+            }
           },
           {
             "cluster_id":4442,
             "segment_id":9,
             "weight":0.02550925,
             "drive_id":"1Sq_lKbIxGRqLCxqXWQ-ReXJsMF4RBR9g",
-            "size_bytes":42672236
+            "size_bytes":42672236,
+            "base_memory_mb_by_mode":{
+              "exec":861
+            }
           },
           {
             "cluster_id":3336,
             "segment_id":10,
             "weight":0.03339132,
             "drive_id":"1KbG0gRCKVmgh2uYhA-qXEQo1vkWl3azB",
-            "size_bytes":60688268
+            "size_bytes":60688268,
+            "base_memory_mb_by_mode":{
+              "exec":1009
+            }
           },
           {
             "cluster_id":2635,
             "segment_id":11,
             "weight":0.04356636,
             "drive_id":"1Chh0uSNnbB3y8rmwESoE3-mPKsx0Q5pX",
-            "size_bytes":536165992
+            "size_bytes":536165992,
+            "base_memory_mb_by_mode":{
+              "exec":5897
+            }
           },
           {
             "cluster_id":2200,
             "segment_id":13,
             "weight":0.03210153,
             "drive_id":"1CWVEYpkQVn1gK-k9lkR3xTvPYOYDyECg",
-            "size_bytes":65107239
+            "size_bytes":65107239,
+            "base_memory_mb_by_mode":{
+              "exec":785
+            }
           },
           {
             "cluster_id":5193,
             "segment_id":14,
             "weight":0.06076361,
             "drive_id":"1TXADvhjw3QwlptSVih-oHseBuYYq6sQS",
-            "size_bytes":64678514
+            "size_bytes":64678514,
+            "base_memory_mb_by_mode":{
+              "exec":1219
+            }
           },
           {
             "cluster_id":4277,
             "segment_id":15,
             "weight":0.14316709,
             "drive_id":"1fRxiBuvZyqo9GQPUMEtu_ubumY_-Ld84",
-            "size_bytes":25299016
+            "size_bytes":25299016,
+            "base_memory_mb_by_mode":{
+              "exec":594
+            }
           },
           {
             "cluster_id":3758,
             "segment_id":16,
             "weight":0.04886885,
             "drive_id":"1pY1xMm-COJVV33C4iYGTYAzeUh54oAb4",
-            "size_bytes":62458804
+            "size_bytes":62458804,
+            "base_memory_mb_by_mode":{
+              "exec":509
+            }
           },
           {
             "cluster_id":3832,
             "segment_id":17,
             "weight":0.01676732,
             "drive_id":"1Rxc3okpf_DcWwPJHTkE4_9A1q07I3btm",
-            "size_bytes":28469230
+            "size_bytes":28469230,
+            "base_memory_mb_by_mode":{
+              "exec":793
+            }
           },
           {
             "cluster_id":2967,
             "segment_id":18,
             "weight":0.01777049,
             "drive_id":"1znDhbx-UmAk7LgYq6vuHiy-MGb8auhgZ",
-            "size_bytes":67155786
+            "size_bytes":67155786,
+            "base_memory_mb_by_mode":{
+              "exec":3548
+            }
           },
           {
             "cluster_id":2914,
             "segment_id":19,
             "weight":0.04772236,
             "drive_id":"1aXdn2Bg_sJxjeoyeV-5nFZRJTLmGxOlf",
-            "size_bytes":69865399
+            "size_bytes":69865399,
+            "base_memory_mb_by_mode":{
+              "exec":866
+            }
           }
         ]
       },
@@ -3787,133 +4084,190 @@
             "segment_id":0,
             "weight":0.01889483,
             "drive_id":"16b9jbmPj72wvA2cZZ_ys-_dXJFqB7MFF",
-            "size_bytes":129785877
+            "size_bytes":129785877,
+            "base_memory_mb_by_mode":{
+              "exec":2999
+            }
           },
           {
             "cluster_id":8235,
             "segment_id":2,
             "weight":0.05654136,
             "drive_id":"1-EE7bnK6bN_9QACoklm2Dih3qecH_IIJ",
-            "size_bytes":29931776
+            "size_bytes":29931776,
+            "base_memory_mb_by_mode":{
+              "exec":7009
+            }
           },
           {
             "cluster_id":7447,
             "segment_id":3,
             "weight":0.02376168,
             "drive_id":"1nSDpS406ILM-qYj6aFJIlubZzWRIFDAu",
-            "size_bytes":31335234
+            "size_bytes":31335234,
+            "base_memory_mb_by_mode":{
+              "exec":946
+            }
           },
           {
             "cluster_id":9423,
             "segment_id":4,
             "weight":0.06534463,
             "drive_id":"1YOf4mzjccYySy3MDejOSO0GpNpOa38Sy",
-            "size_bytes":167073458
+            "size_bytes":167073458,
+            "base_memory_mb_by_mode":{
+              "exec":627
+            }
           },
           {
             "cluster_id":7150,
             "segment_id":5,
             "weight":0.04287123,
             "drive_id":"18BcCklQ1IlBVQswO5DLs2yiPotddWTMy",
-            "size_bytes":28151790
+            "size_bytes":28151790,
+            "base_memory_mb_by_mode":{
+              "exec":5749
+            }
           },
           {
             "cluster_id":2265,
             "segment_id":6,
             "weight":0.02089883,
             "drive_id":"1qHoX4BY5-smI3rhkYUAtVhfvT2ouOmQG",
-            "size_bytes":91503366
+            "size_bytes":91503366,
+            "base_memory_mb_by_mode":{
+              "exec":2841
+            }
           },
           {
             "cluster_id":3008,
             "segment_id":7,
             "weight":0.03041782,
             "drive_id":"1dW2TLNYPQ9W6--NF91u-DvEtwWLaKQTk",
-            "size_bytes":70281960
+            "size_bytes":70281960,
+            "base_memory_mb_by_mode":{
+              "exec":6719
+            }
           },
           {
             "cluster_id":1199,
             "segment_id":8,
             "weight":0.09884002,
             "drive_id":"1WbPtqT9ldGSekwwgOjHUy4HZjblr7G0M",
-            "size_bytes":36276099
+            "size_bytes":36276099,
+            "base_memory_mb_by_mode":{
+              "exec":611
+            }
           },
           {
             "cluster_id":7397,
             "segment_id":9,
             "weight":0.04072933,
             "drive_id":"1gQ6oO31hJluDx2I0oeoek42ulhRlQLGy",
-            "size_bytes":107405465
+            "size_bytes":107405465,
+            "base_memory_mb_by_mode":{
+              "exec":641
+            }
           },
           {
             "cluster_id":11752,
             "segment_id":10,
             "weight":0.12238699,
             "drive_id":"1ANb7acs13UNlZMucBmdDbU1xkMdnn9B6",
-            "size_bytes":34373759
+            "size_bytes":34373759,
+            "base_memory_mb_by_mode":{
+              "exec":1086
+            }
           },
           {
             "cluster_id":7592,
             "segment_id":11,
             "weight":0.03750338,
             "drive_id":"1GnxSu-ukNIR34BkoyatOT8HQzMhzagjW",
-            "size_bytes":157428600
+            "size_bytes":157428600,
+            "base_memory_mb_by_mode":{
+              "exec":679
+            }
           },
           {
             "cluster_id":9108,
             "segment_id":12,
             "weight":0.0362151,
             "drive_id":"1Y5aenJR46WcDYPSosUJvGzLcy0Ucdddm",
-            "size_bytes":149176473
+            "size_bytes":149176473,
+            "base_memory_mb_by_mode":{
+              "exec":10271
+            }
           },
           {
             "cluster_id":9024,
             "segment_id":13,
             "weight":0.04702237,
             "drive_id":"1rY9p3VKQKOuz0JEH8Ux5AeugiDndU79I",
-            "size_bytes":169473544
+            "size_bytes":169473544,
+            "base_memory_mb_by_mode":{
+              "exec":637
+            }
           },
           {
             "cluster_id":1286,
             "segment_id":14,
             "weight":0.02719711,
             "drive_id":"1lvPmAsfe5vF6N5EH2zlBSJNIfqxbpBU8",
-            "size_bytes":112648558
+            "size_bytes":112648558,
+            "base_memory_mb_by_mode":{
+              "exec":8278
+            }
           },
           {
             "cluster_id":8823,
             "segment_id":15,
             "weight":0.10778644,
             "drive_id":"1u733fs8Y-uZBNfQU0TG5wOFjUJ_vZZ2W",
-            "size_bytes":122028251
+            "size_bytes":122028251,
+            "base_memory_mb_by_mode":{
+              "exec":6718
+            }
           },
           {
             "cluster_id":7413,
             "segment_id":16,
             "weight":0.09919788,
             "drive_id":"1uVsdC20bCLD_z5Q_T2GH3o25obV92cR4",
-            "size_bytes":74840488
+            "size_bytes":74840488,
+            "base_memory_mb_by_mode":{
+              "exec":773
+            }
           },
           {
             "cluster_id":4976,
             "segment_id":17,
             "weight":0.0157457,
             "drive_id":"1TPQNGiWi6hZWGIu4qAsGPKTJmEu841sN",
-            "size_bytes":82925947
+            "size_bytes":82925947,
+            "base_memory_mb_by_mode":{
+              "exec":2498
+            }
           },
           {
             "cluster_id":7371,
             "segment_id":18,
             "weight":0.06577406,
             "drive_id":"1SYlJ72sDasafsovTZbwFk3pT0q4S6ZdY",
-            "size_bytes":74780937
+            "size_bytes":74780937,
+            "base_memory_mb_by_mode":{
+              "exec":8955
+            }
           },
           {
             "cluster_id":12096,
             "segment_id":19,
             "weight":0.03385324,
             "drive_id":"1or32T6lotw1T-q7WaQ--iGAf4Xq_A9RM",
-            "size_bytes":36176520
+            "size_bytes":36176520,
+            "base_memory_mb_by_mode":{
+              "exec":4239
+            }
           }
         ]
       },
@@ -3945,126 +4299,180 @@
             "segment_id":0,
             "weight":0.03863947,
             "drive_id":"1LC4w0jk3WXVdu3scAF4d-PsKQP8XHv7I",
-            "size_bytes":62546567
+            "size_bytes":62546567,
+            "base_memory_mb_by_mode":{
+              "exec":712
+            }
           },
           {
             "cluster_id":10611,
             "segment_id":1,
             "weight":0.05760634,
             "drive_id":"14P4dY2ikJQ4KDH1wLLfRbMU51b_EeL8-",
-            "size_bytes":86281368
+            "size_bytes":86281368,
+            "base_memory_mb_by_mode":{
+              "exec":5508
+            }
           },
           {
             "cluster_id":10985,
             "segment_id":2,
             "weight":0.03299352,
             "drive_id":"1AGIgdGY9EjWFfq3BmE_RXv199LwRhhQ7",
-            "size_bytes":31663629
+            "size_bytes":31663629,
+            "base_memory_mb_by_mode":{
+              "exec":2606
+            }
           },
           {
             "cluster_id":11154,
             "segment_id":3,
             "weight":0.03025877,
             "drive_id":"1qg_rxNWYeLLs1Lf79v5sR7UDQe6IYqiu",
-            "size_bytes":366315240
+            "size_bytes":366315240,
+            "base_memory_mb_by_mode":{
+              "exec":1676
+            }
           },
           {
             "cluster_id":10336,
             "segment_id":4,
             "weight":0.24886291,
             "drive_id":"1Wg27YVgHlXOZpuc-x5OcMP-_2UOR0RQS",
-            "size_bytes":157266577
+            "size_bytes":157266577,
+            "base_memory_mb_by_mode":{
+              "exec":2147
+            }
           },
           {
             "cluster_id":2201,
             "segment_id":5,
             "weight":0.03405214,
             "drive_id":"17Qf-l5pzjlntn5l5b_Hsy19Hn6Et7ZsN",
-            "size_bytes":27682141
+            "size_bytes":27682141,
+            "base_memory_mb_by_mode":{
+              "exec":512
+            }
           },
           {
             "cluster_id":1168,
             "segment_id":6,
             "weight":0.08063123,
             "drive_id":"1_MsfTMvbs5mBv8hpAzl68urQP8xpNXEd",
-            "size_bytes":157643715
+            "size_bytes":157643715,
+            "base_memory_mb_by_mode":{
+              "exec":16260
+            }
           },
           {
             "cluster_id":11023,
             "segment_id":7,
             "weight":0.03863947,
             "drive_id":"13r1z4-ykwkRlYwqoxJqJygG0y99i4GWl",
-            "size_bytes":38370626
+            "size_bytes":38370626,
+            "base_memory_mb_by_mode":{
+              "exec":645
+            }
           },
           {
             "cluster_id":5431,
             "segment_id":9,
             "weight":0.0373162,
             "drive_id":"1PiusB3igZjB3g0EKudRRWOKDG_-iD80o",
-            "size_bytes":61026086
+            "size_bytes":61026086,
+            "base_memory_mb_by_mode":{
+              "exec":610
+            }
           },
           {
             "cluster_id":9371,
             "segment_id":10,
             "weight":0.04084492,
             "drive_id":"112dNFy9HsSFI64xar1v2jUmBEAPgSf4S",
-            "size_bytes":1346569722
+            "size_bytes":1346569722,
+            "base_memory_mb_by_mode":{
+              "exec":3253
+            }
           },
           {
             "cluster_id":6603,
             "segment_id":12,
             "weight":0.11000782,
             "drive_id":"1boDkf_0eXkftrEKqzz6Wii20LBrOKmUt",
-            "size_bytes":34596067
+            "size_bytes":34596067,
+            "base_memory_mb_by_mode":{
+              "exec":917
+            }
           },
           {
             "cluster_id":10656,
             "segment_id":13,
             "weight":0.01614389,
             "drive_id":"1Kvj-LsaK_3wPxmvSpkGOKuifk_GZGRbv",
-            "size_bytes":143666265
+            "size_bytes":143666265,
+            "base_memory_mb_by_mode":{
+              "exec":9046
+            }
           },
           {
             "cluster_id":1265,
             "segment_id":14,
             "weight":0.03546362,
             "drive_id":"13Gvkn4QOX_6FyB4bXzUmV-wEPG-CLRCd",
-            "size_bytes":123344269
+            "size_bytes":123344269,
+            "base_memory_mb_by_mode":{
+              "exec":11469
+            }
           },
           {
             "cluster_id":817,
             "segment_id":15,
             "weight":0.01517349,
             "drive_id":"1v8PvVe28P7k3_BegRGdNFEJ1XRf6nzoI",
-            "size_bytes":128236889
+            "size_bytes":128236889,
+            "base_memory_mb_by_mode":{
+              "exec":7891
+            }
           },
           {
             "cluster_id":10047,
             "segment_id":16,
             "weight":0.12262298,
             "drive_id":"1cIJtAknJvl-weKwVOy0vj1Uq5L98inRr",
-            "size_bytes":34272690
+            "size_bytes":34272690,
+            "base_memory_mb_by_mode":{
+              "exec":811
+            }
           },
           {
             "cluster_id":96,
             "segment_id":17,
             "weight":0.02346598,
             "drive_id":"12Ag1JnhZUQ6KmdWSzgFf6I0RMn--g9O5",
-            "size_bytes":37193303
+            "size_bytes":37193303,
+            "base_memory_mb_by_mode":{
+              "exec":619
+            }
           },
           {
             "cluster_id":9872,
             "segment_id":18,
             "weight":0.02236842,
             "drive_id":"1GmypXR9l6gqc7veh7gjAqa-0Rswg1HEN",
-            "size_bytes":106095501
+            "size_bytes":106095501,
+            "base_memory_mb_by_mode":{
+              "exec":6390
+            }
           },
           {
             "cluster_id":11237,
             "segment_id":19,
             "weight":0.00793962,
             "drive_id":"1u-OETM1e_DeHbyHCAKv4TDe6jmuIOlDa",
-            "size_bytes":146045432
+            "size_bytes":146045432,
+            "base_memory_mb_by_mode":{
+              "exec":3304
+            }
           }
         ]
       },
@@ -4096,133 +4504,190 @@
             "segment_id":0,
             "weight":0.09501208,
             "drive_id":"131X2EqFkd5CYV7dBaD2AO5iERc4KKmBt",
-            "size_bytes":32349835
+            "size_bytes":32349835,
+            "base_memory_mb_by_mode":{
+              "exec":759
+            }
           },
           {
             "cluster_id":8949,
             "segment_id":1,
             "weight":0.02834075,
             "drive_id":"1UEwDAKmwwMtlXa5MkY7w2cz3BMJviHrB",
-            "size_bytes":101345918
+            "size_bytes":101345918,
+            "base_memory_mb_by_mode":{
+              "exec":9998
+            }
           },
           {
             "cluster_id":2268,
             "segment_id":2,
             "weight":0.03496445,
             "drive_id":"16AAFDvY8aNqtYad8zW2NVpQD1I17BN3M",
-            "size_bytes":61301181
+            "size_bytes":61301181,
+            "base_memory_mb_by_mode":{
+              "exec":572
+            }
           },
           {
             "cluster_id":7055,
             "segment_id":3,
             "weight":0.01140145,
             "drive_id":"1SY_buZW_HlFdEb6dUn2TYc6Kr-9yXcw9",
-            "size_bytes":170004709
+            "size_bytes":170004709,
+            "base_memory_mb_by_mode":{
+              "exec":5975
+            }
           },
           {
             "cluster_id":8920,
             "segment_id":4,
             "weight":0.01151004,
             "drive_id":"1jiVld2kUgTrXf0enBB9ugoPWtDHQb7y2",
-            "size_bytes":125679264
+            "size_bytes":125679264,
+            "base_memory_mb_by_mode":{
+              "exec":9246
+            }
           },
           {
             "cluster_id":608,
             "segment_id":5,
             "weight":0.01943676,
             "drive_id":"1qsw8qRKIutnXinwv6GjG8lKqHxaA5DWL",
-            "size_bytes":27485656
+            "size_bytes":27485656,
+            "base_memory_mb_by_mode":{
+              "exec":841
+            }
           },
           {
             "cluster_id":8500,
             "segment_id":6,
             "weight":0.02193422,
             "drive_id":"1ZYH8GiFfN6X3BlkZMjf3agRtnBCYFn8J",
-            "size_bytes":53527517
+            "size_bytes":53527517,
+            "base_memory_mb_by_mode":{
+              "exec":625
+            }
           },
           {
             "cluster_id":8257,
             "segment_id":7,
             "weight":0.05418403,
             "drive_id":"1k46g75JKO3mIV9UmGozcvVzbdvw8xC4x",
-            "size_bytes":593484050
+            "size_bytes":593484050,
+            "base_memory_mb_by_mode":{
+              "exec":2262
+            }
           },
           {
             "cluster_id":9037,
             "segment_id":8,
             "weight":0.05201233,
             "drive_id":"1uZotpZSoVovBg5gjuy85Oq1CDL-LDO5n",
-            "size_bytes":36773696
+            "size_bytes":36773696,
+            "base_memory_mb_by_mode":{
+              "exec":7756
+            }
           },
           {
             "cluster_id":4122,
             "segment_id":9,
             "weight":0.03431293,
             "drive_id":"1XAizmNmG7hXRmYSt-sne6KEbzQnb5Szk",
-            "size_bytes":40648189
+            "size_bytes":40648189,
+            "base_memory_mb_by_mode":{
+              "exec":831
+            }
           },
           {
             "cluster_id":8123,
             "segment_id":10,
             "weight":0.03811342,
             "drive_id":"10pPS6xE3TUgdAWJzkzMYXREhh25YuaBk",
-            "size_bytes":72070718
+            "size_bytes":72070718,
+            "base_memory_mb_by_mode":{
+              "exec":2965
+            }
           },
           {
             "cluster_id":8954,
             "segment_id":11,
             "weight":0.01064135,
             "drive_id":"1VCpgmky73-Tgs7-01DJrFjzgxJ-CrUF4",
-            "size_bytes":31797754
+            "size_bytes":31797754,
+            "base_memory_mb_by_mode":{
+              "exec":8644
+            }
           },
           {
             "cluster_id":6302,
             "segment_id":12,
             "weight":0.01856808,
             "drive_id":"1JyiBGC0Y9BHEFwDgXoYSpNVo0_sOZU0t",
-            "size_bytes":59536984
+            "size_bytes":59536984,
+            "base_memory_mb_by_mode":{
+              "exec":2006
+            }
           },
           {
             "cluster_id":6242,
             "segment_id":13,
             "weight":0.02692914,
             "drive_id":"1b88NvdySEvAxXMlMtsL0hzQVMYwKx8cG",
-            "size_bytes":134357763
+            "size_bytes":134357763,
+            "base_memory_mb_by_mode":{
+              "exec":13529
+            }
           },
           {
             "cluster_id":8730,
             "segment_id":15,
             "weight":0.01904096,
             "drive_id":"1CCPhWW1QVCTKxkwT2ePAfqND7QwDyjJk",
-            "size_bytes":813464603
+            "size_bytes":813464603,
+            "base_memory_mb_by_mode":{
+              "exec":6584
+            }
           },
           {
             "cluster_id":8475,
             "segment_id":16,
             "weight":0.05049214,
             "drive_id":"19flXJrsN72YAAAToOSjcYErJ8bCtqAwm",
-            "size_bytes":124118845
+            "size_bytes":124118845,
+            "base_memory_mb_by_mode":{
+              "exec":801
+            }
           },
           {
             "cluster_id":9092,
             "segment_id":17,
             "weight":0.0095555,
             "drive_id":"1iq4lVG9R10p-BvpGqedsiZagEseIkQTA",
-            "size_bytes":120390753
+            "size_bytes":120390753,
+            "base_memory_mb_by_mode":{
+              "exec":10481
+            }
           },
           {
             "cluster_id":3459,
             "segment_id":18,
             "weight":0.22325125,
             "drive_id":"1q3O5AzMZfOOgReIZzZZk1vjsvbG36vuS",
-            "size_bytes":35675565
+            "size_bytes":35675565,
+            "base_memory_mb_by_mode":{
+              "exec":733
+            }
           },
           {
             "cluster_id":8020,
             "segment_id":19,
             "weight":0.23628148,
             "drive_id":"1LcNIFj3f0euCMGvtLiylRnlriKfOoVRS",
-            "size_bytes":154075642
+            "size_bytes":154075642,
+            "base_memory_mb_by_mode":{
+              "exec":1620
+            }
           }
         ]
       },
@@ -4254,133 +4719,190 @@
             "segment_id":0,
             "weight":0.02786431,
             "drive_id":"1TQZwPBGLoNh1YA0QnC-4SEx_D0IS-cYp",
-            "size_bytes":67345391
+            "size_bytes":67345391,
+            "base_memory_mb_by_mode":{
+              "exec":693
+            }
           },
           {
             "cluster_id":1519,
             "segment_id":1,
             "weight":0.11989788,
             "drive_id":"1a1a6s-aw8wB4p-A8i_5e-VpBSWtCcyZF",
-            "size_bytes":23796883
+            "size_bytes":23796883,
+            "base_memory_mb_by_mode":{
+              "exec":658
+            }
           },
           {
             "cluster_id":9156,
             "segment_id":2,
             "weight":0.02505429,
             "drive_id":"1SHWFaV6SJZ_VFK7thVzOwZN420MeRhZr",
-            "size_bytes":103104303
+            "size_bytes":103104303,
+            "base_memory_mb_by_mode":{
+              "exec":5634
+            }
           },
           {
             "cluster_id":6207,
             "segment_id":3,
             "weight":0.02776261,
             "drive_id":"1sOpdx0FFbyGIVeM9QvWq9FuGTg6iX3EK",
-            "size_bytes":157265676
+            "size_bytes":157265676,
+            "base_memory_mb_by_mode":{
+              "exec":850
+            }
           },
           {
             "cluster_id":4389,
             "segment_id":4,
             "weight":0.01769485,
             "drive_id":"168_X5hbbhwpXt31aTgMigubm0Oj2XQX9",
-            "size_bytes":65776038
+            "size_bytes":65776038,
+            "base_memory_mb_by_mode":{
+              "exec":601
+            }
           },
           {
             "cluster_id":28,
             "segment_id":5,
             "weight":0.08745732,
             "drive_id":"1miBn34E72o8FUeShLxoI0H-mbIRw9Ax2",
-            "size_bytes":109531011
+            "size_bytes":109531011,
+            "base_memory_mb_by_mode":{
+              "exec":8163
+            }
           },
           {
             "cluster_id":782,
             "segment_id":6,
             "weight":0.00823726,
             "drive_id":"1y-BqgHi1YKmAH_Q0qgo8M6iMqC70m1Fc",
-            "size_bytes":27733044
+            "size_bytes":27733044,
+            "base_memory_mb_by_mode":{
+              "exec":494
+            }
           },
           {
             "cluster_id":8755,
             "segment_id":7,
             "weight":0.05725404,
             "drive_id":"16-3l4UM-piDBzH_6PEtUro9hdyGcRkZG",
-            "size_bytes":30546104
+            "size_bytes":30546104,
+            "base_memory_mb_by_mode":{
+              "exec":620
+            }
           },
           {
             "cluster_id":9345,
             "segment_id":8,
             "weight":0.02155925,
             "drive_id":"19GwQPQ5thIyfNfp6nOK0fbJ3xfcVPAOW",
-            "size_bytes":61881489
+            "size_bytes":61881489,
+            "base_memory_mb_by_mode":{
+              "exec":3225
+            }
           },
           {
             "cluster_id":6361,
             "segment_id":9,
             "weight":0.04230494,
             "drive_id":"1Clg9zg1XQ004XS0tN--L64ZM_OgRQbjk",
-            "size_bytes":152767214
+            "size_bytes":152767214,
+            "base_memory_mb_by_mode":{
+              "exec":14755
+            }
           },
           {
             "cluster_id":8195,
             "segment_id":10,
             "weight":0.09955897,
             "drive_id":"17-y3l_VJ47Q6EjQtbHH_hamuSmOY603N",
-            "size_bytes":156592458
+            "size_bytes":156592458,
+            "base_memory_mb_by_mode":{
+              "exec":3287
+            }
           },
           {
             "cluster_id":625,
             "segment_id":11,
             "weight":0.02938973,
             "drive_id":"1KnhujEBRmvm_w524ldpRzfu9gtHSYtJg",
-            "size_bytes":27774113
+            "size_bytes":27774113,
+            "base_memory_mb_by_mode":{
+              "exec":513
+            }
           },
           {
             "cluster_id":9412,
             "segment_id":12,
             "weight":0.13952494,
             "drive_id":"1MdjTsN6owdmgf60vvxa5VrusrRbyai_S",
-            "size_bytes":190463364
+            "size_bytes":190463364,
+            "base_memory_mb_by_mode":{
+              "exec":1217
+            }
           },
           {
             "cluster_id":3396,
             "segment_id":13,
             "weight":0.02033891,
             "drive_id":"11oWQxAlapBBpnaeKhl1AxMvx0noME500",
-            "size_bytes":58973827
+            "size_bytes":58973827,
+            "base_memory_mb_by_mode":{
+              "exec":599
+            }
           },
           {
             "cluster_id":2607,
             "segment_id":14,
             "weight":0.21050774,
             "drive_id":"1A12F6RiLSrnNf0fCKzEpfdj9pLPHahg6",
-            "size_bytes":137349029
+            "size_bytes":137349029,
+            "base_memory_mb_by_mode":{
+              "exec":830
+            }
           },
           {
             "cluster_id":8681,
             "segment_id":16,
             "weight":0.00996607,
             "drive_id":"1udooTA2RXTlUGYENM5foIz9rd-25DqA5",
-            "size_bytes":67189038
+            "size_bytes":67189038,
+            "base_memory_mb_by_mode":{
+              "exec":1250
+            }
           },
           {
             "cluster_id":9703,
             "segment_id":17,
             "weight":0.01027115,
             "drive_id":"1ydXahi8AayGDk84Ui52zol5pUEIkVonr",
-            "size_bytes":31911573
+            "size_bytes":31911573,
+            "base_memory_mb_by_mode":{
+              "exec":4858
+            }
           },
           {
             "cluster_id":9632,
             "segment_id":18,
             "weight":0.02359314,
             "drive_id":"1pfBWuBjw8r8LgPNMEN2mfkMSAPrEYcMD",
-            "size_bytes":75256117
+            "size_bytes":75256117,
+            "base_memory_mb_by_mode":{
+              "exec":5565
+            }
           },
           {
             "cluster_id":173,
             "segment_id":19,
             "weight":0.0149491,
             "drive_id":"10cZfxOSuPJ8XSgOfHvKUnt_Fscoj_56y",
-            "size_bytes":52960437
+            "size_bytes":52960437,
+            "base_memory_mb_by_mode":{
+              "exec":495
+            }
           }
         ]
       },
@@ -4412,133 +4934,190 @@
             "segment_id":0,
             "weight":0.01838821,
             "drive_id":"1AvBcFxS3d5lwT1kErGp7JmZQmrR7HkSV",
-            "size_bytes":45142612
+            "size_bytes":45142612,
+            "base_memory_mb_by_mode":{
+              "exec":1409
+            }
           },
           {
             "cluster_id":3422,
             "segment_id":1,
             "weight":0.12886818,
             "drive_id":"1LrCBc-q1-KTczIRomkseZEIyLzQ8-4nL",
-            "size_bytes":23014890
+            "size_bytes":23014890,
+            "base_memory_mb_by_mode":{
+              "exec":730
+            }
           },
           {
             "cluster_id":7971,
             "segment_id":2,
             "weight":0.02901418,
             "drive_id":"1tQabeQJDaD9XOEjOYn5Kc_fPed3LgpKn",
-            "size_bytes":60197202
+            "size_bytes":60197202,
+            "base_memory_mb_by_mode":{
+              "exec":1162
+            }
           },
           {
             "cluster_id":3066,
             "segment_id":3,
             "weight":0.02381423,
             "drive_id":"1kzYO5obdCuEXUNp18ob1QTao6b9SNf5a",
-            "size_bytes":26221807
+            "size_bytes":26221807,
+            "base_memory_mb_by_mode":{
+              "exec":1078
+            }
           },
           {
             "cluster_id":13242,
             "segment_id":4,
             "weight":0.02328671,
             "drive_id":"1MtqldX2njocLQ_SLU_6LhoctqIdPVMM6",
-            "size_bytes":160310797
+            "size_bytes":160310797,
+            "base_memory_mb_by_mode":{
+              "exec":9241
+            }
           },
           {
             "cluster_id":1045,
             "segment_id":5,
             "weight":0.02599972,
             "drive_id":"1yLojS4pLho4MaplFJbovRiBK3NoCTNFh",
-            "size_bytes":205080177
+            "size_bytes":205080177,
+            "base_memory_mb_by_mode":{
+              "exec":2190
+            }
           },
           {
             "cluster_id":1755,
             "segment_id":7,
             "weight":0.01228392,
             "drive_id":"1w8P82C0BNw7eUeHMWkPYPHUdzjqeufII",
-            "size_bytes":53798477
+            "size_bytes":53798477,
+            "base_memory_mb_by_mode":{
+              "exec":646
+            }
           },
           {
             "cluster_id":56,
             "segment_id":8,
             "weight":0.11153503,
             "drive_id":"1eY5nXlrTJjnwQkk5-OEIv2952LPL88Sf",
-            "size_bytes":111672416
+            "size_bytes":111672416,
+            "base_memory_mb_by_mode":{
+              "exec":9091
+            }
           },
           {
             "cluster_id":8766,
             "segment_id":9,
             "weight":0.02117658,
             "drive_id":"1bOeaw1IbB3Y8POBo4OPwK_n4t9hNOS8F",
-            "size_bytes":209112636
+            "size_bytes":209112636,
+            "base_memory_mb_by_mode":{
+              "exec":947
+            }
           },
           {
             "cluster_id":2546,
             "segment_id":10,
             "weight":0.04152419,
             "drive_id":"1qdxtrECi1Yngb1PacN0AUYPkSG9hS4zV",
-            "size_bytes":69902940
+            "size_bytes":69902940,
+            "base_memory_mb_by_mode":{
+              "exec":836
+            }
           },
           {
             "cluster_id":1354,
             "segment_id":11,
             "weight":0.01341435,
             "drive_id":"1hMmIOVosBOiw3EhLze1qQKlwfb5N_fQq",
-            "size_bytes":58776912
+            "size_bytes":58776912,
+            "base_memory_mb_by_mode":{
+              "exec":2751
+            }
           },
           {
             "cluster_id":2078,
             "segment_id":12,
             "weight":0.05071829,
             "drive_id":"1Ru6a3fLKX2RHn0Ka7ZQf5woufHGYvOmF",
-            "size_bytes":43218158
+            "size_bytes":43218158,
+            "base_memory_mb_by_mode":{
+              "exec":550
+            }
           },
           {
             "cluster_id":12613,
             "segment_id":13,
             "weight":0.0246714,
             "drive_id":"1_n5zZQzznJyspkWC9RRPIfLp4KjGCFNo",
-            "size_bytes":102521309
+            "size_bytes":102521309,
+            "base_memory_mb_by_mode":{
+              "exec":5689
+            }
           },
           {
             "cluster_id":7504,
             "segment_id":14,
             "weight":0.01009844,
             "drive_id":"1Dleu-h3XXatCqGFbLezJ7gZlNGRepDHw",
-            "size_bytes":41904499
+            "size_bytes":41904499,
+            "base_memory_mb_by_mode":{
+              "exec":1224
+            }
           },
           {
             "cluster_id":5842,
             "segment_id":15,
             "weight":0.04597052,
             "drive_id":"1cg0MfvUJ0zqLc7CRcQHCWR0MFVFV-6O_",
-            "size_bytes":59836287
+            "size_bytes":59836287,
+            "base_memory_mb_by_mode":{
+              "exec":731
+            }
           },
           {
             "cluster_id":7602,
             "segment_id":16,
             "weight":0.03451557,
             "drive_id":"1wWj5DIbX7v9xblb-gsM_bysH_WsOyrKv",
-            "size_bytes":49731409
+            "size_bytes":49731409,
+            "base_memory_mb_by_mode":{
+              "exec":1301
+            }
           },
           {
             "cluster_id":4763,
             "segment_id":17,
             "weight":0.21839765,
             "drive_id":"1qcQXIRuRU1D80wnw2zFw8E1_DzVgYYOo",
-            "size_bytes":32721070
+            "size_bytes":32721070,
+            "base_memory_mb_by_mode":{
+              "exec":776
+            }
           },
           {
             "cluster_id":13062,
             "segment_id":18,
             "weight":0.05493854,
             "drive_id":"1m5-s3vJC7dx3lZvhFqTrDQyzThmCIQFH",
-            "size_bytes":56392724
+            "size_bytes":56392724,
+            "base_memory_mb_by_mode":{
+              "exec":7715
+            }
           },
           {
             "cluster_id":11616,
             "segment_id":19,
             "weight":0.10271773,
             "drive_id":"1AFTt2CE8yuKC7BAKii9l-LtNlbM3Gplh",
-            "size_bytes":174241464
+            "size_bytes":174241464,
+            "base_memory_mb_by_mode":{
+              "exec":2378
+            }
           }
         ]
       },
@@ -4570,126 +5149,180 @@
             "segment_id":0,
             "weight":0.01680673,
             "drive_id":"1ttOLMnQ0-wKpJMwZ_SNN8QS8rC1mxg7f",
-            "size_bytes":82653666
+            "size_bytes":82653666,
+            "base_memory_mb_by_mode":{
+              "exec":1484
+            }
           },
           {
             "cluster_id":8050,
             "segment_id":1,
             "weight":0.0672269,
             "drive_id":"14CIpr9F-Zf1rCB4alS_JVWVNXjPRc_Zb",
-            "size_bytes":54041237
+            "size_bytes":54041237,
+            "base_memory_mb_by_mode":{
+              "exec":992
+            }
           },
           {
             "cluster_id":10359,
             "segment_id":2,
             "weight":0.1294924,
             "drive_id":"1K8JioNjDyu-Fu9bkN__wWv5NUpSe724K",
-            "size_bytes":205125823
+            "size_bytes":205125823,
+            "base_memory_mb_by_mode":{
+              "exec":993
+            }
           },
           {
             "cluster_id":370,
             "segment_id":3,
             "weight":0.11026701,
             "drive_id":"1P2sIt4gucbbJyVQv3sO1UPCJy4IWqe0o",
-            "size_bytes":60098272
+            "size_bytes":60098272,
+            "base_memory_mb_by_mode":{
+              "exec":1823
+            }
           },
           {
             "cluster_id":9795,
             "segment_id":4,
             "weight":0.00421719,
             "drive_id":"1lfDuHZ4mY1SFtLR96XzZmjTRBQR-N_VL",
-            "size_bytes":55304154
+            "size_bytes":55304154,
+            "base_memory_mb_by_mode":{
+              "exec":992
+            }
           },
           {
             "cluster_id":4863,
             "segment_id":5,
             "weight":0.01538032,
             "drive_id":"16g75tgbOO2Av5tokmdKwoDmvaoLBYlfX",
-            "size_bytes":79851546
+            "size_bytes":79851546,
+            "base_memory_mb_by_mode":{
+              "exec":7034
+            }
           },
           {
             "cluster_id":9925,
             "segment_id":7,
             "weight":0.01128717,
             "drive_id":"1N6HShqoqV8kH9A0fHbVEj3ERheXmzAIv",
-            "size_bytes":252255069
+            "size_bytes":252255069,
+            "base_memory_mb_by_mode":{
+              "exec":1190
+            }
           },
           {
             "cluster_id":11924,
             "segment_id":8,
             "weight":0.05345903,
             "drive_id":"1x14ReDWt-_xmUD596gKxtnLRBV-0O3LI",
-            "size_bytes":66095613
+            "size_bytes":66095613,
+            "base_memory_mb_by_mode":{
+              "exec":1011
+            }
           },
           {
             "cluster_id":13564,
             "segment_id":9,
             "weight":0.17092006,
             "drive_id":"10TTuUpCPfpNB1QAKVP75X_cSKKsnidsy",
-            "size_bytes":147275875
+            "size_bytes":147275875,
+            "base_memory_mb_by_mode":{
+              "exec":992
+            }
           },
           {
             "cluster_id":2087,
             "segment_id":11,
             "weight":0.0658005,
             "drive_id":"1BGCbcVnFlwpXr_R2vnJez37sHFbkPUOH",
-            "size_bytes":43741229
+            "size_bytes":43741229,
+            "base_memory_mb_by_mode":{
+              "exec":756
+            }
           },
           {
             "cluster_id":5556,
             "segment_id":12,
             "weight":0.13569415,
             "drive_id":"1xdIz0em2o7O0hU-FpOOM5B7kGCgVUo_D",
-            "size_bytes":24176682
+            "size_bytes":24176682,
+            "base_memory_mb_by_mode":{
+              "exec":992
+            }
           },
           {
             "cluster_id":4502,
             "segment_id":13,
             "weight":0.0266675,
             "drive_id":"1a4DmFV7Ad1S1WkDQDmZXT5UPeGvWPQ-d",
-            "size_bytes":25395394
+            "size_bytes":25395394,
+            "base_memory_mb_by_mode":{
+              "exec":1352
+            }
           },
           {
             "cluster_id":15984,
             "segment_id":14,
             "weight":0.02868291,
             "drive_id":"1sJW6ExonKgU3CTFWPuPCS887ERodVVO7",
-            "size_bytes":146605883
+            "size_bytes":146605883,
+            "base_memory_mb_by_mode":{
+              "exec":9137
+            }
           },
           {
             "cluster_id":3726,
             "segment_id":15,
             "weight":0.03448169,
             "drive_id":"1__q0CVSZlSp74l4qRpPrl5f04Jx_l4rX",
-            "size_bytes":27508551
+            "size_bytes":27508551,
+            "base_memory_mb_by_mode":{
+              "exec":637
+            }
           },
           {
             "cluster_id":16118,
             "segment_id":16,
             "weight":0.0323731,
             "drive_id":"1NT9nK2FRhq7-wCaMGFbzeF5xqGxWfpmA",
-            "size_bytes":114782715
+            "size_bytes":114782715,
+            "base_memory_mb_by_mode":{
+              "exec":6571
+            }
           },
           {
             "cluster_id":8422,
             "segment_id":17,
             "weight":0.03950511,
             "drive_id":"1it8dUAKG7RYaOuWak1fM6K9M3n0FNKWm",
-            "size_bytes":158586440
+            "size_bytes":158586440,
+            "base_memory_mb_by_mode":{
+              "exec":16073
+            }
           },
           {
             "cluster_id":4313,
             "segment_id":18,
             "weight":0.04570685,
             "drive_id":"1s2ueokRsPfkkUY3V4gL30o0Bv2eJyF8A",
-            "size_bytes":68556711
+            "size_bytes":68556711,
+            "base_memory_mb_by_mode":{
+              "exec":1106
+            }
           },
           {
             "cluster_id":3592,
             "segment_id":19,
             "weight":0.00607771,
             "drive_id":"1g4fK7sTSqCzrS9h57Ak1zcmMtLUryNv4",
-            "size_bytes":27529411
+            "size_bytes":27529411,
+            "base_memory_mb_by_mode":{
+              "exec":637
+            }
           }
         ]
       },
@@ -4721,126 +5354,180 @@
             "segment_id":0,
             "weight":0.00763665,
             "drive_id":"1lf09uK6ujmmuVEbKXq86AWgzzZHtNcbx",
-            "size_bytes":82068031
+            "size_bytes":82068031,
+            "base_memory_mb_by_mode":{
+              "exec":1111
+            }
           },
           {
             "cluster_id":14065,
             "segment_id":1,
             "weight":0.03489038,
             "drive_id":"17NvX1tKz3E5fEbi01rIqfeqlgoCccwAU",
-            "size_bytes":133777987
+            "size_bytes":133777987,
+            "base_memory_mb_by_mode":{
+              "exec":11354
+            }
           },
           {
             "cluster_id":1313,
             "segment_id":3,
             "weight":0.01506311,
             "drive_id":"12lmP5q1kiNqb8clYtgcVyT2DCg6ip60L",
-            "size_bytes":33074157
+            "size_bytes":33074157,
+            "base_memory_mb_by_mode":{
+              "exec":1127
+            }
           },
           {
             "cluster_id":13706,
             "segment_id":4,
             "weight":0.00609531,
             "drive_id":"1KINwKz9IeUEpe6R5ZJvjm90RuFNBzE6d",
-            "size_bytes":34344857
+            "size_bytes":34344857,
+            "base_memory_mb_by_mode":{
+              "exec":940
+            }
           },
           {
             "cluster_id":4484,
             "segment_id":5,
             "weight":0.01317147,
             "drive_id":"1W0neozkoDZI53q2lxa4YC-WtzPNi2DRb",
-            "size_bytes":24771704
+            "size_bytes":24771704,
+            "base_memory_mb_by_mode":{
+              "exec":645
+            }
           },
           {
             "cluster_id":3766,
             "segment_id":6,
             "weight":0.2254563,
             "drive_id":"1tIrnPnXUuuPQuON79dawA_aibUj8K_2Y",
-            "size_bytes":21878075
+            "size_bytes":21878075,
+            "base_memory_mb_by_mode":{
+              "exec":844
+            }
           },
           {
             "cluster_id":12826,
             "segment_id":7,
             "weight":0.03545086,
             "drive_id":"12Apx1Qn8XmWefYdC-idH_D_MelOyY9bU",
-            "size_bytes":66353093
+            "size_bytes":66353093,
+            "base_memory_mb_by_mode":{
+              "exec":4396
+            }
           },
           {
             "cluster_id":6246,
             "segment_id":8,
             "weight":0.04876246,
             "drive_id":"1HusyqOXUnFWOWZLY_39lzcY0hVIIh6Pq",
-            "size_bytes":165268846
+            "size_bytes":165268846,
+            "base_memory_mb_by_mode":{
+              "exec":15817
+            }
           },
           {
             "cluster_id":783,
             "segment_id":9,
             "weight":0.04560971,
             "drive_id":"1ZLsNydSnSLUD1u8VhfVMd4aTXgn6bEpl",
-            "size_bytes":56919387
+            "size_bytes":56919387,
+            "base_memory_mb_by_mode":{
+              "exec":938
+            }
           },
           {
             "cluster_id":11078,
             "segment_id":10,
             "weight":0.22678745,
             "drive_id":"17Fr0qflrG4RgVEaMQiGaVniSw7bSFuTl",
-            "size_bytes":157186733
+            "size_bytes":157186733,
+            "base_memory_mb_by_mode":{
+              "exec":840
+            }
           },
           {
             "cluster_id":9627,
             "segment_id":11,
             "weight":0.15406413,
             "drive_id":"15tu4awcil04h3i71xUvqTwDIaKa6Q4yV",
-            "size_bytes":45168711
+            "size_bytes":45168711,
+            "base_memory_mb_by_mode":{
+              "exec":1624
+            }
           },
           {
             "cluster_id":10489,
             "segment_id":12,
             "weight":0.02417105,
             "drive_id":"1yAXzyzPtAd03Y4tzOMnSGhM71Zh-U0Z_",
-            "size_bytes":230765675
+            "size_bytes":230765675,
+            "base_memory_mb_by_mode":{
+              "exec":841
+            }
           },
           {
             "cluster_id":14263,
             "segment_id":13,
             "weight":0.01247086,
             "drive_id":"1_NTfrTNadSmyc546gXKLbqrvbOOMc7hZ",
-            "size_bytes":138215592
+            "size_bytes":138215592,
+            "base_memory_mb_by_mode":{
+              "exec":6660
+            }
           },
           {
             "cluster_id":5879,
             "segment_id":14,
             "weight":0.04252703,
             "drive_id":"1qbNcsDy3P5wRIHjG7x0-ybXY0gWIfDUt",
-            "size_bytes":53652210
+            "size_bytes":53652210,
+            "base_memory_mb_by_mode":{
+              "exec":840
+            }
           },
           {
             "cluster_id":13954,
             "segment_id":15,
             "weight":0.01057921,
             "drive_id":"1c1edciOjZm4yGh1QWAouMsXPkZbu3btB",
-            "size_bytes":96932190
+            "size_bytes":96932190,
+            "base_memory_mb_by_mode":{
+              "exec":1387
+            }
           },
           {
             "cluster_id":10855,
             "segment_id":17,
             "weight":0.01751525,
             "drive_id":"1_lrdDXDQOa1bvZndnef4sF5vGmPDLouG",
-            "size_bytes":49691075
+            "size_bytes":49691075,
+            "base_memory_mb_by_mode":{
+              "exec":809
+            }
           },
           {
             "cluster_id":12393,
             "segment_id":18,
             "weight":0.01982726,
             "drive_id":"16svQOHA_he2uni_szY8X5WIjvghlSTEu",
-            "size_bytes":68151624
+            "size_bytes":68151624,
+            "base_memory_mb_by_mode":{
+              "exec":841
+            }
           },
           {
             "cluster_id":14025,
             "segment_id":19,
             "weight":0.05424659,
             "drive_id":"12qZvPxxvl1UUpIawoISJE9N0N0lY2PX2",
-            "size_bytes":166478499
+            "size_bytes":166478499,
+            "base_memory_mb_by_mode":{
+              "exec":3095
+            }
           }
         ]
       },
@@ -4872,133 +5559,190 @@
             "segment_id":0,
             "weight":0.03886932,
             "drive_id":"10g_TblCqyFql8ZGG1wx3ttgMNPtaVVZM",
-            "size_bytes":99529334
+            "size_bytes":99529334,
+            "base_memory_mb_by_mode":{
+              "exec":8373
+            }
           },
           {
             "cluster_id":869,
             "segment_id":1,
             "weight":0.02413214,
             "drive_id":"14WASt6SptYh3BEB6yca8UFecTKbwJKuR",
-            "size_bytes":131643036
+            "size_bytes":131643036,
+            "base_memory_mb_by_mode":{
+              "exec":4203
+            }
           },
           {
             "cluster_id":3026,
             "segment_id":2,
             "weight":0.0547118,
             "drive_id":"1wg3ywSx-rrc0tOyY1AX6j6CKTZ2_80vf",
-            "size_bytes":101237656
+            "size_bytes":101237656,
+            "base_memory_mb_by_mode":{
+              "exec":4135
+            }
           },
           {
             "cluster_id":3181,
             "segment_id":3,
             "weight":0.01952677,
             "drive_id":"1qrkbFZH7jt0ifL9FCsj7q3QJeJTywI9i",
-            "size_bytes":121949972
+            "size_bytes":121949972,
+            "base_memory_mb_by_mode":{
+              "exec":5180
+            }
           },
           {
             "cluster_id":2711,
             "segment_id":4,
             "weight":0.12084491,
             "drive_id":"1mCHKBn5o9LuqD5ljTioc30_tNl31YWRh",
-            "size_bytes":262919240
+            "size_bytes":262919240,
+            "base_memory_mb_by_mode":{
+              "exec":8332
+            }
           },
           {
             "cluster_id":4220,
             "segment_id":5,
             "weight":0.11144995,
             "drive_id":"1yh_DiMnuOgifzNJEfWkyPN1TjwCTqnWO",
-            "size_bytes":138784213
+            "size_bytes":138784213,
+            "base_memory_mb_by_mode":{
+              "exec":9053
+            }
           },
           {
             "cluster_id":898,
             "segment_id":6,
             "weight":0.03444817,
             "drive_id":"1uwO0WljT-3CWjOvRg_PCgGjaWgRNYMGx",
-            "size_bytes":220233976
+            "size_bytes":220233976,
+            "base_memory_mb_by_mode":{
+              "exec":4478
+            }
           },
           {
             "cluster_id":3762,
             "segment_id":7,
             "weight":0.02671115,
             "drive_id":"1FV6yVKYqU_mwWkQa6e4M8cDaDziZ0cNs",
-            "size_bytes":184840105
+            "size_bytes":184840105,
+            "base_memory_mb_by_mode":{
+              "exec":8703
+            }
           },
           {
             "cluster_id":2118,
             "segment_id":8,
             "weight":0.03371131,
             "drive_id":"1DkqinqmZ9GfgQEcUNy1V9-N8RyFPaGSL",
-            "size_bytes":130194244
+            "size_bytes":130194244,
+            "base_memory_mb_by_mode":{
+              "exec":8892
+            }
           },
           {
             "cluster_id":5141,
             "segment_id":9,
             "weight":0.10592351,
             "drive_id":"1nIZe2KToPZ7vBkvVA0bNeLsHgcGQWKG2",
-            "size_bytes":118032481
+            "size_bytes":118032481,
+            "base_memory_mb_by_mode":{
+              "exec":648
+            }
           },
           {
             "cluster_id":4085,
             "segment_id":10,
             "weight":0.04863271,
             "drive_id":"1c3VrwEPJpAdB-ZdFMtv4pYHE8Kbc2JPh",
-            "size_bytes":115030859
+            "size_bytes":115030859,
+            "base_memory_mb_by_mode":{
+              "exec":3629
+            }
           },
           {
             "cluster_id":4695,
             "segment_id":11,
             "weight":0.08123872,
             "drive_id":"1dDPHj-MN-E_OZqjvWc-HTZbABGWjV9df",
-            "size_bytes":153910874
+            "size_bytes":153910874,
+            "base_memory_mb_by_mode":{
+              "exec":8289
+            }
           },
           {
             "cluster_id":620,
             "segment_id":12,
             "weight":0.04715899,
             "drive_id":"1vrCrLEbdyDB_DddIs84w9__96QISlEoU",
-            "size_bytes":112493263
+            "size_bytes":112493263,
+            "base_memory_mb_by_mode":{
+              "exec":8332
+            }
           },
           {
             "cluster_id":25,
             "segment_id":13,
             "weight":0.04365891,
             "drive_id":"1Vq6mItPTnJGhC94LVBg1YSFFJaNSmZSA",
-            "size_bytes":127548628
+            "size_bytes":127548628,
+            "base_memory_mb_by_mode":{
+              "exec":8639
+            }
           },
           {
             "cluster_id":691,
             "segment_id":14,
             "weight":0.02652693,
             "drive_id":"1-0quR1jtumgWUZzSnVXPUTMHb7Haaqk6",
-            "size_bytes":87880983
+            "size_bytes":87880983,
+            "base_memory_mb_by_mode":{
+              "exec":7419
+            }
           },
           {
             "cluster_id":415,
             "segment_id":15,
             "weight":0.03002701,
             "drive_id":"1sHWRMSBoqKDoUt1_nhLUQF6lMFvV6iCB",
-            "size_bytes":120502072
+            "size_bytes":120502072,
+            "base_memory_mb_by_mode":{
+              "exec":5576
+            }
           },
           {
             "cluster_id":3662,
             "segment_id":16,
             "weight":0.07442278,
             "drive_id":"1rFwj3dHKMMJUuw1P-4JGYHxngicQvjLs",
-            "size_bytes":110860900
+            "size_bytes":110860900,
+            "base_memory_mb_by_mode":{
+              "exec":3683
+            }
           },
           {
             "cluster_id":1365,
             "segment_id":17,
             "weight":0.03434603,
             "drive_id":"1HTEuFW38n9k6mTYcSAs5nZz4uFB-J9Ex",
-            "size_bytes":73406216
+            "size_bytes":73406216,
+            "base_memory_mb_by_mode":{
+              "exec":2552
+            }
           },
           {
             "cluster_id":2101,
             "segment_id":19,
             "weight":0.03536924,
             "drive_id":"1RfGGj_ilONKEh2Yh6Pnh3VTTcokyIGB-",
-            "size_bytes":284579302
+            "size_bytes":284579302,
+            "base_memory_mb_by_mode":{
+              "exec":2620
+            }
           }
         ]
       },
@@ -5030,77 +5774,110 @@
             "segment_id":0,
             "weight":0.15304668,
             "drive_id":"1vq2_tusjada10JbRAedkJp1CCVfj9C0w",
-            "size_bytes":105009981
+            "size_bytes":105009981,
+            "base_memory_mb_by_mode":{
+              "exec":2225
+            }
           },
           {
             "cluster_id":18743,
             "segment_id":1,
             "weight":0.02156164,
             "drive_id":"16Bsik23AfEEeeb5njLr56iW2wKx0Yrrv",
-            "size_bytes":35549836
+            "size_bytes":35549836,
+            "base_memory_mb_by_mode":{
+              "exec":2061
+            }
           },
           {
             "cluster_id":9617,
             "segment_id":2,
             "weight":0.1873679,
             "drive_id":"1sdleJd6iFfxNOLpud9MJSxYnzwatzKyn",
-            "size_bytes":37953187
+            "size_bytes":37953187,
+            "base_memory_mb_by_mode":{
+              "exec":2170
+            }
           },
           {
             "cluster_id":14612,
             "segment_id":3,
             "weight":0.07915031,
             "drive_id":"185tdo5XIaScJA7mxvEuS8l-0M3srh6mx",
-            "size_bytes":104360454
+            "size_bytes":104360454,
+            "base_memory_mb_by_mode":{
+              "exec":2195
+            }
           },
           {
             "cluster_id":27081,
             "segment_id":4,
             "weight":0.01293016,
             "drive_id":"1i2mPSJE0bgQYPOGhFC2xA1TO_6QK4W_w",
-            "size_bytes":75522684
+            "size_bytes":75522684,
+            "base_memory_mb_by_mode":{
+              "exec":2027
+            }
           },
           {
             "cluster_id":13221,
             "segment_id":5,
             "weight":0.14369875,
             "drive_id":"1Axd59ENwWC32h0yzG-GRPsjOdEgZ1o5N",
-            "size_bytes":104233818
+            "size_bytes":104233818,
+            "base_memory_mb_by_mode":{
+              "exec":2255
+            }
           },
           {
             "cluster_id":10645,
             "segment_id":6,
             "weight":0.07713744,
             "drive_id":"1fpW-0OnjWj49myQBLeAZVxD6HVpeXzi0",
-            "size_bytes":44722838
+            "size_bytes":44722838,
+            "base_memory_mb_by_mode":{
+              "exec":2053
+            }
           },
           {
             "cluster_id":8946,
             "segment_id":7,
             "weight":0.02119721,
             "drive_id":"1rxFB4F8GmSL3DJKgIInUxK1QNY7ir6ct",
-            "size_bytes":59566083
+            "size_bytes":59566083,
+            "base_memory_mb_by_mode":{
+              "exec":1943
+            }
           },
           {
             "cluster_id":22195,
             "segment_id":8,
             "weight":0.03728935,
             "drive_id":"1gBhAvXlIF_kUFdxVPYTFpcvo447oXX7R",
-            "size_bytes":74171808
+            "size_bytes":74171808,
+            "base_memory_mb_by_mode":{
+              "exec":2335
+            }
           },
           {
             "cluster_id":16445,
             "segment_id":9,
             "weight":0.20132154,
             "drive_id":"1pusTGGxURRgiTT_tJzzRb9YVz1NgOwQX",
-            "size_bytes":102967214
+            "size_bytes":102967214,
+            "base_memory_mb_by_mode":{
+              "exec":1876
+            }
           },
           {
             "cluster_id":24122,
             "segment_id":10,
             "weight":0.065299,
             "drive_id":"1TMtNoQGuCo-Gy5tcYBqwCaRfZccpmqEe",
-            "size_bytes":103931152
+            "size_bytes":103931152,
+            "base_memory_mb_by_mode":{
+              "exec":2367
+            }
           }
         ]
       },
@@ -5132,35 +5909,50 @@
             "segment_id":0,
             "weight":0.28241321,
             "drive_id":"1cax-L-iOG0YLxlon3QdAmZVw4I70B4v7",
-            "size_bytes":132949803
+            "size_bytes":132949803,
+            "base_memory_mb_by_mode":{
+              "exec":2285
+            }
           },
           {
             "cluster_id":17897,
             "segment_id":1,
             "weight":0.18747289,
             "drive_id":"1MkCB8j6TVmL-_T9bTXk_r9-QwwCe2Ahz",
-            "size_bytes":135490035
+            "size_bytes":135490035,
+            "base_memory_mb_by_mode":{
+              "exec":2434
+            }
           },
           {
             "cluster_id":805,
             "segment_id":2,
             "weight":0.07529698,
             "drive_id":"1Suz_TgsGMSXnDFKbL_Y2zwGsdxMTKtfT",
-            "size_bytes":156341251
+            "size_bytes":156341251,
+            "base_memory_mb_by_mode":{
+              "exec":4151
+            }
           },
           {
             "cluster_id":17826,
             "segment_id":3,
             "weight":0.24139833,
             "drive_id":"1P0s3bWWAmOx9B3mHGtqTllHN8KM2pqcx",
-            "size_bytes":120478760
+            "size_bytes":120478760,
+            "base_memory_mb_by_mode":{
+              "exec":2485
+            }
           },
           {
             "cluster_id":19964,
             "segment_id":4,
             "weight":0.21341854,
             "drive_id":"1IYY7z4NlL3E2GW_DoKHwvNIRhPO7d_rm",
-            "size_bytes":159395140
+            "size_bytes":159395140,
+            "base_memory_mb_by_mode":{
+              "exec":3396
+            }
           }
         ]
       },
@@ -5192,35 +5984,50 @@
             "segment_id":0,
             "weight":0.19603094,
             "drive_id":"11HOxcD-1wzHVn1lwS68a6SBJHz-2Gns9",
-            "size_bytes":141242143
+            "size_bytes":141242143,
+            "base_memory_mb_by_mode":{
+              "exec":1999
+            }
           },
           {
             "cluster_id":44132,
             "segment_id":1,
             "weight":0.24254307,
             "drive_id":"1xRNNzFeaW9VJ8dRCGYhHKYTGRABIeHyp",
-            "size_bytes":161054173
+            "size_bytes":161054173,
+            "base_memory_mb_by_mode":{
+              "exec":2213
+            }
           },
           {
             "cluster_id":53711,
             "segment_id":2,
             "weight":0.10988414,
             "drive_id":"1FOCCOm9GjqCv9iJ4Mo-1N9QQZFmBOvxu",
-            "size_bytes":139932556
+            "size_bytes":139932556,
+            "base_memory_mb_by_mode":{
+              "exec":2320
+            }
           },
           {
             "cluster_id":56007,
             "segment_id":3,
             "weight":0.12348381,
             "drive_id":"1rpKZ8dGFerNBA9cCFO1X7b8v_cv3XRyM",
-            "size_bytes":129749846
+            "size_bytes":129749846,
+            "base_memory_mb_by_mode":{
+              "exec":2292
+            }
           },
           {
             "cluster_id":52659,
             "segment_id":4,
             "weight":0.32805803,
             "drive_id":"1ty0XyZT09_aD4Vi1DzLYg00qVzGKrp_O",
-            "size_bytes":139721661
+            "size_bytes":139721661,
+            "base_memory_mb_by_mode":{
+              "exec":2624
+            }
           }
         ]
       },
@@ -5252,98 +6059,140 @@
             "segment_id":0,
             "weight":0.04570425,
             "drive_id":"1LTD6BH3CYbSX2eZAS8BDqP8NnCllm-u0",
-            "size_bytes":162166966
+            "size_bytes":162166966,
+            "base_memory_mb_by_mode":{
+              "exec":2712
+            }
           },
           {
             "cluster_id":19477,
             "segment_id":1,
             "weight":0.04119062,
             "drive_id":"1Cdf9LdeP6Lx9Jr8wvhA06E9XfB2mfW_V",
-            "size_bytes":63954781
+            "size_bytes":63954781,
+            "base_memory_mb_by_mode":{
+              "exec":1651
+            }
           },
           {
             "cluster_id":4035,
             "segment_id":2,
             "weight":0.01975835,
             "drive_id":"1qSvR8W_My3UIvuUs59WKA8RAD61F1r5i",
-            "size_bytes":135795779
+            "size_bytes":135795779,
+            "base_memory_mb_by_mode":{
+              "exec":2605
+            }
           },
           {
             "cluster_id":25512,
             "segment_id":4,
             "weight":0.07972089,
             "drive_id":"12IcNBfYd_F2BmgYPeSe90j5u7fjQWAcX",
-            "size_bytes":90333538
+            "size_bytes":90333538,
+            "base_memory_mb_by_mode":{
+              "exec":2282
+            }
           },
           {
             "cluster_id":15041,
             "segment_id":5,
             "weight":0.11125653,
             "drive_id":"1LGswSBxuyJPF1_G6latuEfVP9n7YyCvc",
-            "size_bytes":108240453
+            "size_bytes":108240453,
+            "base_memory_mb_by_mode":{
+              "exec":1859
+            }
           },
           {
             "cluster_id":23137,
             "segment_id":6,
             "weight":0.05234019,
             "drive_id":"1VqyVLPpUxS8C_RcwXppIynVIu68XcH3_",
-            "size_bytes":146263572
+            "size_bytes":146263572,
+            "base_memory_mb_by_mode":{
+              "exec":2809
+            }
           },
           {
             "cluster_id":18349,
             "segment_id":7,
             "weight":0.05864732,
             "drive_id":"1QGe41CPK-7_eoMdaGO9USGw2dXGAs4RG",
-            "size_bytes":172864718
+            "size_bytes":172864718,
+            "base_memory_mb_by_mode":{
+              "exec":2156
+            }
           },
           {
             "cluster_id":8011,
             "segment_id":8,
             "weight":0.3198401,
             "drive_id":"1hudcra3Mo9jCGBhudPCY6PfooPcxsVHo",
-            "size_bytes":112197769
+            "size_bytes":112197769,
+            "base_memory_mb_by_mode":{
+              "exec":1561
+            }
           },
           {
             "cluster_id":5134,
             "segment_id":9,
             "weight":0.02887528,
             "drive_id":"1PmpvGVtu_-BMwTga-6LP6Dx_ea1SwNNJ",
-            "size_bytes":129338316
+            "size_bytes":129338316,
+            "base_memory_mb_by_mode":{
+              "exec":2521
+            }
           },
           {
             "cluster_id":4802,
             "segment_id":10,
             "weight":0.02250837,
             "drive_id":"1J4xR_qSWNObx_RrZiB4vbjmLiIKKmI2r",
-            "size_bytes":157704446
+            "size_bytes":157704446,
+            "base_memory_mb_by_mode":{
+              "exec":2738
+            }
           },
           {
             "cluster_id":28637,
             "segment_id":11,
             "weight":0.10823748,
             "drive_id":"1ZjI0YaBhgOEtEnB4cIVEapxZFRxzkRrZ",
-            "size_bytes":171120448
+            "size_bytes":171120448,
+            "base_memory_mb_by_mode":{
+              "exec":2482
+            }
           },
           {
             "cluster_id":3545,
             "segment_id":12,
             "weight":0.02236538,
             "drive_id":"1gAJQn91yaSvdy2YN15rgQLAdZRH1J93W",
-            "size_bytes":82809851
+            "size_bytes":82809851,
+            "base_memory_mb_by_mode":{
+              "exec":1574
+            }
           },
           {
             "cluster_id":661,
             "segment_id":13,
             "weight":0.02923398,
             "drive_id":"1snsFh6vZbUqgs9AqKWO0eVXjVrc7DXut",
-            "size_bytes":50345841
+            "size_bytes":50345841,
+            "base_memory_mb_by_mode":{
+              "exec":1105
+            }
           },
           {
             "cluster_id":3027,
             "segment_id":14,
             "weight":0.05398423,
             "drive_id":"1YarK_bz2ylD04O417Eal9GfScnmoX9bF",
-            "size_bytes":129778108
+            "size_bytes":129778108,
+            "base_memory_mb_by_mode":{
+              "exec":2156
+            }
           }
         ]
       },
@@ -5375,42 +6224,60 @@
             "segment_id":0,
             "weight":0.33614093,
             "drive_id":"1X1tiQ_Okd7JOJoU0Qfki_lJipCTwGabS",
-            "size_bytes":150655444
+            "size_bytes":150655444,
+            "base_memory_mb_by_mode":{
+              "exec":2605
+            }
           },
           {
             "cluster_id":7032,
             "segment_id":1,
             "weight":0.26826116,
             "drive_id":"1cL4iRC_QhgNugK0FgmT5G5PXFIYKNKq2",
-            "size_bytes":156028674
+            "size_bytes":156028674,
+            "base_memory_mb_by_mode":{
+              "exec":3096
+            }
           },
           {
             "cluster_id":13366,
             "segment_id":2,
             "weight":0.17213254,
             "drive_id":"1QN_kuJBXLHmHO0Gs6w2Oe6UBi1Qn5hdQ",
-            "size_bytes":165824648
+            "size_bytes":165824648,
+            "base_memory_mb_by_mode":{
+              "exec":2646
+            }
           },
           {
             "cluster_id":6237,
             "segment_id":3,
             "weight":0.01744419,
             "drive_id":"1qJqYiUPL9iAOGpipMFU7YfXQEO18J1m2",
-            "size_bytes":127105822
+            "size_bytes":127105822,
+            "base_memory_mb_by_mode":{
+              "exec":2021
+            }
           },
           {
             "cluster_id":21143,
             "segment_id":4,
             "weight":0.13192429,
             "drive_id":"1DxjbdF0XO5ZAiaLG-b96L45ZbKkATkT_",
-            "size_bytes":153485225
+            "size_bytes":153485225,
+            "base_memory_mb_by_mode":{
+              "exec":2579
+            }
           },
           {
             "cluster_id":12200,
             "segment_id":5,
             "weight":0.07409689,
             "drive_id":"1X4VGTrckDDqWNGs6C_dgLwqPtmPfGIdE",
-            "size_bytes":162815485
+            "size_bytes":162815485,
+            "base_memory_mb_by_mode":{
+              "exec":2386
+            }
           }
         ]
       },
@@ -5442,42 +6309,60 @@
             "segment_id":0,
             "weight":0.16097075,
             "drive_id":"1HBmVAmsBXMPvsQmVY7i1eGTkBwMNhLiZ",
-            "size_bytes":160468940
+            "size_bytes":160468940,
+            "base_memory_mb_by_mode":{
+              "exec":2582
+            }
           },
           {
             "cluster_id":7528,
             "segment_id":1,
             "weight":0.19031394,
             "drive_id":"1JNeumUt0qryKwRHh9yRPVDVuEmxzXXl7",
-            "size_bytes":154815489
+            "size_bytes":154815489,
+            "base_memory_mb_by_mode":{
+              "exec":3387
+            }
           },
           {
             "cluster_id":25721,
             "segment_id":2,
             "weight":0.1899731,
             "drive_id":"1e95KefrGov8iMsbiJr7MgoE5tFsU2V_v",
-            "size_bytes":127329553
+            "size_bytes":127329553,
+            "base_memory_mb_by_mode":{
+              "exec":2232
+            }
           },
           {
             "cluster_id":30568,
             "segment_id":3,
             "weight":0.10964175,
             "drive_id":"1TkbWbOzU1D2pVraWkgmeqAuSqdhO9eaj",
-            "size_bytes":143490919
+            "size_bytes":143490919,
+            "base_memory_mb_by_mode":{
+              "exec":2478
+            }
           },
           {
             "cluster_id":34085,
             "segment_id":4,
             "weight":0.13214488,
             "drive_id":"1OrLMbcFgggcQmdAloONzHGQIEOw5IqT7",
-            "size_bytes":146668474
+            "size_bytes":146668474,
+            "base_memory_mb_by_mode":{
+              "exec":2325
+            }
           },
           {
             "cluster_id":7845,
             "segment_id":5,
             "weight":0.21695559,
             "drive_id":"1fuJwtrJME_PX3IvKUOAvVi21yQdiDkrE",
-            "size_bytes":157036252
+            "size_bytes":157036252,
+            "base_memory_mb_by_mode":{
+              "exec":2785
+            }
           }
         ]
       },
@@ -5509,21 +6394,30 @@
             "segment_id":0,
             "weight":0.60784745,
             "drive_id":"1_YxCbvgiGddQP824kUbD4Wh6U4jPTrtr",
-            "size_bytes":81316782
+            "size_bytes":81316782,
+            "base_memory_mb_by_mode":{
+              "exec":377
+            }
           },
           {
             "cluster_id":86338,
             "segment_id":1,
             "weight":0.16850053,
             "drive_id":"1lLvBcowIg-HzfCmiI_k7AD_4jJvglTYO",
-            "size_bytes":81381171
+            "size_bytes":81381171,
+            "base_memory_mb_by_mode":{
+              "exec":329
+            }
           },
           {
             "cluster_id":78861,
             "segment_id":2,
             "weight":0.22365205,
             "drive_id":"1NNQyrmYa_oAOs9xyTGjA2bH1PYyE9Faz",
-            "size_bytes":81384642
+            "size_bytes":81384642,
+            "base_memory_mb_by_mode":{
+              "exec":386
+            }
           }
         ]
       },
@@ -5555,21 +6449,30 @@
             "segment_id":0,
             "weight":0.25932857,
             "drive_id":"1XccplxI669Obrzsy1--UlyPXtJjC8onS",
-            "size_bytes":83421822
+            "size_bytes":83421822,
+            "base_memory_mb_by_mode":{
+              "exec":268
+            }
           },
           {
             "cluster_id":10012,
             "segment_id":1,
             "weight":0.49694338,
             "drive_id":"1GJtcxOjPh4ol_YEjv8Bhj5M_bGB9J_hL",
-            "size_bytes":83384053
+            "size_bytes":83384053,
+            "base_memory_mb_by_mode":{
+              "exec":292
+            }
           },
           {
             "cluster_id":183122,
             "segment_id":2,
             "weight":0.24372806,
             "drive_id":"15S4Bk1pKefqxkWFp4fFBzRMDBHRfrPCl",
-            "size_bytes":83347457
+            "size_bytes":83347457,
+            "base_memory_mb_by_mode":{
+              "exec":278
+            }
           }
         ]
       },
@@ -5601,21 +6504,30 @@
             "segment_id":0,
             "weight":0.24906218,
             "drive_id":"18G9nVBMwuDkmuMNW2EH_4m2C-lFnDCqZ",
-            "size_bytes":96974543
+            "size_bytes":96974543,
+            "base_memory_mb_by_mode":{
+              "exec":1302
+            }
           },
           {
             "cluster_id":51986,
             "segment_id":1,
             "weight":0.39508098,
             "drive_id":"1ANhFDByOmChounIAn50cHouubjVlod5J",
-            "size_bytes":101424751
+            "size_bytes":101424751,
+            "base_memory_mb_by_mode":{
+              "exec":1308
+            }
           },
           {
             "cluster_id":121412,
             "segment_id":2,
             "weight":0.35585684,
             "drive_id":"1KMuNisu5IK6bFnN-Vrp5FNsoiRwOX1b3",
-            "size_bytes":106172439
+            "size_bytes":106172439,
+            "base_memory_mb_by_mode":{
+              "exec":1092
+            }
           }
         ]
       },
@@ -5647,70 +6559,100 @@
             "segment_id":0,
             "weight":0.01417246,
             "drive_id":"1WJNlwouEXRcWC5HHFeoQ4MV6UB97RyAM",
-            "size_bytes":11547878
+            "size_bytes":11547878,
+            "base_memory_mb_by_mode":{
+              "exec":199
+            }
           },
           {
             "cluster_id":107800,
             "segment_id":1,
             "weight":0.02679402,
             "drive_id":"1mprqzS18qv79pOoL0nAplspIrJjYfALJ",
-            "size_bytes":24321636
+            "size_bytes":24321636,
+            "base_memory_mb_by_mode":{
+              "exec":342
+            }
           },
           {
             "cluster_id":195673,
             "segment_id":2,
             "weight":0.15610088,
             "drive_id":"1uqkwp6AEpqQe5_NTTVKAOfyXmG3_3PfJ",
-            "size_bytes":15979210
+            "size_bytes":15979210,
+            "base_memory_mb_by_mode":{
+              "exec":411
+            }
           },
           {
             "cluster_id":33493,
             "segment_id":3,
             "weight":0.08375921,
             "drive_id":"1kbIOF7FlYjOrnVXWJOIB2xn0e-8lNqK8",
-            "size_bytes":24782380
+            "size_bytes":24782380,
+            "base_memory_mb_by_mode":{
+              "exec":395
+            }
           },
           {
             "cluster_id":132357,
             "segment_id":4,
             "weight":0.13583367,
             "drive_id":"1XpHj8_28f9HL0lTuuIrv8yek94OCjsap",
-            "size_bytes":21084890
+            "size_bytes":21084890,
+            "base_memory_mb_by_mode":{
+              "exec":373
+            }
           },
           {
             "cluster_id":58468,
             "segment_id":5,
             "weight":0.05805007,
             "drive_id":"1YpycvJRPlB0YLYPk6aWk8ypFI6-DAUWk",
-            "size_bytes":17045834
+            "size_bytes":17045834,
+            "base_memory_mb_by_mode":{
+              "exec":374
+            }
           },
           {
             "cluster_id":217931,
             "segment_id":6,
             "weight":0.05082334,
             "drive_id":"1-DX0w2VNx5-p-YhCXdoI3zeh8yS8kcnd",
-            "size_bytes":6807254
+            "size_bytes":6807254,
+            "base_memory_mb_by_mode":{
+              "exec":239
+            }
           },
           {
             "cluster_id":133869,
             "segment_id":7,
             "weight":0.4305898,
             "drive_id":"122J4hcPjC9rpzU7mbdKfOZNGRkcMOFCv",
-            "size_bytes":19552075
+            "size_bytes":19552075,
+            "base_memory_mb_by_mode":{
+              "exec":327
+            }
           },
           {
             "cluster_id":99554,
             "segment_id":8,
             "weight":0.01584456,
             "drive_id":"1x130gPmZujcM8lkWZw5nCE_TWJcEZRy2",
-            "size_bytes":24803032
+            "size_bytes":24803032,
+            "base_memory_mb_by_mode":{
+              "exec":348
+            }
           },
           {
             "cluster_id":46041,
             "segment_id":9,
             "weight":0.02803202,
             "drive_id":"19hk8FD2NwU9gxHrxlCaEp18CkCeQ-hGB",
-            "size_bytes":17275187
+            "size_bytes":17275187,
+            "base_memory_mb_by_mode":{
+              "exec":402
+            }
           }
         ]
       },
@@ -5742,49 +6684,70 @@
             "segment_id":0,
             "weight":0.05479794,
             "drive_id":"1__HF1VP_9GcpPxbHgy2C3Q-901zGeh2v",
-            "size_bytes":72632564
+            "size_bytes":72632564,
+            "base_memory_mb_by_mode":{
+              "exec":1180
+            }
           },
           {
             "cluster_id":21808,
             "segment_id":1,
             "weight":0.06665515,
             "drive_id":"15R6zWVPV5g0KeLL9nOGgtfaYt1aN3kKQ",
-            "size_bytes":65694397
+            "size_bytes":65694397,
+            "base_memory_mb_by_mode":{
+              "exec":993
+            }
           },
           {
             "cluster_id":1000,
             "segment_id":2,
             "weight":0.10016892,
             "drive_id":"1bj8nENVYxINl1Xcle3gJ_3Zw9Ww2hvPm",
-            "size_bytes":71459117
+            "size_bytes":71459117,
+            "base_memory_mb_by_mode":{
+              "exec":1037
+            }
           },
           {
             "cluster_id":40500,
             "segment_id":3,
             "weight":0.0615399,
             "drive_id":"1mK4Zc7OgFAYPMHyvoEqaP-a_vK0JFYJp",
-            "size_bytes":75809134
+            "size_bytes":75809134,
+            "base_memory_mb_by_mode":{
+              "exec":971
+            }
           },
           {
             "cluster_id":49425,
             "segment_id":4,
             "weight":0.40042087,
             "drive_id":"1kJxsH1VNsYXRa9H8ZWq5hJjTBthQctYs",
-            "size_bytes":79140531
+            "size_bytes":79140531,
+            "base_memory_mb_by_mode":{
+              "exec":1192
+            }
           },
           {
             "cluster_id":44219,
             "segment_id":5,
             "weight":0.06475408,
             "drive_id":"1kbcaNv4vrvorzXEsauLAHO11dppbqquq",
-            "size_bytes":70530263
+            "size_bytes":70530263,
+            "base_memory_mb_by_mode":{
+              "exec":1002
+            }
           },
           {
             "cluster_id":1422,
             "segment_id":6,
             "weight":0.25166312,
             "drive_id":"1YRsIpRwEQ9eWVww7KR0hhyfOVdoZHEj_",
-            "size_bytes":75691704
+            "size_bytes":75691704,
+            "base_memory_mb_by_mode":{
+              "exec":1101
+            }
           }
         ]
       },
@@ -5816,63 +6779,90 @@
             "segment_id":0,
             "weight":0.05303998,
             "drive_id":"1eInoXHfXUF3g2JKfnwArFESQU74_LMw9",
-            "size_bytes":180362100
+            "size_bytes":180362100,
+            "base_memory_mb_by_mode":{
+              "exec":1275
+            }
           },
           {
             "cluster_id":17304,
             "segment_id":2,
             "weight":0.04065007,
             "drive_id":"1uUBpK9tS0fLePhWuwGkcvhE3o3TnZzSN",
-            "size_bytes":392666349
+            "size_bytes":392666349,
+            "base_memory_mb_by_mode":{
+              "exec":1382
+            }
           },
           {
             "cluster_id":21894,
             "segment_id":3,
             "weight":0.03532518,
             "drive_id":"1szLAEkPlBP-eNhOS_IOYforF4g6ztABh",
-            "size_bytes":186629035
+            "size_bytes":186629035,
+            "base_memory_mb_by_mode":{
+              "exec":1376
+            }
           },
           {
             "cluster_id":27344,
             "segment_id":4,
             "weight":0.04308629,
             "drive_id":"17K4XxhFJ39wFV_HNhrlMJcOWlrn4uZMn",
-            "size_bytes":340999030
+            "size_bytes":340999030,
+            "base_memory_mb_by_mode":{
+              "exec":1327
+            }
           },
           {
             "cluster_id":17018,
             "segment_id":5,
             "weight":0.24365677,
             "drive_id":"1wawuQlgJFEVR3urCeCPbHKN0neagHzPh",
-            "size_bytes":268757245
+            "size_bytes":268757245,
+            "base_memory_mb_by_mode":{
+              "exec":1304
+            }
           },
           {
             "cluster_id":8135,
             "segment_id":6,
             "weight":0.06375935,
             "drive_id":"1Xyt27_i4IEcVgjY1KMt-ZZFWB_Oj8Yde",
-            "size_bytes":266401823
+            "size_bytes":266401823,
+            "base_memory_mb_by_mode":{
+              "exec":1425
+            }
           },
           {
             "cluster_id":22245,
             "segment_id":7,
             "weight":0.01151984,
             "drive_id":"1j5ab3NJtlMV3sMy4cCkBNNG9HA9WBa-U",
-            "size_bytes":182519451
+            "size_bytes":182519451,
+            "base_memory_mb_by_mode":{
+              "exec":1399
+            }
           },
           {
             "cluster_id":23684,
             "segment_id":8,
             "weight":0.04388676,
             "drive_id":"1axUMQm-H90OFYWjzvSjlI2oMJHn8NG6D",
-            "size_bytes":344735387
+            "size_bytes":344735387,
+            "base_memory_mb_by_mode":{
+              "exec":1374
+            }
           },
           {
             "cluster_id":9285,
             "segment_id":9,
             "weight":0.06664801,
             "drive_id":"1U7_305MJLOnP1TtWuIJ9LchMxfTN15mf",
-            "size_bytes":266699931
+            "size_bytes":266699931,
+            "base_memory_mb_by_mode":{
+              "exec":1423
+            }
           },
           {
             "cluster_id":0,
@@ -5886,65 +6876,95 @@
             "segment_id":11,
             "weight":0.04614896,
             "drive_id":"1zFUxYvKwDIIzh_eq4k9L5mvE4DQqZWqR",
-            "size_bytes":269020861
+            "size_bytes":269020861,
+            "base_memory_mb_by_mode":{
+              "exec":1542
+            }
           },
           {
             "cluster_id":28479,
             "segment_id":12,
             "weight":0.01183307,
             "drive_id":"1s4-aK1y4kSaw0_B7m2a9gwOGGQyZqnor",
-            "size_bytes":268675840
+            "size_bytes":268675840,
+            "base_memory_mb_by_mode":{
+              "exec":1240
+            }
           },
           {
             "cluster_id":16744,
             "segment_id":13,
             "weight":0.01270315,
             "drive_id":"1dgzWYxkpPJF3H1QihQqxnYz9LF8KyFqt",
-            "size_bytes":242097528
+            "size_bytes":242097528,
+            "base_memory_mb_by_mode":{
+              "exec":1217
+            }
           },
           {
             "cluster_id":20199,
             "segment_id":14,
             "weight":0.12034925,
             "drive_id":"1nI6_bAFcskcrMZV2unqCdHLYZAu-38ED",
-            "size_bytes":370646122
+            "size_bytes":370646122,
+            "base_memory_mb_by_mode":{
+              "exec":1380
+            }
           },
           {
             "cluster_id":9571,
             "segment_id":15,
             "weight":0.02491905,
             "drive_id":"1-msIH-b3AY4RbbaBZu96AoijOLKHP3C4",
-            "size_bytes":265574255
+            "size_bytes":265574255,
+            "base_memory_mb_by_mode":{
+              "exec":1370
+            }
           },
           {
             "cluster_id":4096,
             "segment_id":16,
             "weight":0.05714675,
             "drive_id":"1FnrPE7ATYeJqZBDfcEisiu2EwT_24l_y",
-            "size_bytes":180052965
+            "size_bytes":180052965,
+            "base_memory_mb_by_mode":{
+              "exec":1409
+            }
           },
           {
             "cluster_id":1482,
             "segment_id":17,
             "weight":0.03706534,
             "drive_id":"1eRXVCobgcpX0A4oigax2fhOIaBqNrx6l",
-            "size_bytes":209116143
+            "size_bytes":209116143,
+            "base_memory_mb_by_mode":{
+              "exec":1276
+            }
           },
           {
             "cluster_id":1729,
             "segment_id":18,
             "weight":0.01482614,
             "drive_id":"1pifWyJS26aATpk7I8AFUunVP2GLFXRBH",
-            "size_bytes":163855068
+            "size_bytes":163855068,
+            "base_memory_mb_by_mode":{
+              "exec":1107
+            }
           },
           {
             "cluster_id":4968,
             "segment_id":19,
             "weight":0.03751778,
             "drive_id":"1U-K2y5OL1zr6YK1gBGsyoVoXM7q62sJo",
-            "size_bytes":189191882
+            "size_bytes":189191882,
+            "base_memory_mb_by_mode":{
+              "exec":1298
+            }
           }
-        ]
+        ],
+        "base_memory_mb_by_mode":{
+          "exec":937
+        }
       },
       "h264ref_3":{
         "trace":{
@@ -5974,63 +6994,90 @@
             "segment_id":0,
             "weight":0.07540198,
             "drive_id":"1Dbf3a-Rl6NO-Gl75pFfKxNx9dnx4v3vN",
-            "size_bytes":466220957
+            "size_bytes":466220957,
+            "base_memory_mb_by_mode":{
+              "exec":1221
+            }
           },
           {
             "cluster_id":241003,
             "segment_id":1,
             "weight":0.04734461,
             "drive_id":"1ONRWWn8H0oZFjCwvXV6CcqhSvI95kEfQ",
-            "size_bytes":412416952
+            "size_bytes":412416952,
+            "base_memory_mb_by_mode":{
+              "exec":1140
+            }
           },
           {
             "cluster_id":228091,
             "segment_id":2,
             "weight":0.10380717,
             "drive_id":"1xCqAlzPLwxave3SNeyIPZiUvb7zJSEz0",
-            "size_bytes":467734969
+            "size_bytes":467734969,
+            "base_memory_mb_by_mode":{
+              "exec":1167
+            }
           },
           {
             "cluster_id":58716,
             "segment_id":3,
             "weight":0.01426071,
             "drive_id":"1UGSGAm2sc7cOeaL2rWBuXFtGa657AOyj",
-            "size_bytes":18867590
+            "size_bytes":18867590,
+            "base_memory_mb_by_mode":{
+              "exec":464
+            }
           },
           {
             "cluster_id":1,
             "segment_id":4,
             "weight":0.0296462,
             "drive_id":"1kziyt_zCuvnim5CNwjrqQja6F40eRs6C",
-            "size_bytes":1424990049
+            "size_bytes":1424990049,
+            "base_memory_mb_by_mode":{
+              "exec":893
+            }
           },
           {
             "cluster_id":42280,
             "segment_id":5,
             "weight":0.43001422,
             "drive_id":"13FMr8BuQAzmP1l3K6KmbeLkIk5dfgtqK",
-            "size_bytes":236017419
+            "size_bytes":236017419,
+            "base_memory_mb_by_mode":{
+              "exec":1171
+            }
           },
           {
             "cluster_id":62338,
             "segment_id":6,
             "weight":0.07454038,
             "drive_id":"1SDQPRxqs-BH7Av8TvY832GKGitKf7H7I",
-            "size_bytes":336334092
+            "size_bytes":336334092,
+            "base_memory_mb_by_mode":{
+              "exec":1188
+            }
           },
           {
             "cluster_id":155490,
             "segment_id":7,
             "weight":0.18720071,
             "drive_id":"1sXRiB4r9yXE1Znt1vX5hkKW8_Zg40Dyn",
-            "size_bytes":336961987
+            "size_bytes":336961987,
+            "base_memory_mb_by_mode":{
+              "exec":1295
+            }
           },
           {
             "cluster_id":171958,
             "segment_id":8,
             "weight":0.03778399,
             "drive_id":"1sciUdRn3OFhgTOANoUeiGlOGs4AWStUb",
-            "size_bytes":466349723
+            "size_bytes":466349723,
+            "base_memory_mb_by_mode":{
+              "exec":1076
+            }
           }
         ]
       },
@@ -6062,70 +7109,100 @@
             "segment_id":0,
             "weight":0.05032971,
             "drive_id":"1T9UjWLiUw_UcicKrqG4MgZ7Ky0F-8sWH",
-            "size_bytes":99555514
+            "size_bytes":99555514,
+            "base_memory_mb_by_mode":{
+              "exec":984
+            }
           },
           {
             "cluster_id":16176,
             "segment_id":1,
             "weight":0.1783105,
             "drive_id":"1qDLAT0sypP_87-CgMHIrPB8j0CSRIJ45",
-            "size_bytes":97851419
+            "size_bytes":97851419,
+            "base_memory_mb_by_mode":{
+              "exec":949
+            }
           },
           {
             "cluster_id":22169,
             "segment_id":2,
             "weight":0.03024096,
             "drive_id":"1mDpVGQMT3j4BmdKgNOlsC-w7qIPGLiV0",
-            "size_bytes":102545540
+            "size_bytes":102545540,
+            "base_memory_mb_by_mode":{
+              "exec":1000
+            }
           },
           {
             "cluster_id":2103,
             "segment_id":3,
             "weight":0.05047901,
             "drive_id":"172dz3RYAbFf5tkrjsnGoFQksvoDwuvG9",
-            "size_bytes":32004720
+            "size_bytes":32004720,
+            "base_memory_mb_by_mode":{
+              "exec":614
+            }
           },
           {
             "cluster_id":27481,
             "segment_id":4,
             "weight":0.12685277,
             "drive_id":"15nXcggTNHnhc4F-aQqQSVnFLDyOXckn-",
-            "size_bytes":99515833
+            "size_bytes":99515833,
+            "base_memory_mb_by_mode":{
+              "exec":1173
+            }
           },
           {
             "cluster_id":26033,
             "segment_id":5,
             "weight":0.14617845,
             "drive_id":"1lQZtOxHpbm5xtYGWREo90Eg3oEK1K90L",
-            "size_bytes":103389229
+            "size_bytes":103389229,
+            "base_memory_mb_by_mode":{
+              "exec":1008
+            }
           },
           {
             "cluster_id":9648,
             "segment_id":6,
             "weight":0.06677701,
             "drive_id":"1R1NupFuYev0YgOmyzNX9FAESO1CyXwvt",
-            "size_bytes":95248439
+            "size_bytes":95248439,
+            "base_memory_mb_by_mode":{
+              "exec":993
+            }
           },
           {
             "cluster_id":53405,
             "segment_id":7,
             "weight":0.09679428,
             "drive_id":"17kfqNOtb7hKmr69y7t_xYXoWJ3rGMRD7",
-            "size_bytes":99817529
+            "size_bytes":99817529,
+            "base_memory_mb_by_mode":{
+              "exec":960
+            }
           },
           {
             "cluster_id":5276,
             "segment_id":8,
             "weight":0.12073158,
             "drive_id":"15CayQ90pK_xDf5U1Fnh2xMBxMtsRvY8J",
-            "size_bytes":98804893
+            "size_bytes":98804893,
+            "base_memory_mb_by_mode":{
+              "exec":1042
+            }
           },
           {
             "cluster_id":8761,
             "segment_id":9,
             "weight":0.13330573,
             "drive_id":"13yFTZ0Kx38qDkesM7of68twW5YKwfbxU",
-            "size_bytes":101714854
+            "size_bytes":101714854,
+            "base_memory_mb_by_mode":{
+              "exec":899
+            }
           }
         ]
       },
@@ -6157,70 +7234,100 @@
             "segment_id":0,
             "weight":0.04609665,
             "drive_id":"1RbrzRYDWJ9UQjZRmHJgZjUeR2i64K2hD",
-            "size_bytes":60625793
+            "size_bytes":60625793,
+            "base_memory_mb_by_mode":{
+              "exec":1562
+            }
           },
           {
             "cluster_id":707,
             "segment_id":1,
             "weight":0.02867584,
             "drive_id":"1SLZjx54Lc7XY_sZC8Yaq2jCCKGfUgWVg",
-            "size_bytes":39949591
+            "size_bytes":39949591,
+            "base_memory_mb_by_mode":{
+              "exec":818
+            }
           },
           {
             "cluster_id":27756,
             "segment_id":2,
             "weight":0.03518849,
             "drive_id":"1CxHT_vcTcrWtrVpzzjfJ3SDI4FnYG85v",
-            "size_bytes":24373683
+            "size_bytes":24373683,
+            "base_memory_mb_by_mode":{
+              "exec":734
+            }
           },
           {
             "cluster_id":8282,
             "segment_id":3,
             "weight":0.2050401,
             "drive_id":"1yOOmbKHIqkYUt0gBfl-mJUgxromVTWLc",
-            "size_bytes":24157011
+            "size_bytes":24157011,
+            "base_memory_mb_by_mode":{
+              "exec":624
+            }
           },
           {
             "cluster_id":34395,
             "segment_id":4,
             "weight":0.1750842,
             "drive_id":"1oO2K2BZvG4h-bStwpgTQgQr0nMTV4pBj",
-            "size_bytes":61598139
+            "size_bytes":61598139,
+            "base_memory_mb_by_mode":{
+              "exec":1523
+            }
           },
           {
             "cluster_id":1052,
             "segment_id":5,
             "weight":0.05686637,
             "drive_id":"1Kb3ZW-69E9wULYmnY9xXvbzpQV5xZGYV",
-            "size_bytes":54522881
+            "size_bytes":54522881,
+            "base_memory_mb_by_mode":{
+              "exec":1515
+            }
           },
           {
             "cluster_id":4442,
             "segment_id":6,
             "weight":0.05988411,
             "drive_id":"1Ep3EcsskbU6HbB_vazWoYvyieTuS-s38",
-            "size_bytes":54340438
+            "size_bytes":54340438,
+            "base_memory_mb_by_mode":{
+              "exec":1497
+            }
           },
           {
             "cluster_id":7022,
             "segment_id":7,
             "weight":0.26074368,
             "drive_id":"1e_kEc3HoS6_cFgAELUGsMU3S7SXBpVli",
-            "size_bytes":24239173
+            "size_bytes":24239173,
+            "base_memory_mb_by_mode":{
+              "exec":636
+            }
           },
           {
             "cluster_id":24045,
             "segment_id":8,
             "weight":0.0970106,
             "drive_id":"1v-K72jfnRMciqf00QSTusVHIeMsgw3G-",
-            "size_bytes":24732252
+            "size_bytes":24732252,
+            "base_memory_mb_by_mode":{
+              "exec":748
+            }
           },
           {
             "cluster_id":25945,
             "segment_id":9,
             "weight":0.03540998,
             "drive_id":"1B0rq-cGvfDFSUrlbFD7xB23-2pE4ALAo",
-            "size_bytes":25445036
+            "size_bytes":25445036,
+            "base_memory_mb_by_mode":{
+              "exec":782
+            }
           }
         ]
       },
@@ -6252,63 +7359,90 @@
             "segment_id":0,
             "weight":0.09953614,
             "drive_id":"1nC1U54O32sH76V_Q0kgtk-T2-uvXIfhC",
-            "size_bytes":24258492
+            "size_bytes":24258492,
+            "base_memory_mb_by_mode":{
+              "exec":508
+            }
           },
           {
             "cluster_id":41293,
             "segment_id":1,
             "weight":0.09881666,
             "drive_id":"1zH4rWr66j1wjoN5WUaQJ5GcAQnM8ZC-7",
-            "size_bytes":26867661
+            "size_bytes":26867661,
+            "base_memory_mb_by_mode":{
+              "exec":440
+            }
           },
           {
             "cluster_id":45965,
             "segment_id":2,
             "weight":0.05117432,
             "drive_id":"1UmVU2P_DZMpObtBx1RIh-pEZSoPkUyo-",
-            "size_bytes":24444750
+            "size_bytes":24444750,
+            "base_memory_mb_by_mode":{
+              "exec":553
+            }
           },
           {
             "cluster_id":22347,
             "segment_id":4,
             "weight":0.21856353,
             "drive_id":"1NKtyGXQ4aJJTFFnRdtx4DntS4eXIqgzU",
-            "size_bytes":26728677
+            "size_bytes":26728677,
+            "base_memory_mb_by_mode":{
+              "exec":447
+            }
           },
           {
             "cluster_id":44792,
             "segment_id":5,
             "weight":0.04377026,
             "drive_id":"1Ywh_-QvqLNc6s019agGpncqqbWKXqgXw",
-            "size_bytes":24996465
+            "size_bytes":24996465,
+            "base_memory_mb_by_mode":{
+              "exec":548
+            }
           },
           {
             "cluster_id":68972,
             "segment_id":6,
             "weight":0.08679488,
             "drive_id":"198KynoGyRU1MJ0ORM01HlAOQWDL2-M5Z",
-            "size_bytes":60198061
+            "size_bytes":60198061,
+            "base_memory_mb_by_mode":{
+              "exec":1427
+            }
           },
           {
             "cluster_id":9925,
             "segment_id":7,
             "weight":0.21598649,
             "drive_id":"1EKXTT_BmMVIdZcsKTy79rycZjC5Fg81W",
-            "size_bytes":55486153
+            "size_bytes":55486153,
+            "base_memory_mb_by_mode":{
+              "exec":1197
+            }
           },
           {
             "cluster_id":14572,
             "segment_id":8,
             "weight":0.06379784,
             "drive_id":"12hKwVFgE0kfoq5t0uLe7a3h5W5mN0viS",
-            "size_bytes":61955533
+            "size_bytes":61955533,
+            "base_memory_mb_by_mode":{
+              "exec":942
+            }
           },
           {
             "cluster_id":29506,
             "segment_id":9,
             "weight":0.11887041,
             "drive_id":"1qTLeGDT288qdviOoG0ZQxL7y6bnAUsDk",
-            "size_bytes":26384501
+            "size_bytes":26384501,
+            "base_memory_mb_by_mode":{
+              "exec":451
+            }
           }
         ]
       },
@@ -6340,70 +7474,100 @@
             "segment_id":0,
             "weight":0.1133052,
             "drive_id":"1L76AP5Y2a66xWR0L8d-BOoPyUN3NWD2d",
-            "size_bytes":135913867
+            "size_bytes":135913867,
+            "base_memory_mb_by_mode":{
+              "exec":1698
+            }
           },
           {
             "cluster_id":488,
             "segment_id":1,
             "weight":0.02147796,
             "drive_id":"1ah515x7XTcHvP-GkcMtTYXZD3bdMk951",
-            "size_bytes":64282939
+            "size_bytes":64282939,
+            "base_memory_mb_by_mode":{
+              "exec":1726
+            }
           },
           {
             "cluster_id":77294,
             "segment_id":2,
             "weight":0.07148726,
             "drive_id":"1RfNaDzP3SzmgqFhK5-bGEaXqk90VU9ps",
-            "size_bytes":113799407
+            "size_bytes":113799407,
+            "base_memory_mb_by_mode":{
+              "exec":1518
+            }
           },
           {
             "cluster_id":11576,
             "segment_id":3,
             "weight":0.24030708,
             "drive_id":"1RM0rv4vFW6uiH2Mxqf7f7c_ax2qMXocE",
-            "size_bytes":41047450
+            "size_bytes":41047450,
+            "base_memory_mb_by_mode":{
+              "exec":1059
+            }
           },
           {
             "cluster_id":66230,
             "segment_id":4,
             "weight":0.06855378,
             "drive_id":"1BCZuiAbhLrWvHurS1lQvV0Iw2D3imjPe",
-            "size_bytes":138207919
+            "size_bytes":138207919,
+            "base_memory_mb_by_mode":{
+              "exec":1448
+            }
           },
           {
             "cluster_id":61737,
             "segment_id":5,
             "weight":0.0857478,
             "drive_id":"1h0iUDFZtKHp51NXMk-PrGA2xgEPlDE7O",
-            "size_bytes":125679884
+            "size_bytes":125679884,
+            "base_memory_mb_by_mode":{
+              "exec":1729
+            }
           },
           {
             "cluster_id":4438,
             "segment_id":6,
             "weight":0.08690628,
             "drive_id":"1AkEKK8cgy8zhzUEA3U6-GtdiGbLeF-G1",
-            "size_bytes":43463530
+            "size_bytes":43463530,
+            "base_memory_mb_by_mode":{
+              "exec":971
+            }
           },
           {
             "cluster_id":23171,
             "segment_id":7,
             "weight":0.04334549,
             "drive_id":"1cfAW3tJBMin2rIVAWwaw3J1lL9gse7iH",
-            "size_bytes":29929254
+            "size_bytes":29929254,
+            "base_memory_mb_by_mode":{
+              "exec":703
+            }
           },
           {
             "cluster_id":76013,
             "segment_id":8,
             "weight":0.07071836,
             "drive_id":"1IshPXI6A0ok6Q6drACfDyBLmZ0tqmjUh",
-            "size_bytes":141496423
+            "size_bytes":141496423,
+            "base_memory_mb_by_mode":{
+              "exec":1739
+            }
           },
           {
             "cluster_id":39387,
             "segment_id":9,
             "weight":0.19815081,
             "drive_id":"13Gxxo3i2wCd1eWSGXZGrHmaZPI1TcvPX",
-            "size_bytes":139165737
+            "size_bytes":139165737,
+            "base_memory_mb_by_mode":{
+              "exec":1357
+            }
           }
         ]
       }
@@ -8251,7 +9415,7 @@
   },
   "spec2017":{
     "rate_int_v2":{
-      "_scarab_sim_githash":"fdf3c92",
+      "_scarab_sim_githash":"63b467f",
       "perlbench_r":{
         "trace":{
           "dynamorio_args":null,
@@ -8283,7 +9447,7 @@
             "size_bytes":81750735,
             "base_memory_mb_by_mode":{
               "memtrace":411,
-              "exec":null
+              "exec":5009
             }
           },
           {
@@ -8294,7 +9458,7 @@
             "size_bytes":47668770,
             "base_memory_mb_by_mode":{
               "memtrace":337,
-              "exec":null
+              "exec":2904
             }
           },
           {
@@ -8305,7 +9469,7 @@
             "size_bytes":63485935,
             "base_memory_mb_by_mode":{
               "memtrace":370,
-              "exec":null
+              "exec":3119
             }
           }
         ]
@@ -8341,7 +9505,7 @@
             "size_bytes":73960071,
             "base_memory_mb_by_mode":{
               "memtrace":305,
-              "exec":null
+              "exec":2907
             }
           },
           {
@@ -8352,7 +9516,7 @@
             "size_bytes":45016646,
             "base_memory_mb_by_mode":{
               "memtrace":347,
-              "exec":null
+              "exec":1642
             }
           },
           {
@@ -8363,7 +9527,7 @@
             "size_bytes":83968761,
             "base_memory_mb_by_mode":{
               "memtrace":320,
-              "exec":null
+              "exec":3884
             }
           }
         ]
@@ -8399,7 +9563,7 @@
             "size_bytes":105256001,
             "base_memory_mb_by_mode":{
               "memtrace":371,
-              "exec":null
+              "exec":6285
             }
           },
           {
@@ -8410,7 +9574,7 @@
             "size_bytes":50198611,
             "base_memory_mb_by_mode":{
               "memtrace":226,
-              "exec":null
+              "exec":530
             }
           },
           {
@@ -8421,7 +9585,7 @@
             "size_bytes":51389558,
             "base_memory_mb_by_mode":{
               "memtrace":290,
-              "exec":null
+              "exec":533
             }
           }
         ]
@@ -8457,7 +9621,7 @@
             "size_bytes":92455967,
             "base_memory_mb_by_mode":{
               "memtrace":670,
-              "exec":null
+              "exec":10202
             }
           },
           {
@@ -8468,7 +9632,7 @@
             "size_bytes":97202144,
             "base_memory_mb_by_mode":{
               "memtrace":601,
-              "exec":null
+              "exec":16860
             }
           },
           {
@@ -8479,7 +9643,7 @@
             "size_bytes":180265835,
             "base_memory_mb_by_mode":{
               "memtrace":489,
-              "exec":null
+              "exec":11443
             }
           },
           {
@@ -8490,7 +9654,7 @@
             "size_bytes":123369272,
             "base_memory_mb_by_mode":{
               "memtrace":397,
-              "exec":null
+              "exec":15699
             }
           },
           {
@@ -8501,7 +9665,7 @@
             "size_bytes":110614337,
             "base_memory_mb_by_mode":{
               "memtrace":877,
-              "exec":null
+              "exec":17245
             }
           },
           {
@@ -8512,7 +9676,7 @@
             "size_bytes":121949946,
             "base_memory_mb_by_mode":{
               "memtrace":510,
-              "exec":null
+              "exec":10165
             }
           },
           {
@@ -8523,7 +9687,7 @@
             "size_bytes":106662996,
             "base_memory_mb_by_mode":{
               "memtrace":703,
-              "exec":null
+              "exec":17863
             }
           },
           {
@@ -8534,7 +9698,7 @@
             "size_bytes":106697160,
             "base_memory_mb_by_mode":{
               "memtrace":750,
-              "exec":null
+              "exec":16016
             }
           },
           {
@@ -8545,7 +9709,7 @@
             "size_bytes":99415051,
             "base_memory_mb_by_mode":{
               "memtrace":673,
-              "exec":null
+              "exec":14960
             }
           },
           {
@@ -8556,7 +9720,7 @@
             "size_bytes":161447115,
             "base_memory_mb_by_mode":{
               "memtrace":282,
-              "exec":null
+              "exec":1490
             }
           },
           {
@@ -8567,7 +9731,7 @@
             "size_bytes":114617401,
             "base_memory_mb_by_mode":{
               "memtrace":715,
-              "exec":null
+              "exec":15862
             }
           },
           {
@@ -8578,7 +9742,7 @@
             "size_bytes":110369103,
             "base_memory_mb_by_mode":{
               "memtrace":888,
-              "exec":null
+              "exec":16717
             }
           },
           {
@@ -8589,7 +9753,7 @@
             "size_bytes":97379684,
             "base_memory_mb_by_mode":{
               "memtrace":659,
-              "exec":null
+              "exec":12545
             }
           },
           {
@@ -8600,7 +9764,7 @@
             "size_bytes":110347770,
             "base_memory_mb_by_mode":{
               "memtrace":809,
-              "exec":null
+              "exec":19247
             }
           },
           {
@@ -8611,7 +9775,7 @@
             "size_bytes":125276212,
             "base_memory_mb_by_mode":{
               "memtrace":1106,
-              "exec":null
+              "exec":30899
             }
           },
           {
@@ -8622,7 +9786,7 @@
             "size_bytes":113318294,
             "base_memory_mb_by_mode":{
               "memtrace":799,
-              "exec":null
+              "exec":14665
             }
           },
           {
@@ -8633,7 +9797,7 @@
             "size_bytes":104008825,
             "base_memory_mb_by_mode":{
               "memtrace":566,
-              "exec":null
+              "exec":8482
             }
           },
           {
@@ -8644,7 +9808,7 @@
             "size_bytes":106153039,
             "base_memory_mb_by_mode":{
               "memtrace":861,
-              "exec":null
+              "exec":17809
             }
           },
           {
@@ -8655,7 +9819,7 @@
             "size_bytes":111019368,
             "base_memory_mb_by_mode":{
               "memtrace":920,
-              "exec":null
+              "exec":15834
             }
           }
         ]
@@ -8691,7 +9855,7 @@
             "size_bytes":118968128,
             "base_memory_mb_by_mode":{
               "memtrace":300,
-              "exec":null
+              "exec":1667
             }
           },
           {
@@ -8702,7 +9866,7 @@
             "size_bytes":160425896,
             "base_memory_mb_by_mode":{
               "memtrace":283,
-              "exec":null
+              "exec":1878
             }
           },
           {
@@ -8713,7 +9877,7 @@
             "size_bytes":110951479,
             "base_memory_mb_by_mode":{
               "memtrace":516,
-              "exec":null
+              "exec":14482
             }
           },
           {
@@ -8724,7 +9888,7 @@
             "size_bytes":106850325,
             "base_memory_mb_by_mode":{
               "memtrace":629,
-              "exec":null
+              "exec":13153
             }
           },
           {
@@ -8735,7 +9899,7 @@
             "size_bytes":115235830,
             "base_memory_mb_by_mode":{
               "memtrace":573,
-              "exec":null
+              "exec":8861
             }
           },
           {
@@ -8746,7 +9910,7 @@
             "size_bytes":123293577,
             "base_memory_mb_by_mode":{
               "memtrace":904,
-              "exec":null
+              "exec":22364
             }
           },
           {
@@ -8757,7 +9921,7 @@
             "size_bytes":94221770,
             "base_memory_mb_by_mode":{
               "memtrace":481,
-              "exec":null
+              "exec":7826
             }
           },
           {
@@ -8768,7 +9932,7 @@
             "size_bytes":102139664,
             "base_memory_mb_by_mode":{
               "memtrace":662,
-              "exec":null
+              "exec":15127
             }
           },
           {
@@ -8779,7 +9943,7 @@
             "size_bytes":166416965,
             "base_memory_mb_by_mode":{
               "memtrace":291,
-              "exec":null
+              "exec":1950
             }
           },
           {
@@ -8790,7 +9954,7 @@
             "size_bytes":106395298,
             "base_memory_mb_by_mode":{
               "memtrace":432,
-              "exec":null
+              "exec":6912
             }
           },
           {
@@ -8801,7 +9965,7 @@
             "size_bytes":106321523,
             "base_memory_mb_by_mode":{
               "memtrace":624,
-              "exec":null
+              "exec":13331
             }
           },
           {
@@ -8812,7 +9976,7 @@
             "size_bytes":182534046,
             "base_memory_mb_by_mode":{
               "memtrace":496,
-              "exec":null
+              "exec":12318
             }
           },
           {
@@ -8823,7 +9987,7 @@
             "size_bytes":111345219,
             "base_memory_mb_by_mode":{
               "memtrace":788,
-              "exec":null
+              "exec":22971
             }
           },
           {
@@ -8834,7 +9998,7 @@
             "size_bytes":116885007,
             "base_memory_mb_by_mode":{
               "memtrace":820,
-              "exec":null
+              "exec":16651
             }
           },
           {
@@ -8845,7 +10009,7 @@
             "size_bytes":124579192,
             "base_memory_mb_by_mode":{
               "memtrace":971,
-              "exec":null
+              "exec":28152
             }
           },
           {
@@ -8856,7 +10020,7 @@
             "size_bytes":101767292,
             "base_memory_mb_by_mode":{
               "memtrace":626,
-              "exec":null
+              "exec":11419
             }
           },
           {
@@ -8867,7 +10031,7 @@
             "size_bytes":123818506,
             "base_memory_mb_by_mode":{
               "memtrace":834,
-              "exec":null
+              "exec":18627
             }
           },
           {
@@ -8878,7 +10042,7 @@
             "size_bytes":71781116,
             "base_memory_mb_by_mode":{
               "memtrace":501,
-              "exec":null
+              "exec":9201
             }
           },
           {
@@ -8889,7 +10053,7 @@
             "size_bytes":117342875,
             "base_memory_mb_by_mode":{
               "memtrace":874,
-              "exec":null
+              "exec":24014
             }
           }
         ]
@@ -8925,7 +10089,7 @@
             "size_bytes":104170264,
             "base_memory_mb_by_mode":{
               "memtrace":664,
-              "exec":null
+              "exec":12541
             }
           },
           {
@@ -8936,7 +10100,7 @@
             "size_bytes":106445488,
             "base_memory_mb_by_mode":{
               "memtrace":752,
-              "exec":null
+              "exec":15522
             }
           },
           {
@@ -8947,7 +10111,7 @@
             "size_bytes":84856161,
             "base_memory_mb_by_mode":{
               "memtrace":590,
-              "exec":null
+              "exec":20100
             }
           },
           {
@@ -8958,7 +10122,7 @@
             "size_bytes":170045109,
             "base_memory_mb_by_mode":{
               "memtrace":386,
-              "exec":null
+              "exec":21657
             }
           },
           {
@@ -8969,7 +10133,7 @@
             "size_bytes":189406973,
             "base_memory_mb_by_mode":{
               "memtrace":498,
-              "exec":null
+              "exec":12091
             }
           },
           {
@@ -8980,7 +10144,7 @@
             "size_bytes":54169008,
             "base_memory_mb_by_mode":{
               "memtrace":315,
-              "exec":null
+              "exec":2737
             }
           },
           {
@@ -8991,7 +10155,7 @@
             "size_bytes":98058167,
             "base_memory_mb_by_mode":{
               "memtrace":609,
-              "exec":null
+              "exec":15897
             }
           },
           {
@@ -9002,7 +10166,7 @@
             "size_bytes":105217178,
             "base_memory_mb_by_mode":{
               "memtrace":702,
-              "exec":null
+              "exec":13668
             }
           },
           {
@@ -9013,7 +10177,7 @@
             "size_bytes":62444672,
             "base_memory_mb_by_mode":{
               "memtrace":306,
-              "exec":null
+              "exec":1449
             }
           },
           {
@@ -9024,7 +10188,7 @@
             "size_bytes":101186480,
             "base_memory_mb_by_mode":{
               "memtrace":629,
-              "exec":null
+              "exec":11931
             }
           },
           {
@@ -9035,7 +10199,7 @@
             "size_bytes":164341880,
             "base_memory_mb_by_mode":{
               "memtrace":278,
-              "exec":null
+              "exec":1578
             }
           },
           {
@@ -9046,7 +10210,7 @@
             "size_bytes":79228732,
             "base_memory_mb_by_mode":{
               "memtrace":543,
-              "exec":null
+              "exec":4734
             }
           },
           {
@@ -9057,7 +10221,7 @@
             "size_bytes":103713787,
             "base_memory_mb_by_mode":{
               "memtrace":648,
-              "exec":null
+              "exec":15052
             }
           },
           {
@@ -9068,7 +10232,7 @@
             "size_bytes":62322932,
             "base_memory_mb_by_mode":{
               "memtrace":317,
-              "exec":null
+              "exec":1483
             }
           },
           {
@@ -9079,7 +10243,7 @@
             "size_bytes":121641529,
             "base_memory_mb_by_mode":{
               "memtrace":917,
-              "exec":null
+              "exec":19552
             }
           },
           {
@@ -9090,7 +10254,7 @@
             "size_bytes":116999423,
             "base_memory_mb_by_mode":{
               "memtrace":841,
-              "exec":null
+              "exec":18852
             }
           },
           {
@@ -9101,7 +10265,7 @@
             "size_bytes":114246158,
             "base_memory_mb_by_mode":{
               "memtrace":898,
-              "exec":null
+              "exec":18661
             }
           },
           {
@@ -9112,7 +10276,7 @@
             "size_bytes":116463528,
             "base_memory_mb_by_mode":{
               "memtrace":898,
-              "exec":null
+              "exec":22758
             }
           },
           {
@@ -9123,7 +10287,7 @@
             "size_bytes":55541065,
             "base_memory_mb_by_mode":{
               "memtrace":301,
-              "exec":null
+              "exec":1934
             }
           }
         ]
@@ -9159,7 +10323,7 @@
             "size_bytes":145933011,
             "base_memory_mb_by_mode":{
               "memtrace":413,
-              "exec":null
+              "exec":13275
             }
           },
           {
@@ -9170,7 +10334,7 @@
             "size_bytes":98431610,
             "base_memory_mb_by_mode":{
               "memtrace":466,
-              "exec":null
+              "exec":8206
             }
           },
           {
@@ -9181,7 +10345,7 @@
             "size_bytes":83138032,
             "base_memory_mb_by_mode":{
               "memtrace":345,
-              "exec":null
+              "exec":5130
             }
           },
           {
@@ -9192,7 +10356,7 @@
             "size_bytes":100977290,
             "base_memory_mb_by_mode":{
               "memtrace":529,
-              "exec":null
+              "exec":7263
             }
           },
           {
@@ -9203,7 +10367,7 @@
             "size_bytes":112875170,
             "base_memory_mb_by_mode":{
               "memtrace":412,
-              "exec":null
+              "exec":6861
             }
           },
           {
@@ -9214,7 +10378,7 @@
             "size_bytes":173076489,
             "base_memory_mb_by_mode":{
               "memtrace":359,
-              "exec":null
+              "exec":23332
             }
           },
           {
@@ -9225,7 +10389,7 @@
             "size_bytes":94001050,
             "base_memory_mb_by_mode":{
               "memtrace":244,
-              "exec":null
+              "exec":2819
             }
           },
           {
@@ -9236,7 +10400,7 @@
             "size_bytes":174080056,
             "base_memory_mb_by_mode":{
               "memtrace":300,
-              "exec":null
+              "exec":5680
             }
           },
           {
@@ -9247,7 +10411,7 @@
             "size_bytes":173762872,
             "base_memory_mb_by_mode":{
               "memtrace":351,
-              "exec":null
+              "exec":23617
             }
           },
           {
@@ -9258,7 +10422,7 @@
             "size_bytes":120591985,
             "base_memory_mb_by_mode":{
               "memtrace":419,
-              "exec":null
+              "exec":12947
             }
           },
           {
@@ -9269,7 +10433,7 @@
             "size_bytes":86352693,
             "base_memory_mb_by_mode":{
               "memtrace":440,
-              "exec":null
+              "exec":2371
             }
           },
           {
@@ -9280,7 +10444,7 @@
             "size_bytes":55845760,
             "base_memory_mb_by_mode":{
               "memtrace":327,
-              "exec":null
+              "exec":2308
             }
           },
           {
@@ -9291,7 +10455,7 @@
             "size_bytes":71061191,
             "base_memory_mb_by_mode":{
               "memtrace":375,
-              "exec":null
+              "exec":20490
             }
           },
           {
@@ -9302,7 +10466,7 @@
             "size_bytes":133432278,
             "base_memory_mb_by_mode":{
               "memtrace":327,
-              "exec":null
+              "exec":21510
             }
           },
           {
@@ -9313,7 +10477,7 @@
             "size_bytes":66213567,
             "base_memory_mb_by_mode":{
               "memtrace":212,
-              "exec":null
+              "exec":1359
             }
           },
           {
@@ -9324,7 +10488,7 @@
             "size_bytes":168224266,
             "base_memory_mb_by_mode":{
               "memtrace":379,
-              "exec":null
+              "exec":12649
             }
           },
           {
@@ -9335,7 +10499,7 @@
             "size_bytes":104073251,
             "base_memory_mb_by_mode":{
               "memtrace":379,
-              "exec":null
+              "exec":1598
             }
           },
           {
@@ -9346,7 +10510,7 @@
             "size_bytes":46043938,
             "base_memory_mb_by_mode":{
               "memtrace":295,
-              "exec":null
+              "exec":1640
             }
           },
           {
@@ -9357,7 +10521,7 @@
             "size_bytes":107760414,
             "base_memory_mb_by_mode":{
               "memtrace":529,
-              "exec":null
+              "exec":7457
             }
           },
           {
@@ -9368,7 +10532,7 @@
             "size_bytes":100218454,
             "base_memory_mb_by_mode":{
               "memtrace":343,
-              "exec":null
+              "exec":1309
             }
           }
         ]
@@ -9404,7 +10568,7 @@
             "size_bytes":53851476,
             "base_memory_mb_by_mode":{
               "memtrace":396,
-              "exec":null
+              "exec":1679
             }
           },
           {
@@ -9415,7 +10579,7 @@
             "size_bytes":138170685,
             "base_memory_mb_by_mode":{
               "memtrace":328,
-              "exec":null
+              "exec":1734
             }
           },
           {
@@ -9426,7 +10590,7 @@
             "size_bytes":51537164,
             "base_memory_mb_by_mode":{
               "memtrace":308,
-              "exec":null
+              "exec":4677
             }
           },
           {
@@ -9437,7 +10601,7 @@
             "size_bytes":63892722,
             "base_memory_mb_by_mode":{
               "memtrace":356,
-              "exec":null
+              "exec":2065
             }
           },
           {
@@ -9448,7 +10612,7 @@
             "size_bytes":99436015,
             "base_memory_mb_by_mode":{
               "memtrace":534,
-              "exec":null
+              "exec":8094
             }
           },
           {
@@ -9459,7 +10623,7 @@
             "size_bytes":61697506,
             "base_memory_mb_by_mode":{
               "memtrace":378,
-              "exec":null
+              "exec":3094
             }
           },
           {
@@ -9470,7 +10634,7 @@
             "size_bytes":33695905,
             "base_memory_mb_by_mode":{
               "memtrace":246,
-              "exec":null
+              "exec":1738
             }
           },
           {
@@ -9481,7 +10645,7 @@
             "size_bytes":95200818,
             "base_memory_mb_by_mode":{
               "memtrace":421,
-              "exec":null
+              "exec":8685
             }
           },
           {
@@ -9492,7 +10656,7 @@
             "size_bytes":105136432,
             "base_memory_mb_by_mode":{
               "memtrace":488,
-              "exec":null
+              "exec":9877
             }
           },
           {
@@ -9503,7 +10667,7 @@
             "size_bytes":49964738,
             "base_memory_mb_by_mode":{
               "memtrace":298,
-              "exec":null
+              "exec":1536
             }
           },
           {
@@ -9514,7 +10678,7 @@
             "size_bytes":94369950,
             "base_memory_mb_by_mode":{
               "memtrace":504,
-              "exec":null
+              "exec":9067
             }
           },
           {
@@ -9525,7 +10689,7 @@
             "size_bytes":121965121,
             "base_memory_mb_by_mode":{
               "memtrace":436,
-              "exec":null
+              "exec":7090
             }
           },
           {
@@ -9536,7 +10700,7 @@
             "size_bytes":169115334,
             "base_memory_mb_by_mode":{
               "memtrace":371,
-              "exec":null
+              "exec":13368
             }
           },
           {
@@ -9547,7 +10711,7 @@
             "size_bytes":168616452,
             "base_memory_mb_by_mode":{
               "memtrace":408,
-              "exec":null
+              "exec":11467
             }
           },
           {
@@ -9558,7 +10722,7 @@
             "size_bytes":73609557,
             "base_memory_mb_by_mode":{
               "memtrace":309,
-              "exec":null
+              "exec":4029
             }
           },
           {
@@ -9569,7 +10733,7 @@
             "size_bytes":172453047,
             "base_memory_mb_by_mode":{
               "memtrace":368,
-              "exec":null
+              "exec":6812
             }
           },
           {
@@ -9580,7 +10744,7 @@
             "size_bytes":67132138,
             "base_memory_mb_by_mode":{
               "memtrace":387,
-              "exec":null
+              "exec":3400
             }
           },
           {
@@ -9591,7 +10755,7 @@
             "size_bytes":126128223,
             "base_memory_mb_by_mode":{
               "memtrace":587,
-              "exec":null
+              "exec":12322
             }
           },
           {
@@ -9602,7 +10766,7 @@
             "size_bytes":55747561,
             "base_memory_mb_by_mode":{
               "memtrace":539,
-              "exec":null
+              "exec":3390
             }
           }
         ]
@@ -9638,7 +10802,7 @@
             "size_bytes":72421782,
             "base_memory_mb_by_mode":{
               "memtrace":611,
-              "exec":null
+              "exec":1323
             }
           },
           {
@@ -9649,7 +10813,7 @@
             "size_bytes":63532197,
             "base_memory_mb_by_mode":{
               "memtrace":873,
-              "exec":null
+              "exec":1517
             }
           },
           {
@@ -9660,7 +10824,7 @@
             "size_bytes":50125523,
             "base_memory_mb_by_mode":{
               "memtrace":1387,
-              "exec":null
+              "exec":1778
             }
           },
           {
@@ -9671,7 +10835,7 @@
             "size_bytes":37100891,
             "base_memory_mb_by_mode":{
               "memtrace":335,
-              "exec":null
+              "exec":1023
             }
           }
         ]
@@ -9707,7 +10871,7 @@
             "size_bytes":175929956,
             "base_memory_mb_by_mode":{
               "memtrace":459,
-              "exec":null
+              "exec":1324
             }
           },
           {
@@ -9718,7 +10882,7 @@
             "size_bytes":164863964,
             "base_memory_mb_by_mode":{
               "memtrace":481,
-              "exec":null
+              "exec":1905
             }
           }
         ]
@@ -9754,7 +10918,7 @@
             "size_bytes":109618222,
             "base_memory_mb_by_mode":{
               "memtrace":144,
-              "exec":null
+              "exec":1496
             }
           },
           {
@@ -9765,7 +10929,7 @@
             "size_bytes":131564495,
             "base_memory_mb_by_mode":{
               "memtrace":207,
-              "exec":null
+              "exec":1096
             }
           },
           {
@@ -9776,7 +10940,7 @@
             "size_bytes":118644456,
             "base_memory_mb_by_mode":{
               "memtrace":163,
-              "exec":null
+              "exec":1236
             }
           },
           {
@@ -9787,7 +10951,7 @@
             "size_bytes":132531997,
             "base_memory_mb_by_mode":{
               "memtrace":206,
-              "exec":null
+              "exec":1230
             }
           },
           {
@@ -9798,7 +10962,7 @@
             "size_bytes":137271217,
             "base_memory_mb_by_mode":{
               "memtrace":225,
-              "exec":null
+              "exec":1275
             }
           },
           {
@@ -9809,7 +10973,7 @@
             "size_bytes":138881467,
             "base_memory_mb_by_mode":{
               "memtrace":233,
-              "exec":null
+              "exec":1132
             }
           },
           {
@@ -9820,7 +10984,7 @@
             "size_bytes":47760149,
             "base_memory_mb_by_mode":{
               "memtrace":159,
-              "exec":null
+              "exec":961
             }
           },
           {
@@ -9831,7 +10995,7 @@
             "size_bytes":67568575,
             "base_memory_mb_by_mode":{
               "memtrace":194,
-              "exec":null
+              "exec":1553
             }
           },
           {
@@ -9842,7 +11006,7 @@
             "size_bytes":123407074,
             "base_memory_mb_by_mode":{
               "memtrace":184,
-              "exec":null
+              "exec":957
             }
           },
           {
@@ -9853,7 +11017,7 @@
             "size_bytes":124970400,
             "base_memory_mb_by_mode":{
               "memtrace":193,
-              "exec":null
+              "exec":1169
             }
           },
           {
@@ -9864,7 +11028,7 @@
             "size_bytes":118668929,
             "base_memory_mb_by_mode":{
               "memtrace":183,
-              "exec":null
+              "exec":879
             }
           },
           {
@@ -9875,7 +11039,7 @@
             "size_bytes":45096565,
             "base_memory_mb_by_mode":{
               "memtrace":188,
-              "exec":null
+              "exec":1113
             }
           }
         ]
@@ -9911,7 +11075,7 @@
             "size_bytes":82351526,
             "base_memory_mb_by_mode":{
               "memtrace":219,
-              "exec":null
+              "exec":3960
             }
           },
           {
@@ -9922,7 +11086,7 @@
             "size_bytes":72212567,
             "base_memory_mb_by_mode":{
               "memtrace":117,
-              "exec":null
+              "exec":2097
             }
           },
           {
@@ -9933,7 +11097,7 @@
             "size_bytes":75051675,
             "base_memory_mb_by_mode":{
               "memtrace":115,
-              "exec":null
+              "exec":2187
             }
           },
           {
@@ -9944,7 +11108,7 @@
             "size_bytes":73545342,
             "base_memory_mb_by_mode":{
               "memtrace":222,
-              "exec":null
+              "exec":5592
             }
           },
           {
@@ -9955,7 +11119,7 @@
             "size_bytes":76144805,
             "base_memory_mb_by_mode":{
               "memtrace":120,
-              "exec":null
+              "exec":2160
             }
           }
         ]
@@ -9991,7 +11155,7 @@
             "size_bytes":74778098,
             "base_memory_mb_by_mode":{
               "memtrace":164,
-              "exec":null
+              "exec":4381
             }
           },
           {
@@ -10002,7 +11166,7 @@
             "size_bytes":73576210,
             "base_memory_mb_by_mode":{
               "memtrace":163,
-              "exec":null
+              "exec":5277
             }
           },
           {
@@ -10013,7 +11177,7 @@
             "size_bytes":78812551,
             "base_memory_mb_by_mode":{
               "memtrace":196,
-              "exec":null
+              "exec":4751
             }
           }
         ]
@@ -10049,7 +11213,7 @@
             "size_bytes":80170790,
             "base_memory_mb_by_mode":{
               "memtrace":205,
-              "exec":null
+              "exec":4400
             }
           },
           {
@@ -10060,7 +11224,7 @@
             "size_bytes":76344855,
             "base_memory_mb_by_mode":{
               "memtrace":167,
-              "exec":null
+              "exec":4797
             }
           },
           {
@@ -10071,7 +11235,7 @@
             "size_bytes":68329142,
             "base_memory_mb_by_mode":{
               "memtrace":123,
-              "exec":null
+              "exec":2173
             }
           }
         ]
@@ -10107,7 +11271,7 @@
             "size_bytes":145272546,
             "base_memory_mb_by_mode":{
               "memtrace":392,
-              "exec":null
+              "exec":5758
             }
           },
           {
@@ -10118,7 +11282,7 @@
             "size_bytes":138010067,
             "base_memory_mb_by_mode":{
               "memtrace":388,
-              "exec":null
+              "exec":13486
             }
           },
           {
@@ -10129,7 +11293,7 @@
             "size_bytes":133392848,
             "base_memory_mb_by_mode":{
               "memtrace":375,
-              "exec":null
+              "exec":6074
             }
           }
         ]
@@ -10165,7 +11329,7 @@
             "size_bytes":97312512,
             "base_memory_mb_by_mode":{
               "memtrace":593,
-              "exec":null
+              "exec":6559
             }
           },
           {
@@ -10176,7 +11340,7 @@
             "size_bytes":97075721,
             "base_memory_mb_by_mode":{
               "memtrace":609,
-              "exec":null
+              "exec":6181
             }
           },
           {
@@ -10187,7 +11351,7 @@
             "size_bytes":95550008,
             "base_memory_mb_by_mode":{
               "memtrace":522,
-              "exec":null
+              "exec":5945
             }
           }
         ]
@@ -10223,7 +11387,7 @@
             "size_bytes":74223947,
             "base_memory_mb_by_mode":{
               "memtrace":269,
-              "exec":null
+              "exec":720
             }
           },
           {
@@ -10234,7 +11398,7 @@
             "size_bytes":85228648,
             "base_memory_mb_by_mode":{
               "memtrace":239,
-              "exec":null
+              "exec":385
             }
           },
           {
@@ -10245,7 +11409,7 @@
             "size_bytes":81577115,
             "base_memory_mb_by_mode":{
               "memtrace":257,
-              "exec":null
+              "exec":630
             }
           }
         ]
@@ -10281,7 +11445,7 @@
             "size_bytes":53994333,
             "base_memory_mb_by_mode":{
               "memtrace":648,
-              "exec":null
+              "exec":1479
             }
           },
           {
@@ -10292,7 +11456,7 @@
             "size_bytes":55434409,
             "base_memory_mb_by_mode":{
               "memtrace":575,
-              "exec":null
+              "exec":1463
             }
           },
           {
@@ -10303,7 +11467,7 @@
             "size_bytes":51863807,
             "base_memory_mb_by_mode":{
               "memtrace":496,
-              "exec":null
+              "exec":1376
             }
           }
         ]
@@ -10339,7 +11503,7 @@
             "size_bytes":62854350,
             "base_memory_mb_by_mode":{
               "memtrace":377,
-              "exec":null
+              "exec":1713
             }
           },
           {
@@ -10350,7 +11514,7 @@
             "size_bytes":40186340,
             "base_memory_mb_by_mode":{
               "memtrace":302,
-              "exec":null
+              "exec":1570
             }
           },
           {
@@ -10361,7 +11525,7 @@
             "size_bytes":84847823,
             "base_memory_mb_by_mode":{
               "memtrace":306,
-              "exec":null
+              "exec":1255
             }
           },
           {
@@ -10372,7 +11536,7 @@
             "size_bytes":42032355,
             "base_memory_mb_by_mode":{
               "memtrace":108,
-              "exec":null
+              "exec":856
             }
           },
           {
@@ -10383,7 +11547,7 @@
             "size_bytes":60021305,
             "base_memory_mb_by_mode":{
               "memtrace":615,
-              "exec":null
+              "exec":1809
             }
           }
         ]
@@ -10419,7 +11583,7 @@
             "size_bytes":42047659,
             "base_memory_mb_by_mode":{
               "memtrace":108,
-              "exec":null
+              "exec":1067
             }
           },
           {
@@ -10430,7 +11594,7 @@
             "size_bytes":54475924,
             "base_memory_mb_by_mode":{
               "memtrace":302,
-              "exec":null
+              "exec":1207
             }
           },
           {
@@ -10441,7 +11605,7 @@
             "size_bytes":56203113,
             "base_memory_mb_by_mode":{
               "memtrace":229,
-              "exec":null
+              "exec":1145
             }
           },
           {
@@ -10452,7 +11616,7 @@
             "size_bytes":49797373,
             "base_memory_mb_by_mode":{
               "memtrace":246,
-              "exec":null
+              "exec":1097
             }
           },
           {
@@ -10463,7 +11627,7 @@
             "size_bytes":56042385,
             "base_memory_mb_by_mode":{
               "memtrace":274,
-              "exec":null
+              "exec":1182
             }
           }
         ]

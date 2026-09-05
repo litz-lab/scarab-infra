@@ -42,9 +42,13 @@ MODES: List[Tuple[str, str]] = [
     ("weekly_spec17_exec_opt", "exec/opt"),
 ]
 
-# Own clone so a sweep never collides with anyone's working tree.
+# Own clones so a sweep never collides with anyone's working tree, and never
+# tests whatever branch someone happened to leave checked out.
 SCARAB_DIR = Path("/soe/hlitz/git/scarab-weekly")
 SCARAB_REMOTE = "git@github.com:litz-lab/scarab.git"
+
+INFRA_DIR = Path("/soe/hlitz/git/scarab-infra-weekly")
+INFRA_REMOTE = "git@github.com:litz-lab/scarab-infra.git"
 
 HISTORY_DIR = Path("/soe/hlitz/git/scarab_weekly")
 HISTORY_REMOTE = "git@github.com:litz-lab/scarab_weekly.git"
@@ -102,6 +106,45 @@ def run(cmd: List[str], *, cwd: Optional[Path] = None, check: bool = True,
     )
 
 
+# Set once per run; prepended to every mail so a stale checkout is never a
+# silent explanation for a weird result.
+_INFRA_WARNING = ""
+
+
+def infra_warning() -> str:
+    """Warn when the checkout we ended up in is not main, or is behind it.
+
+    Normally refresh_infra() has already re-execed us from a clean main, so
+    this is empty. It fires under --no-self-update, which is how a hand-run
+    sweep from a feature branch says so in its own mail.
+    """
+    run(["git", "fetch", "origin", "main"], cwd=REPO_ROOT, check=False)
+
+    def git(*args: str) -> Optional[str]:
+        try:
+            return subprocess.run(["git", *args], cwd=str(REPO_ROOT), check=True,
+                                  text=True, capture_output=True).stdout.strip()
+        except subprocess.CalledProcessError:
+            return None
+
+    head = git("rev-parse", "--short", "HEAD")
+    target = git("rev-parse", "--short", "origin/main")
+    behind = git("rev-list", "--count", "HEAD..origin/main")
+    dirty = git("status", "--porcelain")
+    if head is None or target is None:
+        return ""
+    if head == target and not dirty:
+        return ""
+    detail = [f"checkout {head}, origin/main {target}"]
+    if behind and behind != "0":
+        detail.append(f"{behind} commits behind")
+    if dirty:
+        detail.append("uncommitted changes")
+    return (f"WARNING: scarab-infra at {REPO_ROOT} is not main ("
+            + "; ".join(detail) + ").\n"
+            "The images and run scripts under test are not the ones on main.")
+
+
 def git_sha(repo: Path) -> str:
     try:
         out = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=str(repo),
@@ -122,11 +165,46 @@ def ensure_clone(path: Path, remote: str) -> None:
     run(["git", "clone", remote, str(path)])
 
 
+def refresh_infra() -> None:
+    """Re-run ourselves from a fresh scarab-infra main, the way CI does.
+
+    Both repos have to be current: the images, run scripts and descriptors come
+    from infra, the simulator from Scarab. Pairing a fresh Scarab with whatever
+    infra the sweep happened to be launched from is how 2026-08-30 built a
+    PIN-3.31 Scarab inside a PIN-3.15 image and reported nothing.
+    """
+    ensure_clone(INFRA_DIR, INFRA_REMOTE)
+    run(["git", "fetch", "origin", "main"], cwd=INFRA_DIR)
+    run(["git", "reset", "--hard", "origin/main"], cwd=INFRA_DIR)
+
+    script = INFRA_DIR / "scripts" / Path(__file__).name
+    if not script.is_file():
+        log(f"WARNING: {script} missing; continuing from {REPO_ROOT}")
+        return
+    # The version on main has to understand the flag that stops it re-execing
+    # in turn; without that check an older one either dies on an unknown
+    # argument (no mail, argparse exits before our handler) or loops forever.
+    if "--no-self-update" not in script.read_text(encoding="utf-8", errors="replace"):
+        log(f"WARNING: {script} predates --no-self-update; "
+            f"continuing from {REPO_ROOT}")
+        return
+    log(f"running from {INFRA_DIR} at {git_sha(INFRA_DIR)}")
+    # exec, not import: the descriptors, sci and run scripts of this run must
+    # all come from the tree we just reset.
+    os.execv(sys.executable,
+             [sys.executable, str(script), "--no-self-update", *sys.argv[1:]])
+
+
 def refresh_scarab() -> str:
     ensure_clone(SCARAB_DIR, SCARAB_REMOTE)
     run(["git", "fetch", "origin", "main"], cwd=SCARAB_DIR)
     # Reset, not pull: a stray local commit must not change what we measure.
     run(["git", "reset", "--hard", "origin/main"], cwd=SCARAB_DIR)
+    # And clean the PIN tool: its objects keep .d files naming the PIN path of
+    # the image that built them, so a container upgrade turns into "No rule to
+    # make target /tmp_home/pin-3.15-.../algorithm" until they are gone. Only
+    # src/pin -- wiping the whole tree would rebuild DynamoRIO every week.
+    run(["git", "clean", "-xfd", "--", "src/pin"], cwd=SCARAB_DIR, check=False)
     run(["git", "submodule", "update", "--init", "--recursive"], cwd=SCARAB_DIR, check=False)
     return git_sha(SCARAB_DIR)
 
@@ -510,6 +588,8 @@ def notify(subject: str, body: str, attachments: List[Path], args) -> None:
     if args.no_email or args.dry_run:
         log(f"not mailing '{subject}' (--no-email/--dry-run)")
         return
+    if _INFRA_WARNING:
+        body = f"{_INFRA_WARNING}\n\n{body}"
     recipients = org_recipients() or FALLBACK_RECIPIENTS
     send_email(subject, body, attachments, recipients)
 
@@ -565,9 +645,14 @@ def main() -> int:
     parser.add_argument("--no-push", action="store_true")
     parser.add_argument("--experiment-suffix", default=None,
                         help="Override the dated experiment suffix (testing).")
+    parser.add_argument("--no-self-update", action="store_true",
+                        help="Run this checkout as-is instead of re-execing "
+                             "from a fresh scarab-infra main.")
     args = parser.parse_args()
 
     today = _dt.date.today().isoformat()
+    if not args.no_self_update and not args.dry_run:
+        refresh_infra()  # never returns: re-execs from INFRA_DIR
     try:
         return run_sweep(args, today)
     except Exception:  # noqa: BLE001 - any crash must still reach the lab
@@ -581,6 +666,11 @@ def main() -> int:
 
 
 def run_sweep(args, today: str) -> int:
+    global _INFRA_WARNING
+    _INFRA_WARNING = infra_warning()
+    if _INFRA_WARNING:
+        log(_INFRA_WARNING)
+
     lock = LOCK_PATH.open("w")
     try:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)

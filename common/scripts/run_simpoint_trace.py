@@ -12,7 +12,37 @@ import re
 import glob
 import json
 import shutil
+import tempfile
 import zipfile
+
+def stage_local_rundir(bincmd):
+    """Stage the run dir as a symlink to resolve hard-coded relative inputs.
+
+    Symlink the workload's reference run dir (= dir of the binary, the first token of bincmd)
+    into a private, node-local, writable dir and return its path, excluding the binary.
+    Some SPEC CPU2026 workloads open inputs by a hard-coded relative path not on the
+    command line (e.g. ntest uses "resource/solver12.txt", gem5 uses Resource(...,".")),
+    and those resolve only when drrun runs with this dir as CWD.
+    """
+    binary = bincmd.split()[0]
+    refdir = os.path.dirname(binary)
+    if not os.path.isdir(refdir):
+        # os.walk() on a missing dir yields nothing and raises nothing.
+        # Most likely the app tree is not mounted (see application_dir in the descriptor).
+        raise FileNotFoundError(f"{refdir} not found. Wrong application_dir in the descriptor?")
+    dest = tempfile.mkdtemp(prefix="scarab_trace_",
+                            dir=os.environ.get("SCARAB_RUN_LOCAL_TMP", "/tmp"))
+    skip = os.path.basename(binary)
+    for root, _, files in os.walk(refdir):
+        rel = os.path.relpath(root, refdir)
+        target_dir = dest if rel == "." else os.path.join(dest, rel)
+        os.makedirs(target_dir, exist_ok=True)
+        for name in files:
+            if root == refdir and name == skip:
+                # Skip the binary itself
+                continue
+            os.symlink(os.path.join(root, name), os.path.join(target_dir, name))
+    return dest
 
 def get_dr_jobs():
     """Decide DynamoRIO -jobs fanout based on env var DR_JOBS or auto-detect.
@@ -1193,6 +1223,16 @@ if __name__ == "__main__":
     clustering_userk = args.clustering_userk
     manual_trace = args.manual_trace
 
+    # For workloads that open inputs by a hard-coded relative path, run every
+    # drrun below with CWD = a private node-local copy of the run dir's data.
+    # A single chdir here covers all modes (fingerprint + segment traces).
+    # Gated by the workload's env variable, set via the descriptor env_vars.
+    local_rundir = None
+    if os.environ.get("SCARAB_COPY_LOCAL_RUNDIR") == "1":
+        local_rundir = stage_local_rundir(bincmd)
+        os.chdir(local_rundir)
+        print(f"SCARAB_COPY_LOCAL_RUNDIR: staged run dir data and chdir'd to {local_rundir}")
+
     try:
         print("running run_simpoint_trace.py...")
         print(simpoint_mode)
@@ -1212,3 +1252,6 @@ if __name__ == "__main__":
             raise Exception("Invalid simpoint mode")
     except Exception as e:
         traceback.print_exc() # Print the full stack trace
+    finally:
+        if local_rundir:
+            shutil.rmtree(local_rundir, ignore_errors=True)
