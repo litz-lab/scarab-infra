@@ -130,7 +130,9 @@ def infra_warning() -> str:
     head = git("rev-parse", "--short", "HEAD")
     target = git("rev-parse", "--short", "origin/main")
     behind = git("rev-list", "--count", "HEAD..origin/main")
-    dirty = git("status", "--porcelain")
+    # Tracked files only: the sweep renders a descriptor per mode into json/,
+    # so counting untracked files declared the clone "not main" every week.
+    dirty = git("status", "--porcelain", "--untracked-files=no")
     if head is None or target is None:
         return ""
     if head == target and not dirty:
@@ -176,6 +178,10 @@ def refresh_infra() -> None:
     ensure_clone(INFRA_DIR, INFRA_REMOTE)
     run(["git", "fetch", "origin", "main"], cwd=INFRA_DIR)
     run(["git", "reset", "--hard", "origin/main"], cwd=INFRA_DIR)
+    # Drop the descriptors previous runs rendered here. Only json/: the clone's
+    # scarab_builds/ cache is untracked too, and wiping it would rebuild
+    # Scarab from scratch every week.
+    run(["git", "clean", "-xfdq", "--", "json"], cwd=INFRA_DIR, check=False)
 
     script = INFRA_DIR / "scripts" / Path(__file__).name
     if not script.is_file():
@@ -343,6 +349,20 @@ def derive_metrics(aggregates_path: Path) -> Dict[str, Dict[str, Optional[float]
             "offpath_cycle_pct": offpath,
             "kips": kips,
         }
+
+    # One failed simpoint makes the aggregate's own Avg nan, which erased the
+    # whole mode from the mail and the plots -- 2026-09-07 lost memtrace/dbg to
+    # a single workload (gcc_r). Fall back to the mean of the workloads that did
+    # report. Unweighted, so it is not identical to the aggregate's Avg; it is
+    # only used when that one is unusable.
+    for metric in ("ipc", "mem_latency_cycles", "offpath_cycle_pct", "kips"):
+        current = out["Avg"].get(metric)
+        if current is not None and math.isfinite(current):
+            continue
+        values = [v[metric] for w, v in out.items()
+                  if w != "Avg" and v[metric] is not None and math.isfinite(v[metric])]
+        if values:
+            out["Avg"][metric] = sum(values) / len(values)
     return out
 
 
@@ -427,7 +447,11 @@ def make_plots(history: List[Dict[str, str]], outdir: Path) -> List[Path]:
                 xs = [d for d in dates if d in series]
                 if not xs:
                     continue
+                # Markers, not just a line: on the first run of a metric there
+                # is one date, and a one-point line draws nothing at all --
+                # which is why the 2026-09-07 plots came out blank.
                 ax.plot(xs, [series[d] for d in xs], linewidth=1.0, alpha=0.75,
+                        marker=".", markersize=4,
                         color=app_color(i), label=short_name(workload))
                 drew_anything = True
 
