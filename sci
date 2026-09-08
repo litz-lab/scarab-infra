@@ -1451,6 +1451,11 @@ def ensure_ci_trace(_: argparse.Namespace) -> Tuple[bool, str]:
 
     workloads_db = load_workloads_file("workloads_db.json")
     CI_traces = [("spec2017", "rate_int_v2", "perlbench_r", 109678), ("dhrystone", "dhrystone", "dhrystone", 101)]
+    CI_PT_TRACES = [
+        ("datacenter", "datacenter", "cassandra", "trace.gz",
+         "https://github.com/litz-lab/scarab-infra/releases/download/"
+         "ci-pt-trace-cassandra-v1/cassandra_ci_pt_trace.gz"),
+    ]
     for trace in CI_traces:
         suite = trace[0]
         subsuite = trace[1]
@@ -1493,7 +1498,26 @@ def ensure_ci_trace(_: argparse.Namespace) -> Tuple[bool, str]:
             download_trace_file(str(drive_id), target_path, allow_cookie_prompt=False)
         except StepError as exc:
             return False, f"Download failed for CI trace: {exc}"
-    return True, f"Ensured CI traces: {', '.join([f'{suite}/{subsuite}/{wl}:{sp}' for suite, subsuite, wl, sp in CI_traces])} present."
+    # PT traces are not simpoint zips and no workload carries a drive_id for one,
+    # so the CI slice is a release asset. Full traces are hundreds of MB; this is
+    # the first 13M lines of the cassandra trace, which is all the descriptor's
+    # warmup plus --inst_limit consumes and reproduces the full-trace result
+    # exactly (insts:10000007, cycles:67809355).
+    for suite, subsuite, workload, filename, url in CI_PT_TRACES:
+        target_path = trace_path / suite / subsuite / workload / "traces" / "pt" / filename
+        if target_path.is_file():
+            continue
+        try:
+            target_path.parent.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            return False, f"Failed to create {target_path.parent}: {exc}"
+        try:
+            run_command(["wget", "-q", url, "-O", str(target_path)])
+        except StepError as exc:
+            target_path.unlink(missing_ok=True)
+            return False, f"Download failed for CI PT trace {suite}/{subsuite}/{workload}: {exc}"
+
+    return True, f"Ensured CI traces: {', '.join([f'{suite}/{subsuite}/{wl}:{sp}' for suite, subsuite, wl, sp in CI_traces])} and {len(CI_PT_TRACES)} PT trace(s) present."
 
 
 def ensure_conda_installed(_: argparse.Namespace) -> Tuple[bool, str]:
