@@ -1040,7 +1040,13 @@ def run_in_container (infra_dir, scarab_path, application_dir, user, docker_home
 
     exception = None
 
-    info(f"Spinning up {docker_prefix}:{githash} container named {docker_container_name}", dbg_lvl)
+    # Images are tagged by the content that builds them, not by the infra git
+    # hash: a hash tag names an image nobody built, and `docker run` fails 125.
+    image_ref = image_tag_for(docker_prefix, infra_dir)
+    docker_container_name = own_container_name(f"{docker_container_name}_{user}")
+    remove_stale_containers(f"{docker_container_name.rsplit('_', 1)[0]}", dbg_lvl)
+
+    info(f"Spinning up {image_ref} container named {docker_container_name}", dbg_lvl)
     try:
         subprocess.run(
                 ["docker", "run", "-e", f"user_id={local_uid}",
@@ -1050,24 +1056,14 @@ def run_in_container (infra_dir, scarab_path, application_dir, user, docker_home
                  "--mount", f"type=bind,source={docker_home},target=/home/{user},readonly=false",
                  "--mount", f"type=bind,source={scarab_path},target=/scarab,readonly=false",
                  "--mount", f"type=bind,source={application_dir},target=/tmp_home/application,readonly=false",
-                 f"{docker_prefix}:{githash}", "/bin/bash"], check=True, capture_output=True, text=True)
+                 # root_entrypoint.sh publishes the scripts from this mount and
+                 # refuses to run without it; APP_GROUPNAME picks the workload's
+                 # entrypoints out of it.
+                 "--mount", infra_mount_arg(infra_dir),
+                 "-e", f"APP_GROUPNAME={docker_prefix}",
+                 image_ref, "/bin/bash"], check=True, capture_output=True, text=True)
         subprocess.run(
-                ["docker", "cp", f"{infra_dir}/common/scripts/root_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
-                check=True, capture_output=True, text=True)
-        subprocess.run(
-                ["docker", "cp", f"{infra_dir}/common/scripts/user_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
-                check=True, capture_output=True, text=True)
-        if os.path.isfile(f"{infra_dir}/workloads/{docker_prefix}/workload_root_entrypoint.sh"):
-            subprocess.run(
-                    ["docker", "cp", f"{infra_dir}/workloads/{docker_prefix}/workload_root_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
-                    check=True, capture_output=True, text=True)
-        if os.path.isfile(f"{infra_dir}/workloads/{docker_prefix}/workload_user_entrypoint.sh"):
-            subprocess.run(
-                    ["docker", "cp", f"{infra_dir}/workloads/{docker_prefix}/workload_user_entrypoint.sh", f"{docker_container_name}:/usr/local/bin"],
-                    check=True, capture_output=True, text=True)
-
-        subprocess.run(
-                ["docker", "exec", "--privileged", f"{docker_container_name}", "/bin/bash", "-c", "\'/usr/local/bin/root_entrypoint.sh\'"],
+                ["docker", "exec", "--privileged", f"{docker_container_name}", "/bin/bash", "-c", ROOT_ENTRYPOINT],
                 check=True, capture_output=True, text=True)
 
         for cmd in cmds:
@@ -1655,7 +1651,7 @@ def generate_single_scarab_run_command(user, workload_home, experiment, config_k
     if mode == "memtrace":
         command = f"run_memtrace_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{seg_size}\\\" \\\"{arch}\\\" \\\"{warmup}\\\" \\\"{trace_warmup}\\\" \\\"{trace_type}\\\" /home/{user}/simulations/{experiment}/scarab {cluster_id} {trace_file} {scarab_binary}"
     elif mode == "pt":
-        command = f"run_pt_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{arch}\\\" \\\"{warmup}\\\" /home/{user}/simulations/{experiment}/scarab {scarab_binary}"
+        command = f"run_pt_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{arch}\\\" \\\"{warmup}\\\" /home/{user}/simulations/{experiment}/scarab {scarab_binary} \\\"{seg_size}\\\""
     elif mode == "exec":
         env_vars_safe = env_vars if env_vars else ""
         client_bincmd_safe = client_bincmd if client_bincmd else ""

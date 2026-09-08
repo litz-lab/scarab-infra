@@ -175,6 +175,8 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                 seg_size = simulation_data["segment_size"]
             if sim_mode == "pt":
                 trace_warmup = simulation_data["warmup"]
+                # Optional: caps an otherwise whole-trace run.
+                seg_size = simulation_data.get("segment_size")
             if sim_mode == "exec":
                 env_vars = simulation_data["env_vars"]
                 bincmd = simulation_data["binary_cmd"]

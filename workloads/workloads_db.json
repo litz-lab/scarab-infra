@@ -2652,7 +2652,8 @@
           },
           "pt":{
             "image_name":"allbench_traces",
-            "warmup":49999999
+            "warmup":49999999,
+            "segment_size":10000000
           }
         },
         "base_memory_mb_by_mode":{
