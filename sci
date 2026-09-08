@@ -4288,6 +4288,16 @@ def build_parser() -> argparse.ArgumentParser:
              "Exits non-zero on any enabled-check finding.",
     )
     parser.add_argument(
+        "--prune-builds",
+        dest="prune_builds",
+        nargs="?",
+        const=-1,
+        type=int,
+        metavar="DAYS",
+        help="Drop cached scarab binaries unused for DAYS (default 30, or "
+             "$SCI_BUILDS_MAX_AGE_DAYS). Runs automatically on --build-scarab.",
+    )
+    parser.add_argument(
         "--build-image",
         dest="build_image",
         metavar="WORKLOAD_GROUP",
@@ -4390,6 +4400,7 @@ def main() -> int:
         bool(args.build_scarab),
         bool(args.lint_scarab),
         bool(args.build_image),
+        args.prune_builds is not None,
         bool(args.list),
         bool(args.interactive),
         bool(args.trace),
@@ -4443,6 +4454,13 @@ def main() -> int:
         except StepError as exc:
             print(exc)
             return 1
+    if args.prune_builds is not None:
+        infra_utils = load_infra_utilities()
+        days = None if args.prune_builds == -1 else args.prune_builds
+        count, freed = infra_utils.prune_scarab_builds(str(REPO_ROOT), days)
+        print(f"Pruned {count} cached binaries ({freed / 1e9:.1f} GB)")
+        return 0
+
     if args.build_image:
         try:
             return run_build_image(args.build_image)
