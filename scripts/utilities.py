@@ -1032,6 +1032,70 @@ def _build_missing_scarab_version(
     except Exception:
         raise
 
+# Provides utility to run setup commands in docker container for CI
+# Run a list of commands in a container
+def run_in_container (infra_dir, scarab_path, application_dir, user, docker_home, docker_prefix, githash, docker_container_name, cmds, dbg_lvl=1):
+    local_uid = os.getuid()
+    local_gid = os.getgid()
+
+    exception = None
+
+    # Images are tagged by the content that builds them, not by the infra git
+    # hash: a hash tag names an image nobody built, and `docker run` fails 125.
+    image_ref = image_tag_for(docker_prefix, infra_dir)
+    docker_container_name = own_container_name(f"{docker_container_name}_{user}")
+    remove_stale_containers(f"{docker_container_name.rsplit('_', 1)[0]}", dbg_lvl)
+
+    info(f"Spinning up {image_ref} container named {docker_container_name}", dbg_lvl)
+    try:
+        subprocess.run(
+                ["docker", "run", "-e", f"user_id={local_uid}",
+                 "-e", f"group_id={local_gid}",
+                 "-e", f"username={user}",
+                 "-dit", "--name", f"{docker_container_name}",
+                 "--mount", f"type=bind,source={docker_home},target=/home/{user},readonly=false",
+                 "--mount", f"type=bind,source={scarab_path},target=/scarab,readonly=false",
+                 "--mount", f"type=bind,source={application_dir},target=/tmp_home/application,readonly=false",
+                 # root_entrypoint.sh publishes the scripts from this mount and
+                 # refuses to run without it; APP_GROUPNAME picks the workload's
+                 # entrypoints out of it.
+                 "--mount", infra_mount_arg(infra_dir),
+                 "-e", f"APP_GROUPNAME={docker_prefix}",
+                 image_ref, "/bin/bash"], check=True, capture_output=True, text=True)
+        subprocess.run(
+                ["docker", "exec", "--privileged", f"{docker_container_name}", "/bin/bash", "-c", ROOT_ENTRYPOINT],
+                check=True, capture_output=True, text=True)
+
+        for cmd in cmds:
+            info(f"Running <{cmd}>", dbg_lvl)
+            docker_cmd = [
+                    "docker",
+                        "exec",
+                        f"--user={user}",
+                        f"--workdir=/home/{user}",
+                        f"{docker_container_name}",
+                        "/bin/bash",
+                        "-c",
+                        cmd
+                ]
+
+            build_result = subprocess.run(docker_cmd, capture_output=True, text=True)
+
+            if build_result.returncode != 0:
+                exception = RuntimeError("Scarab build returned with non-zero code")
+                err(f"Build stdout: {build_result.stdout}", dbg_lvl)
+                err(f"Build stderr: {build_result.stderr}", dbg_lvl)
+                break
+
+    except Exception as e:
+        exception = e
+    finally:
+        # Always clean up build container
+        subprocess.run(["docker", "rm", "-f", f"{docker_container_name}"], check=True, capture_output=True, text=True)
+
+    if exception != None:
+        raise exception
+
 # Wrapper function that handles rebuilding scarab if needed, and caching
 def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, scarab_githash, scarab_build, stream_build=False, dbg_lvl=1):
     build_mode = scarab_build if scarab_build else "opt"
@@ -1587,7 +1651,7 @@ def generate_single_scarab_run_command(user, workload_home, experiment, config_k
     if mode == "memtrace":
         command = f"run_memtrace_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{seg_size}\\\" \\\"{arch}\\\" \\\"{warmup}\\\" \\\"{trace_warmup}\\\" \\\"{trace_type}\\\" /home/{user}/simulations/{experiment}/scarab {cluster_id} {trace_file} {scarab_binary}"
     elif mode == "pt":
-        command = f"run_pt_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{arch}\\\" \\\"{warmup}\\\" /home/{user}/simulations/{experiment}/scarab {scarab_binary}"
+        command = f"run_pt_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{arch}\\\" \\\"{warmup}\\\" /home/{user}/simulations/{experiment}/scarab {scarab_binary} \\\"{seg_size}\\\""
     elif mode == "exec":
         env_vars_safe = env_vars if env_vars else ""
         client_bincmd_safe = client_bincmd if client_bincmd else ""
@@ -2955,6 +3019,9 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
                 preserved_fields = {
                     key: value for key, value in workload_db_data[suite][subsuite][workload].items() if key not in workload_dict
                 }
+            # Tracing a workload of a suite/subsuite the db has never seen lands here
+            # with nothing to index into.
+            workload_db_data.setdefault(suite, {}).setdefault(subsuite, {})
             # Update/insert only the related fields and leave the other existing fields unchanged
             workload_db_data[suite][subsuite][workload] = workload_dict | preserved_fields
 

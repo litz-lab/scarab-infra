@@ -20,7 +20,7 @@ jobs:
           jq empty ./json/exp.json
           jq empty ./json/trace.json
           jq empty ./json/perf.json
-          jq empty ./json/top_simpoint.json
+          jq empty ./json/CI.json
           jq empty ./json/top_simpoint_dbg.json
           jq empty ./workloads/workloads_db.json
           jq empty ./workloads/workloads_top_simp.json
@@ -36,7 +36,7 @@ jobs:
               Path("./json/exp.json"),
               Path("./json/trace.json"),
               Path("./json/perf.json"),
-              Path("./json/top_simpoint.json"),
+              Path("./json/CI.json"),
               Path("./json/top_simpoint_dbg.json"),
               Path("./workloads/workloads_db.json"),
               Path("./workloads/workloads_top_simp.json"),
@@ -64,7 +64,7 @@ jobs:
 
           exp_path = Path("./json/exp.json")
           target_paths = [
-              Path("./json/top_simpoint.json"),
+              Path("./json/CI.json"),
               Path("./json/top_simpoint_dbg.json"),
           ]
 

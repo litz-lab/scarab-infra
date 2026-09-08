@@ -12,7 +12,17 @@ SCARABARCH="$4"
 WARMUP="$5"
 SCARABHOME="$6"
 SCARAB_BIN="$7"
+SEGSIZE="$8"
 SEGMENT_ID=0
+
+# A PT trace is simulated whole unless the workload gives a segment size: the
+# cassandra trace alone is ~50B instructions, which is days of simulation.
+# The limit covers the warmup as well, exactly as the memtrace path computes it
+# (instLimit = roiEnd - roiStart + 1 = SEGSIZE + WARMUP).
+INST_LIMIT_ARG=""
+if [[ "$SEGSIZE" =~ ^[0-9]+$ ]] && [ "$SEGSIZE" -gt 0 ]; then
+  INST_LIMIT_ARG="--inst_limit $(( SEGSIZE + WARMUP ))"
+fi
 
 PARAMS_FILE="$SCARABHOME/src/PARAMS.$SCARABARCH"
 if [[ "$SCARAB_BIN" =~ ^scarab_([0-9a-fA-F]+) ]]; then
@@ -41,7 +51,7 @@ mkdir -p $OUTDIR/$segID
 cp "$PARAMS_FILE" "$OUTDIR/$segID/PARAMS.in"
 cd $OUTDIR/$segID
 
-scarabCmd="$SCARABHOME/src/$SCARAB_BIN --full_warmup $WARMUP --frontend pt --cbp_trace_r0=$trace_home/$WORKLOAD_HOME/traces/pt/${traceMap} $SCARABPARAMS &> sim.log"
+scarabCmd="$SCARABHOME/src/$SCARAB_BIN --full_warmup $WARMUP $INST_LIMIT_ARG --frontend pt --cbp_trace_r0=$trace_home/$WORKLOAD_HOME/traces/pt/${traceMap} $SCARABPARAMS &> sim.log"
 
 #echo "simulating clusterID ${clusterID}, segment $segID..."
 #echo "command: ${scarabCmd}"
