@@ -17,9 +17,11 @@ SEGMENT_ID=0
 
 # A PT trace is simulated whole unless the workload gives a segment size: the
 # cassandra trace alone is ~50B instructions, which is days of simulation.
+# The limit covers the warmup as well, exactly as the memtrace path computes it
+# (instLimit = roiEnd - roiStart + 1 = SEGSIZE + WARMUP).
 INST_LIMIT_ARG=""
 if [[ "$SEGSIZE" =~ ^[0-9]+$ ]] && [ "$SEGSIZE" -gt 0 ]; then
-  INST_LIMIT_ARG="--inst_limit $SEGSIZE"
+  INST_LIMIT_ARG="--inst_limit $(( SEGSIZE + WARMUP ))"
 fi
 
 PARAMS_FILE="$SCARABHOME/src/PARAMS.$SCARABARCH"
