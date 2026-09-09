@@ -1033,6 +1033,72 @@ def _build_missing_scarab_version(
         raise
 
 # Wrapper function that handles rebuilding scarab if needed, and caching
+SCARAB_BUILDS_MAX_AGE_DAYS = int(os.environ.get("SCI_BUILDS_MAX_AGE_DAYS", "30"))
+
+
+def prune_scarab_builds(infra_dir, max_age_days=None, dbg_lvl=1, dry_run=False):
+    """Drop cached binaries nobody has used in max_age_days.
+
+    The cache is keyed on the scarab git hash, so every commit -- and every
+    amend during a review cycle -- mints another ~124MB entry that nothing ever
+    removes. One checkout reached 81GB in 650 binaries, inside the directory
+    that is also the docker build context.
+
+    Age is taken from mtime, which _touch_cache_hit() refreshes on reuse, so the
+    window means "unused for N days" rather than "built N days ago" -- a
+    long-lived baseline binary that gets reused stays. scarab_current* and
+    whatever they resolve to are kept whatever their age: the portable and avx
+    links legitimately point at builds many months old.
+    """
+    if max_age_days is None:
+        max_age_days = SCARAB_BUILDS_MAX_AGE_DAYS
+    if max_age_days <= 0:
+        return 0, 0
+
+    cache_dir = Path(infra_dir) / "scarab_builds"
+    if not cache_dir.is_dir():
+        return 0, 0
+
+    keep = set()
+    for link in cache_dir.glob("scarab_current*"):
+        keep.add(link.name)
+        try:
+            keep.add(link.resolve().name)
+        except OSError:
+            pass
+
+    cutoff = time.time() - max_age_days * 86400
+    freed = count = 0
+    for entry in cache_dir.iterdir():
+        if entry.name in keep or not entry.is_file() or entry.is_symlink():
+            continue
+        try:
+            st = entry.stat()
+            if st.st_mtime >= cutoff:
+                continue
+            if not dry_run:
+                entry.unlink()
+        except OSError as exc:
+            # Housekeeping must never fail a build.
+            warn(f"Could not prune {entry.name}: {exc}", dbg_lvl)
+            continue
+        freed += st.st_size
+        count += 1
+
+    if count:
+        note(f"{'Would prune' if dry_run else 'Pruned'} {count} cached scarab binaries "
+             f"unused for {max_age_days}+ days ({freed / 1e9:.1f} GB)", dbg_lvl)
+    return count, freed
+
+
+def _touch_cache_hit(path, dbg_lvl=1):
+    """Mark a cached binary as used, so prune_scarab_builds() spares it."""
+    try:
+        os.utime(path, None)
+    except OSError as exc:
+        info(f"Could not refresh mtime on {path}: {exc}", dbg_lvl)
+
+
 def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, scarab_githash, scarab_build, stream_build=False, dbg_lvl=1):
     build_mode = scarab_build if scarab_build else "opt"
     current_cache_name = _cache_bin_name("scarab_current", build_mode)
@@ -1083,6 +1149,8 @@ def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, sca
 
                 if diff_matches and hash_tag_matches:
                     print("Found recent Scarab binary, no build required")
+                    _touch_cache_hit(current_scarab_bin, dbg_lvl)
+                    prune_scarab_builds(infra_dir, dbg_lvl=dbg_lvl)
                     return
                 if result.returncode == 1 or not hash_tag_matches:
                     info("Cached scarab_current differs from repo binary; rebuilding.", dbg_lvl)
@@ -1240,6 +1308,7 @@ def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, sca
         err(f"Scarab binary for current hash not found in cache after building", dbg_lvl)
         exit(1)
 
+    prune_scarab_builds(infra_dir, dbg_lvl=dbg_lvl)
     print("Scarab build successful!")
 
 # copy_scarab deprecated
