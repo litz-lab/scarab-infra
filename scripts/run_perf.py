@@ -26,6 +26,14 @@ from .image_identity import image_tag_for
 
 client = docker.from_env()
 
+
+def app_mount_arg(application_dir):
+    """Return the `docker --mount` fragment exposing the benchmark app tree, or empty."""
+    if not application_dir:
+        return ""
+    return (f"--mount type=bind,source={application_dir},target=/tmp_home/application,readonly=true ")
+
+
 def perf_container_initialized(docker_container_name):
     """True only if the container is bootstrapped *and* has the infra mount.
 
@@ -72,7 +80,7 @@ def bootstrap_perf_container(docker_container_name):
     )
 
 
-def open_interactive_shell(user, docker_home, image_name, infra_dir, dbg_lvl = 1):
+def open_interactive_shell(user, docker_home, image_name, infra_dir, application_dir=None, dbg_lvl = 1):
     try:
         local_uid = os.getuid()
         local_gid = os.getgid()
@@ -96,6 +104,7 @@ def open_interactive_shell(user, docker_home, image_name, infra_dir, dbg_lvl = 1
                         -dit \
                         --name {docker_container_name} \
                         --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
+                        {app_mount_arg(application_dir)} \
                         --mount {infra_mount_arg(infra_dir)} \
                         {image_tag_for(image_name, infra_dir)} \
                         /bin/bash"
@@ -316,6 +325,42 @@ PERF_STAT_EVENTS = ','.join([
 PERF_SCRIPT = "/tmp/_perf_repeat.sh"
 
 
+def _docker_env_args(config):
+    """Returns `docker exec -e` arguments for a config's env_vars, or [] when null."""
+    return [arg
+            for pair in str(config.get("env_vars") or "").split()
+            for arg in ("-e", pair)]
+
+
+def stage_run_dir(container_name, binary_cmd):
+    """Stage the workload's run dir as a symlink in the container and return its path or None.
+
+    This keeps mounted application dir clean while facilitating hard-coded CWD-relative inputs.
+    Delegates to common/scripts/stage_local_rundir.py, which common/scripts/root_entrypoint.sh
+    publishes into /usr/local/bin and which the trace flow imports.
+    """
+    res = subprocess.run(
+        ["docker", "exec", container_name,
+         "python3", "/usr/local/bin/stage_local_rundir.py", binary_cmd],
+        capture_output=True, text=True,
+    )
+    run_dir = res.stdout.strip()
+    if res.returncode == 0 and run_dir:
+        return run_dir
+    print("    [rundir] WARNING: could not stage the run dir; running from the image WORKDIR, "
+          "so CWD-relative inputs will not resolve. Last five error lines:")
+    for line in res.stderr.strip().splitlines()[-5:]:
+        print(f"    [rundir] {line}")
+    return None
+
+
+def remove_run_dir(container_name, run_dir):
+    """Remove run_dir staged by stage_run_dir()."""
+    if not run_dir:
+        return
+    subprocess.run(["docker", "exec", container_name, "rm", "-rf", run_dir],
+                   capture_output=True, text=True)
+
 
 def _write_repeat_script(container_name, binary_cmd, repeat_count):
     """Write a repeat-loop script into the container to avoid quoting issues."""
@@ -336,17 +381,17 @@ def _write_repeat_script(container_name, binary_cmd, repeat_count):
 
 # ===== toplev =====
 
-def run_toplev_for_config(container_name, config, repeat_count):
+def run_toplev_for_config(container_name, config, repeat_count, run_dir=None):
     """Run toplev.py -l1 --single-thread on a pinned core via docker exec --privileged."""
     binary_cmd = config["binary_cmd"]
     _write_repeat_script(container_name, binary_cmd, repeat_count)
-    env_str = ""
-    if config.get("env_vars"):
-        env_str = " ".join(f"{k}={v}" for k, v in config["env_vars"].items()) + " "
     cmd = [
-        "docker", "exec", "--privileged", container_name,
+        "docker", "exec", "--privileged",
+        *_docker_env_args(config),
+        *(["--workdir", run_dir] if run_dir else []),
+        container_name,
         "/bin/bash", "-c",
-        f"{env_str}taskset -c {PERF_CORE} python3 {TOPLEV_PATH} -l1 --single-thread --core C{PERF_CORE}"
+        f"taskset -c {PERF_CORE} python3 {TOPLEV_PATH} -l1 --single-thread --core C{PERF_CORE}"
         f" --no-desc --verbose"
         f" -- taskset -c {PERF_CORE} {PERF_SCRIPT}"
     ]
@@ -468,7 +513,7 @@ def check_counter_budget(container_name):
 
 # ===== perf stat =====
 
-def run_perf_stat_for_config(container_name, config, repeat_count):
+def run_perf_stat_for_config(container_name, config, repeat_count, run_dir=None):
     """Run perf stat on a pinned core via docker exec --privileged.
 
     Collects elapsed time AND the raw HW counters (PERF_STAT_EVENTS) in a single
@@ -477,13 +522,13 @@ def run_perf_stat_for_config(container_name, config, repeat_count):
     """
     binary_cmd = config["binary_cmd"]
     _write_repeat_script(container_name, binary_cmd, repeat_count)
-    env_str = ""
-    if config.get("env_vars"):
-        env_str = " ".join(f"{k}={v}" for k, v in config["env_vars"].items()) + " "
     cmd = [
-        "docker", "exec", "--privileged", container_name,
+        "docker", "exec", "--privileged",
+        *_docker_env_args(config),
+        *(["--workdir", run_dir] if run_dir else []),
+        container_name,
         "/bin/bash", "-c",
-        f"{env_str}perf stat -C {PERF_CORE} -e {PERF_STAT_EVENTS} -- taskset -c {PERF_CORE} {PERF_SCRIPT}"
+        f"perf stat -C {PERF_CORE} -e {PERF_STAT_EVENTS} -- taskset -c {PERF_CORE} {PERF_SCRIPT}"
     ]
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=1800)
     if result.returncode != 0:
@@ -504,7 +549,7 @@ def run_perf_stat_for_config(container_name, config, repeat_count):
 
 # ===== Main part =====
 
-def collect_perf_data(user, root_dir, image_name, infra_dir, perf_configs, dbg_lvl=2):
+def collect_perf_data(user, root_dir, image_name, infra_dir, perf_configs, application_dir=None, dbg_lvl=2):
     """Orchestrator: create/reuse container, run toplev + perf stat for each config,
     write results to workloads_db.json."""
     local_uid = os.getuid()
@@ -532,6 +577,7 @@ def collect_perf_data(user, root_dir, image_name, infra_dir, perf_configs, dbg_l
                 f"-dit "
                 f"--name {docker_container_name} "
                 f"--mount type=bind,source={root_dir},target=/home/{user},readonly=false "
+                f"{app_mount_arg(application_dir)}"
                 f"--mount {infra_mount_arg(infra_dir)} "
                 f"{image_tag_for(image_name, infra_dir)} "
                 f"/bin/bash"
@@ -584,6 +630,7 @@ def collect_perf_data(user, root_dir, image_name, infra_dir, perf_configs, dbg_l
             # consumed by slurm_runner.estimate_trace_mem_mb() to size `--mem`
             # for sbatch trace jobs. Effectively free: this run already happens.
             binary_cmd = config["binary_cmd"]
+            run_dir = stage_run_dir(docker_container_name, binary_cmd) if application_dir else None
             rss_wrapper = (
                 "python3 -c '"
                 "import os,sys,subprocess,resource;"
@@ -598,7 +645,10 @@ def collect_perf_data(user, root_dir, image_name, infra_dir, perf_configs, dbg_l
             import time as _time
             warmup_t0 = _time.monotonic()
             warmup_res = subprocess.run(
-                ["docker", "exec", "--privileged", docker_container_name,
+                ["docker", "exec", "--privileged",
+                 *_docker_env_args(config),
+                 *(["--workdir", run_dir] if run_dir else []),
+                 docker_container_name,
                  "/bin/bash", "-c", f"source /usr/local/bin/user_entrypoint.sh; {rss_wrapper}"],
                 capture_output=True, text=True, timeout=3600,
             )
@@ -610,8 +660,11 @@ def collect_perf_data(user, root_dir, image_name, infra_dir, perf_configs, dbg_l
             repeat_count = max(1, min(PERF_REPEAT_DEFAULT, int((PERF_TARGET_SECONDS / single_run * 2 + 1) // 2)))
             print(f"    single-run ~{single_run:.0f}s, using {repeat_count}x repeats")
 
-            topdown = run_toplev_for_config(docker_container_name, config, repeat_count)
-            elapsed, hw_metrics = run_perf_stat_for_config(docker_container_name, config, repeat_count)
+            topdown = run_toplev_for_config(docker_container_name, config, repeat_count, run_dir)
+            elapsed, hw_metrics = run_perf_stat_for_config(docker_container_name, config, repeat_count, run_dir)
+
+            # Drop local run dir so a reused container does not accumulate them.
+            remove_run_dir(docker_container_name, run_dir)
 
             # Convert total elapsed to per-run average
             if elapsed is not None:
@@ -682,6 +735,8 @@ def run_perf_command(descriptor_path, action, dbg_lvl=2, infra_dir=None):
     user = descriptor_data.get("user")
     root_dir = descriptor_data.get("root_dir")
     image_name = descriptor_data.get("image_name")
+    # Optional: absent means the workload is baked into the image (see app_mount_arg).
+    application_dir = descriptor_data.get("application_dir")
 
     # Let the descriptor set the values; otherwise keep the default.
     if descriptor_data.get("perf_core") is not None:
@@ -695,14 +750,14 @@ def run_perf_command(descriptor_path, action, dbg_lvl=2, infra_dir=None):
         PERF_TARGET_SECONDS = int(descriptor_data["target_seconds"])
 
     if action == "launch":
-        open_interactive_shell(user, root_dir, image_name, infra_dir, dbg_lvl)
+        open_interactive_shell(user, root_dir, image_name, infra_dir, application_dir, dbg_lvl)
         return 0
 
     if action == "collect":
         perf_configs = descriptor_data.get("perf_configurations")
         if not perf_configs:
             raise RuntimeError("Descriptor has no perf_configurations for collection")
-        collect_perf_data(user, root_dir, image_name, infra_dir, perf_configs, dbg_lvl)
+        collect_perf_data(user, root_dir, image_name, infra_dir, perf_configs, application_dir, dbg_lvl)
         return 0
 
     raise RuntimeError(f"Unsupported perf action: {action}")

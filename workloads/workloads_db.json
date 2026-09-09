@@ -1,4 +1,34 @@
 {
+  "dhrystone":{
+    "dhrystone":{
+      "dhrystone":{
+        "trace":{
+          "dynamorio_args":null,
+          "clustering_k":null
+        },
+        "simulation":{
+          "prioritized_mode":"exec",
+          "exec":{
+            "image_name":"allbench_traces",
+            "segment_size":10000000,
+            "env_vars":null,
+            "binary_cmd":"\\$tmpdir/application/dhrystone/dhry",
+            "client_bincmd":null
+          }
+        },
+        "simpoints":[
+          {
+            "cluster_id":0,
+            "segment_id":0,
+            "weight":1.0
+          }
+        ],
+        "base_memory_mb_by_mode":{
+          "exec":null
+        }
+      }
+    }
+  },
   "google":{
     "google":{
       "_scarab_sim_githash":"fdf3c92",
