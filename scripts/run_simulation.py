@@ -108,6 +108,29 @@ def verify_descriptor(
         err("Need configurations to simulate. Set in descriptor file under 'configurations'", dbg_lvl)
         exit(1)
 
+    # scarab_current is a mutable name: it tracks whatever was last built, dirty tree
+    # included, so results are not attributable to a commit. Simulations must pin a hash.
+    # CI is exempt: the container is fresh, the cache starts empty, and the binary is
+    # built from the commit under test in the same job, so neither hazard applies.
+    allow_floating = (
+        os.environ.get("SCI_ALLOW_SCARAB_CURRENT") == "1"
+        or os.environ.get("GITHUB_ACTIONS") == "true"
+    )
+    if not open_shell and not allow_floating:
+        floating = sorted(
+            name
+            for name, config in (descriptor_data["configurations"] or {}).items()
+            if isinstance(config, dict) and str(config.get("binary", "")).startswith("scarab_current")
+        )
+        if floating:
+            err(
+                f"Configuration(s) {', '.join(floating)} use scarab_current, which does not identify a "
+                "commit. Commit your changes and pin 'scarab_<githash>[_index].opt' instead; sci builds "
+                "it from that hash on demand. Set SCI_ALLOW_SCARAB_CURRENT=1 to override.",
+                dbg_lvl,
+            )
+            exit(1)
+
 def open_interactive_shell(user, descriptor_name, descriptor_data, workloads_data, infra_dir, dbg_lvl = 1):
     experiment_name = descriptor_data["experiment"]
     scarab_path = descriptor_data["scarab_path"]
