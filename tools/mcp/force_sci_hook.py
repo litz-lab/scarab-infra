@@ -19,8 +19,9 @@ RULES = [
     (r"\*[^\s]*\b(?:stats\.out)\b|/simulations/[^\s]*\*", "sci_collect_stats"),
     (r"\bfor\b.*\bdo\b.*" + STATS,                     "sci_collect_stats"),
     (r"\bmake\b[^|;]*\bscarab\b",                      "sci_build_scarab"),
-    # Command position only: naming a binary (md5sum, ls, stat) is not running it.
-    (r"(?:^|[|;&]\s*|\bsudo\s+|\bsrun\s+)\s*(?:[^\s|;&='\"]*/)?(?:scarab_[0-9a-f]{7}[^\s]*\.opt|scarab)\b", "sci_sim"),
+    # Command position, and only a real binary: naming one (md5sum, ls, stat) is not
+    # running it, and a bare "scarab" in prose or a markdown table is not either.
+    (r"(?:^|[|;&]\s*|\bsudo\s+|\bsrun\s+)\s*(?:[^\s|;&='\"]*/)?(?:scarab_[0-9a-f]{7}[^\s]*\.opt|\./scarab)\b", "sci_sim"),
 ]
 # `./sci ...` itself is always fine, and so is anything that merely mentions sci.
 ALLOW = re.compile(r"(?:^|[|;&]\s*|\s)\./sci\b")

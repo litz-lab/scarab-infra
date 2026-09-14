@@ -37,6 +37,7 @@ OPTIONAL_TITLES = {
     "(Optional) Verify Codex CLI auth",
     "(Optional) Verify Gemini CLI auth",
     "(Optional) Verify Claude CLI auth",
+    "(Optional) Install agent guardrails",
 }
 
 COOKIES_CACHE_PATH = Path.home() / ".cache" / "gdown" / "cookies.txt"
@@ -2072,6 +2073,99 @@ def ensure_aslr_disabled(_: argparse.Namespace) -> Tuple[bool, str]:
         return True, "ASLR is disabled on local host (0)."
     
 
+AGENT_HOOK_REL = "tools/mcp/force_sci_hook.py"
+AGENT_MCP_REL = "tools/mcp/sci_mcp.py"
+
+
+AGENT_INSTALL_DIR = Path.home() / ".claude" / "tools"
+
+
+def _install_agent_copy(src: Path) -> Path:
+    """Copy a guardrail script outside the repo so a branch switch cannot remove it."""
+    AGENT_INSTALL_DIR.mkdir(parents=True, exist_ok=True)
+    dest = AGENT_INSTALL_DIR / src.name
+    shutil.copy2(src, dest)
+    dest.chmod(0o755)
+    return dest
+
+
+def _install_agent_hook(hook_path: Path) -> str:
+    """Add the PreToolUse Bash hook to the user's Claude Code settings."""
+    settings = Path.home() / ".claude" / "settings.json"
+    command = f'python3 "{hook_path}" 2>/dev/null || true'
+
+    data: Dict[str, Any] = {}
+    if settings.exists():
+        try:
+            data = json.loads(settings.read_text())
+        except json.JSONDecodeError:
+            return f"{settings} is not valid JSON; left it untouched."
+
+    entries = data.setdefault("hooks", {}).setdefault("PreToolUse", [])
+    existing = [
+        hook
+        for entry in entries
+        for hook in entry.get("hooks", [])
+        if AGENT_HOOK_REL in hook.get("command", "")
+    ]
+    if existing and all(hook.get("command") == command for hook in existing):
+        return "Bash hook already installed."
+
+    if existing:
+        for hook in existing:
+            hook["command"] = command
+        note = "Updated the scarab-infra hook to this checkout."
+    else:
+        entries.append({"matcher": "Bash", "hooks": [{"type": "command", "command": command}]})
+        note = "Installed the Bash hook."
+
+    settings.parent.mkdir(parents=True, exist_ok=True)
+    if settings.exists():
+        shutil.copy2(settings, settings.parent / f"settings.json.bak-{int(time.time())}")
+    settings.write_text(json.dumps(data, indent=2) + "\n")
+    return note
+
+
+def _install_agent_mcp(server_path: Path) -> str:
+    """Register the sci MCP server at user scope via the Claude CLI."""
+    if shutil.which("claude") is None:
+        return "Claude CLI not found, so the MCP server was not registered."
+    try:
+        listed = subprocess.run(
+            ["claude", "mcp", "list"], capture_output=True, text=True, timeout=60
+        )
+        if "scarab-infra" in (listed.stdout or ""):
+            return "MCP server 'scarab-infra' already registered."
+    except (subprocess.SubprocessError, OSError):
+        pass
+
+    added = subprocess.run(
+        ["claude", "mcp", "add", "--scope", "user", "scarab-infra",
+         "-e", f"SCI_REPO={REPO_ROOT}", "--", "python3", str(server_path)],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    if added.returncode != 0:
+        detail = (added.stderr or added.stdout or "").strip().splitlines()
+        return f"Could not register the MCP server: {detail[-1] if detail else 'unknown error'}"
+    return "Registered MCP server 'scarab-infra' at user scope."
+
+
+def maybe_install_agent_guardrails(_: argparse.Namespace) -> Tuple[bool, str]:
+    """Point coding agents at sci instead of letting them hand-roll it."""
+    hook_path = REPO_ROOT / AGENT_HOOK_REL
+    server_path = REPO_ROOT / AGENT_MCP_REL
+    if not hook_path.exists() or not server_path.exists():
+        return True, "Guardrail scripts are missing from this checkout; skipped."
+
+    server_path = _install_agent_copy(server_path)
+    hook_path = _install_agent_copy(hook_path)
+    parts = [_install_agent_mcp(server_path), _install_agent_hook(hook_path)]
+    parts.append("Restart your agent CLI to load them.")
+    return True, " ".join(parts)
+
+
 def run_init(args: argparse.Namespace) -> int:
     if sys.stdin.isatty():
         print_heading("Prepare Google Drive cookies.txt")
@@ -2107,6 +2201,7 @@ def run_init(args: argparse.Namespace) -> int:
         ("(Optional) Verify Codex CLI auth", maybe_check_codex_cli_auth),
         ("(Optional) Verify Gemini CLI auth", maybe_check_gemini_cli_auth),
         ("(Optional) Verify Claude CLI auth", maybe_check_claude_cli_auth),
+        ("(Optional) Install agent guardrails", maybe_install_agent_guardrails),
     ]
     summary: List[Tuple[str, bool, str]] = []
     for title, func in steps:
