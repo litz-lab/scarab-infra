@@ -597,6 +597,15 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                         fallback_mb = (descriptor_data.get("mem") or {}).get("fallback_mb") or DEFAULT_MEM_MB
                         mem_mb = fallback_mb + overhead_mb
 
+                    # base_memory_mb_by_mode holds opt figures, but dbg is an
+                    # AddressSanitizer build (-fsanitize=address, -O0): shadow memory,
+                    # redzones and the free quarantine put it several times higher. On
+                    # 2026-09-14 seven weekly dbg simulations were killed for exceeding
+                    # their limit. Double the request, and never add less than the
+                    # headroom a small one would get.
+                    if scarab_build == "dbg":
+                        mem_mb = max(2 * mem_mb, mem_mb + MEM_HEADROOM_MB)
+
                     sbatch_cmd = generate_sbatch_command(experiment_dir, slurm_options=slurm_options, mem_mb=mem_mb)
 
                     if fallback_mb is not None:
