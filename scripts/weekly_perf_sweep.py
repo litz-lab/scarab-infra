@@ -23,6 +23,7 @@ import getpass
 import json
 import math
 import os
+import re
 import shutil
 import smtplib
 import subprocess
@@ -58,6 +59,10 @@ PLOT_SUBDIR = "plots"
 LOCK_PATH = Path("/tmp/scarab_weekly_sweep.lock")
 # Where the cron entry sends this script's output; quoted in the failure mail.
 LOG_PATH = Path("/soe/hlitz/logs/weekly_perf_sweep.log")
+
+# experiment -> what was missing, for the mail. A mode that loses simulations
+# still averages what is left, so this is the only place it shows up.
+SHORTFALLS: Dict[str, str] = {}
 
 POLL_SECONDS = 300
 # A full SPEC17 sweep behind a busy queue; past this we take what finished.
@@ -282,6 +287,39 @@ def wait_for_sims(experiment: str) -> None:
         log(f"{experiment}: all jobs finished")
 
 
+def simulation_shortfall(descriptor_stem: str) -> str:
+    """How many simulations of this experiment did not finish, if any.
+
+    Stat collection skips what is missing, so a mode whose simulations were
+    killed still produces an average -- over fewer workloads, from partial
+    segments. On 2026-09-14 seven memtrace/dbg simulations were killed for
+    exceeding their memory limit and the sweep reported the remaining 99 as if
+    nothing had happened, with gcc_r_2 and gcc_r_3 averaging a third of their
+    instructions.
+    """
+    try:
+        output = subprocess.run([str(REPO_ROOT / "sci"), "--status", descriptor_stem],
+                                cwd=str(REPO_ROOT), check=True, text=True,
+                                capture_output=True).stdout
+    except (subprocess.CalledProcessError, FileNotFoundError) as exc:
+        return f"could not read simulation status ({exc})"
+
+    completed = total = 0
+    for line in output.splitlines():
+        # "config | completed | failed | failed-slurm | running | pending | non-existant | total"
+        fields = [f.strip() for f in re.sub(r"\x1b\[[0-9;]*m", "", line).split("|")]
+        if len(fields) != 8 or not fields[1].isdigit() or not fields[7].isdigit():
+            continue
+        completed += int(fields[1])
+        total += int(fields[7])
+
+    if total == 0:
+        return "simulation status reported no simulations"
+    if completed != total:
+        return f"{total - completed} of {total} simulations did not complete"
+    return ""
+
+
 def run_mode(stem: str, experiment: str, *, skip_sim: bool) -> Optional[Path]:
     """Run one mode; return its aggregates.json."""
     descriptor_stem = render_descriptor(stem, experiment)
@@ -293,6 +331,10 @@ def run_mode(stem: str, experiment: str, *, skip_sim: bool) -> Optional[Path]:
         if not sci(["--sim", descriptor_stem]):
             return None
         wait_for_sims(experiment)
+        shortfall = simulation_shortfall(descriptor_stem)
+        if shortfall:
+            log(f"WARNING: {experiment}: {shortfall}")
+            SHORTFALLS[experiment] = shortfall
         if not sci(["--collect-stats", descriptor_stem]):
             return None
 
@@ -771,11 +813,15 @@ def run_sweep(args, today: str) -> int:
             cwd=HISTORY_DIR, check=False)
         run(["git", "push"], cwd=HISTORY_DIR, check=False)
 
-    # A run where some modes died still reports, but says so in the subject.
+    if SHORTFALLS:
+        report += "\n\nIncomplete simulations (the averages above cover only what finished):\n" + "\n".join(
+            f"  {experiment}: {detail}" for experiment, detail in sorted(SHORTFALLS.items()))
     if failures:
-        report += "\n\nModes that produced nothing:\n" + "\n".join(
-            f"  {f}" for f in failures) + f"\nLog: {LOG_PATH}"
-    suffix_note = " (partial)" if failures else ""
+        report += "\n\nModes that produced nothing:\n" + "\n".join(f"  {f}" for f in failures)
+    # A run that lost anything still reports, but says so in the subject.
+    if failures or SHORTFALLS:
+        report += f"\nLog: {LOG_PATH}"
+    suffix_note = " (partial)" if (failures or SHORTFALLS) else ""
     notify(f"SPEC17 weekly perf sweep{suffix_note} - {today}", report, plots, args)
 
     return 0
