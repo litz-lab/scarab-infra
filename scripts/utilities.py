@@ -2334,7 +2334,19 @@ def print_simulation_status_summary(
     This lets callers (e.g. the interactive TUI) reuse the exact same
     classification logic instead of re-deriving state from logs.
     """
+    all_records = []
+
     def _record(state, config, suite, subsuite, workload, cluster_id, log_path=None, detail=None):
+        all_records.append({
+            "config": config,
+            "suite": suite,
+            "subsuite": subsuite,
+            "workload": workload,
+            "cluster_id": str(cluster_id),
+            "state": state,
+            "log_path": str(log_path) if log_path is not None else None,
+            "detail": detail,
+        })
         if record_sink is None:
             return
         record_sink.append({
@@ -2530,8 +2542,17 @@ def print_simulation_status_summary(
                                 oom_killed.append(config)
 
             if prep_err:
+                lowered = status_scan_text.lower()
+                if "exceeded memory limit" in lowered or "exceeded job memory limit" in lowered:
+                    prep_detail = "exceeded slurm memory limit"
+                elif "oom_kill" in status_scan_text:
+                    prep_detail = "oom_kill"
+                elif "time limit" in lowered:
+                    prep_detail = "slurm time limit"
+                else:
+                    prep_detail = "slurm node error"
                 _record(prep_failed_label, config, suite, subsuite, workload, cluster_id, log_path,
-                        "oom_kill" if "oom_kill" in status_scan_text else "slurm node error")
+                        prep_detail)
                 continue
 
             error = 0
@@ -2604,6 +2625,19 @@ def print_simulation_status_summary(
 
     print("PRINTING SUMMARY TABLE:")
     print(generate_table(data))
+
+    # Name what did not finish. The table says how many, which is no help when
+    # the question is which workload lost what and why.
+    unfinished = [r for r in all_records
+                  if r["state"] not in ("Completed", "Running", "Pending")]
+    if unfinished:
+        print(f"\nSIMULATIONS THAT DID NOT COMPLETE: {len(unfinished)}")
+        for r in sorted(unfinished, key=lambda r: (r["config"], r["suite"], r["subsuite"],
+                                                   r["workload"], r["cluster_id"])):
+            where = f"{r['suite']}/{r['subsuite']}/{r['workload']}/{r['cluster_id']}"
+            reason = r["detail"] or r["state"]
+            log = f"  {r['log_path']}" if r["log_path"] else ""
+            print(f"  {r['config']} {where}: {r['state']} - {reason}{log}")
 
     if error_runs:
         error_list = sorted(error_runs)
