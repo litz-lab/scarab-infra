@@ -304,10 +304,11 @@ def simulation_shortfall(descriptor_stem: str) -> str:
     except (subprocess.CalledProcessError, FileNotFoundError) as exc:
         return f"could not read simulation status ({exc})"
 
+    plain = re.sub(r"\x1b\[[0-9;]*m", "", output)
     completed = total = 0
-    for line in output.splitlines():
+    for line in plain.splitlines():
         # "config | completed | failed | failed-slurm | running | pending | non-existant | total"
-        fields = [f.strip() for f in re.sub(r"\x1b\[[0-9;]*m", "", line).split("|")]
+        fields = [f.strip() for f in line.split("|")]
         if len(fields) != 8 or not fields[1].isdigit() or not fields[7].isdigit():
             continue
         completed += int(fields[1])
@@ -315,9 +316,19 @@ def simulation_shortfall(descriptor_stem: str) -> str:
 
     if total == 0:
         return "simulation status reported no simulations"
-    if completed != total:
-        return f"{total - completed} of {total} simulations did not complete"
-    return ""
+    if completed == total:
+        return ""
+
+    # --status names each one and why it failed; carry that, not a count nobody
+    # can act on.
+    lines = plain.splitlines()
+    named = []
+    for i, line in enumerate(lines):
+        if line.startswith("SIMULATIONS THAT DID NOT COMPLETE"):
+            named = [l.rstrip() for l in lines[i + 1:] if l.startswith("  ")]
+            break
+    header = f"{total - completed} of {total} simulations did not complete"
+    return "\n".join([header] + named) if named else header
 
 
 def run_mode(stem: str, experiment: str, *, skip_sim: bool) -> Optional[Path]:
