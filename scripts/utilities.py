@@ -1195,6 +1195,18 @@ def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, sca
             err("Scarab not found after building", dbg_lvl)
             raise RuntimeError(f"Scarab binary not found at {scarab_bin} after build!")
 
+        # A dirty tree's binary is not the commit's binary, but HEAD's hash says it is.
+        # Tag it so it can never be reused later as that commit: the "-dirty" suffix
+        # does not match the hash pattern descriptors resolve binaries by.
+        cache_tag = scarab_githash
+        if not _scarab_repo_clean(scarab_path):
+            cache_tag = f"{scarab_githash}-dirty"
+            warn(
+                f"Scarab repo has uncommitted changes; caching as scarab_{cache_tag}, "
+                f"not scarab_{scarab_githash}. Commit first to mint a hash-pinned binary.",
+                dbg_lvl,
+            )
+
         # Name with git hash, with index for different iterations
         build_differs = False
         try:
@@ -1211,7 +1223,7 @@ def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, sca
                 scarab_binaries = os.listdir(f"{infra_dir}/scarab_builds")
             except OSError:
                 scarab_binaries = []
-            pattern = re.compile(rf"^scarab_{scarab_githash}(?:_(\d+))?\.{build_mode}$")
+            pattern = re.compile(rf"^scarab_{cache_tag}(?:_(\d+))?\.{build_mode}$")
             candidates = []
             indices = []
             for name in scarab_binaries:
@@ -1231,19 +1243,19 @@ def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, sca
                 # Ensure scarab_current is a symlink to a hash-specific binary for traceability.
                 current_githash_binaries, current_indicies = githash_candidates()
                 if current_githash_binaries == []:
-                    githash_name = _cache_bin_name(f"scarab_{scarab_githash}_0", build_mode)
+                    githash_name = _cache_bin_name(f"scarab_{cache_tag}_0", build_mode)
                     githash_scarab_bin = f"{infra_dir}/scarab_builds/{githash_name}"
                     shutil.copy2(scarab_bin, githash_scarab_bin)
                     pin_exec_src = f"{scarab_path}/src/pin/pin_exec/obj-intel64/pin_exec.so"
                     if os.path.isfile(pin_exec_src):
-                        pin_cache_name = _cache_bin_name(f"pin_exec_scarab_{scarab_githash}_0", build_mode)
+                        pin_cache_name = _cache_bin_name(f"pin_exec_scarab_{cache_tag}_0", build_mode)
                         shutil.copy2(pin_exec_src, f"{infra_dir}/scarab_builds/{pin_cache_name}")
                 elif not current_indicies:
-                    githash_name = _cache_bin_name(f"scarab_{scarab_githash}", build_mode)
+                    githash_name = _cache_bin_name(f"scarab_{cache_tag}", build_mode)
                     githash_scarab_bin = f"{infra_dir}/scarab_builds/{githash_name}"
                 else:
                     githash_name = _cache_bin_name(
-                        f"scarab_{scarab_githash}_{max(current_indicies)}",
+                        f"scarab_{cache_tag}_{max(current_indicies)}",
                         build_mode,
                     )
                     githash_scarab_bin = f"{infra_dir}/scarab_builds/{githash_name}"
@@ -1270,13 +1282,13 @@ def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, sca
             # If none exist, put it without index. Otherwise, add postfix index
             if current_githash_binaries == []:
                 info(f"No binaries with hash {scarab_githash} exist. Creating version 0...", dbg_lvl)
-                githash_name = _cache_bin_name(f"scarab_{scarab_githash}_0", build_mode)
+                githash_name = _cache_bin_name(f"scarab_{cache_tag}_0", build_mode)
                 githash_scarab_bin = f"{infra_dir}/scarab_builds/{githash_name}"
             else:
                 print("Versions matching current githash:", current_githash_binaries)
                 next_index = max(current_indicies) + 1 if current_indicies else 1
                 print("New index:", next_index)
-                githash_name = _cache_bin_name(f"scarab_{scarab_githash}_{next_index}", build_mode)
+                githash_name = _cache_bin_name(f"scarab_{cache_tag}_{next_index}", build_mode)
                 githash_scarab_bin = f"{infra_dir}/scarab_builds/{githash_name}"
 
             info(f"Copying scarab binary for {githash_scarab_bin} to cache", dbg_lvl)
