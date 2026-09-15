@@ -2348,6 +2348,27 @@ def load_simulation_experiment(
     return descriptor_path, descriptor, stats_path, aggregator, experiment, workloads, configs
 
 
+def warn_cumulative_counters(counters: Iterable[Any], field: str) -> None:
+    """Cumulative stat columns include warmup; the periodic ones do not."""
+    for raw in counters:
+        name = str(raw)
+        periodic = None
+        if name.endswith("_total_count"):
+            periodic = name[: -len("_total_count")] + "_count"
+        elif name.endswith("_total_value"):
+            periodic = name[: -len("_total_value")] + "_value"
+        elif name.startswith("Cumulative_"):
+            periodic = "Periodic_" + name[len("Cumulative_") :]
+        elif name == "IPC_total":
+            periodic = "IPC"
+        if periodic:
+            print(
+                f"WARNING: {field} '{name}' is a cumulative counter: it includes the "
+                f"warmup region, so it does not describe the measured simulation. "
+                f"Use '{periodic}' instead unless you deliberately want warmup included."
+            )
+
+
 def resolve_visualize_settings(
     descriptor: Dict[str, Any],
     configs: List[str],
@@ -2369,6 +2390,7 @@ def resolve_visualize_settings(
 
     if not isinstance(stats_to_plot, list) or not stats_to_plot:
         raise StepError("Descriptor field 'visualize.counters' must be a non-empty list when provided.")
+    warn_cumulative_counters(stats_to_plot, "visualize.counters")
 
     # Filter configs to plot when visualize.configs is specified.
     plot_configs: List[str] = list(configs)
@@ -2431,6 +2453,7 @@ def resolve_perf_analyze_settings(
     counters = block.get("counters") or ["IPC"]
     if not isinstance(counters, list) or not counters:
         raise StepError("Descriptor field 'perf_analyze.counters' must be a non-empty list when provided.")
+    warn_cumulative_counters(counters, "perf_analyze.counters")
 
     raw_stat_groups = block.get("stat_groups")
     stat_groups: List[str] = []
