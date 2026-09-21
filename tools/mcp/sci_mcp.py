@@ -18,8 +18,8 @@ PROTOCOL = "2024-11-05"
 # name -> (sci flag, help, needs descriptor, extra timeout)
 TOOLS = [
     ("sci_status",        "--status",        "Run/node status for a sweep. Call this right after a launch and on every check-in.", True,  600),
-    ("sci_sim",           "--sim",           "Launch the simulations defined in json/<descriptor>.json.",                          True,  1800),
-    ("sci_build_scarab",  "--build-scarab",  "Build scarab for json/<descriptor>.json. Never run make directly.",                  True,  3600),
+    ("sci_sim",           "--sim",           "Launch the simulations defined in json/<descriptor>.json. A configuration whose binary is named scarab_<githash> is checked out and built automatically when it is not already cached, so pin the hashes you want in the descriptor rather than building them yourself.", True,  1800),
+    ("sci_build_scarab",  "--build-scarab",  "Build scarab from the current working tree for json/<descriptor>.json. Never invoke the compiler directly, and never loop this over commits: to run several commits, name each one scarab_<githash> in the descriptor and let sci_sim build them.", True,  3600),
     ("sci_collect_stats", "--collect-stats", "Collect stats into collected_stats.csv. Never parse stats.out by hand.",             True,  1800),
     ("sci_visualize",     "--visualize",     "Plot IPC/speedup from collected stats.",                                             True,  900),
     ("sci_perf_analyze",  "--perf-analyze",  "Analyze IPC drift from collected stats.",                                            True,  900),

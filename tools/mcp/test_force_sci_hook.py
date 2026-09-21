@@ -36,6 +36,13 @@ CASES = [
     # allowed: a shell assignment is not a command invocation
     ("S=/home/me/builds/scarab_bc9352d_0.opt; md5sum $S", None),
     ("ls -la scarab_bc9352d_*.opt", None),
+    # driving a build with your own checkout loop: --sim builds missing hashes itself
+    ("for c in aaa1111 bbb2222; do git -C /r checkout -q $c; ./sci --build-scarab b; done", "sci_sim"),
+    ("git checkout 8672066 && ./sci --build-scarab build_bisect", "sci_sim"),
+    ("./sci --build-scarab build_bisect; git checkout mshr-on-miss", "sci_sim"),
+    # allowed: building the tree you are on, then launching
+    ("./sci --build-scarab build_x && ./sci --sim sw720", None),
+    ("git checkout mshr-on-miss && ./sci --sim sw720", None),
     # allowed: unrelated work
     ("git log --oneline -5", None),
     ("gh pr view 621 --comments", None),
