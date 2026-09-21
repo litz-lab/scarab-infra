@@ -19,3 +19,9 @@ PATH=/soe/hlitz/miniconda3/envs/scarabinfra/bin:/usr/local/bin:/usr/bin:/bin
 MAILTO=""
 
 0 5 * * 1 cd /soe/hlitz/git/scarab-infra-weekly && python3 scripts/weekly_perf_sweep.py >> /soe/hlitz/logs/weekly_perf_sweep.log 2>&1
+
+# Midweek smoke check (Wednesday 22:00 Pacific): one SPEC17 workload through the
+# same build/sim/stats path, ~15 minutes. It mails only when it fails, so the
+# week a policy change breaks the sweep we hear about it on Wednesday instead of
+# losing Sunday's data to it.
+0 5 * * 4 cd /soe/hlitz/git/scarab-infra-weekly && python3 scripts/weekly_perf_sweep.py --smoke >> /soe/hlitz/logs/weekly_perf_sweep.log 2>&1

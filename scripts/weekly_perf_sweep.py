@@ -43,6 +43,9 @@ MODES: List[Tuple[str, str]] = [
     ("weekly_spec17_exec_opt", "exec/opt"),
 ]
 
+# --smoke: one workload, one simpoint through the same code, midweek.
+SMOKE_MODE: Tuple[str, str] = ("weekly_spec17_smoke", "memtrace/opt smoke")
+
 # Own clones so a sweep never collides with anyone's working tree, and never
 # tests whatever branch someone happened to leave checked out.
 SCARAB_DIR = Path("/soe/hlitz/git/scarab-weekly")
@@ -729,6 +732,9 @@ def main() -> int:
     parser.add_argument("--no-push", action="store_true")
     parser.add_argument("--experiment-suffix", default=None,
                         help="Override the dated experiment suffix (testing).")
+    parser.add_argument("--smoke", action="store_true",
+                        help="Run one workload through the whole path and mail "
+                             "only if it fails; records no history.")
     parser.add_argument("--no-self-update", action="store_true",
                         help="Run this checkout as-is instead of re-execing "
                              "from a fresh scarab-infra main.")
@@ -749,6 +755,54 @@ def main() -> int:
         return 1
 
 
+def run_smoke(args, today: str, suffix: str) -> int:
+    """One workload through build, sim, status and stats; mail only if it broke.
+
+    The Sunday sweep is the only thing that runs this script, so anything that
+    breaks it -- a new binary-naming policy, a stale PIN object, a moved
+    descriptor field -- is found a week later, having cost a week of data. This
+    covers the same path over one simpoint in minutes, so a midweek cron entry
+    catches it while the change is still fresh.
+    """
+    stem, label = SMOKE_MODE
+    experiment = f"{stem}_{suffix}"
+    scarab_sha = git_sha(SCARAB_DIR) if args.skip_sim else refresh_scarab()
+    log(f"smoke check {today}: scarab={scarab_sha} ({experiment})")
+
+    problems: List[str] = []
+    aggregates_path = run_mode(stem, experiment, scarab_sha, skip_sim=args.skip_sim)
+    if aggregates_path is None:
+        problems.append(f"{label} ({experiment}): no results")
+    else:
+        # Derive too: a renamed counter leaves every row of history.csv empty
+        # without failing anything upstream of it.
+        metrics = derive_metrics(aggregates_path)
+        missing = sorted(f"{workload}.{metric}"
+                         for workload, values in metrics.items()
+                         for metric, value in values.items() if value is None)
+        if not metrics:
+            problems.append(f"{label} ({experiment}): aggregates.json yielded no metrics")
+        elif missing:
+            problems.append(f"{label} ({experiment}): no value for {', '.join(missing)}")
+    problems += [f"{exp}: {detail}" for exp, detail in sorted(SHORTFALLS.items())]
+
+    if not problems:
+        log(f"smoke check passed: {experiment}, scarab {scarab_sha}")
+        return 0
+
+    body = "\n".join(
+        [f"The midweek smoke check failed on {today}, so the Sunday sweep is",
+         "likely to fail the same way. It runs one SPEC17 workload through the",
+         "same build/sim/stats path the sweep uses.",
+         "",
+         f"scarab {scarab_sha}, scarab-infra {git_sha(REPO_ROOT)}",
+         ""] + problems + ["", f"Log: {LOG_PATH}"])
+    print()
+    print(body)
+    notify(f"SPEC17 smoke check FAILED - {today}", body, [], args)
+    return 1
+
+
 def run_sweep(args, today: str) -> int:
     global _INFRA_WARNING
     _INFRA_WARNING = infra_warning()
@@ -759,6 +813,11 @@ def run_sweep(args, today: str) -> int:
     try:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
+        if args.smoke:
+            # Whatever holds the lock is running this same code right now, so
+            # the smoke check has nothing left to prove and nothing to report.
+            log("a sweep is already running; smoke check exiting")
+            return 0
         log("another sweep is already running; exiting")
         notify(f"SPEC17 weekly perf sweep SKIPPED - {today}",
                "Another sweep still held the lock, so this run did nothing.\n"
@@ -767,6 +826,9 @@ def run_sweep(args, today: str) -> int:
         return 0
 
     suffix = args.experiment_suffix or today.replace("-", "")
+    if args.smoke:
+        return run_smoke(args, today, suffix)
+
     infra_sha = git_sha(REPO_ROOT)
     scarab_sha = "skipped" if args.skip_sim else refresh_scarab()
     if args.skip_sim:
