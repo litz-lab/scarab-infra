@@ -108,6 +108,34 @@ def verify_descriptor(
         err("Need configurations to simulate. Set in descriptor file under 'configurations'", dbg_lvl)
         exit(1)
 
+    # scarab_head means "whatever scarab_path has committed right now": resolve it to
+    # that hash so the descriptor stays valid as the repo moves while the run still
+    # names its commit. A dirty tree has no hash to name, so it is refused.
+    if not open_shell:
+        head_configs = sorted(
+            name
+            for name, config in (descriptor_data["configurations"] or {}).items()
+            if isinstance(config, dict) and str(config.get("binary", "")) == "scarab_head"
+        )
+        if head_configs:
+            scarab_path = descriptor_data["scarab_path"]
+            try:
+                sha = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=scarab_path,
+                                     check=True, text=True, capture_output=True).stdout.strip()
+                dirty = subprocess.run(["git", "status", "--porcelain", "--untracked-files=no"],
+                                       cwd=scarab_path, check=True, text=True,
+                                       capture_output=True).stdout.strip()
+            except (subprocess.CalledProcessError, FileNotFoundError, OSError) as exc:
+                err(f"Could not read the git HEAD of {scarab_path} for scarab_head: {exc}", dbg_lvl)
+                exit(1)
+            if dirty:
+                err(f"{scarab_path} has uncommitted changes, so scarab_head cannot name a commit. "
+                    "Commit them, or pin 'scarab_<githash>' explicitly.", dbg_lvl)
+                exit(1)
+            for name in head_configs:
+                descriptor_data["configurations"][name]["binary"] = f"scarab_{sha}"
+            info(f"scarab_head resolved to scarab_{sha} for {', '.join(head_configs)}", dbg_lvl)
+
     # scarab_current is a mutable name: it tracks whatever was last built, dirty tree
     # included, so results are not attributable to a commit. Simulations must pin a hash.
     # CI is exempt: the container is fresh, the cache starts empty, and the binary is
@@ -125,8 +153,9 @@ def verify_descriptor(
         if floating:
             err(
                 f"Configuration(s) {', '.join(floating)} use scarab_current, which does not identify a "
-                "commit. Commit your changes and pin 'scarab_<githash>[_index].opt' instead; sci builds "
-                "it from that hash on demand. Set SCI_ALLOW_SCARAB_CURRENT=1 to override.",
+                "commit. Pin 'scarab_<githash>[_index].opt', or 'scarab_head' for whatever "
+                "scarab_path has committed; sci builds it from that hash on demand. Set "
+                "SCI_ALLOW_SCARAB_CURRENT=1 to override.",
                 dbg_lvl,
             )
             exit(1)

@@ -224,11 +224,18 @@ def refresh_scarab() -> str:
 # Running one mode
 # ---------------------------------------------------------------------------
 
-def render_descriptor(stem: str, experiment: str) -> str:
+def render_descriptor(stem: str, experiment: str, scarab_sha: str) -> str:
     """Dated copy of a descriptor; sci refuses to re-run an existing experiment."""
     src = REPO_ROOT / "json" / f"{stem}.json"
     descriptor = json.loads(src.read_text(encoding="utf-8"))
     descriptor["experiment"] = experiment
+    # sci rejects scarab_current: a sweep's numbers have to name the commit they
+    # came from, which is the sha refresh_scarab() just reset the clone to.
+    # --build-scarab caches that build as scarab_<sha>_0.<mode>.
+    if re.fullmatch(r"[0-9a-f]{7,40}", scarab_sha):
+        for config in (descriptor.get("configurations") or {}).values():
+            if isinstance(config, dict):
+                config["binary"] = f"scarab_{scarab_sha}_0"
     dst_stem = experiment
     dst = REPO_ROOT / "json" / f"{dst_stem}.json"
     dst.write_text(json.dumps(descriptor, indent=2, separators=(",", ":")) + "\n",
@@ -331,9 +338,9 @@ def simulation_shortfall(descriptor_stem: str) -> str:
     return "\n".join([header] + named) if named else header
 
 
-def run_mode(stem: str, experiment: str, *, skip_sim: bool) -> Optional[Path]:
+def run_mode(stem: str, experiment: str, scarab_sha: str, *, skip_sim: bool) -> Optional[Path]:
     """Run one mode; return its aggregates.json."""
-    descriptor_stem = render_descriptor(stem, experiment)
+    descriptor_stem = render_descriptor(stem, experiment, scarab_sha)
     exp_dir = experiment_dir(descriptor_stem)
 
     if not skip_sim:
@@ -772,7 +779,7 @@ def run_sweep(args, today: str) -> int:
     for stem, label in MODES:
         experiment = f"{stem}_{suffix}"
         log(f"--- {label} ({experiment}) ---")
-        aggregates_path = run_mode(stem, experiment, skip_sim=args.skip_sim)
+        aggregates_path = run_mode(stem, experiment, scarab_sha, skip_sim=args.skip_sim)
         if aggregates_path is None:
             log(f"{label}: no results, continuing with the other modes")
             failures.append(f"{label} ({experiment}): no results")
