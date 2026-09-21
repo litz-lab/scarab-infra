@@ -21,7 +21,7 @@
   "configurations":{
     "baseline":{
       "params":"",
-      "binary":"scarab_current",
+      "binary":"scarab_head",
       "slurm_options":"",
       "memory_overhead_mb":0
     }
