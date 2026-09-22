@@ -26,6 +26,21 @@ RULES = [
 # `./sci ...` itself is always fine, and so is anything that merely mentions sci.
 ALLOW = re.compile(r"(?:^|[|;&]\s*|\s)\./sci\b")
 
+# Checked before ALLOW: these call sci but drive it by hand, so the allow-list would
+# wave them through. A descriptor that names scarab_<githash> binaries already gets
+# them checked out and built by --sim.
+CHECKOUT = r"\bgit\b[^\n;|&]*\bcheckout\b"
+BUILD = r"--build-scarab\b"
+DENY_FIRST = [
+    (CHECKOUT + r"[\s\S]*" + BUILD, "sci_sim"),
+    (BUILD + r"[\s\S]*" + CHECKOUT, "sci_sim"),
+]
+DENY_FIRST_REASON = (
+    "Blocked: do not drive a scarab build with your own checkout loop. Use the MCP "
+    "tool `{tool}` (scarab-infra server): name each binary scarab_<githash> in the "
+    "descriptor's configurations and launch once. sci checks out and builds every "
+    "hash that is not cached, restoring your branch and working tree afterwards.")
+
 
 def main():
     try:
@@ -36,21 +51,32 @@ def main():
     if payload.get("tool_name") != "Bash":
         sys.exit(0)
     cmd = (payload.get("tool_input") or {}).get("command", "")
-    if not cmd or ALLOW.search(cmd):
+    if not cmd:
+        sys.exit(0)
+
+    for pat, tool in DENY_FIRST:
+        if re.search(pat, cmd, re.IGNORECASE):
+            deny(tool, DENY_FIRST_REASON.format(tool=tool))
+
+    if ALLOW.search(cmd):
         sys.exit(0)
 
     for pat, tool in RULES:
         if re.search(pat, cmd, re.IGNORECASE):
-            print(json.dumps({"hookSpecificOutput": {
-                "hookEventName": "PreToolUse",
-                "permissionDecision": "deny",
-                "permissionDecisionReason": (
-                    f"Blocked: this reimplements scarab-infra. Use the MCP tool `{tool}` "
-                    f"(scarab-infra server) instead of hand-rolling it in Bash. "
-                    f"If the tool genuinely cannot express what you need, say so to the user "
-                    f"and ask before working around it."),
-            }}))
-            sys.exit(0)
+            deny(tool, (
+                f"Blocked: this reimplements scarab-infra. Use the MCP tool `{tool}` "
+                f"(scarab-infra server) instead of hand-rolling it in Bash. "
+                f"If the tool genuinely cannot express what you need, say so to the user "
+                f"and ask before working around it."))
+    sys.exit(0)
+
+
+def deny(tool, reason):
+    print(json.dumps({"hookSpecificOutput": {
+        "hookEventName": "PreToolUse",
+        "permissionDecision": "deny",
+        "permissionDecisionReason": reason,
+    }}))
     sys.exit(0)
 
 
