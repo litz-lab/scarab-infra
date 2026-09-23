@@ -503,6 +503,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
 
     tmp_files = set()
     remove_jobs = set()
+    old_job_logs = {}
 
     def run_single_workload(suite, subsuite, workload, exp_cluster_id, sim_mode, warmup):
         try:
