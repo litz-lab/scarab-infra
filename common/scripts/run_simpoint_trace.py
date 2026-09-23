@@ -93,6 +93,25 @@ def get_cluster_map(workload_home):
 
     return cluster_map
 
+
+def get_cluster_map_from_db(workload):
+    infra_home = os.environ.get("INFRA_HOME")
+    if not infra_home:
+        print("INFRA_HOME not set; skipping workloads_db.json lookup", flush=True)
+        return None
+    db_path = os.path.join(infra_home, "workloads", "workloads_db.json")
+    if not os.path.isfile(db_path):
+        return None
+    with open(db_path) as f:
+        db = json.load(f)
+    for suite in db.values():
+        for subsuite in suite.values():
+            entry = subsuite.get(workload) if isinstance(subsuite, dict) else None
+            if isinstance(entry, dict) and entry.get("simpoints"):
+                return {sp["segment_id"]: sp["cluster_id"] for sp in entry["simpoints"]}
+    return None
+
+
 # Post-tracing safety net: discard segments whose traced output is empty/corrupt
 # AND whose SimPoint weight is negligible (< 1%).  This is distinct from
 # SimPoint's -coveragePct which controls *clustering* (how many clusters to
@@ -493,6 +512,83 @@ def cluster_only(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint
             report_time("clustering", start_time, end_time)
 
         print("cluster_only (mode 4) complete. Simpoints ready for parallel segment tracing.")
+    except Exception as e:
+        raise e
+
+
+def pinball_extraction(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mode, drio_args, clustering_userk):
+    """Mode 6: record an SDE pinball (warmup segments + target segment) for every simpoint."""
+    warmup_segs = 5
+    margin = 1.3
+    max_rec = 1  # concurrent sde recordings
+    try:
+        workload_home = f"{simpoint_home}/{workload}"
+        sde_home = os.path.dirname(os.environ["PIN_ROOT"])  # $tmpdir/sde-external-*/pinkit -> sde dir
+
+        # inscount produced by the fingerprinting step (pick the longest one, same as clustering does for bbfp)
+        inscount_files = glob.glob(os.path.join(workload_home, "fingerprint", "bbfp.*.inscount"))
+        if not inscount_files:
+            raise Exception("No bbfp.*.inscount found. Run cluster_only (mode 4) first.")
+        inscount_path = max(inscount_files, key=lambda f: sum(1 for _ in open(f)))
+        import pandas as pd
+        df = pd.read_csv(inscount_path).astype("int64")
+        df = df[df.segment < df.segment.max()]  # drop partial last row
+
+        def skip_length(target):
+            first, last = target - warmup_segs + 1, target + 1
+            if df.segment.max() < target:
+                raise Exception(f"inscount has {df.segment.max()} rows, need {last} for segment {target}")
+            skip = df[df.segment < first].total_instrs_in_seg.sum()
+            length = df[(df.segment >= first) & (df.segment <= last)].total_instrs_in_seg.sum()
+            return int(skip), int(length * margin)
+
+        def pinball_ready(pb):
+            need = ["test.address", "test.0.sel", "test.0.result"]
+            if any(not os.path.isfile(os.path.join(pb, f)) for f in need):
+                return False
+            text = os.path.join(pb, "test.text")
+            return os.path.isfile(text) and os.path.getsize(text) > 0
+
+        if client_bincmd:
+            subprocess.Popen("exec " + client_bincmd, stdout=subprocess.PIPE, shell=True)
+
+        cluster_map = get_cluster_map_from_db(workload)
+        if cluster_map is not None:
+            print(f"using {len(cluster_map)} simpoints of {workload} from workloads_db.json", flush=True)
+        else:
+            cluster_map = get_cluster_map(workload_home)  # {cluster_id: segment_id} from opt.p.lpt0.99
+
+        start_time = time.perf_counter()
+        recs = []
+        for cluster_id, seg in sorted(cluster_map.items()):
+            pb = os.path.join(workload_home, "traces_simp", str(seg))
+            os.makedirs(pb, exist_ok=True)
+            if pinball_ready(pb):
+                print(f"[{seg}] pinball already present, skipping recording", flush=True)
+                continue
+            while len([p for _, p in recs if p.poll() is None]) >= max_rec:
+                time.sleep(10)
+            skip, length = skip_length(seg)
+            print(f"[{seg}] recording skip={skip:,} length={length:,}", flush=True)
+            rec_cmd = (f"{THREAD_LIMIT_ENV_PREFIX} {sde_home}/sde64 -clx -log -log:fat -log:basename {pb}/test "
+                       f"-skip {skip} -length {length} -log:early_out -- {bincmd}")
+            print(f"  $ {rec_cmd}", flush=True)
+            recs.append((seg, subprocess.Popen(rec_cmd, shell=True,
+                                               stdout=open(os.path.join(pb, "record.out"), "w"),
+                                               stderr=open(os.path.join(pb, "record.err"), "w"))))
+
+        failed = []
+        for seg, p in recs:
+            if p.wait() != 0:
+                print(f"[{seg}] RECORDING FAILED rc={p.returncode}", flush=True)
+                failed.append(seg)
+            else:
+                print(f"[{seg}] recording done", flush=True)
+        end_time = time.perf_counter()
+        report_time("pinball extraction done", start_time, end_time)
+        if failed:
+            raise Exception(f"pinball recording failed for segments: {failed}")
+        print("pinball_extraction (mode 6) complete.")
     except Exception as e:
         raise e
 
@@ -1223,6 +1319,9 @@ if __name__ == "__main__":
             if args.segment_id is None or args.cluster_id is None:
                 raise Exception("Mode 5 requires --segment_id and --cluster_id")
             trace_single_segment(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mode, drio_args, args.segment_id, args.cluster_id)
+        elif simpoint_mode == "6": # pinball extraction for each simpoint (requires cluster_only output)
+            cluster_only(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mode, drio_args, clustering_userk)
+            pinball_extraction(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mode, drio_args, clustering_userk)
         else:
             raise Exception("Invalid simpoint mode")
     except Exception as e:

@@ -1803,6 +1803,8 @@ def generate_single_trace_run_command(user, workload, image_name, trace_name, bi
         mode = 4
     elif simpoint_mode == "trace_single_segment":
         mode = 5
+    elif simpoint_mode == "pinball_extraction":
+        mode = 6
     command = f"python3 -u /usr/local/bin/run_simpoint_trace.py --workload {workload} --suite {image_name} --simpoint_mode {mode} --simpoint_home \\\"/home/{user}/simpoint_flow/{trace_name}\\\" --bincmd \\\"{binary_cmd}\\\""
     if client_bincmd != None:
         command = f"{command} --client_bincmd \\\"{client_bincmd}\\\""
@@ -3033,6 +3035,21 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
                 memtrace_dict['warmup'] = 50000000
                 memtrace_dict['whole_trace_file'] = None
                 print("cluster_then_trace doesn't have a whole trace file.")
+            elif config['trace_type'] == "pinball_extraction":
+                subsuite = config['subsuite'] if config['subsuite'] else suite
+                if workload in workload_db_data.get(suite, {}).get(subsuite, {}):
+                    print(f"{workload}: already in workloads_db; skipping update.")
+                else:
+                    workload_db_data.setdefault(suite, {}).setdefault(subsuite, {})[workload] = {
+                        "trace": trace_dict,
+                        "simulation": {"prioritized_mode": "exec", "exec": exec_dict},
+                        "simpoints": simpoints,
+                    }
+                os.system(f"mkdir -p {target_traces_path}/traces/pinballs")
+                os.system(f"cp -r {trace_dir}/{workload}/traces_simp/* {target_traces_path}/traces/pinballs/")
+                os.system(f"chmod a+w -R {target_traces_path}")
+                print(f"{workload}: pinballs copied to {target_traces_path}/traces/pinballs; skipping workloads_db update.")
+                continue
             else: # iterative_trace
                 trace_clustering_info = read_descriptor_from_json(trace_clustering_info_file, dbg_lvl)
                 largest_traces = trace_clustering_info['trace_file']
