@@ -2090,6 +2090,33 @@ def _install_agent_copy(src: Path) -> Path:
     return dest
 
 
+def refresh_agent_guardrails() -> None:
+    """Bring already-installed guardrails up to date with this checkout.
+
+    They are copies rather than symlinks so a branch switch cannot break them, which
+    also means `git pull` does not update them: whoever ran --init in July kept a July
+    hook through every pull since. Re-copying whenever the checkout differs means any
+    sci command picks up a newer guardrail, so a pull is enough.
+
+    Only files that are already installed are touched -- the --init step is optional
+    and this must not opt anyone in behind their back. Upkeep must never be the reason
+    a command fails, so a read-only or unwritable install dir is ignored.
+    """
+    for rel in (AGENT_HOOK_REL, AGENT_MCP_REL):
+        src = REPO_ROOT / rel
+        dest = AGENT_INSTALL_DIR / Path(rel).name
+        try:
+            if not src.is_file() or not dest.is_file():
+                continue
+            if src.read_bytes() == dest.read_bytes():
+                continue
+            shutil.copy2(src, dest)
+            dest.chmod(0o755)
+            info(f"Updated {dest.name} from this checkout.")
+        except OSError:
+            continue
+
+
 def _install_agent_hook(hook_path: Path) -> str:
     """Add the PreToolUse Bash hook to the user's Claude Code settings."""
     settings = Path.home() / ".claude" / "settings.json"
@@ -4513,6 +4540,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
+    refresh_agent_guardrails()
     requested = [
         bool(args.init),
         bool(args.ci_init),
