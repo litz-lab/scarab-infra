@@ -882,6 +882,7 @@ def ensure_conda_env(args: argparse.Namespace) -> Tuple[bool, str]:
         return True, "Conda environment already up to date."
 
     if not env_exists:
+        os.environ.setdefault("CONDA_PLUGINS_AUTO_ACCEPT_TOS", "yes")
         try:
             run_command(["conda", "env", "create", "-f", str(yaml_path)])
         except StepError as exc:
