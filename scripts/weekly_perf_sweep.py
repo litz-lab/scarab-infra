@@ -120,43 +120,37 @@ def run(cmd: List[str], *, cwd: Optional[Path] = None, check: bool = True,
 
 # Set once per run; prepended to every mail so a stale checkout is never a
 # silent explanation for a weird result.
-_INFRA_WARNING = ""
+def require_main(repo: Path, what: str) -> Optional[str]:
+    """Why this checkout is not current main, or None when it is.
 
-
-def infra_warning() -> str:
-    """Warn when the checkout we ended up in is not main, or is behind it.
-
-    Normally refresh_infra() has already re-execed us from a clean main, so
-    this is empty. It fires under --no-self-update, which is how a hand-run
-    sweep from a feature branch says so in its own mail.
+    A sweep measures main; numbers from a feature branch or a dirty tree are
+    not comparable with the history they get appended to. refresh_infra() and
+    refresh_scarab() reset both clones, so this only fires when something ran
+    the sweep from somewhere else -- and then it stops the run instead of
+    putting a warning on top of every mail.
     """
-    run(["git", "fetch", "origin", "main"], cwd=REPO_ROOT, check=False)
+    run(["git", "fetch", "origin", "main"], cwd=repo, check=False)
 
     def git(*args: str) -> Optional[str]:
         try:
-            return subprocess.run(["git", *args], cwd=str(REPO_ROOT), check=True,
+            return subprocess.run(["git", *args], cwd=str(repo), check=True,
                                   text=True, capture_output=True).stdout.strip()
         except subprocess.CalledProcessError:
             return None
 
     head = git("rev-parse", "--short", "HEAD")
     target = git("rev-parse", "--short", "origin/main")
-    behind = git("rev-list", "--count", "HEAD..origin/main")
     # Tracked files only: the sweep renders a descriptor per mode into json/,
     # so counting untracked files declared the clone "not main" every week.
     dirty = git("status", "--porcelain", "--untracked-files=no")
     if head is None or target is None:
-        return ""
+        return None
     if head == target and not dirty:
-        return ""
-    detail = [f"checkout {head}, origin/main {target}"]
-    if behind and behind != "0":
-        detail.append(f"{behind} commits behind")
+        return None
+    detail = f"checkout {head}, origin/main {target}"
     if dirty:
-        detail.append("uncommitted changes")
-    return (f"WARNING: scarab-infra at {REPO_ROOT} is not main ("
-            + "; ".join(detail) + ").\n"
-            "The images and run scripts under test are not the ones on main.")
+        detail += ", uncommitted changes"
+    return f"{what} at {repo} is not current main ({detail})"
 
 
 def git_sha(repo: Path) -> str:
@@ -720,8 +714,6 @@ def notify(subject: str, body: str, attachments: List[Path], args) -> None:
     if args.no_email or args.dry_run:
         log(f"not mailing '{subject}' (--no-email/--dry-run)")
         return
-    if _INFRA_WARNING:
-        body = f"{_INFRA_WARNING}\n\n{body}"
     recipients = org_recipients() or FALLBACK_RECIPIENTS
     send_email(subject, body, attachments, recipients)
 
@@ -777,12 +769,24 @@ def on_interrupt(args, today: str) -> None:
         name = signal.Signals(signum).name
         log(f"received {name}; stopping")
         stage = ", ".join(STATE.get("submitted") or []) or "none"
+        try:
+            system = subprocess.run(["systemctl", "is-system-running"], text=True,
+                                    capture_output=True).stdout.strip() or "unknown"
+        except (OSError, subprocess.SubprocessError):
+            system = "unknown"
+        # "stopping" means the machine is going down and took us with it;
+        # anything else means someone or something else sent the signal, and
+        # saying "a reboot did this" would be a guess.
+        cause = ("The host is shutting down, which is what took the sweep with it"
+                 if system == "stopping"
+                 else f"The host is not shutting down (systemd: {system}), so the signal "
+                      "came from elsewhere -- a kill, a session ending, or the OOM killer")
         notify(f"SPEC17 weekly perf sweep INTERRUPTED - {today}",
-               f"The sweep was stopped by {name}; a reboot of "
-               f"{os.uname().nodename} does this.\n\n"
+               f"The sweep was stopped by {name} on {os.uname().nodename}.\n"
+               f"{cause}.\n\n"
                f"Modes already submitted: {stage}\n\n"
-               "The next boot resumes it from there and mails the report. "
-               f"State: {STATE_PATH}\n"
+               f"--resume finishes this run and mails the report; the next boot "
+               f"does that automatically.\nState: {STATE_PATH}\n"
                f"Log: {LOG_PATH}",
                [], args)
         sys.exit(128 + signum)
@@ -830,12 +834,22 @@ def main() -> int:
         return 1
 
 
-def run_sweep(args, today: str) -> int:
-    global _INFRA_WARNING
-    _INFRA_WARNING = infra_warning()
-    if _INFRA_WARNING:
-        log(_INFRA_WARNING)
+def refuse(reason: str, today: str, args) -> int:
+    """Stop before measuring anything, and say why."""
+    log(f"ERROR: {reason}")
+    notify(f"SPEC17 weekly perf sweep REFUSED - {today}",
+           "\n".join(["This run stopped before it measured anything: a sweep has to run",
+                      "current main of both repos, or its numbers do not belong in the",
+                      "history it gets appended to.", "",
+                      f"  {reason}", "",
+                      "Use --dry-run to try a branch without recording it.",
+                      f"Log: {LOG_PATH}"]),
+           [], args)
+    STATE_PATH.unlink(missing_ok=True)
+    return 1
 
+
+def run_sweep(args, today: str) -> int:
     lock = LOCK_PATH.open("w")
     try:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -849,6 +863,12 @@ def run_sweep(args, today: str) -> int:
                f"Log: {LOG_PATH}",
                [], args)
         return 0
+
+    enforce_main = not (args.dry_run or args.skip_sim)
+    if enforce_main:
+        reason = require_main(REPO_ROOT, "scarab-infra")
+        if reason:
+            return refuse(reason, today, args)
 
     resumed = load_state() if args.resume else None
     if resumed:
@@ -865,6 +885,10 @@ def run_sweep(args, today: str) -> int:
         suffix = args.experiment_suffix or today.replace("-", "")
         infra_sha = git_sha(REPO_ROOT)
         scarab_sha = "skipped" if args.skip_sim else refresh_scarab()
+        if enforce_main:
+            reason = require_main(SCARAB_DIR, "Scarab")
+            if reason:
+                return refuse(reason, today, args)
         if args.skip_sim:
             scarab_sha = git_sha(SCARAB_DIR) if SCARAB_DIR.is_dir() else "unknown"
         already = []
