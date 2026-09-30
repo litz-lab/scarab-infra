@@ -2091,30 +2091,45 @@ def _install_agent_copy(src: Path) -> Path:
 
 
 def refresh_agent_guardrails() -> None:
-    """Bring already-installed guardrails up to date with this checkout.
+    """Install the guardrails, and keep them matching this checkout, from any command.
 
     They are copies rather than symlinks so a branch switch cannot break them, which
     also means `git pull` does not update them: whoever ran --init in July kept a July
-    hook through every pull since. Re-copying whenever the checkout differs means any
-    sci command picks up a newer guardrail, so a pull is enough.
+    hook through every pull since, missing every rule added in between. Doing this from
+    every sci command makes a pull enough, and makes --init unnecessary for guardrails.
 
-    Only files that are already installed are touched -- the --init step is optional
-    and this must not opt anyone in behind their back. Upkeep must never be the reason
-    a command fails, so a read-only or unwritable install dir is ignored.
+    Registering the MCP server runs the Claude CLI, which is far too slow to repeat, so
+    the full install is gated on the hook not being there yet -- it happens once per
+    machine. After that only a byte comparison runs. Upkeep must never be the reason a
+    command fails, so an unwritable install dir is skipped rather than raised.
     """
-    for rel in (AGENT_HOOK_REL, AGENT_MCP_REL):
-        src = REPO_ROOT / rel
-        dest = AGENT_INSTALL_DIR / Path(rel).name
-        try:
-            if not src.is_file() or not dest.is_file():
-                continue
-            if src.read_bytes() == dest.read_bytes():
+    src_hook = REPO_ROOT / AGENT_HOOK_REL
+    if not src_hook.is_file() or not (REPO_ROOT / AGENT_MCP_REL).is_file():
+        return
+
+    try:
+        if not (AGENT_INSTALL_DIR / src_hook.name).is_file():
+            print_heading("Install agent guardrails")
+            info(maybe_install_agent_guardrails(None)[1])
+            return
+
+        for rel in (AGENT_HOOK_REL, AGENT_MCP_REL):
+            src = REPO_ROOT / rel
+            dest = AGENT_INSTALL_DIR / Path(rel).name
+            if not dest.is_file() or src.read_bytes() == dest.read_bytes():
                 continue
             shutil.copy2(src, dest)
             dest.chmod(0o755)
             info(f"Updated {dest.name} from this checkout.")
-        except OSError:
-            continue
+
+        # Registration too, not just the scripts: it is a small JSON read that writes
+        # only when something is wrong, so it can run every command, and it is what
+        # repairs a settings file that already accumulated duplicates.
+        note = _install_agent_hook(AGENT_INSTALL_DIR / src_hook.name)
+        if note != "Bash hook already installed.":
+            info(note)
+    except OSError:
+        return
 
 
 def _install_agent_hook(hook_path: Path) -> str:
@@ -2130,22 +2145,33 @@ def _install_agent_hook(hook_path: Path) -> str:
             return f"{settings} is not valid JSON; left it untouched."
 
     entries = data.setdefault("hooks", {}).setdefault("PreToolUse", [])
+    # Match on the file name, not AGENT_HOOK_REL: the installed command names the copy
+    # under ~/.claude/tools, which never contains the repo-relative tools/mcp path, so
+    # matching on that found nothing and appended a duplicate on every install.
+    hook_name = Path(AGENT_HOOK_REL).name
     existing = [
         hook
         for entry in entries
         for hook in entry.get("hooks", [])
-        if AGENT_HOOK_REL in hook.get("command", "")
+        if hook_name in hook.get("command", "")
     ]
-    if existing and all(hook.get("command") == command for hook in existing):
+    if len(existing) == 1 and existing[0].get("command") == command:
         return "Bash hook already installed."
 
-    if existing:
-        for hook in existing:
-            hook["command"] = command
+    if len(existing) > 1:
+        note = f"Collapsed {len(existing)} duplicate {hook_name} hook entries into one."
+    elif existing:
         note = "Updated the scarab-infra hook to this checkout."
     else:
-        entries.append({"matcher": "Bash", "hooks": [{"type": "command", "command": command}]})
         note = "Installed the Bash hook."
+
+    # Drop every copy wherever it sits, then add exactly one back. Each install appended
+    # a whole new entry, so duplicates are separate entries rather than several hooks
+    # inside one, and editing only the first would leave the rest behind.
+    for entry in entries:
+        entry["hooks"] = [h for h in entry.get("hooks", []) if hook_name not in h.get("command", "")]
+    entries[:] = [entry for entry in entries if entry.get("hooks")]
+    entries.append({"matcher": "Bash", "hooks": [{"type": "command", "command": command}]})
 
     settings.parent.mkdir(parents=True, exist_ok=True)
     if settings.exists():
