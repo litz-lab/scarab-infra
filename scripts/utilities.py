@@ -306,54 +306,51 @@ def validate_simulation(workloads_data, simulations, dbg_lvl = 2):
 
 
 import os
-import fcntl
 import stat
-import errno
 import time
 from contextlib import contextmanager
 
 @contextmanager
 def file_lock(lock_path):
     """
-    Simple blocking file lock using fcntl.flock.
-    Ensures only one process at a time holds the lock.
+    Blocking mutual-exclusion lock shared across users on this host,
+    implemented as an exclusively-created directory rather than flock() on
+    a regular file.
+
+    A regular lock *file* directly under /tmp doesn't work across users:
+    whichever user's process creates it first becomes its owner, and the
+    kernel's fs.protected_regular hardening (on by default on modern
+    distros) then silently denies every other user write access to it --
+    even when its mode bits say 0666 -- because /tmp is a world-writable
+    directory. os.open(..., O_RDWR) fails with EACCES for anyone else,
+    permanently, not just transiently. protected_regular only restricts
+    opening *regular files* for writing and never applies to directories,
+    so using mkdir/rmdir as the lock primitive sidesteps it entirely. The
+    lock directory's own parent is also kept non-sticky (unlike /tmp
+    itself) so any user can remove a lock entry regardless of who created
+    it -- a sticky parent would reintroduce the same cross-user problem for
+    directory removal via the classic sticky-bit delete restriction.
     """
-    os.makedirs(os.path.dirname(lock_path), exist_ok=True)
-    fd = None
-    for _ in range(50):
-        try:
-            fd = os.open(lock_path, os.O_CREAT | os.O_RDWR)
-            break
-        except OSError as e:
-            if e.errno == errno.EACCES:
-                # Another process may have created this file with restrictive
-                # permissions and has not yet relaxed them.
-                time.sleep(0.1)
-                continue
-            raise
-    if fd is None:
-        raise PermissionError(f"Timed out opening lock file: {lock_path}")
+    container = os.path.dirname(lock_path)
+    os.makedirs(container, exist_ok=True)
     try:
-        # Ensure other users can use the same lock file.
+        os.chmod(container, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
+    except OSError:
+        pass
+
+    while True:
         try:
-            os.fchmod(
-                fd,
-                stat.S_IRUSR
-                | stat.S_IWUSR
-                | stat.S_IRGRP
-                | stat.S_IWGRP
-                | stat.S_IROTH
-                | stat.S_IWOTH,
-            )
-        except OSError as e:
-            # If this process does not own the file, chmod may be denied.
-            if e.errno not in (errno.EPERM, errno.EACCES):
-                raise
-        fcntl.flock(fd, fcntl.LOCK_EX)  # blocks until lock acquired
+            os.mkdir(lock_path)
+            break
+        except FileExistsError:
+            time.sleep(0.1)
+    try:
         yield
     finally:
-        fcntl.flock(fd, fcntl.LOCK_UN)
-        os.close(fd)
+        try:
+            os.rmdir(lock_path)
+        except OSError:
+            pass
 
 # Prepare the docker image on each node
 # Inputs:   docker_prefix - docker image name
@@ -366,9 +363,11 @@ def prepare_docker_image(docker_prefix, image_tag, dbg_lvl=1):
     if image_exist(image_tag):
         return
 
-    # Derive a lock path that is unique per image tag
+    # Derive a lock path that is unique per image tag. Lives under its own
+    # subdirectory (see file_lock) rather than directly in /tmp, so the lock
+    # works across users regardless of who creates it first.
     safe_tag = image_tag.replace("/", "_").replace(":", "_")
-    lock_path = f"/tmp/docker_build_{safe_tag}.lock"
+    lock_path = f"/tmp/sci_docker_build_locks/{safe_tag}.lock"
 
     with file_lock(lock_path):
         # Once we hold the lock, re-check: another job may have built the image already.
