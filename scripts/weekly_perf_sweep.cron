@@ -19,3 +19,10 @@ PATH=/soe/hlitz/miniconda3/envs/scarabinfra/bin:/usr/local/bin:/usr/bin:/bin
 MAILTO=""
 
 0 5 * * 1 cd /soe/hlitz/git/scarab-infra-weekly && python3 scripts/weekly_perf_sweep.py >> /soe/hlitz/logs/weekly_perf_sweep.log 2>&1
+
+# bohr1 runs slurmctld as well as this cron job, so a reboot kills a sweep that
+# is waiting on the queue -- 2026-09-28 died that way 12h in, silently. This
+# finishes such a run at the next boot and mails its report; with nothing to
+# resume it exits before touching either repo, so an ordinary boot is silent.
+# The sleep is for NFS and slurmctld, which come up around the same time.
+@reboot sleep 180 && cd /soe/hlitz/git/scarab-infra-weekly && python3 scripts/weekly_perf_sweep.py --resume >> /soe/hlitz/logs/weekly_perf_sweep.log 2>&1
