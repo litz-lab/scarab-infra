@@ -25,6 +25,7 @@ import math
 import os
 import re
 import shutil
+import signal
 import smtplib
 import subprocess
 import sys
@@ -57,6 +58,9 @@ HISTORY_CSV = "history.csv"
 PLOT_SUBDIR = "plots"
 
 LOCK_PATH = Path("/tmp/scarab_weekly_sweep.lock")
+# What an interrupted run left behind, so the next boot can finish it.
+STATE_PATH = Path("/soe/hlitz/logs/weekly_sweep_state.json")
+STATE: Dict[str, object] = {}
 # Where the cron entry sends this script's output; quoted in the failure mail.
 LOG_PATH = Path("/soe/hlitz/logs/weekly_perf_sweep.log")
 
@@ -65,6 +69,9 @@ LOG_PATH = Path("/soe/hlitz/logs/weekly_perf_sweep.log")
 SHORTFALLS: Dict[str, str] = {}
 
 POLL_SECONDS = 300
+# bohr1 runs slurmctld as well as this cron job, so a reboot takes the queue
+# with it. An empty squeue right after one means "not up yet", not "finished".
+SQUEUE_GRACE_SECONDS = 1800
 # A full SPEC17 sweep behind a busy queue; past this we take what finished.
 SIM_TIMEOUT_SECONDS = 24 * 3600
 
@@ -113,43 +120,37 @@ def run(cmd: List[str], *, cwd: Optional[Path] = None, check: bool = True,
 
 # Set once per run; prepended to every mail so a stale checkout is never a
 # silent explanation for a weird result.
-_INFRA_WARNING = ""
+def require_main(repo: Path, what: str) -> Optional[str]:
+    """Why this checkout is not current main, or None when it is.
 
-
-def infra_warning() -> str:
-    """Warn when the checkout we ended up in is not main, or is behind it.
-
-    Normally refresh_infra() has already re-execed us from a clean main, so
-    this is empty. It fires under --no-self-update, which is how a hand-run
-    sweep from a feature branch says so in its own mail.
+    A sweep measures main; numbers from a feature branch or a dirty tree are
+    not comparable with the history they get appended to. refresh_infra() and
+    refresh_scarab() reset both clones, so this only fires when something ran
+    the sweep from somewhere else -- and then it stops the run instead of
+    putting a warning on top of every mail.
     """
-    run(["git", "fetch", "origin", "main"], cwd=REPO_ROOT, check=False)
+    run(["git", "fetch", "origin", "main"], cwd=repo, check=False)
 
     def git(*args: str) -> Optional[str]:
         try:
-            return subprocess.run(["git", *args], cwd=str(REPO_ROOT), check=True,
+            return subprocess.run(["git", *args], cwd=str(repo), check=True,
                                   text=True, capture_output=True).stdout.strip()
         except subprocess.CalledProcessError:
             return None
 
     head = git("rev-parse", "--short", "HEAD")
     target = git("rev-parse", "--short", "origin/main")
-    behind = git("rev-list", "--count", "HEAD..origin/main")
     # Tracked files only: the sweep renders a descriptor per mode into json/,
     # so counting untracked files declared the clone "not main" every week.
     dirty = git("status", "--porcelain", "--untracked-files=no")
     if head is None or target is None:
-        return ""
+        return None
     if head == target and not dirty:
-        return ""
-    detail = [f"checkout {head}, origin/main {target}"]
-    if behind and behind != "0":
-        detail.append(f"{behind} commits behind")
+        return None
+    detail = f"checkout {head}, origin/main {target}"
     if dirty:
-        detail.append("uncommitted changes")
-    return (f"WARNING: scarab-infra at {REPO_ROOT} is not main ("
-            + "; ".join(detail) + ").\n"
-            "The images and run scripts under test are not the ones on main.")
+        detail += ", uncommitted changes"
+    return f"{what} at {repo} is not current main ({detail})"
 
 
 def git_sha(repo: Path) -> str:
@@ -259,16 +260,34 @@ def experiment_dir(descriptor_stem: str) -> Path:
     return root / "simulations" / descriptor["experiment"]
 
 
-def sims_pending(experiment: str) -> bool:
-    """Any of this experiment's Slurm jobs still queued or running?"""
+def save_state() -> None:
+    """Record what this run has already submitted, for --resume after a reboot."""
+    try:
+        STATE_PATH.write_text(json.dumps(STATE, indent=2) + "\n", encoding="utf-8")
+    except OSError as exc:
+        log(f"WARNING: could not write {STATE_PATH}: {exc}")
+
+
+def load_state() -> Optional[Dict]:
+    try:
+        return json.loads(STATE_PATH.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError) as exc:
+        log(f"WARNING: ignoring unreadable {STATE_PATH}: {exc}")
+        return None
+
+
+def sims_pending(experiment: str) -> Optional[bool]:
+    """Any of this experiment's Slurm jobs still queued or running? None = can't tell."""
     try:
         names = subprocess.run(
             ["squeue", "-u", getpass.getuser(), "-h", "-o", "%j"],
             check=True, text=True, capture_output=True,
         ).stdout.split()
     except (subprocess.CalledProcessError, FileNotFoundError) as exc:
-        log(f"WARNING: could not query squeue ({exc}); not waiting")
-        return False
+        log(f"WARNING: could not query squeue ({exc})")
+        return None
     return any(experiment in name for name in names)
 
 
@@ -281,7 +300,21 @@ def wait_for_sims(experiment: str) -> None:
     """
     deadline = time.monotonic() + SIM_TIMEOUT_SECONDS
     waited = False
-    while sims_pending(experiment):
+    blind_since: Optional[float] = None
+    while True:
+        pending = sims_pending(experiment)
+        if pending is None:
+            # A controller restart answers "no jobs" for a while. Believing it
+            # collects a half-finished experiment, so wait it out first.
+            blind_since = blind_since or time.monotonic()
+            if time.monotonic() - blind_since > SQUEUE_GRACE_SECONDS:
+                log(f"{experiment}: squeue unreachable for "
+                    f"{SQUEUE_GRACE_SECONDS // 60} min; collecting what finished")
+                return
+        else:
+            blind_since = None
+            if not pending:
+                break
         if time.monotonic() > deadline:
             log(f"{experiment}: jobs still queued after "
                 f"{SIM_TIMEOUT_SECONDS // 3600}h; collecting what finished")
@@ -338,16 +371,25 @@ def simulation_shortfall(descriptor_stem: str) -> str:
     return "\n".join([header] + named) if named else header
 
 
-def run_mode(stem: str, experiment: str, scarab_sha: str, *, skip_sim: bool) -> Optional[Path]:
-    """Run one mode; return its aggregates.json."""
+def run_mode(stem: str, experiment: str, scarab_sha: str, *, skip_sim: bool,
+             submitted: bool = False) -> Optional[Path]:
+    """Run one mode; return its aggregates.json.
+
+    submitted=True means a previous run already put these jobs in Slurm, so a
+    resume picks up at the wait instead of simulating them twice.
+    """
     descriptor_stem = render_descriptor(stem, experiment, scarab_sha)
     exp_dir = experiment_dir(descriptor_stem)
 
     if not skip_sim:
-        if not sci(["--build-scarab", descriptor_stem]):
-            return None
-        if not sci(["--sim", descriptor_stem]):
-            return None
+        if not submitted:
+            if not sci(["--build-scarab", descriptor_stem]):
+                return None
+            if not sci(["--sim", descriptor_stem]):
+                return None
+            if STATE:
+                STATE.setdefault("submitted", []).append(stem)
+                save_state()
         wait_for_sims(experiment)
         shortfall = simulation_shortfall(descriptor_stem)
         if shortfall:
@@ -672,8 +714,6 @@ def notify(subject: str, body: str, attachments: List[Path], args) -> None:
     if args.no_email or args.dry_run:
         log(f"not mailing '{subject}' (--no-email/--dry-run)")
         return
-    if _INFRA_WARNING:
-        body = f"{_INFRA_WARNING}\n\n{body}"
     recipients = org_recipients() or FALLBACK_RECIPIENTS
     send_email(subject, body, attachments, recipients)
 
@@ -718,6 +758,42 @@ def send_email(subject: str, body: str, attachments: List[Path],
 # Main
 # ---------------------------------------------------------------------------
 
+def on_interrupt(args, today: str) -> None:
+    """A reboot kills this run mid-wait; say so before we go.
+
+    2026-09-28 is the case: bohr1 rebooted 12h into the sweep, the driver died
+    inside wait_for_sims, and the week produced no mail at all, because a signal
+    never reaches the except: around run_sweep.
+    """
+    def handler(signum, _frame):
+        name = signal.Signals(signum).name
+        log(f"received {name}; stopping")
+        stage = ", ".join(STATE.get("submitted") or []) or "none"
+        try:
+            system = subprocess.run(["systemctl", "is-system-running"], text=True,
+                                    capture_output=True).stdout.strip() or "unknown"
+        except (OSError, subprocess.SubprocessError):
+            system = "unknown"
+        # "stopping" means the machine is going down and took us with it;
+        # anything else means someone or something else sent the signal, and
+        # saying "a reboot did this" would be a guess.
+        cause = ("The host is shutting down, which is what took the sweep with it"
+                 if system == "stopping"
+                 else f"The host is not shutting down (systemd: {system}), so the signal "
+                      "came from elsewhere -- a kill, a session ending, or the OOM killer")
+        notify(f"SPEC17 weekly perf sweep INTERRUPTED - {today}",
+               f"The sweep was stopped by {name} on {os.uname().nodename}.\n"
+               f"{cause}.\n\n"
+               f"Modes already submitted: {stage}\n\n"
+               f"--resume finishes this run and mails the report; the next boot "
+               f"does that automatically.\nState: {STATE_PATH}\n"
+               f"Log: {LOG_PATH}",
+               [], args)
+        sys.exit(128 + signum)
+    for sig in (signal.SIGTERM, signal.SIGHUP, signal.SIGINT):
+        signal.signal(sig, handler)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -729,14 +805,23 @@ def main() -> int:
     parser.add_argument("--no-push", action="store_true")
     parser.add_argument("--experiment-suffix", default=None,
                         help="Override the dated experiment suffix (testing).")
+    parser.add_argument("--resume", action="store_true",
+                        help="Finish the run an interruption left behind, or "
+                             "exit quietly if there is none (@reboot).")
     parser.add_argument("--no-self-update", action="store_true",
                         help="Run this checkout as-is instead of re-execing "
                              "from a fresh scarab-infra main.")
     args = parser.parse_args()
 
     today = _dt.date.today().isoformat()
+    # Checked before re-execing: most boots have nothing to resume, and
+    # refreshing two repos to find that out makes every reboot noisy.
+    if args.resume and load_state() is None:
+        log("nothing to resume")
+        return 0
     if not args.no_self_update and not args.dry_run:
         refresh_infra()  # never returns: re-execs from INFRA_DIR
+    on_interrupt(args, today)
     try:
         return run_sweep(args, today)
     except Exception:  # noqa: BLE001 - any crash must still reach the lab
@@ -749,16 +834,29 @@ def main() -> int:
         return 1
 
 
-def run_sweep(args, today: str) -> int:
-    global _INFRA_WARNING
-    _INFRA_WARNING = infra_warning()
-    if _INFRA_WARNING:
-        log(_INFRA_WARNING)
+def refuse(reason: str, today: str, args) -> int:
+    """Stop before measuring anything, and say why."""
+    log(f"ERROR: {reason}")
+    notify(f"SPEC17 weekly perf sweep REFUSED - {today}",
+           "\n".join(["This run stopped before it measured anything: a sweep has to run",
+                      "current main of both repos, or its numbers do not belong in the",
+                      "history it gets appended to.", "",
+                      f"  {reason}", "",
+                      "Use --dry-run to try a branch without recording it.",
+                      f"Log: {LOG_PATH}"]),
+           [], args)
+    STATE_PATH.unlink(missing_ok=True)
+    return 1
 
+
+def run_sweep(args, today: str) -> int:
     lock = LOCK_PATH.open("w")
     try:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
+        if args.resume:
+            log("a sweep is already running; nothing to resume")
+            return 0
         log("another sweep is already running; exiting")
         notify(f"SPEC17 weekly perf sweep SKIPPED - {today}",
                "Another sweep still held the lock, so this run did nothing.\n"
@@ -766,20 +864,49 @@ def run_sweep(args, today: str) -> int:
                [], args)
         return 0
 
-    suffix = args.experiment_suffix or today.replace("-", "")
-    infra_sha = git_sha(REPO_ROOT)
-    scarab_sha = "skipped" if args.skip_sim else refresh_scarab()
-    if args.skip_sim:
-        scarab_sha = git_sha(SCARAB_DIR) if SCARAB_DIR.is_dir() else "unknown"
+    enforce_main = not (args.dry_run or args.skip_sim)
+    if enforce_main:
+        reason = require_main(REPO_ROOT, "scarab-infra")
+        if reason:
+            return refuse(reason, today, args)
 
-    log(f"weekly sweep {today}: scarab={scarab_sha} infra={infra_sha}")
+    resumed = load_state() if args.resume else None
+    if resumed:
+        # Keep the interrupted run's identity: its rows belong to the day it
+        # started, and its descriptors pin the Scarab commit it measured.
+        today = str(resumed["date"])
+        suffix = str(resumed["suffix"])
+        infra_sha = str(resumed["infra_sha"])
+        scarab_sha = str(resumed["scarab_sha"])
+        already = list(resumed.get("submitted") or [])
+        log(f"resuming the sweep of {today}: scarab={scarab_sha} infra={infra_sha}, "
+            f"submitted so far: {', '.join(already) or 'none'}")
+    else:
+        suffix = args.experiment_suffix or today.replace("-", "")
+        infra_sha = git_sha(REPO_ROOT)
+        scarab_sha = "skipped" if args.skip_sim else refresh_scarab()
+        if enforce_main:
+            reason = require_main(SCARAB_DIR, "Scarab")
+            if reason:
+                return refuse(reason, today, args)
+        if args.skip_sim:
+            scarab_sha = git_sha(SCARAB_DIR) if SCARAB_DIR.is_dir() else "unknown"
+        already = []
+        log(f"weekly sweep {today}: scarab={scarab_sha} infra={infra_sha}")
+
+    STATE.clear()
+    STATE.update({"date": today, "suffix": suffix, "scarab_sha": scarab_sha,
+                  "infra_sha": infra_sha, "submitted": already})
+    if not args.dry_run:
+        save_state()
 
     rows: List[Dict[str, object]] = []
     failures: List[str] = []
     for stem, label in MODES:
         experiment = f"{stem}_{suffix}"
         log(f"--- {label} ({experiment}) ---")
-        aggregates_path = run_mode(stem, experiment, scarab_sha, skip_sim=args.skip_sim)
+        aggregates_path = run_mode(stem, experiment, scarab_sha,
+                                   skip_sim=args.skip_sim, submitted=stem in already)
         if aggregates_path is None:
             log(f"{label}: no results, continuing with the other modes")
             failures.append(f"{label} ({experiment}): no results")
@@ -807,6 +934,7 @@ def run_sweep(args, today: str) -> int:
         print()
         print(body)
         notify(f"SPEC17 weekly perf sweep FAILED - {today}", body, [], args)
+        STATE_PATH.unlink(missing_ok=True)
         return 1
 
     if args.dry_run:
@@ -842,6 +970,7 @@ def run_sweep(args, today: str) -> int:
     suffix_note = " (partial)" if (failures or SHORTFALLS) else ""
     notify(f"SPEC17 weekly perf sweep{suffix_note} - {today}", report, plots, args)
 
+    STATE_PATH.unlink(missing_ok=True)
     return 0
 
 
