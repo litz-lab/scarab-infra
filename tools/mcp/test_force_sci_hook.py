@@ -13,11 +13,24 @@ CASES = [
     # status
     ('squeue -u me -o "%j" | grep exp_sw621b | wc -l', "sci_status"),
     ("sacct -n --format=JobName | grep exp_sw620", "sci_status"),
+    # sweep progress that never names the experiment
+    ("squeue -u hlitz -h 2>/dev/null | wc -l", "sci_status"),
+    ("squeue -u hlitz -h -o '%T %R' | sort | uniq -c", "sci_status"),
+    ("sacct -u hlitz --format=State | grep -c COMPLETED", "sci_status"),
+    ("for i in $(seq 1 19); do n=$(squeue -h | wc -l); command sleep 30; done", "sci_status"),
+    ("while true; do squeue -h > /tmp/q; command sleep 60; done", "sci_status"),
+    ('squeue -h -o "%u %T" | sort | uniq -c', "sci_status"),
+    # allowed: questions about the cluster itself, not about a sweep
+    ('sinfo -o "%.14N %.9P %.7t %.5D %.6c"', None),
+    ("scontrol show job 1795748", None),
+    ('squeue -o "%.10i %.10T %.20R"', None),
     # stat aggregation
     ("grep IPC /home/me/simulations/exp_sw620/*/stats.out", "sci_collect_stats"),
     ("for f in /home/me/simulations/exp/*/*/stats.out; do awk '/IPC/{print $2}' $f; done", "sci_collect_stats"),
     ("python3 /tmp/myparse.py /home/me/simulations/exp_sw619/base_stock", "sci_collect_stats"),
-    ('python3 -c "import csv; csv.reader(open(\'collected_stats.csv\'))"', "sci_collect_stats"),
+    # already collected: aggregating or plotting it again is visualize's job
+    ('python3 -c "import csv; csv.reader(open(\'collected_stats.csv\'))"', "sci_visualize"),
+    ("awk -F, '{print $3}' /home/me/simulations/exp_sw620/collected_stats.csv", "sci_visualize"),
     # build
     ("make -j32 scarab", "sci_build_scarab"),
     # running the simulator
