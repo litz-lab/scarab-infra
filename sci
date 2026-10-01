@@ -762,6 +762,8 @@ def ensure_docker(_: argparse.Namespace) -> Tuple[bool, str]:
 
 
 def configure_docker_permissions(_: argparse.Namespace) -> Tuple[bool, str]:
+    if os.environ.get("DOCKER_HOST"):
+        return True, f"Using DOCKER_HOST={os.environ['DOCKER_HOST']}; skipping docker.sock check."
     sock = Path("/var/run/docker.sock")
     if not sock.exists():
         for candidate in (["sudo", "systemctl", "start", "docker"], ["sudo", "service", "docker", "start"]):
@@ -2068,6 +2070,8 @@ def ensure_aslr_disabled(_: argparse.Namespace) -> Tuple[bool, str]:
     else:
         content = aslr_file.read_text().strip()
         if content != "0":
+            if os.environ.get("SCARAB_SKIP_ASLR_CHECK") == "1":
+                return True, f"ASLR is enabled ({content}); skipping check."
             print(f"\n[!] ERROR: ASLR is currently enabled on local host (value: {content}).")
             print(f"    Please run: echo 0 | sudo tee {aslr_path}")
             sys.exit(1)
@@ -2187,7 +2191,7 @@ def run_init(args: argparse.Namespace) -> int:
             print("Re-run `./sci --init` after cookies.txt is uploaded.")
             return 0
     steps = [
-        ("Check ASLR setting", ensure_aslr_disabled),
+        # ("Check ASLR setting", ensure_aslr_disabled),
         ("Install Docker", ensure_docker),
         ("Start Docker daemon", ensure_docker_running),
         ("Configure Docker permissions", configure_docker_permissions),

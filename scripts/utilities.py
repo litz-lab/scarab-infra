@@ -466,7 +466,7 @@ def build_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_pre
         build_cmd = [
                 "docker",
                     "exec",
-                    f"--user={user}",
+                    f"--user={os.environ.get('SCARAB_CONTAINER_USER', user)}",
                     f"--workdir=/home/{user}",
                     f"{docker_container_name}",
                     "/bin/bash",
@@ -670,7 +670,7 @@ def lint_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_pref
         # Stream output so the step log reflects progress in real time.
         lint_result = subprocess.run(
             ["docker", "exec",
-             f"--user={user}", f"--workdir=/home/{user}",
+             f"--user={os.environ.get('SCARAB_CONTAINER_USER', user)}", f"--workdir=/home/{user}",
              f"{docker_container_name}",
              "/bin/bash", "-c", lint_script],
             text=True)
@@ -1783,7 +1783,7 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
             f.write("    exit 1\n")
             f.write("fi\n")
             f.write("RC=0\n")
-            f.write(f"docker exec --user={user} $CONTAINER_NAME /bin/bash -c \"source /usr/local/bin/user_entrypoint.sh && {scarab_cmd}\" || {{ echo \"Scarab error detected\"; RC=1; }}\n")
+            f.write(f"docker exec --user={os.environ.get('SCARAB_CONTAINER_USER', user)} $CONTAINER_NAME /bin/bash -c \"source /usr/local/bin/user_entrypoint.sh && {scarab_cmd}\" || {{ echo \"Scarab error detected\"; RC=1; }}\n")
             f.write("cleanup_container\n")
             f.write("echo \"Completed Simulation\"\n")
             f.write(f"sync {docker_home}/simulations/{experiment_name}/logs || true\n")
@@ -1877,7 +1877,7 @@ def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_contai
             # /usr/local/bin.
             f.write(f"docker exec --privileged $CONTAINER_NAME /bin/bash -c '{ROOT_ENTRYPOINT}'\n")
             f.write("docker exec --privileged $CONTAINER_NAME /bin/bash -c \"echo 0 | sudo tee /proc/sys/kernel/randomize_va_space\"\n")
-            f.write(f"docker exec --privileged --user={user} --workdir=/home/{user} $CONTAINER_NAME /bin/bash -c \"source /usr/local/bin/user_entrypoint.sh && {trace_cmd}\"\n")
+            f.write(f"docker exec --privileged --user={os.environ.get('SCARAB_CONTAINER_USER', user)} --workdir=/home/{user} $CONTAINER_NAME /bin/bash -c \"source /usr/local/bin/user_entrypoint.sh && {trace_cmd}\"\n")
             f.write("cleanup_container\n")
     except Exception as e:
         raise e
