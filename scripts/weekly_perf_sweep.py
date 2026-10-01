@@ -332,7 +332,11 @@ def simulation_shortfall(descriptor_stem: str) -> str:
     named = []
     for i, line in enumerate(lines):
         if line.startswith("SIMULATIONS THAT DID NOT COMPLETE"):
-            named = [l.rstrip() for l in lines[i + 1:] if l.startswith("  ")]
+            # Indented and "<what>: <state>" -- anything else after the list is
+            # another of --status's own lines, e.g. scipy's NumPy warning, which
+            # 2026-09-30 mailed out as if it were a failed simulation.
+            named = [l.rstrip() for l in lines[i + 1:]
+                     if l.startswith("  ") and ": " in l]
             break
     header = f"{total - completed} of {total} simulations did not complete"
     return "\n".join([header] + named) if named else header
