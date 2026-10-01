@@ -235,6 +235,30 @@ def list_cluster_nodes(dbg_lvl = 1):
         nodes.append((node, state))
     return nodes
 
+# The prebuilt SPEC17 binaries under application_dir carry AVX-512 and these
+# nodes are AMD EPYC, so anything that executes the application dies on the first
+# such instruction ("PIN: Found exception sig=4 on rightpath"): exec-driven
+# simulation, and tracing, which runs it under DynamoRIO. Simulating a recorded
+# trace never executes it and runs anywhere.
+NO_AVX512_NODES = ("twilight", "moore", "dennard")
+
+
+def exclude_avx512_incapable(slurm_options, dbg_lvl=1):
+    """Keep a job that executes the application off the CPUs that cannot run it."""
+    options = slurm_options or ""
+    # Whoever placed the job by hand gets to keep their placement.
+    if "--exclude" in options or "--nodelist" in options or "-w " in options:
+        return options
+    known = {node for node, _ in list_cluster_nodes(dbg_lvl)}
+    # Naming a node slurm does not have is a submit error, so only exclude the
+    # ones this cluster actually has; another cluster excludes nothing.
+    excluded = [node for node in NO_AVX512_NODES if not known or node in known]
+    if not excluded:
+        return options
+    addition = "--exclude=" + ",".join(excluded)
+    return f"{options} {addition}".strip()
+
+
 # Get command to sbatch scarab runs. 1 core each, exclude nodes where container isn't running
 # mem_mb: when provided, sets --mem explicitly; any --mem present in slurm_options is stripped
 #         (deprecated) and a warning is emitted. When None, slurm_options is passed through
@@ -606,7 +630,11 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                     if scarab_build == "dbg":
                         mem_mb = max(2 * mem_mb, mem_mb + MEM_HEADROOM_MB)
 
-                    sbatch_cmd = generate_sbatch_command(experiment_dir, slurm_options=slurm_options, mem_mb=mem_mb)
+                    sbatch_cmd = generate_sbatch_command(
+                        experiment_dir,
+                        slurm_options=(exclude_avx512_incapable(slurm_options, dbg_lvl)
+                                       if sim_mode == "exec" else slurm_options),
+                        mem_mb=mem_mb)
 
                     if fallback_mb is not None:
                         print(f"WARN: no base_memory_mb_by_mode entry for {suite}/{subsuite}/{workload} cluster={cluster_id} sim_mode={sim_mode} config={config_key}, using fallback={fallback_mb}MB + overhead={overhead_mb}MB = {mem_mb}MB")
@@ -772,7 +800,10 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2,
 
     def run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd, trace_type, drio_args, clustering_k, application_dir, slurm_options):
         try:
-            sbatch_cmd = generate_sbatch_command(trace_dir, slurm_options=slurm_options, job_out_suffix=workload)
+            sbatch_cmd = generate_sbatch_command(
+                trace_dir,
+                slurm_options=exclude_avx512_incapable(slurm_options, dbg_lvl),
+                job_out_suffix=workload)
 
             if trace_type == "cluster_then_trace":
                 simpoint_mode = "cluster_then_trace"
@@ -868,11 +899,11 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2,
                 finalize_cmd, finalize_log_path,
                 env_vars_dict.get("SEGMENT_MEM_MIN_MB", SEGMENT_MEM_MIN_MB),
                 finalize_mem_mb=env_vars_dict.get("PHASE3_FINALIZE_MEM_MB", PHASE3_FINALIZE_MEM_MB),
-                slurm_options=slurm_options,
+                slurm_options=exclude_avx512_incapable(slurm_options, dbg_lvl),
             )
 
         sbatch_cmd = generate_sbatch_command(
-            trace_dir, slurm_options=slurm_options,
+            trace_dir, slurm_options=exclude_avx512_incapable(slurm_options, dbg_lvl),
             mem_mb=env_vars_dict.get("PHASE1_MEM_MB", PHASE1_MEM_MB),
             job_out_suffix=workload,
         )
