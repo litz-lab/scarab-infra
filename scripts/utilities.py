@@ -2442,7 +2442,7 @@ def print_simulation_status_summary(
     for sim in queued_sims:
         matches = [conf for conf in confs if f"{experiment_name}_{conf}" in sim]
         if not matches:
-            info(f"'{experiment_name}_{conf}' not found in any queued sim names", dbg_lvl)
+            info(f"queued sim '{sim}' matches no configuration of '{experiment_name}'", dbg_lvl)
             continue
         conf = max(matches, key=len)
         pending[conf] += 1
