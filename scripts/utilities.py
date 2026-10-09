@@ -479,11 +479,11 @@ def build_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_pre
         sif = apptainer_sif_for(docker_prefix)
         info(f"Building scarab with apptainer image {sif}...", dbg_lvl)
         build_cmd = [
-            apptainer_bin(), "exec", "--cleanenv", "--no-home",
-            "--bind", f"{docker_home}:/home/{user}",
+            apptainer_bin(), "exec", "--cleanenv",
+            "--home", f"{docker_home}:/home/{user}",
             "--bind", f"{scarab_path}:/scarab",
             "--bind", f"{infra_dir}:{INFRA_MOUNT_TARGET}:ro",
-            "--env", f"APP_GROUPNAME={docker_prefix},HOME=/home/{user},username={user}",
+            "--env", f"APP_GROUPNAME={docker_prefix},username={user}",
             sif, "/bin/bash", "-c",
             f"export PATH={apptainer_path_prefix(docker_prefix)}:$PATH && "
             f"source {USER_ENTRYPOINT} && cd /scarab/src && make {scarab_build} -j{os.cpu_count()}",
@@ -1772,16 +1772,18 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
             if apptainer_sif_dir():
                 sif = apptainer_sif_for(docker_prefix)
                 binds = (f"--bind {traces_dir}:/simpoint_traces:ro "
-                         f"--bind {docker_home}:/home/{user} "
+                         f"--home {docker_home}:/home/{user} "
                          f"--bind {infra_dir}:{INFRA_MOUNT_TARGET}:ro")
                 if application_dir and application_dir != ".":
                     binds += f" --bind {application_dir}:/tmp_home/application:ro"
                 if scarab_mode == "exec":
                     f.write("echo \"WARN: apptainer mode cannot disable VA randomization (needs root)\"\n")
-                f.write(f"if [ ! -f {sif} ]; then echo \"ERROR: sif image not found: {sif}\"; exit 1; fi\n")
+                f.write("echo \"BEGIN prepare_docker_image\"\n")
+                f.write(f"if [ ! -f {sif} ]; then echo \"FAILED prepare_docker_image\"; echo \"ERROR: sif image not found: {sif}\"; exit 1; fi\n")
+                f.write("echo \"END prepare_docker_image\"\n")
                 f.write("RC=0\n")
-                f.write(f"{apptainer_bin()} exec --cleanenv --no-home {binds} "
-                        f"--env APP_GROUPNAME={docker_prefix},APPNAME={workload},HOME=/home/{user},"
+                f.write(f"{apptainer_bin()} exec --cleanenv {binds} "
+                        f"--env APP_GROUPNAME={docker_prefix},APPNAME={workload},"
                         f"username={user},user_id={local_uid},group_id={local_gid} "
                         f"{sif} /bin/bash -c "
                         f"\"export PATH={apptainer_path_prefix(docker_prefix)}:\\$PATH && "
