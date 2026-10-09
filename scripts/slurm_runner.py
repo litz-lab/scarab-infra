@@ -39,6 +39,7 @@ from .utilities import (
         print_simulation_status_summary,
         run_on_node,
         normalize_simulations,
+        apptainer_sif_dir,
         )
 from .image_identity import image_tag_for
 
@@ -372,6 +373,9 @@ def kill_jobs(user, job_name, docker_prefix_list, dbg_lvl = 2):
         return True
 
 def clean_containers(user, job_name, docker_prefix_list, dbg_lvl = 2):
+    if apptainer_sif_dir():
+        info("Apptainer mode: no containers to clean.", dbg_lvl)
+        return
     if not docker_prefix_list:
         info("No docker images associated with descriptor; nothing to clean.", dbg_lvl)
         return

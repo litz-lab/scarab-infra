@@ -64,6 +64,39 @@ def infra_mount_arg(infra_dir):
     """Return the `docker --mount` spec exposing the host scarab-infra checkout."""
     return f"type=bind,source={infra_dir},target={INFRA_MOUNT_TARGET},readonly=true"
 
+
+# Apptainer mode (clusters without docker/root): active when docker is absent
+# and ~/sif exists. The image for workload group <prefix> must be ~/sif/<prefix>.sif.
+APPTAINER_SIF_DIR = os.path.expanduser("~/sif")
+
+
+def apptainer_sif_dir():
+    # ~/sif present => apptainer mode. Deliberately not keyed on `docker` being
+    # absent: some clusters ship a podman shim named `docker` that cannot run our images.
+    if os.path.isdir(APPTAINER_SIF_DIR):
+        return APPTAINER_SIF_DIR
+    return None
+
+
+def apptainer_sif_for(docker_prefix):
+    return os.path.join(apptainer_sif_dir(), f"{docker_prefix}.sif")
+
+
+def apptainer_bin():
+    # Absolute path: sbatch scripts run under the node's login shell, where the
+    # scarabinfra conda env (which provides apptainer) is not on PATH.
+    return shutil.which("apptainer") or "apptainer"
+
+
+# Replaces root_entrypoint.sh's /usr/local/bin symlinks.
+def apptainer_path_prefix(docker_prefix):
+    return (f"{INFRA_MOUNT_TARGET}/common/scripts:"
+            f"{INFRA_MOUNT_TARGET}/scripts:"
+            f"{INFRA_MOUNT_TARGET}/workloads/{docker_prefix}")
+
+
+USER_ENTRYPOINT = f"{INFRA_MOUNT_TARGET}/common/scripts/user_entrypoint.sh"
+
 def get_docker_client():
     global _docker_client
     if docker is None:
@@ -441,6 +474,29 @@ def build_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_pre
 
     scarab_bin = f"{scarab_path}/src/build/{scarab_build}/scarab"
     info(f"Scarab binary at '{scarab_bin}', building it first, please wait...", dbg_lvl)
+
+    if apptainer_sif_dir():
+        sif = apptainer_sif_for(docker_prefix)
+        info(f"Building scarab with apptainer image {sif}...", dbg_lvl)
+        build_cmd = [
+            apptainer_bin(), "exec", "--cleanenv", "--no-home",
+            "--bind", f"{docker_home}:/home/{user}",
+            "--bind", f"{scarab_path}:/scarab",
+            "--bind", f"{infra_dir}:{INFRA_MOUNT_TARGET}:ro",
+            "--env", f"APP_GROUPNAME={docker_prefix},HOME=/home/{user},username={user}",
+            sif, "/bin/bash", "-c",
+            f"export PATH={apptainer_path_prefix(docker_prefix)}:$PATH && "
+            f"source {USER_ENTRYPOINT} && cd /scarab/src && make {scarab_build} -j{os.cpu_count()}",
+        ]
+        build_result = subprocess.run(build_cmd, text=True) if stream_build \
+            else subprocess.run(build_cmd, capture_output=True, text=True)
+        if build_result.returncode != 0:
+            if not stream_build:
+                err(f"Build stdout: {build_result.stdout}", dbg_lvl)
+                err(f"Build stderr: {build_result.stderr}", dbg_lvl)
+            raise RuntimeError("Scarab build returned with non-zero code")
+        return
+
     docker_container_name = own_container_name(f"{docker_prefix}_{user}_scarab_build")
     # A leftover of the same name makes `docker run` fail with a bare exit 125 and no
     # explanation, and the finally below does not cover a SIGTERM'd sci (slurm timeout,
@@ -1713,6 +1769,28 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
             f.write(f"echo \"Simulation mode: {scarab_mode}\"\n")
             f.write(f"echo \"Script name: {filename}\"\n")
             f.write("echo \"Running on $(uname -n)\"\n")
+            if apptainer_sif_dir():
+                sif = apptainer_sif_for(docker_prefix)
+                binds = (f"--bind {traces_dir}:/simpoint_traces:ro "
+                         f"--bind {docker_home}:/home/{user} "
+                         f"--bind {infra_dir}:{INFRA_MOUNT_TARGET}:ro")
+                if application_dir and application_dir != ".":
+                    binds += f" --bind {application_dir}:/tmp_home/application:ro"
+                if scarab_mode == "exec":
+                    f.write("echo \"WARN: apptainer mode cannot disable VA randomization (needs root)\"\n")
+                f.write(f"if [ ! -f {sif} ]; then echo \"ERROR: sif image not found: {sif}\"; exit 1; fi\n")
+                f.write("RC=0\n")
+                f.write(f"{apptainer_bin()} exec --cleanenv --no-home {binds} "
+                        f"--env APP_GROUPNAME={docker_prefix},APPNAME={workload},HOME=/home/{user},"
+                        f"username={user},user_id={local_uid},group_id={local_gid} "
+                        f"{sif} /bin/bash -c "
+                        f"\"export PATH={apptainer_path_prefix(docker_prefix)}:\\$PATH && "
+                        f"source {USER_ENTRYPOINT} && cd /home/{user} && {scarab_cmd}\" "
+                        f"|| {{ echo \"Scarab error detected\"; RC=1; }}\n")
+                f.write("echo \"Completed Simulation\"\n")
+                f.write(f"sync {docker_home}/simulations/{experiment_name}/logs || true\n")
+                f.write("exit $RC\n")
+                return
             f.write(f"CONTAINER_NAME={docker_container_name}\n")
             f.write("cleanup_container() {\n")
             f.write("    docker rm -f \"$CONTAINER_NAME\" >/dev/null 2>&1 || true\n")
@@ -3138,6 +3216,8 @@ def count_interactive_shells(container_name, dbg_lvl):
         return 0
 
 def image_exist(image_tag, node=None):
+    if apptainer_sif_dir():
+        return os.path.isfile(apptainer_sif_for(image_tag.split(":")[0]))
     try:
         output = subprocess.run(["docker", "images", "-q", image_tag], capture_output=True, text=True)
         return bool(output.stdout.strip())

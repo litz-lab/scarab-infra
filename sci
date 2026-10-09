@@ -33,6 +33,7 @@ ENV_NAME = "scarabinfra"
 MINICONDA_URL = "https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh"
 OPTIONAL_TITLES = {
     "(Optional) Slurm installation",
+    "(Optional) Apptainer mode setup",
     "(Optional) ghcr.io login to pull pre-built images from GitHub Container Registry (recommended)",
     "(Optional) Verify Codex CLI auth",
     "(Optional) Verify Gemini CLI auth",
@@ -1856,6 +1857,21 @@ def run_build_image(workload_group: str) -> int:
     return 0
 
 
+def maybe_setup_apptainer(_: argparse.Namespace) -> Tuple[bool, str]:
+    if shutil.which("docker") and subprocess.run(["docker", "info"], capture_output=True).returncode == 0:
+        return True, "Docker daemon available; apptainer mode not needed."
+    env_apptainer = Path.home() / "miniconda3" / "envs" / ENV_NAME / "bin" / "apptainer"
+    if not shutil.which("apptainer") and not env_apptainer.exists():
+        return False, "Neither docker nor apptainer found; apptainer should be in quickstart_env.yaml."
+    sif_dir = Path.home() / "sif"
+    sif_dir.mkdir(parents=True, exist_ok=True)
+    return True, (
+        f"Apptainer mode enabled (no docker, {sif_dir} exists). Put <image_name>.sif there, e.g.\n"
+        f"  apptainer pull {sif_dir}/allbench_traces.sif "
+        f"docker://ghcr.io/litz-lab/scarab-infra/allbench_traces:$(python3 -m scripts.image_identity allbench_traces)"
+    )
+
+
 def maybe_install_slurm(_: argparse.Namespace) -> Tuple[bool, str]:
     # Check if Slurm is already installed via common binaries.
     if shutil.which("sinfo") or shutil.which("squeue"):
@@ -2202,6 +2218,7 @@ def run_init(args: argparse.Namespace) -> int:
         ("Ensure GitHub SSH key", ensure_ssh_key),
         ("Download simpoint traces", ensure_traces),
         ("(Optional) Slurm installation", maybe_install_slurm),
+        ("(Optional) Apptainer mode setup", maybe_setup_apptainer),
         ("(Optional) ghcr.io login to pull pre-built images from GitHub Container Registry (recommended)", maybe_docker_login),
         ("(Optional) Verify Codex CLI auth", maybe_check_codex_cli_auth),
         ("(Optional) Verify Gemini CLI auth", maybe_check_gemini_cli_auth),
@@ -2245,6 +2262,7 @@ def run_ci_init(args: argparse.Namespace) -> int:
         ("Ensure GitHub SSH key", ensure_ssh_key),
         ("Download CI simpoint trace", ensure_ci_trace),
         ("(Optional) Slurm installation", maybe_install_slurm),
+        ("(Optional) Apptainer mode setup", maybe_setup_apptainer),
         ("(Optional) ghcr.io login to pull pre-built images from GitHub Container Registry (recommended)", maybe_docker_login),
         ("(Optional) Verify Codex CLI auth", maybe_check_codex_cli_auth),
         ("(Optional) Verify Gemini CLI auth", maybe_check_gemini_cli_auth),
