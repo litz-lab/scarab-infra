@@ -93,7 +93,7 @@ def require_aslr_disabled(dbg_lvl=1):
     """Tracing and exec-mode simulation need ASLR off on every host that runs them.
     Trace-driven simulation does not, so this is checked only when those are launched."""
     global _aslr_verified
-    if _aslr_verified:
+    if _aslr_verified or not use_apptainer():
         return
     aslr_path = "/proc/sys/kernel/randomize_va_space"
     nodes = []
