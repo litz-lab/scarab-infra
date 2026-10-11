@@ -86,39 +86,10 @@ def apptainer_exec_prefix(docker_prefix):
             f"{INFRA_MOUNT_TARGET}/workloads/{docker_prefix}:$PATH && source {USER_ENTRYPOINT}")
 
 
-_aslr_verified = False
-
-
 def require_aslr_disabled(dbg_lvl=1):
-    """Tracing and exec-mode simulation need ASLR off on every host that runs them.
-    Trace-driven simulation does not, so this is checked only when those are launched."""
-    global _aslr_verified
-    if _aslr_verified or not use_apptainer():
-        return
-    aslr_path = "/proc/sys/kernel/randomize_va_space"
-    nodes = []
-    try:
-        node_output = subprocess.check_output(['sinfo', '-h', '-o', '%N'], text=True, stderr=subprocess.DEVNULL).strip()
-        if node_output:
-            nodes = subprocess.check_output(['scontrol', 'show', 'hostnames', node_output], text=True).splitlines()
-    except (FileNotFoundError, subprocess.CalledProcessError):
-        pass
-    if nodes:
-        for node in nodes:
-            try:
-                value = subprocess.check_output(['srun', '-w', node, '-N1', '-n1', 'cat', aslr_path],
-                                                text=True, stderr=subprocess.DEVNULL, timeout=3).strip()
-            except Exception:
-                continue
-            if value != '0':
-                raise RuntimeError(f"ASLR is enabled on Slurm node [{node}] (value: {value}). Tracing and exec-mode "
-                                   f"simulation need it off: srun -w {node} sudo sh -c 'echo 0 > {aslr_path}'")
-    else:
-        value = open(aslr_path).read().strip()
-        if value != '0':
-            raise RuntimeError(f"ASLR is enabled on local host (value: {value}). Tracing and exec-mode "
-                               f"simulation need it off: echo 0 | sudo tee {aslr_path}")
-    _aslr_verified = True
+    if use_apptainer():
+        raise RuntimeError("Exec-driven simulation and tracing need ASLR disabled, which requires root; "
+                           "not supported with Apptainer. Only trace-driven simulation is supported here.")
 
 def get_docker_client():
     global _docker_client
