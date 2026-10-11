@@ -39,6 +39,8 @@ from .utilities import (
         print_simulation_status_summary,
         run_on_node,
         normalize_simulations,
+        require_aslr_disabled,
+        use_apptainer,
         )
 from .image_identity import image_tag_for
 
@@ -396,6 +398,8 @@ def kill_jobs(user, job_name, docker_prefix_list, dbg_lvl = 2):
         return True
 
 def clean_containers(user, job_name, docker_prefix_list, dbg_lvl = 2):
+    if use_apptainer():
+        return
     if not docker_prefix_list:
         info("No docker images associated with descriptor; nothing to clean.", dbg_lvl)
         return
@@ -551,6 +555,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
             if sim_mode == "pt":
                 trace_warmup = simulation_data["warmup"]
             if sim_mode == "exec":
+                require_aslr_disabled(dbg_lvl)
                 env_vars = simulation_data["env_vars"]
                 bincmd = simulation_data["binary_cmd"]
                 client_bincmd = simulation_data["client_bincmd"]
