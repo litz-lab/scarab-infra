@@ -313,7 +313,8 @@ class stat_aggregator:
 
             all_stats += to_add
 
-        if load_ramulator:
+        # A failed run has no ramulator.stat.out; its stats stay NaN.
+        if load_ramulator and os.path.exists(f"{path}ramulator.stat.out"):
             f = open(f"{path}ramulator.stat.out")
             lines = f.readlines()
 
@@ -504,7 +505,8 @@ class stat_aggregator:
                 groups_by_stat[stat] = grp
 
         # NOTE: Ramulator will not be in distribution, group should be 0
-        if load_ramulator:
+        # A failed run has no ramulator.stat.out; its stats stay NaN.
+        if load_ramulator and os.path.exists(f"{path}ramulator.stat.out"):
             with open(f"{path}ramulator.stat.out", "r") as f:
                 for line in f:
                     if "ramulator." not in line:
@@ -943,7 +945,8 @@ class stat_aggregator:
                 out[row_idx] = host_instructions
 
         # Ramulator stats are plain text; group is always 0
-        if load_ramulator:
+        # A failed run has no ramulator.stat.out; its stats stay NaN.
+        if load_ramulator and os.path.exists(f"{path}ramulator.stat.out"):
             with open(f"{path}ramulator.stat.out", "r", buffering=1024 * 1024) as f:
                 for line in f:
                     if "ramulator." not in line:
