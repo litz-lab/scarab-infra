@@ -527,13 +527,15 @@ class stat_aggregator:
         return data, group
 
 
-    def _build_component_csv_schemas(self, sim_dir0: str, stat_to_row: dict, verify_k: int = 3):
+    def _build_component_csv_schemas(self, sim_dir0: str, stat_to_row: dict, verify_k: int = None):
         """Build per-component CSV schemas from simpoint0.
 
         A schema maps each non-empty data line in a component CSV (excluding the first pseudo-header line)
         to a row index in the output matrix (or -1 if the stat is not in `stat_to_row`).
 
-        We also record a few leading stat names to cheaply validate that ordering hasn't changed.
+        We also record the stat name of every line (or the first verify_k) to validate that ordering
+        hasn't changed: binaries from different commits can emit the same number of stats in a different
+        order, and checking only a few leading names then assigns values to the wrong stats.
         If a schema looks unsafe (e.g., duplicates within the file), we mark it so we can fall back
         to the robust parser for that file to preserve behavior and warnings.
         """
@@ -562,7 +564,7 @@ class stat_aggregator:
                         if not stat:
                             continue
 
-                        if len(check_stats) < verify_k:
+                        if verify_k is None or len(check_stats) < verify_k:
                             check_stats.append(stat)
 
                         if stat in seen_stats:
@@ -608,7 +610,7 @@ class stat_aggregator:
                         if not stat:
                             continue
 
-                        if len(check_stats) < verify_k:
+                        if verify_k is None or len(check_stats) < verify_k:
                             check_stats.append(stat)
 
                         if stat in seen_stats:
