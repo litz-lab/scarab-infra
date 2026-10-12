@@ -1747,11 +1747,16 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
                                  docker_prefix, docker_container_name, traces_dir,
                                  docker_home, config_key, config, scarab_mode, scarab_binary,
                                  seg_size, architecture, cluster_id, warmup, trace_warmup, trace_type,
-                                 trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir, application_dir, slurm=False):
+                                 trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir, application_dir, slurm=False,
+                                 perf_stat=False):
     try:
         scarab_cmd = generate_single_scarab_run_command(user, workload_home, experiment_name, config_key, config,
                                                         scarab_mode, seg_size, architecture, scarab_binary, cluster_id,
                                                         warmup, trace_warmup, trace_type, trace_file, env_vars, bincmd, client_bincmd)
+        # Descriptor "perf_stat": true makes a run fail when perf cannot count host instructions
+        # on its node, instead of running unmeasured.
+        if perf_stat:
+            scarab_cmd = f"REQUIRE_PERF_STAT=1 {scarab_cmd}"
         with open(filename, "w") as f:
             f.write("#!/bin/bash\n")
             f.write(f"echo \"Running {config_key} {workload_home} {cluster_id} {scarab_mode}\"\n")

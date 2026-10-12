@@ -86,9 +86,19 @@ perf_stat_prefix () {
   if [ -z "$perf_bin" ] || ! "$perf_bin" --version >/dev/null 2>&1; then
     perf_bin=$(ls -d /usr/lib/linux-tools-*/perf 2>/dev/null | head -1)
   fi
-  [ -n "$perf_bin" ] && [ -x "$perf_bin" ] || return 0
+  # With REQUIRE_PERF_STAT=1 (descriptor "perf_stat": true) a node that cannot
+  # count fails the run instead of leaving it unmeasured.
+  local fail=0
+  [ "${REQUIRE_PERF_STAT:-0}" = 1 ] && fail=1
+  if [ -z "$perf_bin" ] || [ ! -x "$perf_bin" ]; then
+    [ $fail = 1 ] && echo "ERROR: perf_stat required but no perf binary on $(uname -n)" >&2
+    return $fail
+  fi
   # User-mode only: kernel counting needs perf_event_paranoid <= 1, and syscall
   # instructions are noise here.
-  "$perf_bin" stat -e instructions:u -x, -o /dev/null -- true >/dev/null 2>&1 || return 0
+  if ! "$perf_bin" stat -e instructions:u -x, -o /dev/null -- true >/dev/null 2>&1; then
+    [ $fail = 1 ] && echo "ERROR: perf_stat required but perf cannot count instructions:u on $(uname -n) (perf_event_paranoid=$(cat /proc/sys/kernel/perf_event_paranoid 2>/dev/null))" >&2
+    return $fail
+  fi
   printf '%s stat -e instructions:u -x, -o %q --' "$perf_bin" "$out"
 }

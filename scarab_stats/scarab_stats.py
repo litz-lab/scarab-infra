@@ -225,6 +225,22 @@ class Experiment:
     def __str__(self):
         return f"{', '.join(list(self.data.columns))}"
 
+HOST_INSTRUCTIONS = "HOST_INSTRUCTIONS"
+
+
+def read_perf_stat_instructions(path):
+    """instructions:u from the run's perf_stat.txt (perf stat -x, CSV), or None if absent."""
+    try:
+        with open(f"{path}perf_stat.txt") as f:
+            for line in f:
+                parts = line.split(",")
+                if len(parts) > 2 and parts[2].startswith("instructions") and parts[0].strip().isdigit():
+                    return float(parts[0])
+    except FileNotFoundError:
+        pass
+    return None
+
+
 # Component stat files produced for each simpoint directory.
 # Each file is a 3-column CSV: <stat_name>, <group_id>, <value>.
 # The fast path parses these directly (without pandas) for performance.
@@ -920,6 +936,12 @@ class stat_aggregator:
                 tag += 1
                 continue
 
+        row_idx = s2r_get(HOST_INSTRUCTIONS)
+        if row_idx is not None:
+            host_instructions = read_perf_stat_instructions(path)
+            if host_instructions is not None:
+                out[row_idx] = host_instructions
+
         # Ramulator stats are plain text; group is always 0
         if load_ramulator:
             with open(f"{path}ramulator.stat.out", "r", buffering=1024 * 1024) as f:
@@ -1123,6 +1145,12 @@ class stat_aggregator:
 
         if not known_stats:
             raise RuntimeError("No stats found while collecting simpoints; cannot build experiment CSV.")
+
+        # Host instructions the simulator retired (perf_stat.txt); NaN where perf could not count.
+        if HOST_INSTRUCTIONS not in known_stats_set:
+            known_stats.append(HOST_INSTRUCTIONS)
+            known_stats_set.add(HOST_INSTRUCTIONS)
+            groups_by_stat[HOST_INSTRUCTIONS] = 0
 
         groups0 = [groups_by_stat[stat_name] for stat_name in known_stats]
 
