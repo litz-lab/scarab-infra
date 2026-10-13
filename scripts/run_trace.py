@@ -20,6 +20,7 @@ from .utilities import (
     count_interactive_shells,
     infra_mount_arg,
     ROOT_ENTRYPOINT,
+    require_aslr_disabled,
 )
 from .image_identity import image_tag_for
 from . import slurm_runner, local_runner
@@ -274,6 +275,7 @@ def run_trace_command(descriptor_path, action, dbg_lvl=2, infra_dir=None):
         except SystemExit as exc:
             raise RuntimeError("Descriptor verification failed") from exc
 
+        require_aslr_disabled(dbg_lvl)
         if workload_manager == "manual":
             local_runner.run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl)
         else:

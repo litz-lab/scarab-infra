@@ -2034,46 +2034,6 @@ def maybe_check_claude_cli_auth(_: argparse.Namespace) -> Tuple[bool, str]:
     )
 
 
-def ensure_aslr_disabled(_: argparse.Namespace) -> Tuple[bool, str]:
-    aslr_path = "/proc/sys/kernel/randomize_va_space"
-    aslr_file = Path(aslr_path)
-
-    all_nodes = []
-    try:
-        node_output = subprocess.check_output(['sinfo', '-h', '-o', '%N'], 
-                                              universal_newlines=True, stderr=subprocess.DEVNULL).strip()
-        if node_output:
-            all_nodes = subprocess.check_output(['scontrol', 'show', 'hostnames', node_output], 
-                                                universal_newlines=True).splitlines()
-    except (FileNotFoundError, subprocess.CalledProcessError):
-        pass
-
-    if all_nodes:
-        print(f"Detected Slurm cluster. Checking ASLR on {len(all_nodes)} nodes...")
-        for node in all_nodes:
-            try:
-                node_aslr = subprocess.check_output(
-                    ['srun', '-w', node, '-N1', '-n1', 'cat', aslr_path],
-                    universal_newlines=True, stderr=subprocess.DEVNULL, timeout=3
-                ).strip()
-                
-                if node_aslr != '0':
-                    print(f"\n[!] ERROR: ASLR is enabled on Slurm node [{node}] (value: {node_aslr}).")
-                    print(f"    Please run: srun -w {node} sudo sh -c 'echo 0 > {aslr_path}'")
-                    sys.exit(1)
-            except Exception:
-                continue
-        return True, f"ASLR is disabled across all {len(all_nodes)} Slurm nodes."
-    
-    else:
-        content = aslr_file.read_text().strip()
-        if content != "0":
-            print(f"\n[!] ERROR: ASLR is currently enabled on local host (value: {content}).")
-            print(f"    Please run: echo 0 | sudo tee {aslr_path}")
-            sys.exit(1)
-        return True, "ASLR is disabled on local host (0)."
-    
-
 AGENT_HOOK_REL = "tools/mcp/force_sci_hook.py"
 AGENT_MCP_REL = "tools/mcp/sci_mcp.py"
 
@@ -2090,6 +2050,48 @@ def _install_agent_copy(src: Path) -> Path:
     return dest
 
 
+def refresh_agent_guardrails() -> None:
+    """Install the guardrails, and keep them matching this checkout, from any command.
+
+    They are copies rather than symlinks so a branch switch cannot break them, which
+    also means `git pull` does not update them: whoever ran --init in July kept a July
+    hook through every pull since, missing every rule added in between. Doing this from
+    every sci command makes a pull enough, and makes --init unnecessary for guardrails.
+
+    Registering the MCP server runs the Claude CLI, which is far too slow to repeat, so
+    the full install is gated on the hook not being there yet -- it happens once per
+    machine. After that only a byte comparison runs. Upkeep must never be the reason a
+    command fails, so an unwritable install dir is skipped rather than raised.
+    """
+    src_hook = REPO_ROOT / AGENT_HOOK_REL
+    if not src_hook.is_file() or not (REPO_ROOT / AGENT_MCP_REL).is_file():
+        return
+
+    try:
+        if not (AGENT_INSTALL_DIR / src_hook.name).is_file():
+            print_heading("Install agent guardrails")
+            info(maybe_install_agent_guardrails(None)[1])
+            return
+
+        for rel in (AGENT_HOOK_REL, AGENT_MCP_REL):
+            src = REPO_ROOT / rel
+            dest = AGENT_INSTALL_DIR / Path(rel).name
+            if not dest.is_file() or src.read_bytes() == dest.read_bytes():
+                continue
+            shutil.copy2(src, dest)
+            dest.chmod(0o755)
+            info(f"Updated {dest.name} from this checkout.")
+
+        # Registration too, not just the scripts: it is a small JSON read that writes
+        # only when something is wrong, so it can run every command, and it is what
+        # repairs a settings file that already accumulated duplicates.
+        note = _install_agent_hook(AGENT_INSTALL_DIR / src_hook.name)
+        if note != "Bash hook already installed.":
+            info(note)
+    except OSError:
+        return
+
+
 def _install_agent_hook(hook_path: Path) -> str:
     """Add the PreToolUse Bash hook to the user's Claude Code settings."""
     settings = Path.home() / ".claude" / "settings.json"
@@ -2103,22 +2105,33 @@ def _install_agent_hook(hook_path: Path) -> str:
             return f"{settings} is not valid JSON; left it untouched."
 
     entries = data.setdefault("hooks", {}).setdefault("PreToolUse", [])
+    # Match on the file name, not AGENT_HOOK_REL: the installed command names the copy
+    # under ~/.claude/tools, which never contains the repo-relative tools/mcp path, so
+    # matching on that found nothing and appended a duplicate on every install.
+    hook_name = Path(AGENT_HOOK_REL).name
     existing = [
         hook
         for entry in entries
         for hook in entry.get("hooks", [])
-        if AGENT_HOOK_REL in hook.get("command", "")
+        if hook_name in hook.get("command", "")
     ]
-    if existing and all(hook.get("command") == command for hook in existing):
+    if len(existing) == 1 and existing[0].get("command") == command:
         return "Bash hook already installed."
 
-    if existing:
-        for hook in existing:
-            hook["command"] = command
+    if len(existing) > 1:
+        note = f"Collapsed {len(existing)} duplicate {hook_name} hook entries into one."
+    elif existing:
         note = "Updated the scarab-infra hook to this checkout."
     else:
-        entries.append({"matcher": "Bash", "hooks": [{"type": "command", "command": command}]})
         note = "Installed the Bash hook."
+
+    # Drop every copy wherever it sits, then add exactly one back. Each install appended
+    # a whole new entry, so duplicates are separate entries rather than several hooks
+    # inside one, and editing only the first would leave the rest behind.
+    for entry in entries:
+        entry["hooks"] = [h for h in entry.get("hooks", []) if hook_name not in h.get("command", "")]
+    entries[:] = [entry for entry in entries if entry.get("hooks")]
+    entries.append({"matcher": "Bash", "hooks": [{"type": "command", "command": command}]})
 
     settings.parent.mkdir(parents=True, exist_ok=True)
     if settings.exists():
@@ -2167,6 +2180,31 @@ def maybe_install_agent_guardrails(_: argparse.Namespace) -> Tuple[bool, str]:
     return True, " ".join(parts)
 
 
+# `--init --apptainer`: for hosts without docker/root (e.g. HPC clusters). Docker setup is
+# skipped and apptainer is installed into the env; at run time containers then use it
+# (scripts/utilities.py:use_apptainer). Plain `--init` is unchanged.
+DOCKER_SETUP_TITLES = ("Install Docker", "Start Docker daemon", "Configure Docker permissions")
+
+
+def skip_if_apptainer(step):
+    def wrapped(args: argparse.Namespace) -> Tuple[bool, str]:
+        if args.apptainer:
+            return True, "--apptainer: containers run with apptainer, docker not needed."
+        return step(args)
+    return wrapped
+
+
+def ensure_apptainer(args: argparse.Namespace) -> Tuple[bool, str]:
+    if not args.apptainer:
+        return True, "Not requested."
+    try:
+        run_command(["conda", "install", "-y", "-n", ENV_NAME, "-c", "conda-forge", "apptainer"])
+    except StepError as exc:
+        return False, f"Failed to install apptainer: {exc}"
+    return True, ("Installed apptainer into the env. Put images at ~/sif/<image_name>.sif "
+                  "(./sci --sim prints the pull command).")
+
+
 def run_init(args: argparse.Namespace) -> int:
     if sys.stdin.isatty():
         print_heading("Prepare Google Drive cookies.txt")
@@ -2187,12 +2225,12 @@ def run_init(args: argparse.Namespace) -> int:
             print("Re-run `./sci --init` after cookies.txt is uploaded.")
             return 0
     steps = [
-        ("Check ASLR setting", ensure_aslr_disabled),
-        ("Install Docker", ensure_docker),
-        ("Start Docker daemon", ensure_docker_running),
-        ("Configure Docker permissions", configure_docker_permissions),
+        ("Install Docker", skip_if_apptainer(ensure_docker)),
+        ("Start Docker daemon", skip_if_apptainer(ensure_docker_running)),
+        ("Configure Docker permissions", skip_if_apptainer(configure_docker_permissions)),
         ("Install Miniconda", ensure_conda_installed),
         ("Create scarabinfra conda env", ensure_conda_env),
+        ("Install apptainer (--apptainer)", ensure_apptainer),
         ("Configure conda shell hook", ensure_conda_shell_hook),
         ("Validate conda env activation", validate_conda_env),
         ("Ensure GitHub SSH key", ensure_ssh_key),
@@ -2213,6 +2251,10 @@ def run_init(args: argparse.Namespace) -> int:
             success, message = False, str(exc)
         info(message)
         summary.append((title, success, message))
+        if not success and title in DOCKER_SETUP_TITLES:
+            print(f"\n[!] {title} failed. If this host has no root/Docker (e.g. an HPC cluster), "
+                  "rerun `./sci --init --apptainer` to use Apptainer instead.")
+            return 1
     print("\nInit summary:")
     for title, success, message in summary:
         status = "ok" if success else "failed"
@@ -4387,6 +4429,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Run environment bootstrap steps.",
     )
     parser.add_argument(
+        "--apptainer",
+        action="store_true",
+        help="With --init: skip docker setup and install apptainer, for hosts without docker/root.",
+    )
+    parser.add_argument(
         "--ci-init",
         dest="ci_init",
         action="store_true",
@@ -4513,6 +4560,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
+    refresh_agent_guardrails()
     requested = [
         bool(args.init),
         bool(args.ci_init),

@@ -29,11 +29,15 @@ from .utilities import (
     run_on_node,
     infra_mount_arg,
     ROOT_ENTRYPOINT,
+    use_apptainer,
 )
 from .image_identity import image_tag_for
 from . import slurm_runner, local_runner
 
-client = docker.from_env()
+try:
+    client = docker.from_env()
+except Exception:
+    client = None
 CONTAINER_PROBE_TIMEOUT_SECONDS = 5
 
 # Verify the given descriptor file
@@ -292,6 +296,8 @@ def open_interactive_shell(user, descriptor_name, descriptor_data, workloads_dat
 
 
 def find_conflicting_containers(workload_manager, docker_prefix_list, experiment_name, user, dbg_lvl=2):
+    if use_apptainer():
+        return {}, {}
     if not docker_prefix_list:
         return {}, {}
 

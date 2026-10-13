@@ -28,6 +28,8 @@ from .utilities import (
         remove_old_job_logs,
         print_simulation_status_summary,
         normalize_simulations,
+        require_aslr_disabled,
+        use_apptainer,
         )
 from .image_identity import image_tag_for
 
@@ -35,6 +37,17 @@ from .image_identity import image_tag_for
 # Inputs: docker_prefix, job_name, user,
 # Output: list of containers
 def check_docker_container_running(docker_prefix_list, job_name, user, dbg_lvl):
+    if use_apptainer():
+        # No containers to list; a running sim is a `bash <container_name>_tmp_run.sh` process.
+        running = set()
+        for proc in psutil.process_iter(attrs=['cmdline']):
+            for arg in proc.info.get('cmdline') or []:
+                name = os.path.basename(arg)
+                if name.endswith("_tmp_run.sh"):
+                    name = name[:-len("_tmp_run.sh")]
+                    if any(re.match(fr"^{p}_.*_{job_name}.*_.*_{user}$", name) for p in docker_prefix_list):
+                        running.add(name)
+        return sorted(running)
     try:
         matching_containers = []
         for docker_prefix in docker_prefix_list:
@@ -176,6 +189,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
             if sim_mode == "pt":
                 trace_warmup = simulation_data["warmup"]
             if sim_mode == "exec":
+                require_aslr_disabled(dbg_lvl)
                 env_vars = simulation_data["env_vars"]
                 bincmd = simulation_data["binary_cmd"]
                 client_bincmd = simulation_data["client_bincmd"]
@@ -216,7 +230,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                                                  docker_prefix, docker_container_name, traces_dir,
                                                  docker_home, config_key, config, sim_mode, scarab_binary,
                                                  seg_size, architecture, cluster_id, warmup, trace_warmup, trace_type,
-                                                 trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir, application_dir)
+                                                 trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir, application_dir, perf_stat=bool(descriptor_data.get("perf_stat", False)))
                     tmp_files.add(filename)
                     command = '/bin/bash ' + filename
                     remove_jobs.add((config_key, suite, subsuite, workload, cluster_id))
