@@ -4531,6 +4531,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Kill active simulations for json/<DESCRIPTOR>.json.",
     )
     parser.add_argument(
+        "-y",
+        "--force",
+        action="store_true",
+        help="Answer --kill's confirmation with yes; needed when no terminal is attached.",
+    )
+    parser.add_argument(
         "--status",
         metavar="DESCRIPTOR",
         help="Show run and node status for json/<DESCRIPTOR>.json.",
@@ -4560,6 +4566,8 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
+    if args.force:
+        os.environ["SCI_ASSUME_YES"] = "1"  # read by confirm_kill, deep in the runners
     refresh_agent_guardrails()
     requested = [
         bool(args.init),

@@ -16,6 +16,7 @@ DEFAULT_MEM_MB = 4096    # fallback when no base_memory_mb data exists in worklo
 MEM_HEADROOM_MB = 1024   # fixed +1 GiB on top of workloads_db base_memory_mb for Slurm --mem
 
 from .utilities import (
+    confirm_kill,
         err,
         warn,
         info,
@@ -380,8 +381,7 @@ def kill_jobs(user, job_name, docker_prefix_list, dbg_lvl = 2):
         print("Found jobs: ")
         print(lines)
 
-        confirm = input("Do you want to kill these jobs? (y/n): ").lower()
-        if confirm == 'y':
+        if confirm_kill("Do you want to kill these jobs?", dbg_lvl):
             # Kill each job
             info(f"Killing jobs with slurm job ids: {', '.join(map(str, job_ids))}", dbg_lvl)
             for id in job_ids:

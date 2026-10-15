@@ -35,6 +35,12 @@ DESC_SCHEMA = {
     },
     "required": ["descriptor"],
 }
+KILL_SCHEMA = {
+    "type": "object",
+    "properties": dict(DESC_SCHEMA["properties"], force={
+        "type": "boolean", "description": "Kill without confirmation (`--force`). Without it, sci refuses: there is no terminal to answer."}),
+    "required": ["descriptor"],
+}
 NOARG_SCHEMA = {"type": "object", "properties": {"tail": {"type": "integer"}}, "required": []}
 
 
@@ -44,7 +50,7 @@ def tool_defs():
         out.append({
             "name": name,
             "description": f"{desc} (runs `./sci {flag}`)",
-            "inputSchema": DESC_SCHEMA if needs_desc else NOARG_SCHEMA,
+            "inputSchema": KILL_SCHEMA if name == "sci_kill" else DESC_SCHEMA if needs_desc else NOARG_SCHEMA,
         })
     return out
 
@@ -68,6 +74,8 @@ def run_tool(name, args):
             avail = sorted(p.stem for p in (REPO / "json").glob("*.json"))
             return True, f"no descriptor json/{d}.json. available: {', '.join(avail[:40])}"
         cmd.append(d)
+    if name == "sci_kill" and (args or {}).get("force"):
+        cmd.append("--force")
 
     try:
         p = subprocess.run(cmd, cwd=str(REPO), capture_output=True, text=True, timeout=timeout)

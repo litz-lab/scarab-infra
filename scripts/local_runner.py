@@ -9,6 +9,7 @@ import signal
 import re
 import traceback
 from .utilities import (
+    confirm_kill,
         err,
         info,
         get_simpoints,
@@ -112,8 +113,7 @@ def kill_jobs(user, job_type, job_name, docker_prefix_list, infra_dir, dbg_lvl):
             continue
 
     print(str(len(found_process)) + "found.")
-    confirm = input("Do you want to kill these processes? (y/n): ").lower()
-    if confirm == 'y':
+    if confirm_kill("Do you want to kill these processes?"):
         # Iterate over found processes
         for proc in found_process:
             try:
