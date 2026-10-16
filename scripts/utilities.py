@@ -1008,6 +1008,18 @@ def _warn_interactive_binary_statuses(
         )
 
 
+def confirm_kill(question: str, dbg_lvl: int = 2) -> bool:
+    """Ask before killing. `sci --force` answers yes. With no terminal nothing can answer,
+    so refuse rather than block: the MCP server runs one sci command at a time."""
+    if os.environ.get("SCI_ASSUME_YES") == "1":
+        return True
+    if not sys.stdin.isatty():
+        err("Refusing to prompt with no terminal attached. Re-run with --force to kill "
+            "without confirmation.", dbg_lvl)
+        return False
+    return input(f"{question} (y/n): ").strip().lower() == 'y'
+
+
 def _prompt_kill_processes_and_exit(dbg_lvl: int) -> None:
     prompt = "Uncommitted changes detected in scarab repository. Do you want to kill these processes? [y/N]: "
     response = ""
