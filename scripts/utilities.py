@@ -1618,6 +1618,18 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
 
         raise e
 
+def submit_with_retry(cmd, attempts=3, delay_s=10):
+    """Run an sbatch command, retrying on failure: right after a burst of submissions
+    slurmctld can refuse one ("Unexpected message received")."""
+    for attempt in range(1, attempts + 1):
+        rc = os.system(cmd)
+        if rc == 0:
+            return
+        if attempt < attempts:
+            print(f"WARN: sbatch failed (exit {rc >> 8}), retrying in {delay_s}s ({attempt}/{attempts})")
+            time.sleep(delay_s)
+    print(f"ERROR: sbatch failed {attempts} times, not submitted: {cmd}")
+
 def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_name, image_tag_list, slurm_ids = None, dont_collect = False, slurm_options=""):
     experiment_dir = f"{root_dir}/simulations/{experiment_name}"
     # clean up docker images only when no container is running on top of the image (the other user may be using it)
@@ -1629,7 +1641,10 @@ def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_n
         clean_cmd = sbatch_cmd + clean_cmd
     if not use_apptainer():  # apptainer has no docker images to clean up
         print(clean_cmd)
-        os.system(clean_cmd)
+        if slurm_ids:
+            submit_with_retry(clean_cmd)
+        else:
+            os.system(clean_cmd)
 
     if dont_collect:
         return
@@ -1712,9 +1727,9 @@ def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_n
             f"sbatch{slurm_options} --dependency=afterany:{','.join(slurm_ids)} "
             f"-o {shlex.quote(log_path)} --wrap={shlex.quote(collect_stats_cmd)}"
         )
-        collect_stats_cmd = sbatch_cmd
-
-    os.system(collect_stats_cmd)
+        submit_with_retry(sbatch_cmd)
+    else:
+        os.system(collect_stats_cmd)
 
 # Generate command to do a single run of scarab
 def generate_single_scarab_run_command(user, workload_home, experiment, config_key, config,
