@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Populate ``drive_id`` and ``size_bytes`` fields in workloads_db.json using the Google Drive API."""
+"""Populate ``drive_id`` fields in workloads_db.json using the Google Drive API.
+
+Trace sizes come from the local traces directory instead: see collect_trace_sizes.py."""
 
 from __future__ import annotations
 
@@ -178,7 +180,7 @@ def list_children(service, folder_id: str) -> Iterable[Dict[str, Any]]:
             service.files()
             .list(
                 q=query,
-                fields="nextPageToken, files(id, name, mimeType, size)",
+                fields="nextPageToken, files(id, name, mimeType)",
                 pageSize=1000,
                 supportsAllDrives=True,
                 includeItemsFromAllDrives=True,
@@ -204,12 +206,7 @@ def crawl_drive_tree(service, root_folder_id: str) -> Dict[str, Dict[str, Any]]:
             if item["mimeType"] == "application/vnd.google-apps.folder":
                 queue.append((item["id"], path))
             else:
-                size_value: Optional[int]
-                try:
-                    size_value = int(item.get("size")) if item.get("size") is not None else None
-                except (TypeError, ValueError):
-                    size_value = None
-                mapping[path] = {"id": item["id"], "size": size_value}
+                mapping[path] = {"id": item["id"]}
     return mapping
 
 
@@ -247,17 +244,14 @@ def update_workloads_with_ids(workloads: Dict, drive_map: Dict[str, Dict[str, An
                     if not mapping_entry:
                         continue
                     file_id = mapping_entry.get("id")
-                    size_bytes = mapping_entry.get("size")
                     if file_id and sim.get("drive_id") != file_id:
                         sim["drive_id"] = file_id
                         updated += 1
-                    if size_bytes is not None and sim.get("size_bytes") != size_bytes:
-                        sim["size_bytes"] = size_bytes
     return updated
 
 
 def parse_args(argv: List[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Populate drive_id and size metadata in workloads_db.json")
+    parser = argparse.ArgumentParser(description="Populate drive_id metadata in workloads_db.json")
     parser.add_argument("--folder-id", required=True, help="Google Drive folder ID containing suite subdirectories")
     parser.add_argument("--credentials", default="credentials.json", help="Path to OAuth client credentials JSON")
     parser.add_argument("--workloads", default="workloads/workloads_db.json", help="Input workloads DB JSON file")
