@@ -359,7 +359,10 @@ class Snapshot:
 
 
 def scarab_out_path(sim_root: Path, job: "Job") -> Path:
-    return sim_root / job.config / job.suite / job.subsuite / job.workload / job.cluster_id / "scarab.out"
+    """Scarab's stdout: scarab.out for exec runs (--scarab_stdout), sim.log for memtrace and PT runs."""
+    d = sim_root / job.config / job.suite / job.subsuite / job.workload / job.cluster_id
+    out = d / "scarab.out"
+    return d / "sim.log" if not out.is_file() and (d / "sim.log").is_file() else out
 
 
 def refresh_running_progress(snapshot: Snapshot, sim_root: Path) -> int:
@@ -1029,6 +1032,13 @@ def _test_parser(tmp: Path) -> None:
     p = parse_progress(tmp / "nope" / "scarab.out")
     _check("missing file tolerated", p.pct is None and not p.exists, p.note)
 
+    memtrace = [j for j in snap.jobs if j.state == "Running"][1]
+    log = scarab_out_path(tmp, memtrace).parent / "sim.log"
+    log.parent.mkdir(parents=True, exist_ok=True)
+    log.write_text(_SIM_HEAD + "** Heartbeat:  30% -- { 18000000 } -- 50.00 KIPS (0.90 KIPS)\n")
+    p = parse_progress(scarab_out_path(tmp, memtrace))
+    _check("memtrace sim.log read", p.pct == 30, f"got {p.pct} ({p.note})")
+
     _check("bar(98) not full", bar(98).count("█") < 16, bar(98))
     _check("bar(100) full", bar(100).count("█") == 16)
     _check("fmt_eta(3725)", fmt_eta(3725) == "1h02m", fmt_eta(3725))
@@ -1250,5 +1260,11 @@ async def _test_ui() -> None:
 
 if __name__ == "__main__":
     import sys
+    if "--self-test" in sys.argv:
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            for t in (_test_parser, _test_cheap_tier, _test_ff_phase):
+                t(Path(d) / t.__name__)
+        sys.exit(1 if _SELFTEST_FAILURES else 0)
     print(__doc__)
     print("This module is driven by:  ./sci --status <DESCRIPTOR> --tui")
