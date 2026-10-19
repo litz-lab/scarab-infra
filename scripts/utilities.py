@@ -26,6 +26,7 @@ if project_root not in sys.path:
 
 import workloads.extract_top_simpoints as extract_top_simpoints
 importlib.reload(extract_top_simpoints)
+import workloads.collect_trace_sizes as collect_trace_sizes
 
 from scripts.image_identity import image_content_hash, image_context_pathspec, image_tag_for
 
@@ -3056,6 +3057,7 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
 
         print("Copying the successfully collected traces and update workloads_db.json...")
 
+        finalized = []
         for config in trace_configs:
             workload = config['workload']
             suite = config['suite']
@@ -3166,7 +3168,9 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
                 }
             # Update/insert only the related fields and leave the other existing fields unchanged
             workload_db_data[suite][subsuite][workload] = workload_dict | preserved_fields
+            finalized.append((suite, subsuite, workload))
 
+        collect_trace_sizes.update_trace_sizes(workload_db_data, target_traces_dir, finalized)
         write_json_descriptor(workload_db_path, workload_db_data, dbg_lvl)
         extract_top_simpoints.modify_simpoints_in_place(workload_db_data)
         write_json_descriptor(f"{infra_dir}/workloads/workloads_top_simp.json", workload_db_data, dbg_lvl)
