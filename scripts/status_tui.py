@@ -359,7 +359,7 @@ class Snapshot:
 
 
 def scarab_out_path(sim_root: Path, job: "Job") -> Path:
-    """Scarab's stdout: scarab.out for exec runs (--scarab_stdout), sim.log for memtrace and PT runs."""
+    """Scarab's stdout: scarab.out; sim.log for memtrace and PT runs from before they wrote scarab.out."""
     d = sim_root / job.config / job.suite / job.subsuite / job.workload / job.cluster_id
     out = d / "scarab.out"
     return d / "sim.log" if not out.is_file() and (d / "sim.log").is_file() else out
@@ -1037,7 +1037,7 @@ def _test_parser(tmp: Path) -> None:
     log.parent.mkdir(parents=True, exist_ok=True)
     log.write_text(_SIM_HEAD + "** Heartbeat:  30% -- { 18000000 } -- 50.00 KIPS (0.90 KIPS)\n")
     p = parse_progress(scarab_out_path(tmp, memtrace))
-    _check("memtrace sim.log read", p.pct == 30, f"got {p.pct} ({p.note})")
+    _check("pre-scarab.out sim.log read", p.pct == 30, f"got {p.pct} ({p.note})")
 
     _check("bar(98) not full", bar(98).count("█") < 16, bar(98))
     _check("bar(100) full", bar(100).count("█") == 16)
