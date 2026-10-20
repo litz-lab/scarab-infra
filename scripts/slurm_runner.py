@@ -283,7 +283,7 @@ def generate_sbatch_command(experiment_dir, slurm_options="", mem_mb=None, job_o
         assert isinstance(job_out_suffix, str)
         job_out_suffix = '_' + job_out_suffix
 
-    return f"sbatch -c 1{slurm_options} -o {experiment_dir}/logs/job_%j{job_out_suffix}.out "
+    return f"sbatch -c 1 --no-requeue{slurm_options} -o {experiment_dir}/logs/job_%j{job_out_suffix}.out "
 #return f"sbatch -c 1 --ntasks-per-core=2 --oversubscribe -o {experiment_dir}/logs/job_%j.out "
 
 
