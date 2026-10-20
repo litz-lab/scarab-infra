@@ -1626,7 +1626,7 @@ def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_n
     images = ' '.join(image_tag_list)
     clean_cmd = f"scripts/docker_cleaner.py --images {images}"
     if slurm_ids:
-        sbatch_cmd = f"sbatch{slurm_options} --nodelist=bohr3 --dependency=afterany:{','.join(slurm_ids)} -o {experiment_dir}/logs/stat_collection_job_%j.out "
+        sbatch_cmd = f"sbatch --no-requeue{slurm_options} --nodelist=bohr3 --dependency=afterany:{','.join(slurm_ids)} -o {experiment_dir}/logs/stat_collection_job_%j.out "
         clean_cmd = sbatch_cmd + clean_cmd
     if not use_apptainer():  # apptainer has no docker images to clean up
         print(clean_cmd)
@@ -1710,7 +1710,7 @@ def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_n
         # afterok will not run if jobs fail. afterany used with stat_collector's error checking
         log_path = os.path.join(experiment_dir, "logs", "stat_collection_job_%j.out")
         sbatch_cmd = (
-            f"sbatch{slurm_options} --dependency=afterany:{','.join(slurm_ids)} "
+            f"sbatch --no-requeue{slurm_options} --dependency=afterany:{','.join(slurm_ids)} "
             f"-o {shlex.quote(log_path)} --wrap={shlex.quote(collect_stats_cmd)}"
         )
         collect_stats_cmd = sbatch_cmd
@@ -1997,7 +1997,7 @@ def write_phase2_sbatch_tail(f, workload, trace_name, docker_home, phase2_script
     f.write('    fi\n')
     seg_log = f"{wl_dir}/logs/seg_%j_${{SEGMENT_ID}}.out"
     f.write(f'    mkdir -p "{wl_dir}/logs"\n')
-    f.write(f'    JID=$(sbatch -J "{phase2_job}" {slurm_options} --mem {segment_mem_mb}M -c 1 -o "{seg_log}" '
+    f.write(f'    JID=$(sbatch --no-requeue -J "{phase2_job}" {slurm_options} --mem {segment_mem_mb}M -c 1 -o "{seg_log}" '
             f'{phase2_script_path} "$SEGMENT_ID" "$CLUSTER_ID" 2>&1 | grep -oP "\\d+")\n')
     f.write('    if [ -n "$JID" ]; then\n')
     f.write('        PHASE2_JIDS="${PHASE2_JIDS:+$PHASE2_JIDS:}$JID"\n')
@@ -2014,13 +2014,13 @@ def write_phase2_sbatch_tail(f, workload, trace_name, docker_home, phase2_script
     f.write('if [ -n "$PHASE2_JIDS" ]; then\n')
     f.write(f'    mkdir -p "$(dirname {finalize_log_path})"\n')
     finalize_cmd_escaped = finalize_cmd.replace('"', '\\"')
-    f.write(f'    FJID=$(sbatch -J "{phase3_job}" {slurm_options} --mem {finalize_mem_mb}M --dependency=afterany:$PHASE2_JIDS '
+    f.write(f'    FJID=$(sbatch --no-requeue -J "{phase3_job}" {slurm_options} --mem {finalize_mem_mb}M --dependency=afterany:$PHASE2_JIDS '
             f'-o "{finalize_log_path}" --wrap="{finalize_cmd_escaped}" 2>&1 | grep -oP "\\d+")\n')
     f.write('    echo "Phase 3 finalization job: $FJID (depends on $SUBMITTED segment jobs)"\n')
     f.write('elif [ "$SUBMITTED" -eq 0 ] && [ "$SKIPPED" -gt 0 ]; then\n')
     f.write('    echo "All segments already complete. Submitting finalization directly."\n')
     f.write(f'    mkdir -p "$(dirname {finalize_log_path})"\n')
-    f.write(f'    sbatch -J "{phase3_job}" {slurm_options} --mem {finalize_mem_mb}M '
+    f.write(f'    sbatch --no-requeue -J "{phase3_job}" {slurm_options} --mem {finalize_mem_mb}M '
             f'-o "{finalize_log_path}" --wrap="{finalize_cmd_escaped}"\n')
     f.write('fi\n')
 
