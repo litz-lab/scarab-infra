@@ -2549,7 +2549,7 @@ def print_simulation_status_summary(
                 config,
                 workload_path,
                 cluster_id,
-                "sim.log",
+                "scarab.err",
             )
             sim_log_to_job_log[scarab_logfile_path] = str(log_path)
 
@@ -3268,7 +3268,7 @@ def clean_failed_run (descriptor_data, config_key, suite, subsuite, workload, ex
     experiment_dir += f"{config_key}/{suite}/{subsuite}/{workload}/{exp_cluster_id}"
 
     experiment_path = Path(experiment_dir)
-    patterns_to_clean = ["*.csv", "*.out", "*.in", "*.csv.warmup", "*.out.warmup", "sim.log"]
+    patterns_to_clean = ["*.csv", "*.out", "*.in", "*.csv.warmup", "*.out.warmup", "scarab.err", "sim.log"]
 
     try:
         if experiment_path.is_dir():

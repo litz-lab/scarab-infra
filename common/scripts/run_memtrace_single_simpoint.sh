@@ -47,7 +47,7 @@ if [ "$SEGMENT_ID" == "-1" ]; then
   scarabCmd="$SCARABHOME/src/$SCARAB_BIN \
   --frontend memtrace \
   --cbp_trace_r0=$trace_home/$WORKLOAD_HOME/traces/whole/${traceMap} \
-  $SCARABPARAMS &> sim.log"
+  $SCARABPARAMS > scarab.out 2> scarab.err"
 else
   # overwriting
   TRACEFILE=$trace_home/$WORKLOAD_HOME/traces/simp/$segID.zip
@@ -83,7 +83,7 @@ else
     --full_warmup=$WARMUP \
     --use_fetched_count=0 \
     $SCARABPARAMS \
-    &> sim.log"
+    > scarab.out 2> scarab.err"
   elif [ "$TRACE_TYPE" == "trace_then_cluster" ]; then
     # simultion uses the specific trace file
     # the roiStart is the second chunk, which is assumed to be segment size
@@ -105,7 +105,7 @@ else
       --full_warmup=$WARMUP \
       --use_fetched_count=1 \
       $SCARABPARAMS \
-      &> sim.log"
+      > scarab.out 2> scarab.err"
     else
       #echo "!ROISTART"
       scarabCmd="$SCARABHOME/src/$SCARAB_BIN \
@@ -117,7 +117,7 @@ else
       --full_warmup=$WARMUP \
       --use_fetched_count=1 \
       $SCARABPARAMS \
-      &> sim.log"
+      > scarab.out 2> scarab.err"
     fi
   elif [ "$TRACE_TYPE" == "cluster_then_trace" ]; then
     if [ "$WARMUP" -lt "$TRACE_WARMUP" ]; then
@@ -130,7 +130,7 @@ else
       --full_warmup=$WARMUP \
       --use_fetched_count=1 \
       $SCARABPARAMS \
-      &> sim.log"
+      > scarab.out 2> scarab.err"
     else
       scarabCmd="$SCARABHOME/src/$SCARAB_BIN \
       --frontend memtrace \
@@ -139,7 +139,7 @@ else
       --full_warmup=$WARMUP \
       --use_fetched_count=1 \
       $SCARABPARAMS \
-      &> sim.log"
+      > scarab.out 2> scarab.err"
     fi
   fi
 fi
