@@ -26,6 +26,7 @@ if project_root not in sys.path:
 
 import workloads.extract_top_simpoints as extract_top_simpoints
 importlib.reload(extract_top_simpoints)
+import workloads.collect_trace_sizes as collect_trace_sizes
 
 from scripts.image_identity import image_content_hash, image_context_pathspec, image_tag_for
 
@@ -1625,7 +1626,7 @@ def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_n
     images = ' '.join(image_tag_list)
     clean_cmd = f"scripts/docker_cleaner.py --images {images}"
     if slurm_ids:
-        sbatch_cmd = f"sbatch{slurm_options} --nodelist=bohr3 --dependency=afterany:{','.join(slurm_ids)} -o {experiment_dir}/logs/stat_collection_job_%j.out "
+        sbatch_cmd = f"sbatch --no-requeue{slurm_options} --nodelist=bohr3 --dependency=afterany:{','.join(slurm_ids)} -o {experiment_dir}/logs/stat_collection_job_%j.out "
         clean_cmd = sbatch_cmd + clean_cmd
     if not use_apptainer():  # apptainer has no docker images to clean up
         print(clean_cmd)
@@ -1709,7 +1710,7 @@ def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_n
         # afterok will not run if jobs fail. afterany used with stat_collector's error checking
         log_path = os.path.join(experiment_dir, "logs", "stat_collection_job_%j.out")
         sbatch_cmd = (
-            f"sbatch{slurm_options} --dependency=afterany:{','.join(slurm_ids)} "
+            f"sbatch --no-requeue{slurm_options} --dependency=afterany:{','.join(slurm_ids)} "
             f"-o {shlex.quote(log_path)} --wrap={shlex.quote(collect_stats_cmd)}"
         )
         collect_stats_cmd = sbatch_cmd
@@ -1996,7 +1997,7 @@ def write_phase2_sbatch_tail(f, workload, trace_name, docker_home, phase2_script
     f.write('    fi\n')
     seg_log = f"{wl_dir}/logs/seg_%j_${{SEGMENT_ID}}.out"
     f.write(f'    mkdir -p "{wl_dir}/logs"\n')
-    f.write(f'    JID=$(sbatch -J "{phase2_job}" {slurm_options} --mem {segment_mem_mb}M -c 1 -o "{seg_log}" '
+    f.write(f'    JID=$(sbatch --no-requeue -J "{phase2_job}" {slurm_options} --mem {segment_mem_mb}M -c 1 -o "{seg_log}" '
             f'{phase2_script_path} "$SEGMENT_ID" "$CLUSTER_ID" 2>&1 | grep -oP "\\d+")\n')
     f.write('    if [ -n "$JID" ]; then\n')
     f.write('        PHASE2_JIDS="${PHASE2_JIDS:+$PHASE2_JIDS:}$JID"\n')
@@ -2013,13 +2014,13 @@ def write_phase2_sbatch_tail(f, workload, trace_name, docker_home, phase2_script
     f.write('if [ -n "$PHASE2_JIDS" ]; then\n')
     f.write(f'    mkdir -p "$(dirname {finalize_log_path})"\n')
     finalize_cmd_escaped = finalize_cmd.replace('"', '\\"')
-    f.write(f'    FJID=$(sbatch -J "{phase3_job}" {slurm_options} --mem {finalize_mem_mb}M --dependency=afterany:$PHASE2_JIDS '
+    f.write(f'    FJID=$(sbatch --no-requeue -J "{phase3_job}" {slurm_options} --mem {finalize_mem_mb}M --dependency=afterany:$PHASE2_JIDS '
             f'-o "{finalize_log_path}" --wrap="{finalize_cmd_escaped}" 2>&1 | grep -oP "\\d+")\n')
     f.write('    echo "Phase 3 finalization job: $FJID (depends on $SUBMITTED segment jobs)"\n')
     f.write('elif [ "$SUBMITTED" -eq 0 ] && [ "$SKIPPED" -gt 0 ]; then\n')
     f.write('    echo "All segments already complete. Submitting finalization directly."\n')
     f.write(f'    mkdir -p "$(dirname {finalize_log_path})"\n')
-    f.write(f'    sbatch -J "{phase3_job}" {slurm_options} --mem {finalize_mem_mb}M '
+    f.write(f'    sbatch --no-requeue -J "{phase3_job}" {slurm_options} --mem {finalize_mem_mb}M '
             f'-o "{finalize_log_path}" --wrap="{finalize_cmd_escaped}"\n')
     f.write('fi\n')
 
@@ -2514,15 +2515,16 @@ def print_simulation_status_summary(
     pending = {conf: 0 for conf in confs}
 
     experiment_name = descriptor_data["experiment"]
-    for sim in queued_sims:
-        matches = [conf for conf in confs if f"{experiment_name}_{conf}" in sim]
-        if not matches:
-            info(f"queued sim '{sim}' matches no configuration of '{experiment_name}'", dbg_lvl)
-            continue
-        conf = max(matches, key=len)
-        pending[conf] += 1
-
     all_job_ids = get_simulation_job_identifiers(descriptor_data, workloads_data, dbg_lvl=dbg_lvl)
+
+    # A simulation in the queue is pending even if an earlier attempt left a job log
+    # (Slurm requeues a job after a node failure); its log is stale and not counted.
+    queued = set()
+    for config, suite, subsuite, workload, cluster_id in set(all_job_ids):
+        needle = f"_{workload}_{experiment_name}_{config}_{cluster_id}_"
+        if any(needle in sim for sim in queued_sims):
+            queued.add((config, suite, subsuite, workload, str(cluster_id)))
+            pending[config] += 1
 
     not_in_experiment = []
     oom_killed = []
@@ -2530,6 +2532,8 @@ def print_simulation_status_summary(
     descriptor_aligned_log_count = 0
     for _job_id, log_path, config, suite, subsuite, workload, cluster_id in latest_logs:
         if not (config, suite, subsuite, workload, int(cluster_id)) in all_job_ids:
+            continue
+        if (config, suite, subsuite, workload, str(cluster_id)) in queued:
             continue
 
         descriptor_aligned_log_count += 1
@@ -3056,6 +3060,7 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
 
         print("Copying the successfully collected traces and update workloads_db.json...")
 
+        finalized = []
         for config in trace_configs:
             workload = config['workload']
             suite = config['suite']
@@ -3166,7 +3171,9 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
                 }
             # Update/insert only the related fields and leave the other existing fields unchanged
             workload_db_data[suite][subsuite][workload] = workload_dict | preserved_fields
+            finalized.append((suite, subsuite, workload))
 
+        collect_trace_sizes.update_trace_sizes(workload_db_data, target_traces_dir, finalized)
         write_json_descriptor(workload_db_path, workload_db_data, dbg_lvl)
         extract_top_simpoints.modify_simpoints_in_place(workload_db_data)
         write_json_descriptor(f"{infra_dir}/workloads/workloads_top_simp.json", workload_db_data, dbg_lvl)
