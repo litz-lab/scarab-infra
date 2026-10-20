@@ -2515,15 +2515,16 @@ def print_simulation_status_summary(
     pending = {conf: 0 for conf in confs}
 
     experiment_name = descriptor_data["experiment"]
-    for sim in queued_sims:
-        matches = [conf for conf in confs if f"{experiment_name}_{conf}" in sim]
-        if not matches:
-            info(f"queued sim '{sim}' matches no configuration of '{experiment_name}'", dbg_lvl)
-            continue
-        conf = max(matches, key=len)
-        pending[conf] += 1
-
     all_job_ids = get_simulation_job_identifiers(descriptor_data, workloads_data, dbg_lvl=dbg_lvl)
+
+    # A simulation in the queue is pending even if an earlier attempt left a job log
+    # (Slurm requeues a job after a node failure); its log is stale and not counted.
+    queued = set()
+    for config, suite, subsuite, workload, cluster_id in set(all_job_ids):
+        needle = f"_{workload}_{experiment_name}_{config}_{cluster_id}_"
+        if any(needle in sim for sim in queued_sims):
+            queued.add((config, suite, subsuite, workload, str(cluster_id)))
+            pending[config] += 1
 
     not_in_experiment = []
     oom_killed = []
@@ -2531,6 +2532,8 @@ def print_simulation_status_summary(
     descriptor_aligned_log_count = 0
     for _job_id, log_path, config, suite, subsuite, workload, cluster_id in latest_logs:
         if not (config, suite, subsuite, workload, int(cluster_id)) in all_job_ids:
+            continue
+        if (config, suite, subsuite, workload, str(cluster_id)) in queued:
             continue
 
         descriptor_aligned_log_count += 1
