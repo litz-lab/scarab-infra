@@ -32521,52 +32521,62 @@
           {
             "cluster_id":198,
             "segment_id":0,
-            "weight":0.192301
+            "weight":0.192301,
+            "size_bytes":31293475
           },
           {
             "cluster_id":92,
             "segment_id":1,
-            "weight":0.0369912
+            "weight":0.0369912,
+            "size_bytes":62452597
           },
           {
             "cluster_id":4,
             "segment_id":2,
-            "weight":0.0368236
+            "weight":0.0368236,
+            "size_bytes":6661344
           },
           {
             "cluster_id":2,
             "segment_id":3,
-            "weight":0.0163661
+            "weight":0.0163661,
+            "size_bytes":6656745
           },
           {
             "cluster_id":54,
             "segment_id":4,
-            "weight":0.196393
+            "weight":0.196393,
+            "size_bytes":7326654
           },
           {
             "cluster_id":229,
             "segment_id":5,
-            "weight":0.0956071
+            "weight":0.0956071,
+            "size_bytes":31593596
           },
           {
             "cluster_id":158,
             "segment_id":8,
-            "weight":0.0859218
+            "weight":0.0859218,
+            "size_bytes":19381901
           },
           {
             "cluster_id":76,
             "segment_id":9,
-            "weight":0.102288
+            "weight":0.102288,
+            "size_bytes":35870665
           },
           {
             "cluster_id":141,
             "segment_id":10,
-            "weight":0.196393
+            "weight":0.196393,
+            "size_bytes":87264530
           },
           {
             "cluster_id":151,
             "segment_id":11,
-            "weight":0.0409152
+            "weight":0.0409152,
+            "size_bytes":21736169
           }
         ]
       },
@@ -32603,47 +32613,56 @@
           {
             "cluster_id":325,
             "segment_id":0,
-            "weight":0.0397807
+            "weight":0.0397807,
+            "size_bytes":9951649
           },
           {
             "cluster_id":65,
             "segment_id":1,
-            "weight":0.139233
+            "weight":0.139233,
+            "size_bytes":6735184
           },
           {
             "cluster_id":332,
             "segment_id":2,
-            "weight":0.110615
+            "weight":0.110615,
+            "size_bytes":10257101
           },
           {
             "cluster_id":220,
             "segment_id":3,
-            "weight":0.0795626
+            "weight":0.0795626,
+            "size_bytes":17658070
           },
           {
             "cluster_id":87,
             "segment_id":4,
-            "weight":0.28699
+            "weight":0.28699,
+            "size_bytes":5892521
           },
           {
             "cluster_id":243,
             "segment_id":5,
-            "weight":0.156281
+            "weight":0.156281,
+            "size_bytes":11881884
           },
           {
             "cluster_id":289,
             "segment_id":6,
-            "weight":0.0539881
+            "weight":0.0539881,
+            "size_bytes":10592083
           },
           {
             "cluster_id":10,
             "segment_id":7,
-            "weight":0.0596711
+            "weight":0.0596711,
+            "size_bytes":5762487
           },
           {
             "cluster_id":190,
             "segment_id":8,
-            "weight":0.0738785
+            "weight":0.0738785,
+            "size_bytes":17535713
           }
         ]
       },
