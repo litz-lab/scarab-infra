@@ -17,3 +17,4 @@ jobs:
       sci_id: top_simpoint
       infra_repository: ${{ github.repository }}
       infra_ref: ${{ github.sha }}
+      collect_metrics: true
