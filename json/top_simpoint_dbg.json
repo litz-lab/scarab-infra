@@ -34,7 +34,7 @@
   "configurations":{
     "this_pr":{
       "params":"--bp_mech tage64k",
-      "binary":"scarab_head",
+      "binary":"scarab_current",
       "slurm_options":"",
       "memory_overhead_mb":0
     }
