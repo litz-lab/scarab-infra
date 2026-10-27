@@ -39213,6 +39213,13 @@
             "env_vars":null,
             "binary_cmd":"\\$tmpdir/gapbs/bfs -f \\$tmpdir/application/gapbs/graphs/road.sg -n64",
             "client_bincmd":null
+          },
+          "memtrace":{
+            "image_name":"allbench_traces",
+            "segment_size":10000000,
+            "warmup":50000000,
+            "whole_trace_file":null,
+            "trace_type":"cluster_then_trace"
           }
         },
         "simpoints":[
@@ -39271,6 +39278,13 @@
             "env_vars":null,
             "binary_cmd":"\\$tmpdir/gapbs/bfs -f \\$tmpdir/application/gapbs/graphs/twitter.sg -n64",
             "client_bincmd":null
+          },
+          "memtrace":{
+            "image_name":"allbench_traces",
+            "segment_size":10000000,
+            "warmup":50000000,
+            "whole_trace_file":null,
+            "trace_type":"cluster_then_trace"
           }
         },
         "simpoints":[
@@ -39345,6 +39359,13 @@
             "env_vars":null,
             "binary_cmd":"\\$tmpdir/gapbs/bfs -f \\$tmpdir/application/gapbs/graphs/web.sg -n64",
             "client_bincmd":null
+          },
+          "memtrace":{
+            "image_name":"allbench_traces",
+            "segment_size":10000000,
+            "warmup":50000000,
+            "whole_trace_file":null,
+            "trace_type":"cluster_then_trace"
           }
         },
         "simpoints":[
@@ -39419,6 +39440,13 @@
             "env_vars":null,
             "binary_cmd":"\\$tmpdir/gapbs/bfs -f \\$tmpdir/application/gapbs/graphs/kron.sg -n64",
             "client_bincmd":null
+          },
+          "memtrace":{
+            "image_name":"allbench_traces",
+            "segment_size":10000000,
+            "warmup":50000000,
+            "whole_trace_file":null,
+            "trace_type":"cluster_then_trace"
           }
         },
         "simpoints":[
@@ -39493,6 +39521,13 @@
             "env_vars":null,
             "binary_cmd":"\\$tmpdir/gapbs/bfs -f \\$tmpdir/application/gapbs/graphs/urand.sg -n64",
             "client_bincmd":null
+          },
+          "memtrace":{
+            "image_name":"allbench_traces",
+            "segment_size":10000000,
+            "warmup":50000000,
+            "whole_trace_file":null,
+            "trace_type":"cluster_then_trace"
           }
         },
         "simpoints":[
@@ -39554,7 +39589,7 @@
           }
         ]
       },
-      "_scarab_sim_githash":"a29c5f6"
+      "_scarab_sim_githash":"7d18bfe"
     },
     "tc":{
       "tc_urand":{
@@ -39570,6 +39605,13 @@
             "env_vars":null,
             "binary_cmd":"\\$tmpdir/gapbs/tc -f \\$tmpdir/application/gapbs/graphs/urandU.sg -n3",
             "client_bincmd":null
+          },
+          "memtrace":{
+            "image_name":"allbench_traces",
+            "segment_size":10000000,
+            "warmup":50000000,
+            "whole_trace_file":null,
+            "trace_type":"cluster_then_trace"
           }
         },
         "simpoints":[
@@ -39628,6 +39670,13 @@
             "env_vars":null,
             "binary_cmd":"\\$tmpdir/gapbs/tc -f \\$tmpdir/application/gapbs/graphs/webU.sg -n3",
             "client_bincmd":null
+          },
+          "memtrace":{
+            "image_name":"allbench_traces",
+            "segment_size":10000000,
+            "warmup":50000000,
+            "whole_trace_file":null,
+            "trace_type":"cluster_then_trace"
           }
         },
         "simpoints":[
@@ -39702,6 +39751,13 @@
             "env_vars":null,
             "binary_cmd":"\\$tmpdir/gapbs/tc -f \\$tmpdir/application/gapbs/graphs/twitterU.sg -n3",
             "client_bincmd":null
+          },
+          "memtrace":{
+            "image_name":"allbench_traces",
+            "segment_size":10000000,
+            "warmup":50000000,
+            "whole_trace_file":null,
+            "trace_type":"cluster_then_trace"
           }
         },
         "simpoints":[
@@ -39776,6 +39832,13 @@
             "env_vars":null,
             "binary_cmd":"\\$tmpdir/gapbs/tc -f \\$tmpdir/application/gapbs/graphs/kronU.sg -n3",
             "client_bincmd":null
+          },
+          "memtrace":{
+            "image_name":"allbench_traces",
+            "segment_size":10000000,
+            "warmup":50000000,
+            "whole_trace_file":null,
+            "trace_type":"cluster_then_trace"
           }
         },
         "simpoints":[
@@ -39858,6 +39921,13 @@
             "env_vars":null,
             "binary_cmd":"\\$tmpdir/gapbs/tc -f \\$tmpdir/application/gapbs/graphs/roadU.sg -n3",
             "client_bincmd":null
+          },
+          "memtrace":{
+            "image_name":"allbench_traces",
+            "segment_size":10000000,
+            "warmup":50000000,
+            "whole_trace_file":null,
+            "trace_type":"cluster_then_trace"
           }
         },
         "simpoints":[
@@ -39903,7 +39973,7 @@
           }
         ]
       },
-      "_scarab_sim_githash":"a29c5f6"
+      "_scarab_sim_githash":"7d18bfe"
     },
     "cc":{
       "cc_twitter":{
@@ -39919,6 +39989,13 @@
             "env_vars":null,
             "binary_cmd":"\\$tmpdir/gapbs/cc -f \\$tmpdir/application/gapbs/graphs/twitter.sg -n16",
             "client_bincmd":null
+          },
+          "memtrace":{
+            "image_name":"allbench_traces",
+            "segment_size":10000000,
+            "warmup":50000000,
+            "whole_trace_file":null,
+            "trace_type":"cluster_then_trace"
           }
         },
         "simpoints":[
@@ -40009,6 +40086,13 @@
             "env_vars":null,
             "binary_cmd":"\\$tmpdir/gapbs/cc -f \\$tmpdir/application/gapbs/graphs/kron.sg -n16",
             "client_bincmd":null
+          },
+          "memtrace":{
+            "image_name":"allbench_traces",
+            "segment_size":10000000,
+            "warmup":50000000,
+            "whole_trace_file":null,
+            "trace_type":"cluster_then_trace"
           }
         },
         "simpoints":[
@@ -40075,6 +40159,13 @@
             "env_vars":null,
             "binary_cmd":"\\$tmpdir/gapbs/cc -f \\$tmpdir/application/gapbs/graphs/web.sg -n16",
             "client_bincmd":null
+          },
+          "memtrace":{
+            "image_name":"allbench_traces",
+            "segment_size":10000000,
+            "warmup":50000000,
+            "whole_trace_file":null,
+            "trace_type":"cluster_then_trace"
           }
         },
         "simpoints":[
@@ -40149,6 +40240,13 @@
             "env_vars":null,
             "binary_cmd":"\\$tmpdir/gapbs/cc -f \\$tmpdir/application/gapbs/graphs/urand.sg -n16",
             "client_bincmd":null
+          },
+          "memtrace":{
+            "image_name":"allbench_traces",
+            "segment_size":10000000,
+            "warmup":50000000,
+            "whole_trace_file":null,
+            "trace_type":"cluster_then_trace"
           }
         },
         "simpoints":[
@@ -40231,6 +40329,13 @@
             "env_vars":null,
             "binary_cmd":"\\$tmpdir/gapbs/cc -f \\$tmpdir/application/gapbs/graphs/road.sg -n16",
             "client_bincmd":null
+          },
+          "memtrace":{
+            "image_name":"allbench_traces",
+            "segment_size":10000000,
+            "warmup":50000000,
+            "whole_trace_file":null,
+            "trace_type":"cluster_then_trace"
           }
         },
         "simpoints":[
@@ -40300,7 +40405,7 @@
           }
         ]
       },
-      "_scarab_sim_githash":"a29c5f6"
+      "_scarab_sim_githash":"7d18bfe"
     },
     "bc":{
       "bc_road":{
@@ -40316,6 +40421,13 @@
             "env_vars":null,
             "binary_cmd":"\\$tmpdir/gapbs/bc -f \\$tmpdir/application/gapbs/graphs/road.sg -i4 -n16",
             "client_bincmd":null
+          },
+          "memtrace":{
+            "image_name":"allbench_traces",
+            "segment_size":10000000,
+            "warmup":50000000,
+            "whole_trace_file":null,
+            "trace_type":"cluster_then_trace"
           }
         },
         "simpoints":[
@@ -40358,6 +40470,13 @@
             "env_vars":null,
             "binary_cmd":"\\$tmpdir/gapbs/bc -f \\$tmpdir/application/gapbs/graphs/twitter.sg -i4 -n16",
             "client_bincmd":null
+          },
+          "memtrace":{
+            "image_name":"allbench_traces",
+            "segment_size":10000000,
+            "warmup":50000000,
+            "whole_trace_file":null,
+            "trace_type":"cluster_then_trace"
           }
         },
         "simpoints":[
@@ -40432,6 +40551,13 @@
             "env_vars":null,
             "binary_cmd":"\\$tmpdir/gapbs/bc -f \\$tmpdir/application/gapbs/graphs/web.sg -i4 -n16",
             "client_bincmd":null
+          },
+          "memtrace":{
+            "image_name":"allbench_traces",
+            "segment_size":10000000,
+            "warmup":50000000,
+            "whole_trace_file":null,
+            "trace_type":"cluster_then_trace"
           }
         },
         "simpoints":[
@@ -40498,6 +40624,13 @@
             "env_vars":null,
             "binary_cmd":"\\$tmpdir/gapbs/bc -f \\$tmpdir/application/gapbs/graphs/urand.sg -i4 -n16",
             "client_bincmd":null
+          },
+          "memtrace":{
+            "image_name":"allbench_traces",
+            "segment_size":10000000,
+            "warmup":50000000,
+            "whole_trace_file":null,
+            "trace_type":"cluster_then_trace"
           }
         },
         "simpoints":[
@@ -40556,6 +40689,13 @@
             "env_vars":null,
             "binary_cmd":"\\$tmpdir/gapbs/bc -f \\$tmpdir/application/gapbs/graphs/kron.sg -i4 -n16",
             "client_bincmd":null
+          },
+          "memtrace":{
+            "image_name":"allbench_traces",
+            "segment_size":10000000,
+            "warmup":50000000,
+            "whole_trace_file":null,
+            "trace_type":"cluster_then_trace"
           }
         },
         "simpoints":[
@@ -40625,7 +40765,7 @@
           }
         ]
       },
-      "_scarab_sim_githash":"a29c5f6"
+      "_scarab_sim_githash":"7d18bfe"
     },
     "pr":{
       "pr_road":{
@@ -40641,6 +40781,13 @@
             "env_vars":null,
             "binary_cmd":"\\$tmpdir/gapbs/pr -f \\$tmpdir/application/gapbs/graphs/road.sg -i1000 -t1e-4 -n16",
             "client_bincmd":null
+          },
+          "memtrace":{
+            "image_name":"allbench_traces",
+            "segment_size":10000000,
+            "warmup":50000000,
+            "whole_trace_file":null,
+            "trace_type":"cluster_then_trace"
           }
         },
         "simpoints":[
@@ -40683,6 +40830,13 @@
             "env_vars":null,
             "binary_cmd":"\\$tmpdir/gapbs/pr -f \\$tmpdir/application/gapbs/graphs/kron.sg -i1000 -t1e-4 -n16",
             "client_bincmd":null
+          },
+          "memtrace":{
+            "image_name":"allbench_traces",
+            "segment_size":10000000,
+            "warmup":50000000,
+            "whole_trace_file":null,
+            "trace_type":"cluster_then_trace"
           }
         },
         "simpoints":[
@@ -40733,6 +40887,13 @@
             "env_vars":null,
             "binary_cmd":"\\$tmpdir/gapbs/pr -f \\$tmpdir/application/gapbs/graphs/urand.sg -i1000 -t1e-4 -n16",
             "client_bincmd":null
+          },
+          "memtrace":{
+            "image_name":"allbench_traces",
+            "segment_size":10000000,
+            "warmup":50000000,
+            "whole_trace_file":null,
+            "trace_type":"cluster_then_trace"
           }
         },
         "simpoints":[
@@ -40783,6 +40944,13 @@
             "env_vars":null,
             "binary_cmd":"\\$tmpdir/gapbs/pr -f \\$tmpdir/application/gapbs/graphs/twitter.sg -i1000 -t1e-4 -n16",
             "client_bincmd":null
+          },
+          "memtrace":{
+            "image_name":"allbench_traces",
+            "segment_size":10000000,
+            "warmup":50000000,
+            "whole_trace_file":null,
+            "trace_type":"cluster_then_trace"
           }
         },
         "simpoints":[
@@ -40849,6 +41017,13 @@
             "env_vars":null,
             "binary_cmd":"\\$tmpdir/gapbs/pr -f \\$tmpdir/application/gapbs/graphs/web.sg -i1000 -t1e-4 -n16",
             "client_bincmd":null
+          },
+          "memtrace":{
+            "image_name":"allbench_traces",
+            "segment_size":10000000,
+            "warmup":50000000,
+            "whole_trace_file":null,
+            "trace_type":"cluster_then_trace"
           }
         },
         "simpoints":[
@@ -40910,7 +41085,7 @@
           }
         ]
       },
-      "_scarab_sim_githash":"a29c5f6"
+      "_scarab_sim_githash":"7d18bfe"
     },
     "sssp":{
       "sssp_road":{
@@ -40926,6 +41101,13 @@
             "env_vars":null,
             "binary_cmd":"\\$tmpdir/gapbs/sssp -f \\$tmpdir/application/gapbs/graphs/road.wsg -n64 -d50000",
             "client_bincmd":null
+          },
+          "memtrace":{
+            "image_name":"allbench_traces",
+            "segment_size":10000000,
+            "warmup":50000000,
+            "whole_trace_file":null,
+            "trace_type":"cluster_then_trace"
           }
         },
         "simpoints":[
@@ -40992,6 +41174,13 @@
             "env_vars":null,
             "binary_cmd":"\\$tmpdir/gapbs/sssp -f \\$tmpdir/application/gapbs/graphs/twitter.wsg -n64 -d2",
             "client_bincmd":null
+          },
+          "memtrace":{
+            "image_name":"allbench_traces",
+            "segment_size":10000000,
+            "warmup":50000000,
+            "whole_trace_file":null,
+            "trace_type":"cluster_then_trace"
           }
         },
         "simpoints":[
@@ -41074,6 +41263,13 @@
             "env_vars":null,
             "binary_cmd":"\\$tmpdir/gapbs/sssp -f \\$tmpdir/application/gapbs/graphs/web.wsg -n64 -d2",
             "client_bincmd":null
+          },
+          "memtrace":{
+            "image_name":"allbench_traces",
+            "segment_size":10000000,
+            "warmup":50000000,
+            "whole_trace_file":null,
+            "trace_type":"cluster_then_trace"
           }
         },
         "simpoints":[
@@ -41148,6 +41344,13 @@
             "env_vars":null,
             "binary_cmd":"\\$tmpdir/gapbs/sssp -f \\$tmpdir/application/gapbs/graphs/kron.wsg -n64 -d2",
             "client_bincmd":null
+          },
+          "memtrace":{
+            "image_name":"allbench_traces",
+            "segment_size":10000000,
+            "warmup":50000000,
+            "whole_trace_file":null,
+            "trace_type":"cluster_then_trace"
           }
         },
         "simpoints":[
@@ -41222,6 +41425,13 @@
             "env_vars":null,
             "binary_cmd":"\\$tmpdir/gapbs/sssp -f \\$tmpdir/application/gapbs/graphs/urand.wsg -n64 -d2",
             "client_bincmd":null
+          },
+          "memtrace":{
+            "image_name":"allbench_traces",
+            "segment_size":10000000,
+            "warmup":50000000,
+            "whole_trace_file":null,
+            "trace_type":"cluster_then_trace"
           }
         },
         "simpoints":[
