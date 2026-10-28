@@ -1789,6 +1789,9 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
                         f"|| {{ echo \"Scarab error detected\"; RC=1; }}\n")
                 f.write(f"echo \"Completed Simulation\"\nsync {docker_home}/simulations/{experiment_name}/logs || true\nexit $RC\n")
                 return
+            app_mount = ""
+            if scarab_mode == "exec": 
+                app_mount = f"--mount type=bind,source={application_dir},target=/tmp_home/application,readonly=true"
             f.write(f"CONTAINER_NAME={docker_container_name}\n")
             f.write("cleanup_container() {\n")
             f.write("    docker rm -f \"$CONTAINER_NAME\" >/dev/null 2>&1 || true\n")
@@ -1819,7 +1822,7 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
                 --name $CONTAINER_NAME \
                 --mount type=bind,source={traces_dir},target=/simpoint_traces,readonly=true \
                 --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
-                --mount type=bind,source={application_dir},target=/tmp_home/application,readonly=true \
+                {app_mount} \
                 --mount {infra_mount_arg(infra_dir)} \
                 {image_tag_for(docker_prefix, infra_dir)} \
                 /bin/bash\n")
@@ -1836,7 +1839,7 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
                 --name $CONTAINER_NAME \
                 --mount type=bind,source={traces_dir},target=/simpoint_traces,readonly=true \
                 --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
-                --mount type=bind,source={application_dir},target=/tmp_home/application,readonly=true \
+                {app_mount} \
                 --mount {infra_mount_arg(infra_dir)} \
                 {image_tag_for(docker_prefix, infra_dir)} \
                 /bin/bash\n")
