@@ -7,10 +7,15 @@ weighting lives in one place):
     ipc                 IPC
     mem_latency_cycles  TOTAL_MEM_LATENCY_pct  (a RATIO over L1_FILL, not a %)
     offpath_cycle_pct   ICACHE_CYCLE_OFFPATH / (ONPATH + OFFPATH)
+    host_instructions   instructions:u retired to run the simulation (perf stat)
     kips                Cumulative_Instructions / SIM_HOST_WALL_SECONDS_value / 1e3
 
 The two ratios divide separately-weighted aggregates, so they track drift
 correctly but are not exact weighted ratios. Don't quote them as paper numbers.
+
+Simulator cost is reported as host_instructions, not kips: a node's load and
+clock move KIPS as much as Scarab does, while the instructions a simulation
+retires do not. kips stays in history.csv so the old series is still readable.
 """
 
 from __future__ import annotations
@@ -93,6 +98,7 @@ FIELDNAMES = [
     "mem_latency_cycles",
     "offpath_cycle_pct",
     "kips",
+    "host_instructions",
 ]
 
 # (csv column, title, y label)
@@ -100,7 +106,7 @@ PLOTS = [
     ("ipc", "IPC", "IPC"),
     ("mem_latency_cycles", "Average memory latency", "cycles per L1 fill"),
     ("offpath_cycle_pct", "Off-path icache cycles", "% of icache cycles"),
-    ("kips", "Simulation speed", "KIPS"),
+    ("host_instructions", "Simulation cost", "host instructions"),
 ]
 
 
@@ -418,6 +424,61 @@ def run_mode(stem: str, experiment: str, scarab_sha: str, *, skip_sim: bool,
 # Metrics
 # ---------------------------------------------------------------------------
 
+def host_instructions(exp_dir: Path, config: str) -> Dict[str, float]:
+    """{workload: instructions:u}, summed over a workload's simpoints.
+
+    run_memtrace_single_simpoint.sh and friends wrap Scarab in `perf stat`
+    (scripts/utilities.sh:perf_stat_prefix), which writes one perf_stat.txt per
+    simpoint next to its stats. perf prints `<count>,,<event>,...`, and prints
+    nothing countable when the event could not be enabled.
+    """
+    root = exp_dir / config
+    totals: Dict[str, float] = {}
+    simpoints: Dict[str, int] = {}
+    counted: Dict[str, int] = {}
+    for sim_dir in sorted(root.glob("*/*/*/*")):
+        if not sim_dir.is_dir():
+            continue
+        workload = "/".join(sim_dir.relative_to(root).parts[:3])
+        simpoints[workload] = simpoints.get(workload, 0) + 1
+        perf_file = sim_dir / "perf_stat.txt"
+        value: Optional[float] = None
+        try:
+            for line in perf_file.read_text(encoding="utf-8", errors="replace").splitlines():
+                fields = line.split(",")
+                if len(fields) > 2 and fields[2].startswith("instructions") \
+                        and fields[0].strip().isdigit():
+                    value = float(fields[0])
+                    break
+        except FileNotFoundError:
+            continue
+        except OSError as exc:
+            log(f"WARNING: could not read {perf_file}: {exc}")
+            continue
+        if value is None:
+            continue
+        totals[workload] = totals.get(workload, 0.0) + value
+        counted[workload] = counted.get(workload, 0) + 1
+
+    # The number is a sum over a workload's simpoints, so counting only some of
+    # them reads as a drop rather than as missing data. Report a workload only
+    # when every simpoint it ran was counted.
+    partial = {w: (counted.get(w, 0), n) for w, n in simpoints.items()
+               if counted.get(w, 0) != n}
+    for workload in partial:
+        totals.pop(workload, None)
+    if partial:
+        shown = ", ".join(f"{w} {have}/{n}" for w, (have, n) in sorted(partial.items())[:5])
+        log(f"WARNING: perf stat counted only part of {len(partial)} workload(s), "
+            f"left out of host_instructions: {shown}"
+            + (" ..." if len(partial) > 5 else ""))
+    if not totals:
+        log(f"WARNING: no complete perf stat coverage under {root}")
+    else:
+        log(f"perf stat: {len(totals)} of {len(simpoints)} workload(s) fully counted")
+    return totals
+
+
 def _get(aggregates: Dict, stat: str, config: str, workload: str) -> Optional[float]:
     try:
         value = aggregates[stat][config][workload]
@@ -432,6 +493,7 @@ def derive_metrics(aggregates_path: Path) -> Dict[str, Dict[str, Optional[float]
     aggregates = payload["aggregates"]
     config = payload["baseline"]
     workloads = list(payload["workloads"]) + ["Avg"]
+    retired = host_instructions(aggregates_path.parent, config)
 
     out: Dict[str, Dict[str, Optional[float]]] = {}
     for wl in workloads:
@@ -454,6 +516,7 @@ def derive_metrics(aggregates_path: Path) -> Dict[str, Dict[str, Optional[float]
             "mem_latency_cycles": latency,
             "offpath_cycle_pct": offpath,
             "kips": kips,
+            "host_instructions": retired.get(wl),
         }
 
     # One failed simpoint makes the aggregate's own Avg nan, which erased the
@@ -461,7 +524,8 @@ def derive_metrics(aggregates_path: Path) -> Dict[str, Dict[str, Optional[float]
     # a single workload (gcc_r). Fall back to the mean of the workloads that did
     # report. Unweighted, so it is not identical to the aggregate's Avg; it is
     # only used when that one is unusable.
-    for metric in ("ipc", "mem_latency_cycles", "offpath_cycle_pct", "kips"):
+    for metric in ("ipc", "mem_latency_cycles", "offpath_cycle_pct", "kips",
+                   "host_instructions"):
         current = out["Avg"].get(metric)
         if current is not None and math.isfinite(current):
             continue
@@ -480,6 +544,7 @@ def append_history(rows: List[Dict[str, object]]) -> Path:
     ensure_clone(HISTORY_DIR, HISTORY_REMOTE)
     run(["git", "pull", "--ff-only"], cwd=HISTORY_DIR, check=False)
     path = HISTORY_DIR / HISTORY_CSV
+    migrate_history_columns(path)
     exists = path.is_file()
     with path.open("a", newline="", encoding="utf-8") as fh:
         writer = csv.DictWriter(fh, fieldnames=FIELDNAMES)
@@ -489,6 +554,31 @@ def append_history(rows: List[Dict[str, object]]) -> Path:
             writer.writerow(row)
     log(f"appended {len(rows)} rows to {path}")
     return path
+
+
+def migrate_history_columns(path: Path) -> None:
+    """Rewrite the file when FIELDNAMES has grown, so appends stay aligned.
+
+    DictWriter writes the current columns whatever the header says, so adding
+    one without this would silently shift every later row by a field.
+    """
+    if not path.is_file():
+        return
+    with path.open(newline="", encoding="utf-8") as fh:
+        reader = csv.DictReader(fh)
+        if reader.fieldnames == FIELDNAMES:
+            return
+        rows = list(reader)
+        old = list(reader.fieldnames or [])
+    dropped = [name for name in old if name not in FIELDNAMES]
+    if dropped:
+        log(f"WARNING: {path} has columns this sweep no longer writes: {dropped}")
+    with path.open("w", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(fh, fieldnames=FIELDNAMES, extrasaction="ignore")
+        writer.writeheader()
+        for row in rows:
+            writer.writerow({name: row.get(name, "") for name in FIELDNAMES})
+    log(f"migrated {path} to columns {FIELDNAMES}")
 
 
 def read_history(path: Path) -> List[Dict[str, str]]:
@@ -622,7 +712,8 @@ def build_report(history: List[Dict[str, str]], scarab_sha: str, infra_sha: str)
         for row in history:
             if row["mode"] == mode and row["date"] == date and row["workload"] == "Avg":
                 try:
-                    value = float(row[column])
+                    # A row written before this metric existed has no such key.
+                    value = float(row.get(column, ""))
                 except (TypeError, ValueError):
                     return None
                 # A failed simpoint can leave nan in the CSV; never report it.
