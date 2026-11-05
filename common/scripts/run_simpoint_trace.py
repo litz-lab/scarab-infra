@@ -11,6 +11,7 @@ import traceback
 import time
 import re
 import glob
+import fnmatch
 import json
 import shutil
 import zipfile
@@ -44,16 +45,16 @@ DR_JOBS = get_dr_jobs()
 print(f"run_simpoint_trace.py: DR_JOBS={DR_JOBS} (cpu_count={os.cpu_count()})", flush=True)
 
 def find_trace_files(base_path):
-    trace_files = glob.glob(os.path.join(base_path, "drmemtrace.*.dir/trace/dr*.trace.zip"))
+    trace_files = glob.glob(os.path.join(base_path, "drmemtrace.*.dir/trace/dr*.trace.*"))
     dr_folders = glob.glob(os.path.join(base_path, "drmemtrace.*.dir"))
     return trace_files, dr_folders
 
 def get_largest_trace(base_path, simpoint_mode):
     traces = []
     if simpoint_mode == "3":
-        pattern = os.path.join(base_path, "trace/dr*.trace.zip")
+        pattern = os.path.join(base_path, "trace/dr*.trace.*")
     else:
-        pattern = os.path.join(base_path, "*/trace/dr*.trace.zip")
+        pattern = os.path.join(base_path, "*/trace/dr*.trace.*")
 
     for trace in glob.glob(os.path.join(base_path, pattern)):
         size = os.path.getsize(trace)
@@ -119,6 +120,15 @@ def get_cluster_map_from_db(workload):
 # keep); this threshold acts *after* tracing to handle I/O or DR failures on
 # segments that contribute little to overall coverage.
 EMPTY_TRACE_WEIGHT_THRESHOLD = 0.01
+
+# Container of the converted traces (drraw2trace -compress). Default zip, the
+# chunked format the fingerprint, SimPoint and minimize steps read. For very
+# long captures DR's minizip writer can fail to finalize the zip on large raw
+# inputs; TRACE_COMPRESS=lz4 writes a .trace.lz4 stream instead (Scarab reads it
+# with its lz4 reader, and run_trace_post_processing.sh takes the instruction
+# count from the instr_count.txt the conversion writes next to it).
+TRACE_COMPRESS = os.environ.get("TRACE_COMPRESS", "zip")
+TRACE_COMPRESS_FLAG = "" if TRACE_COMPRESS == "zip" else f"-compress {TRACE_COMPRESS}"
 
 # DR prints this marker on stderr (NOTIFY level 0, always on) exactly when -trace_for_instrs
 # is satisfied. It is absent when the workload exits before the ROI is fully traced.
@@ -308,6 +318,81 @@ def minimize_simpoint_traces(cluster_map, workload_home, needed_chunks):
     except Exception as e:
         raise e
 
+def run_raw2trace_with_pruning(raw2trace_cmd, raw_path, max_attempts=None):
+    """Run drraw2trace, pruning unreadable thread logs until it succeeds.
+
+    DR sometimes fails to finalize a thread's buffer at detach (heavily threaded
+    CPython: ~90 shards). drraw2trace then aborts the WHOLE conversion with
+    "Failed sanity checks for thread log file <path>: Unable to read thread log
+    file", yielding a 0-byte trace. It names the bad file, so pruning is targeted
+    (not arbitrary): each pruned shard is an unreadable buffer carrying no usable
+    data, and the main (GIL) thread that holds ~99% of the instructions is kept.
+    Pruned shards are moved to raw/_unreadable/ and reported for auditability.
+    """
+    shards = glob.glob(os.path.join(raw_path, "dr*.raw.lz4"))
+    if max_attempts is None:
+        max_attempts = max(1, len(shards))
+    quarantine = os.path.join(raw_path, "_unreadable")
+    pruned = []
+    for attempt in range(1, max_attempts + 1):
+        r = subprocess.run(raw2trace_cmd, shell=True, capture_output=True, text=True)
+        # Persist the exact converted instruction count (lz4 traces have no zip
+        # chunk directory for run_trace_post_processing.sh to count). raw2trace
+        # -verbose 1 prints "Final trace instr count: N" per thread; the max is
+        # the main thread. Written even on partial success.
+        counts = [int(x) for x in re.findall(r"Final trace instr count:\s*(\d+)", (r.stderr or "") + (r.stdout or ""))]
+        if counts:
+            trace_out_dir = os.path.join(os.path.dirname(raw_path.rstrip('/')), "trace")
+            if raw_path.rstrip('/').endswith('window.0000'):
+                trace_out_dir = os.path.join(os.path.dirname(os.path.dirname(raw_path.rstrip('/'))), "trace")
+            os.makedirs(trace_out_dir, exist_ok=True)
+            with open(os.path.join(trace_out_dir, "instr_count.txt"), "w") as _f:
+                _f.write(str(max(counts)) + "\n")
+        if r.returncode == 0:
+            if pruned:
+                print(f"raw2trace: succeeded after pruning {len(pruned)} unreadable thread log(s): "
+                      f"{[os.path.basename(x) for x in pruned]}")
+            return True, pruned
+        err = (r.stderr or "") + (r.stdout or "")
+        m = re.search(r"thread log file (\S+?\.raw\.[a-z0-9]+)", err)
+        if not m:
+            # Unnamed failure (e.g. DR-internal assert raw2trace.cpp:1318 next_pc!=NULL
+            # on a worker shard). If the MAIN thread's trace output is complete
+            # (non-zero and by far the largest), accept the conversion: the workers
+            # are I/O threads and the clustered trace is the main thread's.
+            trace_dir = os.path.join(os.path.dirname(raw_path.rstrip('/').removesuffix('/window.0000').rstrip('/')), "trace")                         if raw_path.rstrip('/').endswith('window.0000') else os.path.join(os.path.dirname(raw_path.rstrip('/')), "trace")
+            outs = sorted(glob.glob(os.path.join(trace_dir, "dr*.trace.*")), key=os.path.getsize, reverse=True)
+            def _zip_ok(f):
+                if not f.endswith(".zip"):
+                    return os.path.getsize(f) > 0        # lz4: stream, no directory to check
+                n = subprocess.run(f"unzip -l {f} 2>/dev/null | grep -c 'chunk\\.'",
+                                   shell=True, capture_output=True, text=True)
+                try:
+                    return int(n.stdout.strip()) > 0     # finalized central dir with chunks
+                except ValueError:
+                    return False
+            if outs and _zip_ok(outs[0]):
+                print(f"raw2trace: rc={r.returncode} with no named thread log, but main trace "
+                      f"{os.path.basename(outs[0])} is complete ({os.path.getsize(outs[0])} bytes); "
+                      f"accepting (worker-shard failure tolerated). stderr tail: "
+                      f"{err.strip().splitlines()[-2:] if err.strip() else 'empty'}")
+                return True, pruned
+            print(f"raw2trace: failed with no named thread log (attempt {attempt}). "
+                  f"stderr tail: {err.strip().splitlines()[-3:] if err.strip() else 'empty'}")
+            return False, pruned
+        bad = m.group(1)
+        if not os.path.exists(bad):
+            print(f"raw2trace: named bad shard {bad} not found; aborting")
+            return False, pruned
+        os.makedirs(quarantine, exist_ok=True)
+        shutil.move(bad, os.path.join(quarantine, os.path.basename(bad)))
+        pruned.append(bad)
+        print(f"raw2trace: pruned unreadable thread log {os.path.basename(bad)} (attempt {attempt}); retrying")
+        if not glob.glob(os.path.join(raw_path, "dr*.raw.lz4")):
+            print("raw2trace: all shards pruned; giving up")
+            return False, pruned
+    return False, pruned
+
 def trace_then_cluster(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mode, drio_args, clustering_userk):
     # 1. trace the whole application
     # 2. drraw2trace
@@ -321,6 +406,18 @@ def trace_then_cluster(workload, suite, simpoint_home, bincmd, client_bincmd, si
         start_time = time.perf_counter()
         subprocess.run(["mkdir", "-p", f"{simpoint_home}/{workload}/traces/whole"], check=True, capture_output=True, text=True)
         workload_home = f"{simpoint_home}/{workload}"
+        # RESUME: if a prior run already produced a finalized isolated-shard zip,
+        # skip capture+conversion entirely (post-processing below is itself
+        # resumable/skipping). Lets a crashed run continue in minutes, not hours.
+        _prior = glob.glob(f"{workload_home}/traces/whole/drmemtrace.*.dir/main_only/trace/dr*.trace.zip")
+        _resume_zip = None
+        for _z in sorted(_prior, key=os.path.getsize, reverse=True):
+            _n = subprocess.run(f"unzip -l {_z} 2>/dev/null | grep -c 'chunk\\.'", shell=True, capture_output=True, text=True)
+            try:
+                if int(_n.stdout.strip()) > 0:
+                    _resume_zip = _z; break
+            except ValueError:
+                pass
         dynamorio_home = os.environ.get('DYNAMORIO_HOME')
         # Workload binary is launched single-threaded so the trace phase sees
         # the same sequential instruction count as fingerprinting did.
@@ -335,10 +432,28 @@ def trace_then_cluster(workload, suite, simpoint_home, bincmd, client_bincmd, si
 
         whole_trace_path = f"{workload_home}/traces/whole"
         trace_clustering_info = {}
+        if _resume_zip:
+            print(f"RESUME: found finalized converted zip {_resume_zip}; skipping capture+conversion")
+            _iso = os.path.dirname(os.path.dirname(_resume_zip))          # .../main_only
+            _drd = os.path.dirname(_iso)                                   # .../<mainproc>.dir
+            trace_clustering_info["modules_dir"] = os.path.join(_iso, "raw")
+            trace_clustering_info["dr_folder"] = os.path.join(os.path.basename(_drd), "main_only")
         print("whole app tracing..")
         if client_bincmd:
             subprocess.Popen("exec " + client_bincmd, stdout=subprocess.PIPE, shell=True)
-        subprocess.run(trace_cmd_list, check=True, capture_output=True, text=True)
+        if _resume_zip:
+            _r = subprocess.CompletedProcess(args=trace_cmd_list, returncode=0, stdout="", stderr="")
+        else:
+            # SCARAB_TRACE_CWD (workload env_vars): directory the traced program
+            # starts in, for programs that must be the drrun child themselves
+            # (-no_follow_children) yet depend on their working directory.
+            _r = subprocess.run(trace_cmd_list, capture_output=True, text=True,
+                                cwd=os.environ.get("SCARAB_TRACE_CWD") or None)
+        if _r.returncode != 0:
+            print("WHOLE-TRACE DRRUN FAILED rc=%d" % _r.returncode)
+            print("----- drrun STDOUT (tail) -----\n" + "\n".join(_r.stdout.splitlines()[-40:]))
+            print("----- drrun STDERR (tail) -----\n" + "\n".join(_r.stderr.splitlines()[-40:]))
+            _r.check_returncode()
         end_time = time.perf_counter()
         report_time("whole app tracing done", start_time, end_time)
 
@@ -346,12 +461,81 @@ def trace_then_cluster(workload, suite, simpoint_home, bincmd, client_bincmd, si
         num_traces = len(trace_files)
         num_dr_folder = len(dr_folders)
 
-        # Single-threaded multi-process workload
-        if num_traces == num_dr_folder and num_dr_folder > 1:
-            whole_raw_trace = get_largest_raw_trace(whole_trace_path)
-            dr_folder = os.path.dirname(os.path.dirname(whole_trace))
-            modules_dir = os.path.dirname(os.path.join(dr_folder, "raw/modules.log"))
-            dr_folder = os.path.basename(dr_folder)
+        # Multi-process and/or multi-threaded workload (option 2+3).
+        # Detect BEFORE raw2trace by counting raw shards/dirs (num_traces is 0
+        # here pre-conversion, which is why the old `num_traces == num_dr_folder`
+        # test never fired). Pick the MAIN process = the .dir holding the largest
+        # raw shard, and within it keep only the MAIN THREAD (largest .raw.lz4),
+        # quarantining the rest. Converting one intact thread avoids the
+        # raw2trace truncation that silently empties a heavily-threaded process's
+        # trace, and is the deterministic GIL model (worker threads are I/O wait).
+        # Windowed capture (-trace_after_instrs) nests shards under raw/window.NNNN/,
+        # so match both layouts (get_largest_raw_trace only globs */raw/*).
+        raw_shards = glob.glob(os.path.join(whole_trace_path, "drmemtrace.*.dir/raw/dr*.raw.lz4")) + \
+                     glob.glob(os.path.join(whole_trace_path, "drmemtrace.*.dir/raw/window.*/dr*.raw.lz4"))
+        if _resume_zip:
+            pass  # RESUME: iso dir already built+converted; do NOT rmtree/rebuild it
+        elif (num_dr_folder > 1 or len(raw_shards) > 1) and raw_shards:
+            # SCARAB_MAIN_SHARD_GLOB: restrict the candidate shards to .dir names
+            # matching this glob (e.g. "drmemtrace.python3.10.*") before taking
+            # the largest. Needed when the workload's tool backend is a bigger
+            # process than its orchestrator: an AppWorld session's worker
+            # (python3.12) out-sized the langchain orchestrator (python3.10) and
+            # got registered as the workload. Default "*" = old behaviour.
+            _shard_glob = os.environ.get("SCARAB_MAIN_SHARD_GLOB", "*")
+            _cands = [r for r in raw_shards
+                      if fnmatch.fnmatch(os.path.basename(os.path.dirname(os.path.dirname(r)).rstrip('/')), _shard_glob)
+                      or fnmatch.fnmatch(os.path.basename(os.path.dirname(os.path.dirname(os.path.dirname(r)))), _shard_glob)]
+            if not _cands:
+                raise RuntimeError(f"SCARAB_MAIN_SHARD_GLOB={_shard_glob!r} matched no shard dir among "
+                                   f"{sorted({os.path.basename(os.path.dirname(os.path.dirname(r))) for r in raw_shards})}")
+            print(f"main-shard candidates ({_shard_glob}): {sorted({os.path.basename(os.path.dirname(os.path.dirname(r))) for r in _cands})}")
+            # A process whose modules.log is empty never flushed its metadata (seen
+            # for about half of the rustc invocations under a Codex session: 225 of
+            # 453 process dirs); raw2trace cannot convert such a shard ("Failed to
+            # parse module file"). Keep only candidates with metadata.
+            def _has_meta(r):
+                d = os.path.dirname(r)
+                for m in (os.path.join(d, "modules.log"), os.path.join(os.path.dirname(d), "modules.log")):
+                    if os.path.exists(m) and os.path.getsize(m) > 0:
+                        return True
+                return False
+            _with_meta = [r for r in _cands if _has_meta(r)]
+            if _with_meta and len(_with_meta) < len(_cands):
+                print(f"main-shard candidates without modules.log metadata dropped: {len(_cands) - len(_with_meta)} of {len(_cands)} shards")
+            if _with_meta:
+                _cands = _with_meta
+            whole_raw_trace = max(_cands, key=os.path.getsize)      # largest shard = main thread of main proc
+            main_raw_dir = os.path.dirname(whole_raw_trace)            # .../raw[/window.NNNN]
+            dr_dir = os.path.dirname(main_raw_dir)                     # .../<mainproc>.dir (or .../raw if windowed)
+            if os.path.basename(dr_dir) == "raw":                      # windowed: climb past raw/
+                dr_dir = os.path.dirname(dr_dir)
+            # ISOLATED MAIN-SHARD CONVERSION: convert the main (GIL) thread's
+            # shard alone, in a fresh dir with the shared metadata. Single-thread
+            # conversion has no worker-shard failures/races and yields a properly
+            # finalized chunked ZIP (the seek index the fingerprint/minimize/
+            # segment-sim machinery requires). Requires -disable_optimizations at
+            # capture (else raw2trace's elision-reconstruction decode() can hit
+            # DR_ASSERT next_pc!=NULL deterministically on JIT-modified blocks).
+            meta_dir = main_raw_dir if os.path.exists(os.path.join(main_raw_dir, 'modules.log')) \
+                       else os.path.dirname(main_raw_dir)
+            iso_dir = os.path.join(dr_dir, "main_only")
+            shutil.rmtree(iso_dir, ignore_errors=True)
+            os.makedirs(os.path.join(iso_dir, "raw"))
+            for meta in ("modules.log", "encodings.bin", "funclist.log"):
+                src = os.path.join(meta_dir, meta)
+                if os.path.exists(src):
+                    shutil.copy2(src, os.path.join(iso_dir, "raw", meta))
+            dst_shard = os.path.join(iso_dir, "raw", os.path.basename(whole_raw_trace))
+            try:
+                os.link(whole_raw_trace, dst_shard)   # hardlink: no 30GB copy
+            except OSError:
+                shutil.copy2(whole_raw_trace, dst_shard)
+            print(f"main proc={os.path.basename(dr_dir)}: isolated main shard "
+                  f"{os.path.basename(whole_raw_trace)} ({os.path.getsize(whole_raw_trace)} bytes) "
+                  f"into {iso_dir} for single-thread zip conversion")
+            modules_dir = os.path.join(iso_dir, "raw")
+            dr_folder = os.path.join(os.path.basename(dr_dir), "main_only")
             trace_clustering_info["modules_dir"] = modules_dir
             trace_clustering_info["dr_folder"] = dr_folder
 
@@ -359,20 +543,42 @@ def trace_then_cluster(workload, suite, simpoint_home, bincmd, client_bincmd, si
         start_time = time.perf_counter()
         raw2trace_processes = set()
 
-        if trace_clustering_info:
+        if _resume_zip:
+            print("RESUME: conversion already done; skipping raw2trace")
+        elif trace_clustering_info:
             dr_path = os.path.join(whole_trace_path, dr_folder)
             bin_path = os.path.join(whole_trace_path, dr_folder, "bin")
             raw_path = os.path.join(whole_trace_path, dr_folder, "raw")
             os.makedirs(bin_path, exist_ok=True)
             os.chmod(bin_path, 0o777)
             os.chmod(raw_path, 0o777)
+            # NO portabilize before the isolated conversion: portabilize flattens
+            # modules by BASENAME into bin/, and same-named modules at different
+            # paths (e.g. CUDA ships several cydriver.cpython-*.so) collide -- one
+            # overwrites the other, modules.log points at the wrong bytes, decode
+            # emits "invalid/undecodable instr" and conversion dies with
+            # "memref entry found outside of bb". Convert against the ORIGINAL
+            # module paths (valid inside this container); the output trace embeds
+            # encodings, so downstream never needs the module files. Keep a plain
+            # copy of modules.log in bin/ for tooling that expects the dir.
             subprocess.run(f"cp {raw_path}/modules.log {bin_path}/modules.log", check=True, shell=True)
-            subprocess.run(f"cp {raw_path}/modules.log {raw_path}/modules.log.bak", check=True, shell=True)
-            subprocess.run(["python2", f"{simpoint_home}/scarab/utils/memtrace/portabilize_trace.py", f"{dr_path}"], capture_output=True, text=True, check=True)
-            subprocess.run(f"cp {bin_path}/modules.log {raw_path}/modules.log", check=True, shell=True)
-            raw2trace_cmd = f"{dynamorio_home}/tools/bin64/drraw2trace -jobs {DR_JOBS} -indir {raw_path} -chunk_instr_count {chunk_size}"
-            process = subprocess.Popen("exec " + raw2trace_cmd, stdout=subprocess.PIPE, shell=True)
-            raw2trace_processes.add(process)
+            iso_jobs = min(DR_JOBS, 8)  # single-shard conversion: high -jobs crashes DR (memref-outside-bb)
+            raw2trace_cmd = f"{dynamorio_home}/tools/bin64/drraw2trace -verbose 1 -jobs {iso_jobs} -indir {raw_path} -chunk_instr_count {chunk_size} {TRACE_COMPRESS_FLAG}"
+            ok, pruned_shards = run_raw2trace_with_pruning(raw_path=raw_path, raw2trace_cmd=raw2trace_cmd)
+            if not ok:
+                raise RuntimeError(f"drraw2trace failed for {raw_path} even after pruning {len(pruned_shards)} shard(s)")
+            # Scratch hygiene: the converted zip is the artifact; drop the raw
+            # shards (iso hardlink + all original process raws, ~35GB/bundle) so
+            # concurrent bundles fit on node-local /scratch. Keep modules.log &
+            # friends for provenance.
+            if os.environ.get("TRACE_KEEP_RAW", "0") != "1":
+                removed = 0
+                for shard in glob.glob(os.path.join(whole_trace_path, "drmemtrace.*.dir/**/dr*.raw.lz4"), recursive=True):
+                    try:
+                        removed += os.path.getsize(shard); os.remove(shard)
+                    except OSError:
+                        pass
+                print(f"scratch hygiene: removed raw shards totalling {removed} bytes (set TRACE_KEEP_RAW=1 to keep)")
         else:
             for root, dirs, files in os.walk(whole_trace_path):
                 for directory in dirs:
@@ -387,7 +593,7 @@ def trace_then_cluster(workload, suite, simpoint_home, bincmd, client_bincmd, si
                         subprocess.run(f"cp {raw_path}/modules.log {raw_path}/modules.log.bak", check=True, shell=True)
                         subprocess.run(["python2", f"{simpoint_home}/scarab/utils/memtrace/portabilize_trace.py", f"{dr_path}"], capture_output=True, text=True, check=True)
                         subprocess.run(f"cp {bin_path}/modules.log {raw_path}/modules.log", check=True, shell=True)
-                        raw2trace_cmd = f"{dynamorio_home}/tools/bin64/drraw2trace -jobs {DR_JOBS} -indir {raw_path} -chunk_instr_count {chunk_size}"
+                        raw2trace_cmd = f"{dynamorio_home}/tools/bin64/drraw2trace -jobs {DR_JOBS} -indir {raw_path} -chunk_instr_count {chunk_size} {TRACE_COMPRESS_FLAG}"
                         process = subprocess.Popen("exec " + raw2trace_cmd, stdout=subprocess.PIPE, shell=True)
                         raw2trace_processes.add(process)
 
@@ -405,7 +611,7 @@ def trace_then_cluster(workload, suite, simpoint_home, bincmd, client_bincmd, si
         if not trace_clustering_info:
             if num_traces == 1 and num_dr_folder == 1:
                 modules_dir = os.path.dirname(glob.glob(os.path.join(whole_trace_path, "drmemtrace.*.dir/raw/modules.log"))[0])
-                whole_trace = glob.glob(os.path.join(whole_trace_path, "drmemtrace.*.dir/trace/dr*.zip"))[0]
+                whole_trace = glob.glob(os.path.join(whole_trace_path, "drmemtrace.*.dir/trace/dr*.trace.*"))[0]
                 dr_folder = os.path.dirname(os.path.dirname(whole_trace))
             else:
                 whole_trace = get_largest_trace(whole_trace_path, simpoint_mode)
@@ -416,13 +622,12 @@ def trace_then_cluster(workload, suite, simpoint_home, bincmd, client_bincmd, si
             trace_clustering_info["whole_trace"] = whole_trace
             trace_clustering_info["dr_folder"] = dr_folder
         else:
-            if num_traces > 1:
-                trace_clustering_info["err"] = "Tried to convert the largest raw trace, but found more than one converted traces."
-                with open(os.path.join(workload_home, "trace_clustering_info.json"), "w") as json_file:
-                    json.dump(trace_clustering_info, json_file, indent=2, separators=(",", ":"))
-                exit(1)
-            whole_trace = get_largest_trace(whole_trace_path, simpoint_mode)
+            # The clustered trace is the isolated main-shard conversion's output.
+            _cand = glob.glob(os.path.join(whole_trace_path, trace_clustering_info["dr_folder"], "trace", "dr*.trace.*"))
+            whole_trace = max(_cand, key=os.path.getsize) if _cand else get_largest_trace(whole_trace_path, simpoint_mode)
             trace_clustering_info["whole_trace"] = whole_trace
+            modules_dir = trace_clustering_info["modules_dir"]  # local vars unset on resume path otherwise
+            dr_folder = trace_clustering_info["dr_folder"]
 
         post_processing_cmd = f"/bin/bash /usr/local/bin/run_trace_post_processing.sh {workload_home} {modules_dir} {whole_trace} {chunk_size} {seg_size} {simpoint_home}"
         subprocess.run([post_processing_cmd], check=True, shell=True, stdin=open(os.devnull, 'r'))
@@ -707,7 +912,7 @@ def trace_single_segment(workload, suite, simpoint_home, bincmd, client_bincmd, 
         trace_path = f"{workload_home}/traces_simp/{segment_id}"
         trace_out = os.path.join(trace_path, "trace")
         if os.path.isdir(trace_out) and any(
-            f.endswith(".trace.zip")
+            f.endswith((".trace.zip", ".trace.lz4"))
             for _, _, fns in os.walk(trace_out) for f in fns
         ):
             print(f"segment {segment_id}: trace output exists, skipping raw2trace")
@@ -1007,7 +1212,7 @@ def cluster_then_trace(workload, suite, simpoint_home, bincmd, client_bincmd, si
             # which persists even after minimize deletes the actual trace).
             trace_out = os.path.join(trace_path, "trace")
             if os.path.isdir(trace_out) and any(
-                f.endswith(".trace.zip")
+                f.endswith((".trace.zip", ".trace.lz4"))
                 for _, _, fns in os.walk(trace_out) for f in fns
             ):
                 print(f"Skipping {segment_id}; raw2trace done, {trace_out}/*.trace.zip exists.")
@@ -1201,7 +1406,7 @@ def iterative(workload, suite, simpoint_home, bincmd, client_bincmd, simpoint_mo
                     subprocess.run(f"cp {raw_path}/modules.log {raw_path}/modules.log.bak", check=True, shell=True)
                     subprocess.run(["python2", f"{simpoint_home}/scarab/utils/memtrace/portabilize_trace.py", f"{dr_path}"], capture_output=True, text=True, check=True)
                     subprocess.run(f"cp {bin_path}/modules.log {raw_path}/modules.log", check=True, shell=True)
-                    raw2trace_cmd = f"{dynamorio_home}/tools/bin64/drraw2trace -jobs {DR_JOBS} -indir {raw_path} -chunk_instr_count {chunk_size}"
+                    raw2trace_cmd = f"{dynamorio_home}/tools/bin64/drraw2trace -jobs {DR_JOBS} -indir {raw_path} -chunk_instr_count {chunk_size} {TRACE_COMPRESS_FLAG}"
                     process = subprocess.Popen("exec " + raw2trace_cmd, stdout=subprocess.PIPE, shell=True)
                     stdout, stderr = process.communicate()
                     if stderr:
