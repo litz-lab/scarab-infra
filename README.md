@@ -281,7 +281,11 @@ docker build . -f ./workloads/<workload_group>/Dockerfile --no-cache -t <workloa
    conda activate scarabinfra
    ```
 6. Add an SSH key for the machine running Docker to your GitHub account ([guide](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent?platform=linux)).
-7. Place SimPoint traces under `$trace_home` (defaults to `~/traces`). A pre-packaged archive is available:
+7. Place SimPoint traces under `$trace_home` (defaults to `~/traces`). `./sci --fetch-traces <selectors>` downloads them
+   (`./sci --list-traces` shows what is available). On a machine that already holds the traces on a shared disk, set
+   `SCARAB_TRACE_SOURCE` to the roots that contain `<suite>/<subsuite>/<workload>/traces/...` (colon-separated), and
+   the files found there are linked into `$trace_home` instead of downloaded, for example
+   `SCARAB_TRACE_SOURCE=/soe/hlitz/lab/traces ./sci --fetch-traces spec2017`. A pre-packaged archive is available:
    ```
    cd ~/traces
    gdown https://drive.google.com/uc?id=1tfKL7wYK1mUqpCH8yPaPVvxk2UIAJrOX

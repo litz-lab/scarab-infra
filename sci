@@ -1232,6 +1232,48 @@ def download_files(paths: List[str], trace_home: Path) -> Tuple[int, str]:
         listing.unlink(missing_ok=True)
 
 
+def local_trace_sources() -> List[Path]:
+    """Trace roots named by SCARAB_TRACE_SOURCE, colon-separated.
+
+    A machine that already holds traces on a shared disk (a lab cluster) lists
+    the roots here, each in the bucket's layout (<suite>/<subsuite>/<workload>/
+    traces/...), and the files found under them are linked into trace_home
+    instead of downloaded.
+    """
+    return [Path(p).expanduser() for p in os.environ.get("SCARAB_TRACE_SOURCE", "").split(":") if p]
+
+
+def link_local_traces(paths: List[str], trace_home: Path,
+                      roots: List[Path]) -> Tuple[int, int, List[str]]:
+    """Symlink each path found under a local root into trace_home.
+
+    Returns (linked now, already linked, paths still to download). Linked
+    paths are left out of the download, so nothing is ever written through a
+    link into the shared store.
+    """
+    linked = 0
+    present = 0
+    rest: List[str] = []
+    for rel in paths:
+        target = trace_home / rel
+        if target.is_symlink():
+            if target.exists():
+                present += 1
+                continue
+            target.unlink()          # dangling link from an earlier source
+        elif target.exists():
+            rest.append(rel)         # a real file: the download step skips it
+            continue
+        source = next((root / rel for root in roots if (root / rel).is_file()), None)
+        if source is None:
+            rest.append(rel)
+            continue
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.symlink_to(source)
+        linked += 1
+    return linked, present, rest
+
+
 def download_traces(selectors: List[str]) -> Tuple[bool, str]:
     """Copy everything the selectors name out of the bucket into trace_home."""
     trace_home = Path(
@@ -1269,8 +1311,19 @@ def download_traces(selectors: List[str]) -> Tuple[bool, str]:
     if not chosen:
         return True, "Nothing to download."
     paths = sorted(chosen)
+    roots = local_trace_sources()
+    if roots:
+        try:
+            linked, present, paths = link_local_traces(paths, trace_home, roots)
+        except OSError as exc:
+            return False, f"Could not link traces from SCARAB_TRACE_SOURCE: {exc}"
+        info(f"SCARAB_TRACE_SOURCE: linked {linked} file(s), {present} already linked, "
+             f"{len(paths)} not found locally")
+        if not paths:
+            return True, (f"Linked {linked + present} file(s) into {trace_home} from "
+                          f"{', '.join(str(root) for root in roots)}: {', '.join(selectors)}")
     info(f"Downloading {len(paths)} file(s), "
-         f"{format_size(sum(size for _, size in chosen.values()))}: "
+         f"{format_size(sum(chosen[path][1] for path in paths))}: "
          f"{', '.join(selectors)}")
     code, cmd = download_files(paths, trace_home)
     if code != 0:
@@ -4338,7 +4391,9 @@ def build_parser() -> argparse.ArgumentParser:
              "form suite[.subsuite[.workload[.simpoint]]], naming anything in "
              "workloads_db.json: 'spec2017' is the suite, "
              "'spec2017.rate_int_v2.perlbench_r.109678' is one trace, and "
-             "'all' is everything published.",
+             "'all' is everything published. Files found under a root listed "
+             "in SCARAB_TRACE_SOURCE (colon-separated, same layout) are "
+             "linked instead of downloaded.",
     )
     parser.add_argument(
         "--interactive",
