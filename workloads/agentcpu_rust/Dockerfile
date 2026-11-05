@@ -35,7 +35,7 @@ RUN $AGENTCPU/bundles/code-rust/setup.sh
 RUN chmod -R a+rwX /testbed $AGENTCPU && chmod -R a+rX /usr/local/rustup /usr/local/cargo $tmpdir/uv_python
 
 # DynamoRIO 11.3.0 (release) for the tool-side capture of the code-rust session
-# (json/agentcpu_trace_tools_coderust.json, SCARAB_TRACE_DR_HOME). The image's
+# (workloads/agentcpu_rust/agentcpu_rust_trace_tools.json, SCARAB_TRACE_DR_HOME). The image's
 # DR 10.0 (Dockerfile.common) deadlocked in a forked child of the libgit2-sys
 # build script and let a rustc die with SIGSEGV when the whole cargo build was
 # traced. 11.3.0 writes the same trace format as the DR source Scarab reads

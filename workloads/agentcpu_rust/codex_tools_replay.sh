@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Replay of a code-rust (Codex) bundle with the whole Codex process tree traced
 # and the harness native, for the per-process tool-side capture
-# (json/agentcpu_trace_tools_coderust.json).
+# (workloads/agentcpu_rust/agentcpu_rust_trace_tools.json).
 #
 # Same steps as the benchmark's bundles/code-rust/replay_codex_trace.sh, with
 # three differences:
@@ -19,7 +19,7 @@
 #  * Codex's provider stream idle timeout is raised and its retries are off, so
 #    a long wait for an answer is not taken as a failed request and re-sent
 #    (a re-sent request would take the next recorded answer).
-# Usage: agentcpu_codex_tools_replay.sh <bundle_dir> <out_dir>
+# Usage: codex_tools_replay.sh <bundle_dir> <out_dir>
 # Prints RC, MISSES, CALLS, PATCH (as replay_codex_trace.sh) and CONTENT (codex_hash.py).
 set -u
 CB=${AGENTCPU:-/tmp_home/agentcpu-bench}/bundles/code-rust

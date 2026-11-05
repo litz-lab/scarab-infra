@@ -7,7 +7,7 @@
   "scarab_build":"opt",
   "traces_dir":"/home/$USER/traces",
   "trace_name":"trace_agentcpu",
-  "_comment":"Re-captures the ten AgentCPU traces from the recorded sessions (agentcpu and agentcpu_rust images; build them with ./sci --build-image after workloads/agentcpu/fetch_bench.sh). Each configuration replays one bundle under DynamoRIO; SCARAB_MAIN_SHARD_GLOB in env_vars selects the traced process. Traces are not needed to simulate: ./sci --init downloads the released SimPoints. To capture into an existing suite entry, rename the workload or remove its 'trace' key first (validate_tracing refuses registered workloads).",
+  "_comment":"Re-captures the ten AgentCPU traces from the recorded sessions (agentcpu and agentcpu_rust images; build them with ./sci --build-image after workloads/agentcpu/fetch_bench.sh). Each configuration replays one bundle under DynamoRIO; SCARAB_MAIN_SHARD_GLOB in env_vars selects the traced process. Traces are not needed to simulate: the SimPoints are registered in workloads_db.json and ./sci --fetch-traces fetches the released files. To capture into an existing suite entry, rename the workload or remove its 'trace' key first (validate_tracing refuses registered workloads).",
   "trace_configurations":[
     {
       "workload":"api_langchain_n2",

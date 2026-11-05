@@ -12,7 +12,7 @@
 # Used with SCARAB_TRACE_SHELL_VAR=PATH: the orchestrator runs natively and the
 # `bash` that SWE-ReX starts (`/usr/bin/env bash`) is the drrun wrapper.
 #
-# Usage: agentcpu_codepy_tools_replay.sh [output_dir]
+# Usage: codepy_tools_replay.sh [output_dir]
 set -uo pipefail
 B=${AGENTCPU:-/tmp_home/agentcpu-bench}/bundles/code-py
 OUT=${1:-/tmp/codepy_tools_out}
