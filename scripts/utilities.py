@@ -1908,6 +1908,12 @@ def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_contai
         trace_cmd = generate_single_trace_run_command(user, workload, image_name, trace_name, binary_cmd, client_bincmd,
                                                       simpoint_mode, drio_args, clustering_k,
                                                       segment_id=segment_id, cluster_id=cluster_id)
+        # Forward the main-shard selector into the container: run_simpoint_trace.py
+        # reads SCARAB_MAIN_SHARD_GLOB from its own environment, which docker exec
+        # does not inherit from the host.
+        _shard_glob = os.environ.get("SCARAB_MAIN_SHARD_GLOB")
+        if _shard_glob:
+            trace_cmd = f"SCARAB_MAIN_SHARD_GLOB='{_shard_glob}' {trace_cmd}"
         with open(filename, "w") as f:
             f.write("#!/bin/bash\n")
             f.write(f"echo \"Tracing {workload}\"\n")
@@ -3032,6 +3038,9 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
         return clusters
 
     try:
+      # NFS-shared lock: finalizes from parallel node-chains serialize their
+      # read-modify-write of workloads_db.json (lost-update prevention).
+      with file_lock(workload_db_path + ".lock"):
         workload_db_data = read_descriptor_from_json(workload_db_path, dbg_lvl)
         trace_configs = descriptor_data["trace_configurations"]
         job_name = descriptor_data["trace_name"]
@@ -3064,7 +3073,9 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
         print("Copying the successfully collected traces and update workloads_db.json...")
 
         finalized = []
+        _finalize_errors = []
         for config in trace_configs:
+          try:
             workload = config['workload']
             suite = config['suite']
             subsuite = config['subsuite']
@@ -3172,14 +3183,23 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
                 preserved_fields = {
                     key: value for key, value in workload_db_data[suite][subsuite][workload].items() if key not in workload_dict
                 }
+            workload_db_data.setdefault(suite, {}).setdefault(subsuite, {})
             # Update/insert only the related fields and leave the other existing fields unchanged
             workload_db_data[suite][subsuite][workload] = workload_dict | preserved_fields
             finalized.append((suite, subsuite, workload))
 
+          except Exception as _e:
+            # One workload that cannot be finalized (missing SimPoint files, a
+            # failed copy) no longer discards the others of the descriptor.
+            _finalize_errors.append((config.get('workload','?'), str(_e)))
+            print(f"finish_trace: workload {config.get('workload','?')} failed to finalize: {_e}; continuing with the rest")
         collect_trace_sizes.update_trace_sizes(workload_db_data, target_traces_dir, finalized)
         write_json_descriptor(workload_db_path, workload_db_data, dbg_lvl)
         extract_top_simpoints.modify_simpoints_in_place(workload_db_data)
         write_json_descriptor(f"{infra_dir}/workloads/workloads_top_simp.json", workload_db_data, dbg_lvl)
+        if _finalize_errors:
+            raise RuntimeError(f"finish_trace: {len(_finalize_errors)} workload(s) failed to finalize: "
+                               f"{[w for w, _ in _finalize_errors]}")
 
 
     except Exception as e:
