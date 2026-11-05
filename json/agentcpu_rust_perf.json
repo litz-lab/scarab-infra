@@ -1,0 +1,24 @@
+{
+  "descriptor_type":"perf",
+  "user":"root",
+  "root_dir":"/home/$USER",
+  "image_name":"agentcpu_rust",
+  "max_repeats":3,
+  "_comment":"Hardware counters over whole replayed sessions (process tree: orchestrator and tools). Each command replays one recorded bundle; the session is the unit, so repeats are capped at 3.",
+  "perf_configurations":[
+    {
+      "workload":"coderust_codex_bat2393",
+      "suite":"agentcpu",
+      "subsuite":"code-rust",
+      "binary_cmd":"/bin/bash /tmp_home/agentcpu-bench/bundles/code-rust/replay_codex_trace.sh /tmp_home/agentcpu-bench/bundles/code-rust/bundles/bat-2393 /tmp/coderust_out",
+      "env_vars":"HOME=/tmp PYTHONHASHSEED=0 OMP_NUM_THREADS=1 CARGO_NET_OFFLINE=true GIT_TERMINAL_PROMPT=0 GLIBC_TUNABLES=glibc.cpu.hwcaps=-AVX512F,-AVX512BW,-AVX512DQ,-AVX512VL"
+    },
+    {
+      "workload":"coderust_codex_batchain3",
+      "suite":"agentcpu",
+      "subsuite":"code-rust",
+      "binary_cmd":"/bin/bash /tmp_home/agentcpu-bench/bundles/code-rust/replay_codex_chain_trace.sh /tmp_home/agentcpu-bench/bundles/code-rust/bundles/bat_chain3 /tmp/coderust_chain_out",
+      "env_vars":"HOME=/tmp PYTHONHASHSEED=0 OMP_NUM_THREADS=1 CARGO_NET_OFFLINE=true GIT_TERMINAL_PROMPT=0 GLIBC_TUNABLES=glibc.cpu.hwcaps=-AVX512F,-AVX512BW,-AVX512DQ,-AVX512VL"
+    }
+  ]
+}

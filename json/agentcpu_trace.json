@@ -1,0 +1,91 @@
+{
+  "descriptor_type":"trace",
+  "workload_manager":"manual",
+  "root_dir":"/home/$USER",
+  "application_dir":"/home/$USER/applications",
+  "scarab_path":"/home/$USER/agentcpu_home/scarab",
+  "scarab_build":"opt",
+  "traces_dir":"/home/$USER/traces",
+  "trace_name":"trace_agentcpu",
+  "_comment":"Re-captures the ten AgentCPU traces from the recorded sessions (agentcpu and agentcpu_rust images; build them with ./sci --build-image after workloads/agentcpu/fetch_bench.sh). Each configuration replays one bundle under DynamoRIO; SCARAB_MAIN_SHARD_GLOB in env_vars selects the traced process. Traces are not needed to simulate: ./sci --init downloads the released SimPoints. To capture into an existing suite entry, rename the workload or remove its 'trace' key first (validate_tracing refuses registered workloads).",
+  "trace_configurations":[
+    {
+      "workload":"api_langchain_n2",
+      "image_name":"agentcpu",
+      "suite":"agentcpu",
+      "subsuite":"api",
+      "env_vars":"SCARAB_MAIN_SHARD_GLOB=drmemtrace.python3.10.* AGENT_MOCK_REPLAY_KEY=langchain_n2_287e338_1 AGENT_MOCK_REPLAY_ROOT=/tmp_home/agentcpu-bench/bundles/api PYTHONHASHSEED=0 AGENT_DETERMINISTIC_TRANSPORT=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 LITELLM_LOCAL_MODEL_COST_MAP=True GLIBC_TUNABLES=glibc.cpu.hwcaps=-AVX512F,-AVX512BW,-AVX512DQ,-AVX512VL OPENBLAS_CORETYPE=HASWELL",
+      "binary_cmd":"python3 -m agentcpu langchain --agentic-mode --tool-backend appworld --appworld-task 287e338_1 --task-id trace --seed 42 --context-size short --iterations 2 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json",
+      "client_bincmd":null,
+      "trace_type":"trace_then_cluster",
+      "dynamorio_args":"-disable_optimizations -dr_ops \"-disable_rseq\"",
+      "clustering_k":null,
+      "slurm_options":""
+    },
+    {
+      "workload":"api_langchain_n2_tools",
+      "image_name":"agentcpu",
+      "suite":"agentcpu",
+      "subsuite":"api",
+      "env_vars":"AGENT_MOCK_REPLAY_KEY=langchain_n2_287e338_1 AGENT_MOCK_REPLAY_ROOT=/tmp_home/agentcpu-bench/bundles/api PYTHONHASHSEED=0 AGENT_DETERMINISTIC_TRANSPORT=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 LITELLM_LOCAL_MODEL_COST_MAP=True GLIBC_TUNABLES=glibc.cpu.hwcaps=-AVX512F,-AVX512BW,-AVX512DQ,-AVX512VL OPENBLAS_CORETYPE=HASWELL",
+      "binary_cmd":"python3 -m agentcpu langchain --agentic-mode --tool-backend appworld --appworld-task 287e338_1 --task-id trace --seed 42 --context-size short --iterations 2 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json",
+      "client_bincmd":null,
+      "trace_type":"trace_then_cluster",
+      "dynamorio_args":"-disable_optimizations -dr_ops \"-disable_rseq\"",
+      "clustering_k":null,
+      "slurm_options":""
+    },
+    {
+      "workload":"codepy_requests_5414",
+      "image_name":"agentcpu",
+      "suite":"agentcpu",
+      "subsuite":"code-py",
+      "env_vars":"PYTHONHASHSEED=0 OMP_NUM_THREADS=1 LITELLM_LOCAL_MODEL_COST_MAP=True GLIBC_TUNABLES=glibc.cpu.hwcaps=-AVX512F,-AVX512BW,-AVX512DQ,-AVX512VL OPENBLAS_CORETYPE=HASWELL",
+      "binary_cmd":"/bin/bash /tmp_home/agentcpu-bench/bundles/code-py/replay_local.sh /tmp/codepy_out",
+      "client_bincmd":null,
+      "trace_type":"trace_then_cluster",
+      "dynamorio_args":"-disable_optimizations -dr_ops \"-disable_rseq\"",
+      "clustering_k":null,
+      "slurm_options":""
+    },
+    {
+      "workload":"data_oi_dabstep_hard7",
+      "image_name":"agentcpu",
+      "suite":"agentcpu",
+      "subsuite":"data",
+      "env_vars":"SCARAB_MAIN_SHARD_GLOB=drmemtrace.python3.11.* USER=agentcpu LOGNAME=agentcpu PYTHONHASHSEED=0 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 TOKENIZERS_PARALLELISM=false RAYON_NUM_THREADS=1 GLIBC_TUNABLES=glibc.cpu.hwcaps=-AVX512F,-AVX512BW,-AVX512DQ,-AVX512VL OPENBLAS_CORETYPE=HASWELL LITELLM_LOCAL_MODEL_COST_MAP=True HOME=/tmp",
+      "binary_cmd":"/bin/bash /tmp_home/agentcpu-bench/bundles/data/replay_oi_trace.sh 1273,1305,1464,1681,1753,1871,2697 /tmp_home/agentcpu-bench/bundles/data/rec/hard7/recorder/dabstep_1273_1305_1464_1681_1753_1871_2697 /tmp/data_out",
+      "client_bincmd":null,
+      "trace_type":"trace_then_cluster",
+      "dynamorio_args":"-disable_optimizations -dr_ops \"-disable_rseq\"",
+      "clustering_k":null,
+      "slurm_options":""
+    },
+    {
+      "workload":"data_oi_dabstep_hard7_kernel",
+      "image_name":"agentcpu",
+      "suite":"agentcpu",
+      "subsuite":"data",
+      "env_vars":"SCARAB_MAIN_SHARD_GLOB=drmemtrace.python3-kernel.* USER=agentcpu LOGNAME=agentcpu PYTHONHASHSEED=0 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 TOKENIZERS_PARALLELISM=false RAYON_NUM_THREADS=1 GLIBC_TUNABLES=glibc.cpu.hwcaps=-AVX512F,-AVX512BW,-AVX512DQ,-AVX512VL OPENBLAS_CORETYPE=HASWELL LITELLM_LOCAL_MODEL_COST_MAP=True HOME=/tmp",
+      "binary_cmd":"/bin/bash /tmp_home/agentcpu-bench/bundles/data/replay_oi_trace.sh 1273,1305,1464,1681,1753,1871,2697 /tmp_home/agentcpu-bench/bundles/data/rec/hard7/recorder/dabstep_1273_1305_1464_1681_1753_1871_2697 /tmp/data_out",
+      "client_bincmd":null,
+      "trace_type":"trace_then_cluster",
+      "dynamorio_args":"-disable_optimizations -dr_ops \"-disable_rseq\"",
+      "clustering_k":null,
+      "slurm_options":""
+    },
+    {
+      "workload":"codenode_requests_5414",
+      "image_name":"agentcpu",
+      "suite":"agentcpu",
+      "subsuite":"code-node",
+      "env_vars":"SCARAB_TRACE_CWD=/tmp_home/agentcpu-bench/agentcpu/anchors/claude_code/tasks/requests_5414/repo HOME=/tmp/cc_home ANTHROPIC_API_KEY=replay-dummy ANTHROPIC_BASE_URL=http://127.0.0.1:9311 CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 DISABLE_TELEMETRY=1 SIMDUTF_FORCE_IMPLEMENTATION=haswell SIMDJSON_FORCE_IMPLEMENTATION=haswell",
+      "binary_cmd":"node /tmp_home/agentcpu-bench/agentcpu/anchors/claude_code/products/2.1.112/node_modules/@anthropic-ai/claude-code/cli.js -p \"$(cat /tmp_home/agentcpu-bench/agentcpu/anchors/claude_code/tasks/requests_5414/prompt.txt)\" --model claude-opus-5 --allowedTools Bash,Read,Edit,Write,Grep,Glob --max-turns 40 --strict-mcp-config --output-format json",
+      "client_bincmd":"bash -c 'cd /tmp_home/agentcpu-bench/agentcpu/anchors/claude_code/tasks/requests_5414 && ./reset.sh >/dev/null && ../../rebase_session.py session_opus5.jsonl /tmp/cc_session.jsonl __TASK_DIR__ /tmp_home/agentcpu-bench/agentcpu/anchors/claude_code/tasks/requests_5414 >/dev/null && exec python3 ../../ccproxy.py replay 9311 /tmp/cc_session.jsonl'",
+      "trace_type":"trace_then_cluster",
+      "dynamorio_args":"-jobs 8 -trace_after_instrs 1000000 -dr_ops \"-disable_rseq -no_follow_children\"",
+      "clustering_k":null,
+      "slurm_options":""
+    }
+  ]
+}

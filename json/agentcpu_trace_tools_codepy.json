@@ -1,0 +1,26 @@
+{
+  "descriptor_type": "trace",
+  "workload_manager": "manual",
+  "root_dir": "/home/$USER",
+  "application_dir": "/home/$USER/applications",
+  "scarab_path": "/home/$USER/agentcpu_home/scarab",
+  "scarab_build": "opt",
+  "traces_dir": "/soe/hlitz/lab/traces/agent",
+  "trace_name": "agentcpu_trace_tools_codepy",
+  "_comment": "The code-py configuration of agentcpu_trace_tools.json alone, under its own trace_name, for rerunning it while the code-node capture of agentcpu_trace_tools runs.",
+  "trace_configurations": [
+    {
+      "workload": "codepy_requests_5414_tools",
+      "image_name": "agentcpu",
+      "suite": "agentcpu",
+      "subsuite": "code-py-tools",
+      "env_vars": "SCARAB_PER_PROCESS=1 SCARAB_TRACE_SHELL_VAR=PATH TRACE_KEEP_RAW=1 HOME=/tmp REPLAY_KEEP_DIR=/home/$USER/simpoint_flow/agentcpu_trace_tools_codepy/codepy_requests_5414_tools/replay_out PYTHONHASHSEED=0 OMP_NUM_THREADS=1 LITELLM_LOCAL_MODEL_COST_MAP=True GLIBC_TUNABLES=glibc.cpu.hwcaps=-AVX512F,-AVX512BW,-AVX512DQ,-AVX512VL OPENBLAS_CORETYPE=HASWELL",
+      "binary_cmd": "/bin/bash /usr/local/bin/replay_and_check.sh steps=12 timing_normalized_hash=4951a99fb8d06197 -- /bin/bash /usr/local/bin/agentcpu_codepy_tools_replay.sh /tmp/codepy_tools_out",
+      "client_bincmd": null,
+      "trace_type": "trace_then_cluster",
+      "dynamorio_args": "-disable_optimizations",
+      "clustering_k": null,
+      "slurm_options": ""
+    }
+  ]
+}
