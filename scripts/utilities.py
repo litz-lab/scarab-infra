@@ -215,6 +215,7 @@ def run_on_node(cmd, node=None, immediate=5, **kwargs):
             "--nodes=1",
             "--ntasks=1",
             "--cpus-per-task=1",
+            "--mem=64M",  # not DefMemPerCPU: a node whose memory is all reserved still takes it
         ]
         if immediate is not None:
             command.append(f"--immediate={immediate}")
