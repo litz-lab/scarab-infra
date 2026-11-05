@@ -1914,6 +1914,14 @@ def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_contai
         _shard_glob = os.environ.get("SCARAB_MAIN_SHARD_GLOB")
         if _shard_glob:
             trace_cmd = f"SCARAB_MAIN_SHARD_GLOB='{_shard_glob}' {trace_cmd}"
+        # Same for the per-process mode switches (they can also be set in the
+        # descriptor's env_vars, which reach the container as docker -e).
+        for _var in ("SCARAB_PER_PROCESS", "SCARAB_PER_PROCESS_MIN_INSTRS", "SCARAB_PER_PROCESS_JOBS",
+                     "SCARAB_PER_PROCESS_PREFIX", "SCARAB_PER_PROCESS_EXCLUDE_GLOB", "SCARAB_PER_PROCESS_STOP_AFTER",
+                     "SCARAB_PER_PROCESS_THREADS", "SCARAB_TRACE_DR_HOME", "SCARAB_PER_PROCESS_EXCLUDE_MODULE",
+                     "SCARAB_TRACE_SHELL_VAR", "SCARAB_PER_PROCESS_RESTORE", "SCARAB_PER_PROCESS_NOTE_FILE"):
+            if os.environ.get(_var):
+                trace_cmd = f"{_var}='{os.environ[_var]}' {trace_cmd}"
         with open(filename, "w") as f:
             f.write("#!/bin/bash\n")
             f.write(f"echo \"Tracing {workload}\"\n")
@@ -3080,6 +3088,16 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
             suite = config['suite']
             subsuite = config['subsuite']
             print(f"Finalizing {suite}/{subsuite}/{workload}")
+
+            # Per-process mode (SCARAB_PER_PROCESS=1): the capture became one
+            # workload per process, listed in a manifest; register those instead.
+            per_process_manifest = os.path.join(trace_dir, workload, "per_process_manifest.json")
+            if config['trace_type'] == "trace_then_cluster" and os.path.isfile(per_process_manifest):
+                from scripts.per_process_db import register_manifest
+                entries = register_manifest(per_process_manifest, workload_db_data, suite,
+                                            subsuite if subsuite else suite, traces_dir=target_traces_dir)
+                print(f"{workload}: registered {len(entries)} per-process workloads from {per_process_manifest}")
+                continue
 
             # Update workload_db_data
             trace_dict = {}
