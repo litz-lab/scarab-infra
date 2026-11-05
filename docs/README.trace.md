@@ -386,6 +386,87 @@ pipeline:
    thread activity. The pipeline also sets these (plus `NUMEXPR_NUM_THREADS=1`
    and `TOKENIZERS_PARALLELISM=false`) on the fingerprint command line.
 
+## Multi-process Workloads (per-process mode)
+
+By default `trace_then_cluster` keeps one process of a capture: the one with
+the largest raw shard, or the largest whose directory matches
+`SCARAB_MAIN_SHARD_GLOB`. A capture that followed child processes (an agent's
+tool shell, pytest, git) has one `drmemtrace.<exe>.<pid>.<n>.dir` per process.
+With `SCARAB_PER_PROCESS=1` (in the descriptor's `env_vars`) every process
+becomes its own workload:
+
+* Directories with an empty `modules.log` are skipped (the copy of the parent
+  that a fork leaves before exec), as are those matching
+  `SCARAB_PER_PROCESS_EXCLUDE_GLOB`.
+* Each process's main thread (largest `.raw.lz4`) is converted alone into a
+  chunked zip, `SCARAB_PER_PROCESS_JOBS` at a time.
+* A process with at least `SCARAB_PER_PROCESS_MIN_INSTRS` instructions
+  (default 60 M, the 50 M warmup plus one segment) is fingerprinted, clustered
+  and minimized as usual. A shorter one is simulated whole: one SimPoint at
+  segment 0 with weight 1 and a `segment_size` equal to its instruction count
+  rounded up to whole 10 M chunks, so the simulation runs from its first
+  instruction (no warmup) to the end of its trace.
+* Each process gets a workload home under `<workload>/procs/<name>/`, and the
+  capture gets `<workload>/per_process_manifest.json`: every process with its
+  executable, pid, kind (python, bash, git, other), instruction count, share
+  of the converted instructions, thread count and main-thread share of the raw
+  bytes, the SimPoints, and the skipped directories with their raw bytes.
+* `finish_trace` registers one workload per ready process,
+  `<SCARAB_PER_PROCESS_PREFIX>_<exe>_<pid>` (default prefix: the workload
+  name), with a `per_process` block (kind, instructions, share) for weighting
+  results by instruction share and grouping them by kind.
+  `python -m scripts.per_process_db --manifest ... --suite ... --subsuite ...` does the
+  same for a manifest made outside sci (dry run unless `--write`; it backs up
+  `workloads_db.json` first).
+
+`SCARAB_PER_PROCESS_THREADS=all` converts every thread shard of every process
+alone instead of only the largest one (for rustc, whose LLVM code generation
+runs in worker threads). Each thread is then a workload of its own, SimPoint
+or whole by the same threshold; the largest thread keeps the process name
+`<prefix>_<exe>_<pid>` and the others get `_t<tid>`. The manifest has one entry
+per thread with `tid`, `largest_thread`, instructions and share, and lists
+thread shards with no instructions (`empty`, mostly the 7-byte shard a fork
+leaves before exec) or that cannot be read (`unreadable`) as left out. Each
+thread is simulated alone, so combining threads by instruction share adds up
+their cycles: a CPU-time account that ignores what threads of one process do
+to each other when they run at the same time (shared caches, memory
+bandwidth, waits on each other). The default (`main`) is unchanged.
+
+`run_simpoint_trace.py --simpoint_mode 2 --capture_dir <dir>` with
+`SCARAB_PER_PROCESS=1` converts an existing capture without running drrun; the
+capture is only read. `SCARAB_PER_PROCESS_STOP_AFTER=convert` stops after the
+conversions and the manifest (the short processes are then complete); a later
+run without it resumes with the SimPoint step of the long ones.
+A rerun also reuses the instruction counts and finished SimPoints that an
+earlier run recorded in the manifest, so it redoes only the failed units.
+
+Other settings of this mode:
+
+* `SCARAB_TRACE_SHELL_VAR=NAME` runs the workload natively and traces only the
+  shells it starts: a wrapper that runs `/bin/bash` under drrun (children
+  followed) is written to `<workload>/tool_shell/` and its path is put in the
+  environment variable `NAME` (for example `CLAUDE_CODE_SHELL`).
+  `SCARAB_TRACE_SHELL_VAR=PATH` instead puts a wrapper named `bash` first on
+  `PATH`, for programs that start `/usr/bin/env bash`; that wrapper turns job
+  control off and resumes processes that stop inside DynamoRIO's execve
+  handling.
+* `SCARAB_PER_PROCESS_EXCLUDE_MODULE` leaves out processes whose `modules.log`
+  contains one of the given comma-separated strings (for example the
+  orchestrator's virtualenv path, when the orchestrator is traced on its own).
+* `SCARAB_TRACE_DR_HOME` uses another DynamoRIO installation than
+  `DYNAMORIO_HOME` for the capture, the conversion and instruction counting.
+* `SCARAB_PER_PROCESS_RESTORE` names a tree of files the captured session
+  built (rooted at `/`, absolute or relative to the workload home) that is
+  copied over `/` before conversion, because drraw2trace reads every module
+  again from its path.
+* `SCARAB_PER_PROCESS_NOTE_FILE` copies a text file into the manifest as
+  `capture_note`; the manifest also records `capture_env`.
+
+`common/scripts/replay_and_check.sh <pattern>... -- <command>` is a
+`binary_cmd` wrapper for replayed workloads: it fails the trace job unless the
+command exits 0 and its output contains every pattern, so a replay that drifted
+from its recording is not registered.
+
 ## Environment Variables
 
 | Variable | Default | Description |
