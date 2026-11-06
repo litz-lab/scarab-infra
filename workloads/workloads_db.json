@@ -1284,7 +1284,7 @@
   },
   "datacenter":{
     "datacenter":{
-      "_scarab_sim_githash":"fdf3c92",
+      "_scarab_sim_githash":"e0ae4110",
       "clang":{
         "simulation":{
           "prioritized_mode":"memtrace",
@@ -1329,7 +1329,7 @@
             "drive_id":"1ou30a046kxNYA80Vk7ll9T_mO3RkT-a0",
             "size_bytes":61205638,
             "base_memory_mb_by_mode":{
-              "memtrace":242,
+              "memtrace":273,
               "exec":null,
               "pt":null
             }
@@ -1533,7 +1533,7 @@
             "drive_id":"1PdjBkLzIo8nt8gvP3yGFQnH-oJza76-d",
             "size_bytes":52250802,
             "base_memory_mb_by_mode":{
-              "memtrace":314,
+              "memtrace":375,
               "exec":null,
               "pt":null
             }
@@ -1593,7 +1593,7 @@
             "drive_id":"1nwjLATBzRK8SvrY8BJPcVxeLaIzA9K1Y",
             "size_bytes":42968337,
             "base_memory_mb_by_mode":{
-              "memtrace":618,
+              "memtrace":1273,
               "exec":null,
               "pt":null
             }
@@ -1808,7 +1808,7 @@
             "drive_id":"1nXyFxio1I5tDQWTZHyDkc8KRuYFbwglD",
             "size_bytes":46334644,
             "base_memory_mb_by_mode":{
-              "memtrace":215,
+              "memtrace":98,
               "exec":null
             }
           },
@@ -1830,7 +1830,7 @@
             "drive_id":"1nmi8bgvgvyXiG2TquPseq5u4zF5-06tY",
             "size_bytes":63919024,
             "base_memory_mb_by_mode":{
-              "memtrace":462,
+              "memtrace":675,
               "exec":null
             }
           },
@@ -1896,7 +1896,7 @@
             "drive_id":"1qkGmOObM_g8lg6aRRUFavHrz6mFs9H19",
             "size_bytes":281677302,
             "base_memory_mb_by_mode":{
-              "memtrace":124,
+              "memtrace":336,
               "exec":null
             }
           }
@@ -1933,7 +1933,7 @@
             "drive_id":"1hoi4Sx62Q4WofnWw1TvFmG0KHlQVDQmj",
             "size_bytes":85501495,
             "base_memory_mb_by_mode":{
-              "memtrace":323
+              "memtrace":326
             }
           },
           {
@@ -1953,7 +1953,7 @@
             "drive_id":"17I0E5t1181oFhgM7KQWKCPWM5-msip3B",
             "size_bytes":85874786,
             "base_memory_mb_by_mode":{
-              "memtrace":328
+              "memtrace":274
             }
           },
           {
@@ -1963,7 +1963,7 @@
             "drive_id":"1EzC9rdU-qoFOnc_s5OY2FjCMfjS8Npsl",
             "size_bytes":85243215,
             "base_memory_mb_by_mode":{
-              "memtrace":325
+              "memtrace":274
             }
           }
         ]
@@ -2003,7 +2003,7 @@
             "drive_id":"1qfJqHYWEMWT2fwNNxHuhLW24jG7CVaRD",
             "size_bytes":122358362,
             "base_memory_mb_by_mode":{
-              "memtrace":279,
+              "memtrace":242,
               "exec":null,
               "pt":null
             }
@@ -2015,7 +2015,7 @@
             "drive_id":"1JAL9nJBRvRDpJvRiTtjrzM-l5joA6DoN",
             "size_bytes":131550914,
             "base_memory_mb_by_mode":{
-              "memtrace":287,
+              "memtrace":205,
               "exec":null,
               "pt":null
             }
@@ -2081,7 +2081,7 @@
             "drive_id":"1J1IpEtTR9AYrzEzxZqmduSK5hXerjxnJ",
             "size_bytes":81637119,
             "base_memory_mb_by_mode":{
-              "memtrace":206,
+              "memtrace":162,
               "exec":null,
               "pt":null
             }
@@ -2093,7 +2093,7 @@
             "drive_id":"1rZ0vMTCh_o8jmr97E3RTwrhNPgZImzg8",
             "size_bytes":81660145,
             "base_memory_mb_by_mode":{
-              "memtrace":206,
+              "memtrace":147,
               "exec":null,
               "pt":null
             }
@@ -2105,7 +2105,7 @@
             "drive_id":"1pYSFbTIEw0zpqxK_W4myABCswquDu474",
             "size_bytes":81611504,
             "base_memory_mb_by_mode":{
-              "memtrace":202,
+              "memtrace":158,
               "exec":null,
               "pt":null
             }
@@ -2216,7 +2216,7 @@
             "drive_id":"14O3Thrd96yASgZK5BO2jsY4WFNTxPSXz",
             "size_bytes":59769190,
             "base_memory_mb_by_mode":{
-              "memtrace":1353,
+              "memtrace":2444,
               "exec":null,
               "pt":null
             }
@@ -2588,7 +2588,7 @@
             "drive_id":"1GWwt3zLjbnDfroVFZaEON-g9ySUTYF-D",
             "size_bytes":59777715,
             "base_memory_mb_by_mode":{
-              "memtrace":1337,
+              "memtrace":2434,
               "exec":null,
               "pt":null
             }
@@ -2624,7 +2624,7 @@
             "drive_id":"1v63YIT-szJFYmqip-XZPeerWQ5t1-fo5",
             "size_bytes":59792746,
             "base_memory_mb_by_mode":{
-              "memtrace":1330,
+              "memtrace":2444,
               "exec":null,
               "pt":null
             }
@@ -2690,7 +2690,7 @@
             "drive_id":"1vqUUE4HVn1pCTQUDFf-U-rQlKkQcuQxn",
             "size_bytes":27786721,
             "base_memory_mb_by_mode":{
-              "memtrace":157,
+              "memtrace":109,
               "exec":null
             }
           },
@@ -2723,7 +2723,7 @@
             "drive_id":"1qlMQ7WFBRul9_j0X5eU0oXX9stP0F0II",
             "size_bytes":113334131,
             "base_memory_mb_by_mode":{
-              "memtrace":3755,
+              "memtrace":4639,
               "exec":null
             }
           },
@@ -2778,7 +2778,7 @@
             "drive_id":"1zJoBRXPo0v4pnTFvwDhztR45mMkEJP_2",
             "size_bytes":28683978,
             "base_memory_mb_by_mode":{
-              "memtrace":124,
+              "memtrace":84,
               "exec":null
             }
           }
@@ -2816,7 +2816,7 @@
           }
         },
         "base_memory_mb_by_mode":{
-          "pt":996,
+          "pt":1085,
           "exec":null
         }
       },
@@ -2837,7 +2837,7 @@
           }
         },
         "base_memory_mb_by_mode":{
-          "pt":1040,
+          "pt":1054,
           "exec":null
         }
       },
@@ -2858,7 +2858,7 @@
           }
         },
         "base_memory_mb_by_mode":{
-          "pt":1320,
+          "pt":1458,
           "exec":null
         }
       },
@@ -2879,7 +2879,7 @@
           }
         },
         "base_memory_mb_by_mode":{
-          "pt":1259,
+          "pt":1344,
           "exec":null
         }
       },
@@ -2903,7 +2903,7 @@
           }
         },
         "base_memory_mb_by_mode":{
-          "pt":1371,
+          "pt":1947,
           "exec":null
         }
       },
@@ -2924,7 +2924,7 @@
           }
         },
         "base_memory_mb_by_mode":{
-          "pt":1454,
+          "pt":1055,
           "exec":null
         }
       },
@@ -2939,7 +2939,7 @@
           }
         },
         "base_memory_mb_by_mode":{
-          "pt":1168
+          "pt":952
         }
       },
       "tomcat":{
@@ -2962,7 +2962,7 @@
           }
         },
         "base_memory_mb_by_mode":{
-          "pt":1250,
+          "pt":849,
           "exec":null
         }
       },
@@ -2983,7 +2983,7 @@
           }
         },
         "base_memory_mb_by_mode":{
-          "pt":1191,
+          "pt":833,
           "exec":null
         }
       }
@@ -9591,7 +9591,7 @@
   },
   "spec2017":{
     "rate_int_v2":{
-      "_scarab_sim_githash":"63b467f",
+      "_scarab_sim_githash":"e0ae4110",
       "perlbench_r":{
         "trace":{
           "dynamorio_args":null,
@@ -9622,7 +9622,7 @@
             "drive_id":"1SNZGKagEHnnNJYOH2lMGSjghH1iddXVN",
             "size_bytes":81750735,
             "base_memory_mb_by_mode":{
-              "memtrace":411,
+              "memtrace":244,
               "exec":5009
             }
           },
@@ -9633,7 +9633,7 @@
             "drive_id":"1PZA3bRD4EuOWY6M3DqSsgFpOsUOY_VPi",
             "size_bytes":47668770,
             "base_memory_mb_by_mode":{
-              "memtrace":337,
+              "memtrace":204,
               "exec":2904
             }
           },
@@ -9644,7 +9644,7 @@
             "drive_id":"1n-HUXBtlBeg7pvzzklzuV1qugyPK-ABK",
             "size_bytes":63485935,
             "base_memory_mb_by_mode":{
-              "memtrace":370,
+              "memtrace":225,
               "exec":3119
             }
           }
@@ -9680,7 +9680,7 @@
             "drive_id":"1niQOKncny34pCARitg4UYLKkaBKmc2U6",
             "size_bytes":73960071,
             "base_memory_mb_by_mode":{
-              "memtrace":305,
+              "memtrace":108,
               "exec":2907
             }
           },
@@ -9691,7 +9691,7 @@
             "drive_id":"1QW0aTdyUJ7UidDo4cC1OEN-jJ7lDyLA2",
             "size_bytes":45016646,
             "base_memory_mb_by_mode":{
-              "memtrace":347,
+              "memtrace":132,
               "exec":1642
             }
           },
@@ -9702,7 +9702,7 @@
             "drive_id":"1BmWHAttHko83Mw1RAmL2LhQ-sH4Remey",
             "size_bytes":83968761,
             "base_memory_mb_by_mode":{
-              "memtrace":320,
+              "memtrace":100,
               "exec":3884
             }
           }
@@ -9738,7 +9738,7 @@
             "drive_id":"1JajYJQPMEksM4Mp9iMB5CTg0YNqfhWVW",
             "size_bytes":105256001,
             "base_memory_mb_by_mode":{
-              "memtrace":371,
+              "memtrace":150,
               "exec":6285
             }
           },
@@ -9749,7 +9749,7 @@
             "drive_id":"1GSV6JgUFgYWUQTRDWwdLTfUkmq9htmJu",
             "size_bytes":50198611,
             "base_memory_mb_by_mode":{
-              "memtrace":226,
+              "memtrace":56,
               "exec":530
             }
           },
@@ -9760,7 +9760,7 @@
             "drive_id":"18_Qdb3HIBCjN1Sh32jL0eO-x4JddOlKb",
             "size_bytes":51389558,
             "base_memory_mb_by_mode":{
-              "memtrace":290,
+              "memtrace":154,
               "exec":533
             }
           }
@@ -9917,7 +9917,7 @@
             "drive_id":"1hRTDIfG7fqxvSYHEg2yW8uo6FpuRTKA7",
             "size_bytes":110369103,
             "base_memory_mb_by_mode":{
-              "memtrace":888,
+              "memtrace":1062,
               "exec":16717
             }
           },
@@ -9950,7 +9950,7 @@
             "drive_id":"1I94ZrUQlorLIvg25KZo59TurMfxZ4niT",
             "size_bytes":125276212,
             "base_memory_mb_by_mode":{
-              "memtrace":1106,
+              "memtrace":1285,
               "exec":30899
             }
           },
@@ -9983,7 +9983,7 @@
             "drive_id":"1HWDHMam-nExR2pDwCqA-hZtErcVdJz6x",
             "size_bytes":106153039,
             "base_memory_mb_by_mode":{
-              "memtrace":861,
+              "memtrace":993,
               "exec":17809
             }
           },
@@ -10041,7 +10041,7 @@
             "drive_id":"1Mp4UaJLq2ktwHHW_L3lnx6SyjRYse0AH",
             "size_bytes":160425896,
             "base_memory_mb_by_mode":{
-              "memtrace":283,
+              "memtrace":69,
               "exec":1878
             }
           },
@@ -10184,7 +10184,7 @@
             "drive_id":"1yXydl3bQfAbQmVH0r-unTrujqs6gVUnu",
             "size_bytes":124579192,
             "base_memory_mb_by_mode":{
-              "memtrace":971,
+              "memtrace":1322,
               "exec":28152
             }
           },
@@ -10228,7 +10228,7 @@
             "drive_id":"153qQ_VTMA4s2yOK4lp8cYMnqRBcKhdED",
             "size_bytes":117342875,
             "base_memory_mb_by_mode":{
-              "memtrace":874,
+              "memtrace":1000,
               "exec":24014
             }
           }
@@ -10275,7 +10275,7 @@
             "drive_id":"1SbdxXe8aNld5MhiAlzXgqobdAl1378Pp",
             "size_bytes":106445488,
             "base_memory_mb_by_mode":{
-              "memtrace":752,
+              "memtrace":960,
               "exec":15522
             }
           },
@@ -10407,7 +10407,7 @@
             "drive_id":"1SIItYuqPs-rBfOKPA1nbttaI0W00mgzX",
             "size_bytes":62322932,
             "base_memory_mb_by_mode":{
-              "memtrace":317,
+              "memtrace":54,
               "exec":1483
             }
           },
@@ -10440,7 +10440,7 @@
             "drive_id":"1yumxgkHyDnC6GOSMcjpdnHyL8yAK2zp_",
             "size_bytes":114246158,
             "base_memory_mb_by_mode":{
-              "memtrace":898,
+              "memtrace":1172,
               "exec":18661
             }
           },
@@ -10531,7 +10531,7 @@
             "drive_id":"1Oj4GD9V9s01-1yo0G5AxSUPxQC9st4dd",
             "size_bytes":100977290,
             "base_memory_mb_by_mode":{
-              "memtrace":529,
+              "memtrace":497,
               "exec":7263
             }
           },
@@ -10542,7 +10542,7 @@
             "drive_id":"10PPQxUeIKu3ixHba_9LURr-LJTdJz3Ti",
             "size_bytes":112875170,
             "base_memory_mb_by_mode":{
-              "memtrace":412,
+              "memtrace":256,
               "exec":6861
             }
           },
@@ -10685,7 +10685,7 @@
             "drive_id":"1roE65TWaf4N5H4-Msj2IAgcTU_hrqMcj",
             "size_bytes":46043938,
             "base_memory_mb_by_mode":{
-              "memtrace":295,
+              "memtrace":84,
               "exec":1640
             }
           },
@@ -10831,7 +10831,7 @@
             "drive_id":"1vwLOjXF0TjHtP6EyGfJa58yWzwRN8BP6",
             "size_bytes":105136432,
             "base_memory_mb_by_mode":{
-              "memtrace":488,
+              "memtrace":469,
               "exec":9877
             }
           },
@@ -10864,7 +10864,7 @@
             "drive_id":"1R4tAf6CC3DmKPu5au6PZ-Eyd_MShOvOm",
             "size_bytes":121965121,
             "base_memory_mb_by_mode":{
-              "memtrace":436,
+              "memtrace":288,
               "exec":7090
             }
           },
@@ -10930,7 +10930,7 @@
             "drive_id":"1OXv9l-tiAdZMLujXOlH_b1GDR4_zpwTn",
             "size_bytes":126128223,
             "base_memory_mb_by_mode":{
-              "memtrace":587,
+              "memtrace":362,
               "exec":12322
             }
           },
@@ -10977,7 +10977,7 @@
             "drive_id":"1CQ84WHflC_ZWM-rZDluSS4-9wDE1Cfp1",
             "size_bytes":72421782,
             "base_memory_mb_by_mode":{
-              "memtrace":611,
+              "memtrace":49,
               "exec":1323
             }
           },
@@ -10988,7 +10988,7 @@
             "drive_id":"14rk3hLP0nx2LMfjy8j8QNZa12-7kCzey",
             "size_bytes":63532197,
             "base_memory_mb_by_mode":{
-              "memtrace":873,
+              "memtrace":108,
               "exec":1517
             }
           },
@@ -11010,7 +11010,7 @@
             "drive_id":"1opa2OMC6BPFdlhLeShDE0PRUwgRfAcgI",
             "size_bytes":37100891,
             "base_memory_mb_by_mode":{
-              "memtrace":335,
+              "memtrace":47,
               "exec":1023
             }
           }
@@ -11046,7 +11046,7 @@
             "drive_id":"1HD3FhXGM6wbiPY15JyJjUvNdZZg6EsPH",
             "size_bytes":175929956,
             "base_memory_mb_by_mode":{
-              "memtrace":459,
+              "memtrace":92,
               "exec":1324
             }
           },
@@ -11057,7 +11057,7 @@
             "drive_id":"1ySJfOgRUiIrtsrDMEw3_TInvTTh1PbY-",
             "size_bytes":164863964,
             "base_memory_mb_by_mode":{
-              "memtrace":481,
+              "memtrace":85,
               "exec":1905
             }
           }
@@ -11115,7 +11115,7 @@
             "drive_id":"1JW3GHTiFrSQtuXaYTzF7NSGpEsHs04dq",
             "size_bytes":118644456,
             "base_memory_mb_by_mode":{
-              "memtrace":163,
+              "memtrace":67,
               "exec":1236
             }
           },
@@ -11192,7 +11192,7 @@
             "drive_id":"18vOkWoJAz3_d6uCX-qsiks41PgJuI4xu",
             "size_bytes":124970400,
             "base_memory_mb_by_mode":{
-              "memtrace":193,
+              "memtrace":225,
               "exec":1169
             }
           },
@@ -11214,7 +11214,7 @@
             "drive_id":"1IRTICM6MX6Gd1UVjt9HuIcJ8XRyOXrmk",
             "size_bytes":45096565,
             "base_memory_mb_by_mode":{
-              "memtrace":188,
+              "memtrace":143,
               "exec":1113
             }
           }
@@ -11272,7 +11272,7 @@
             "drive_id":"1aSCMFEKoFcYOEu2ReF9NAkL38UaG-7I1",
             "size_bytes":75051675,
             "base_memory_mb_by_mode":{
-              "memtrace":115,
+              "memtrace":58,
               "exec":2187
             }
           },
@@ -11283,7 +11283,7 @@
             "drive_id":"1P4rARFl7aGEzI8gg7UoYMsRhyRLKST3X",
             "size_bytes":73545342,
             "base_memory_mb_by_mode":{
-              "memtrace":222,
+              "memtrace":143,
               "exec":5592
             }
           },
@@ -11294,7 +11294,7 @@
             "drive_id":"1Ik2G4cQj3a2JIzoMo11PRAk899nAHTQ6",
             "size_bytes":76144805,
             "base_memory_mb_by_mode":{
-              "memtrace":120,
+              "memtrace":67,
               "exec":2160
             }
           }
@@ -11330,7 +11330,7 @@
             "drive_id":"1eWQrkAixA-578_0SHm4tJTELIDpFUmOu",
             "size_bytes":74778098,
             "base_memory_mb_by_mode":{
-              "memtrace":164,
+              "memtrace":168,
               "exec":4381
             }
           },
@@ -11341,7 +11341,7 @@
             "drive_id":"1QcD-_gJEY8ZFvfE9loMa03mu4ZbQZ_WA",
             "size_bytes":73576210,
             "base_memory_mb_by_mode":{
-              "memtrace":163,
+              "memtrace":157,
               "exec":5277
             }
           },
@@ -11352,7 +11352,7 @@
             "drive_id":"1zZ7QsB2DtHRTg55YPikLhBG1d63VxR7M",
             "size_bytes":78812551,
             "base_memory_mb_by_mode":{
-              "memtrace":196,
+              "memtrace":177,
               "exec":4751
             }
           }
@@ -11388,7 +11388,7 @@
             "drive_id":"15AL997wZH8zdclCWPnwXXVWSzFrsaQ5l",
             "size_bytes":80170790,
             "base_memory_mb_by_mode":{
-              "memtrace":205,
+              "memtrace":180,
               "exec":4400
             }
           },
@@ -11399,7 +11399,7 @@
             "drive_id":"1LBDhDSOyTy0pDpQzifGDdtUanVvBRQ7j",
             "size_bytes":76344855,
             "base_memory_mb_by_mode":{
-              "memtrace":167,
+              "memtrace":162,
               "exec":4797
             }
           },
@@ -11410,7 +11410,7 @@
             "drive_id":"1z-e2HyCutJu64TF6_H4OcGq5lZTjlgsf",
             "size_bytes":68329142,
             "base_memory_mb_by_mode":{
-              "memtrace":123,
+              "memtrace":68,
               "exec":2173
             }
           }
@@ -11446,7 +11446,7 @@
             "drive_id":"1DXSAdoyiaFrTbhI1gIh50m7oAgpCjqXk",
             "size_bytes":145272546,
             "base_memory_mb_by_mode":{
-              "memtrace":392,
+              "memtrace":83,
               "exec":5758
             }
           },
@@ -11457,7 +11457,7 @@
             "drive_id":"1jV1Jhcc3OHDvRmQPV5FFmGW8s67RIvo4",
             "size_bytes":138010067,
             "base_memory_mb_by_mode":{
-              "memtrace":388,
+              "memtrace":82,
               "exec":13486
             }
           },
@@ -11468,7 +11468,7 @@
             "drive_id":"1uygCziEEg3sx2h5uvnG3DtY7XO-LKh_y",
             "size_bytes":133392848,
             "base_memory_mb_by_mode":{
-              "memtrace":375,
+              "memtrace":84,
               "exec":6074
             }
           }
@@ -11504,7 +11504,7 @@
             "drive_id":"1Gqb_g4mb4w1aRvJwA8alN_18sOW8rWH_",
             "size_bytes":97312512,
             "base_memory_mb_by_mode":{
-              "memtrace":593,
+              "memtrace":72,
               "exec":6559
             }
           },
@@ -11515,7 +11515,7 @@
             "drive_id":"1sp5b4SEqMj_LM-x3vo3MuJWbOqx8Y15f",
             "size_bytes":97075721,
             "base_memory_mb_by_mode":{
-              "memtrace":609,
+              "memtrace":65,
               "exec":6181
             }
           },
@@ -11526,7 +11526,7 @@
             "drive_id":"1ljbUpMPFJEeovoN2dGTfskAnl6TXIHlv",
             "size_bytes":95550008,
             "base_memory_mb_by_mode":{
-              "memtrace":522,
+              "memtrace":69,
               "exec":5945
             }
           }
@@ -11562,7 +11562,7 @@
             "drive_id":"1m6Y9oD9rmuTLK6_lrzdNEz_gQOx-mlxx",
             "size_bytes":74223947,
             "base_memory_mb_by_mode":{
-              "memtrace":269,
+              "memtrace":121,
               "exec":720
             }
           },
@@ -11573,7 +11573,7 @@
             "drive_id":"1AFl71JmuxeggO8Wy5YaS5XTr9SI_wgpY",
             "size_bytes":85228648,
             "base_memory_mb_by_mode":{
-              "memtrace":239,
+              "memtrace":51,
               "exec":385
             }
           },
@@ -11584,7 +11584,7 @@
             "drive_id":"1pQCEczUX18ELkXd3XaKN2iI8dNgex2dI",
             "size_bytes":81577115,
             "base_memory_mb_by_mode":{
-              "memtrace":257,
+              "memtrace":119,
               "exec":630
             }
           }
@@ -11620,7 +11620,7 @@
             "drive_id":"1wyixe8phhYSrwEYDrI5cgGgfgUOxHKyR",
             "size_bytes":53994333,
             "base_memory_mb_by_mode":{
-              "memtrace":648,
+              "memtrace":64,
               "exec":1479
             }
           },
@@ -11631,7 +11631,7 @@
             "drive_id":"1SdhYdq5AZqAatam7GEN5Z0oI8m9zN4m-",
             "size_bytes":55434409,
             "base_memory_mb_by_mode":{
-              "memtrace":575,
+              "memtrace":62,
               "exec":1463
             }
           },
@@ -11642,7 +11642,7 @@
             "drive_id":"1NvWz5DV9LI5oeRG7jrl3OSYBJ1h--NlG",
             "size_bytes":51863807,
             "base_memory_mb_by_mode":{
-              "memtrace":496,
+              "memtrace":62,
               "exec":1376
             }
           }
@@ -11678,7 +11678,7 @@
             "drive_id":"18j9x_HGTlgUSSLbIQM7oKIi9EhFRLELj",
             "size_bytes":62854350,
             "base_memory_mb_by_mode":{
-              "memtrace":377,
+              "memtrace":62,
               "exec":1713
             }
           },
@@ -11700,7 +11700,7 @@
             "drive_id":"1_f8axuJfrYuYEx69rp72bG_We3OL-bGS",
             "size_bytes":84847823,
             "base_memory_mb_by_mode":{
-              "memtrace":306,
+              "memtrace":60,
               "exec":1255
             }
           },
@@ -11722,7 +11722,7 @@
             "drive_id":"1hMEQMxDCysYQEJANa_EnOhlp-mzJgQ_o",
             "size_bytes":60021305,
             "base_memory_mb_by_mode":{
-              "memtrace":615,
+              "memtrace":64,
               "exec":1809
             }
           }
@@ -11769,7 +11769,7 @@
             "drive_id":"1OGb8J5S9uWCllB6RmHU540VpPrPm5zE4",
             "size_bytes":54475924,
             "base_memory_mb_by_mode":{
-              "memtrace":302,
+              "memtrace":66,
               "exec":1207
             }
           },
@@ -11780,7 +11780,7 @@
             "drive_id":"1o3xn4VReF87uTA0hrvYjjv1Ae9PZq9rn",
             "size_bytes":56203113,
             "base_memory_mb_by_mode":{
-              "memtrace":229,
+              "memtrace":65,
               "exec":1145
             }
           },
@@ -11791,7 +11791,7 @@
             "drive_id":"1VuHWwURo5EWUd_i8KDIlbYu6l6QOP9Dg",
             "size_bytes":49797373,
             "base_memory_mb_by_mode":{
-              "memtrace":246,
+              "memtrace":64,
               "exec":1097
             }
           },
@@ -11810,7 +11810,7 @@
       }
     },
     "rate_fp_v2":{
-      "_scarab_sim_githash":"fdf3c92",
+      "_scarab_sim_githash":"e0ae4110",
       "bwaves_r":{
         "trace":{
           "dynamorio_args":null,
@@ -11874,7 +11874,7 @@
             "drive_id":"1L8Vi_HAaQ3ikeGoL4OI7ftcKLCVhDc1T",
             "size_bytes":66032784,
             "base_memory_mb_by_mode":{
-              "memtrace":169,
+              "memtrace":45,
               "exec":null
             }
           },
@@ -11918,7 +11918,7 @@
             "drive_id":"124FVbgC6EIemz7mRA044g5s2orC-GNpG",
             "size_bytes":35013725,
             "base_memory_mb_by_mode":{
-              "memtrace":169,
+              "memtrace":47,
               "exec":null
             }
           },
@@ -11940,7 +11940,7 @@
             "drive_id":"1mB3rdh-gLQT3daGKrtVunw1DF2XXmuOX",
             "size_bytes":38399641,
             "base_memory_mb_by_mode":{
-              "memtrace":177,
+              "memtrace":49,
               "exec":null
             }
           },
@@ -12020,7 +12020,7 @@
             "drive_id":"165PUh1cEA1PEJ7LxIwadeky37EYkZ___",
             "size_bytes":38617619,
             "base_memory_mb_by_mode":{
-              "memtrace":168,
+              "memtrace":49,
               "exec":null
             }
           },
@@ -12042,7 +12042,7 @@
             "drive_id":"18fdfqWjtlP6WejRhOsGCOA3NEtn-3QDF",
             "size_bytes":34832585,
             "base_memory_mb_by_mode":{
-              "memtrace":173,
+              "memtrace":48,
               "exec":null
             }
           },
@@ -12064,7 +12064,7 @@
             "drive_id":"1DLPKsf0WcoiUQnvbNxEOUKaw3Ukb0bXF",
             "size_bytes":66014673,
             "base_memory_mb_by_mode":{
-              "memtrace":174,
+              "memtrace":45,
               "exec":null
             }
           },
@@ -12111,7 +12111,7 @@
             "drive_id":"11Yd2zpzSo_e8rwCBkpPzcyAC8bmdrAjk",
             "size_bytes":38407323,
             "base_memory_mb_by_mode":{
-              "memtrace":175,
+              "memtrace":49,
               "exec":null
             }
           },
@@ -12177,7 +12177,7 @@
             "drive_id":"1nGqLlVrOf15svLGixD6VsSwt7aOu6901",
             "size_bytes":28896813,
             "base_memory_mb_by_mode":{
-              "memtrace":179,
+              "memtrace":72,
               "exec":null
             }
           },
@@ -12199,7 +12199,7 @@
             "drive_id":"1TY_6dhUZrf21s_XO1OdHA7jKRxCsIsd4",
             "size_bytes":66239423,
             "base_memory_mb_by_mode":{
-              "memtrace":168,
+              "memtrace":46,
               "exec":null
             }
           },
@@ -12246,7 +12246,7 @@
             "drive_id":"1QwDPZbypVu6rQeu-u4fcL6eDb7j1VtCE",
             "size_bytes":38002832,
             "base_memory_mb_by_mode":{
-              "memtrace":165,
+              "memtrace":49,
               "exec":null
             }
           },
@@ -12312,7 +12312,7 @@
             "drive_id":"1PEsbUyLmIQACtUJIpbDfaG3q16SIwhIr",
             "size_bytes":65725486,
             "base_memory_mb_by_mode":{
-              "memtrace":172,
+              "memtrace":45,
               "exec":null
             }
           },
@@ -12323,7 +12323,7 @@
             "drive_id":"1W_Q6Y3zrO4MYvupRUUjSu4HxyT4QJWhd",
             "size_bytes":34843069,
             "base_memory_mb_by_mode":{
-              "memtrace":173,
+              "memtrace":48,
               "exec":null
             }
           },
@@ -12392,7 +12392,7 @@
             "drive_id":"1qFhVZRszSs4-bEyXiqvT7ZbiDnbEAiSk",
             "size_bytes":257099683,
             "base_memory_mb_by_mode":{
-              "memtrace":135,
+              "memtrace":55,
               "exec":null
             }
           },
@@ -12414,7 +12414,7 @@
             "drive_id":"14-LS74XZP4qb149vRWKDzTQnq7-ZZY7i",
             "size_bytes":46637401,
             "base_memory_mb_by_mode":{
-              "memtrace":161,
+              "memtrace":50,
               "exec":null
             }
           },
@@ -12447,7 +12447,7 @@
             "drive_id":"1RsBvkb9A8We3GJhG-qa5gLU-MZHhaDk1",
             "size_bytes":273521052,
             "base_memory_mb_by_mode":{
-              "memtrace":160,
+              "memtrace":63,
               "exec":null
             }
           }
@@ -12560,7 +12560,7 @@
             "drive_id":"135JEirVqMGbB3FTa6Gkdml4-z9aW0D-K",
             "size_bytes":76494821,
             "base_memory_mb_by_mode":{
-              "memtrace":145,
+              "memtrace":50,
               "exec":null
             }
           },
@@ -12648,7 +12648,7 @@
             "drive_id":"10EAjQZays5LkTBFB4Ag1JS56Pu0r8T2C",
             "size_bytes":66152794,
             "base_memory_mb_by_mode":{
-              "memtrace":151,
+              "memtrace":50,
               "exec":null
             }
           },
@@ -12659,7 +12659,7 @@
             "drive_id":"1tQTc-MDbtL5lWrxWQ7mj_4JmdO2FPWBg",
             "size_bytes":75957709,
             "base_memory_mb_by_mode":{
-              "memtrace":170,
+              "memtrace":48,
               "exec":null
             }
           },
@@ -12761,7 +12761,7 @@
             "drive_id":"1tSZ2dA3uhZLE8GEeuBONannamnVBcx8_",
             "size_bytes":61589665,
             "base_memory_mb_by_mode":{
-              "memtrace":85,
+              "memtrace":51,
               "exec":null
             }
           },
@@ -12783,7 +12783,7 @@
             "drive_id":"1v5FPfpjNZnW-EMBhFvMXN_ZBpeOM23wH",
             "size_bytes":62013851,
             "base_memory_mb_by_mode":{
-              "memtrace":95,
+              "memtrace":51,
               "exec":null
             }
           },
@@ -12805,7 +12805,7 @@
             "drive_id":"1VOAsC7um_gq8ixpq0vnJBZQL5T-SZk1s",
             "size_bytes":61276811,
             "base_memory_mb_by_mode":{
-              "memtrace":107,
+              "memtrace":51,
               "exec":null
             }
           },
@@ -12863,7 +12863,7 @@
             "drive_id":"1SjvERjUAIPFLttaCJuTdal380VAyb7gX",
             "size_bytes":88892797,
             "base_memory_mb_by_mode":{
-              "memtrace":326,
+              "memtrace":83,
               "exec":null
             }
           },
@@ -12874,7 +12874,7 @@
             "drive_id":"1cj_koqRqmIJk6Whr7Nrfd5vsJ9wfOEEB",
             "size_bytes":94253021,
             "base_memory_mb_by_mode":{
-              "memtrace":300,
+              "memtrace":77,
               "exec":null
             }
           },
@@ -12885,7 +12885,7 @@
             "drive_id":"1rbifkbRBC6ybgQG22L8wipICAuFOJ0JE",
             "size_bytes":92799065,
             "base_memory_mb_by_mode":{
-              "memtrace":329,
+              "memtrace":81,
               "exec":null
             }
           }
@@ -12921,7 +12921,7 @@
             "drive_id":"1uAlDqASz33vbXH-Qbhhl19jVcmRI-awM",
             "size_bytes":52845296,
             "base_memory_mb_by_mode":{
-              "memtrace":125,
+              "memtrace":46,
               "exec":null
             }
           },
@@ -12932,7 +12932,7 @@
             "drive_id":"1h8xz7FeKSAVJhpKUxTjBuXFRq4lJ0dFK",
             "size_bytes":52702710,
             "base_memory_mb_by_mode":{
-              "memtrace":125,
+              "memtrace":46,
               "exec":null
             }
           }
@@ -13056,7 +13056,7 @@
             "drive_id":"1GeNUOUU49OCRFNcuiXl2hIAAfLZFbWrA",
             "size_bytes":56593804,
             "base_memory_mb_by_mode":{
-              "memtrace":255,
+              "memtrace":207,
               "exec":null
             }
           },
@@ -13067,7 +13067,7 @@
             "drive_id":"1pvhQLGxwCDYby4oUNQOHtchzCcscbeEV",
             "size_bytes":54472408,
             "base_memory_mb_by_mode":{
-              "memtrace":153,
+              "memtrace":110,
               "exec":null
             }
           },
@@ -13155,7 +13155,7 @@
             "drive_id":"10x_OdCQ5NkGG1mJGO4iWz-HGwSMAJXxR",
             "size_bytes":52939620,
             "base_memory_mb_by_mode":{
-              "memtrace":270,
+              "memtrace":73,
               "exec":null
             }
           },
@@ -13213,7 +13213,7 @@
             "drive_id":"1Etvz9UKxLlPaN4Bu9zgtzb7OzG9GzXRs",
             "size_bytes":68405439,
             "base_memory_mb_by_mode":{
-              "memtrace":380,
+              "memtrace":78,
               "exec":null
             }
           },
@@ -13224,7 +13224,7 @@
             "drive_id":"10QD039XesKR3bIRE_7kZi2TAfqT7BHhZ",
             "size_bytes":71647431,
             "base_memory_mb_by_mode":{
-              "memtrace":363,
+              "memtrace":76,
               "exec":null
             }
           },
@@ -13235,7 +13235,7 @@
             "drive_id":"1YVuNy_e5c2pN_3VOg4CV7LYpietXB5l3",
             "size_bytes":53567073,
             "base_memory_mb_by_mode":{
-              "memtrace":250,
+              "memtrace":51,
               "exec":null
             }
           }
@@ -13282,7 +13282,7 @@
             "drive_id":"16xDme9bpCYbbkHVb1IA97ON_Gacm55RP",
             "size_bytes":64547185,
             "base_memory_mb_by_mode":{
-              "memtrace":319,
+              "memtrace":257,
               "exec":null
             }
           },
@@ -13304,7 +13304,7 @@
             "drive_id":"1Q6eBCjEHzn5jm32jO8Z6mOs4DPCRbMuG",
             "size_bytes":74845701,
             "base_memory_mb_by_mode":{
-              "memtrace":710,
+              "memtrace":319,
               "exec":null
             }
           },
@@ -13326,7 +13326,7 @@
             "drive_id":"1tbNYsYb3CSb7NvWjqv6eUJ_OYz_uzpvy",
             "size_bytes":69109278,
             "base_memory_mb_by_mode":{
-              "memtrace":400,
+              "memtrace":372,
               "exec":null
             }
           },
@@ -13527,7 +13527,7 @@
             "drive_id":"18iysXh825TnVt99gCdl7TrthmG_so3UI",
             "size_bytes":13308592,
             "base_memory_mb_by_mode":{
-              "memtrace":170,
+              "memtrace":46,
               "exec":null
             }
           },
@@ -13538,7 +13538,7 @@
             "drive_id":"1vVJHNY-TMcKeVFAu72omr_dRvif_ToW1",
             "size_bytes":35796924,
             "base_memory_mb_by_mode":{
-              "memtrace":125,
+              "memtrace":45,
               "exec":null
             }
           },
@@ -13549,7 +13549,7 @@
             "drive_id":"12t7isSUN9k0AaVVOJO7SIynBpQ05rbnd",
             "size_bytes":14507042,
             "base_memory_mb_by_mode":{
-              "memtrace":231,
+              "memtrace":46,
               "exec":null
             }
           }
@@ -13596,7 +13596,7 @@
             "drive_id":"1iPnT9PFDy300RH7TWyKQQ7r0XEo97qVN",
             "size_bytes":22868547,
             "base_memory_mb_by_mode":{
-              "memtrace":185,
+              "memtrace":46,
               "exec":null
             }
           },
@@ -13618,7 +13618,7 @@
             "drive_id":"16WRvqByJqC5USuxygv4X5DHuMi1YDWSh",
             "size_bytes":24301507,
             "base_memory_mb_by_mode":{
-              "memtrace":296,
+              "memtrace":46,
               "exec":null
             }
           },
@@ -13629,7 +13629,7 @@
             "drive_id":"1zThpwwQzaBMGJlXLQ1LoE_0lBfvoK5M5",
             "size_bytes":32789920,
             "base_memory_mb_by_mode":{
-              "memtrace":266,
+              "memtrace":46,
               "exec":null
             }
           }
@@ -13687,7 +13687,7 @@
             "drive_id":"1W5BADhJpnZ7qDzhrwpCFI5tydcY4dRH6",
             "size_bytes":73320188,
             "base_memory_mb_by_mode":{
-              "memtrace":143,
+              "memtrace":49,
               "exec":null
             }
           },
@@ -13731,7 +13731,7 @@
             "drive_id":"1xJ5ZOrzFZXNlzyyqUjdqjI6Z7MJPcnyl",
             "size_bytes":72048696,
             "base_memory_mb_by_mode":{
-              "memtrace":130,
+              "memtrace":48,
               "exec":null
             }
           },
@@ -13742,7 +13742,7 @@
             "drive_id":"19Zp5Zm3UUcLatSpf9qymWt0_b1toG411",
             "size_bytes":71967960,
             "base_memory_mb_by_mode":{
-              "memtrace":142,
+              "memtrace":52,
               "exec":null
             }
           },
@@ -13833,7 +13833,7 @@
             "drive_id":"1R8ltAbf2UtAHK92mFlR20uT_sJRrzDwo",
             "size_bytes":73832365,
             "base_memory_mb_by_mode":{
-              "memtrace":158,
+              "memtrace":80,
               "exec":null
             }
           },
@@ -13855,7 +13855,7 @@
             "drive_id":"1iJGmsVXUU-WTyghya4j4NyxgSRxDEsUJ",
             "size_bytes":64882115,
             "base_memory_mb_by_mode":{
-              "memtrace":163,
+              "memtrace":51,
               "exec":null
             }
           },
@@ -13987,7 +13987,7 @@
             "drive_id":"1VNMfTNHmlAvqGZ6SXAWm2hHbS3U97-wN",
             "size_bytes":62172065,
             "base_memory_mb_by_mode":{
-              "memtrace":172,
+              "memtrace":56,
               "exec":null
             }
           },
