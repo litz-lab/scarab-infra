@@ -315,10 +315,11 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
         else:
             print(f"\033[31mUNAVAILABLE: {node}\033[0m")
 
-    cmd = f"squeue --state=PENDING | grep -B 10000 '{user}' | wc -l"
-    output = subprocess.check_output(cmd, shell=True, timeout=5).decode("utf-8").strip()
-    jobs_ahead = int(output) - 2 if output.isnumeric() else -1 # subtract 2 to exclude the header line and job itself
-    if jobs_ahead >= 0: print(f"Jobs ahead in queue: {jobs_ahead}")
+    # Position of the user's first pending job in priority order; held jobs never run.
+    pending = subprocess.check_output(["squeue", "--state=PENDING", "--sort=-p,i", "-h", "-o", "%u|%r"],
+                                      timeout=5).decode("utf-8").splitlines()
+    jobs_ahead = next((i for i, l in enumerate(pending) if l.split("|")[0] == user and "Held" not in l), None)
+    if jobs_ahead is not None: print(f"Jobs ahead in queue: {jobs_ahead}")
 
     # Get dictionary of {node: [processes]}
     # NOTE: This is a list of run commands, not the actual containers. Container name will be same miunus tmp_run.sh
