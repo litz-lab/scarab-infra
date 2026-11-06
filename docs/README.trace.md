@@ -107,6 +107,25 @@ only selected segments are traced individually.
 2. Run SimPoint clustering on the resulting trace.
 3. Extract representative segments from the full trace.
 
+When the capture holds several processes or threads (more than one
+`drmemtrace.*.dir`, or more than one raw shard), the pipeline converts only one
+of them: the largest raw shard, which is the main thread of the main process.
+It is linked alone into `<process>.dir/main_only/raw/` with the process's
+module list and converted there (one shard, no portabilize step), which avoids
+the conversion failures of heavily threaded processes. Process directories
+whose `modules.log` is empty (a child that never wrote its module list) are not
+candidates. `SCARAB_MAIN_SHARD_GLOB` restricts the candidates to directories
+whose name matches a glob (for example `drmemtrace.python3.10.*`), for a
+workload whose largest process is not the one to simulate. If drraw2trace names
+an unreadable thread log, that shard is moved to `raw/_unreadable/` and the
+conversion is retried. A rerun that finds a finished `main_only` zip skips the
+capture and the conversion.
+
+The fingerprint step (`run_trace_post_processing.sh`) keeps the BBV pieces of
+an earlier run and only computes the missing ones, retries failed segments
+twice, and stops with an error, instead of clustering a partial fingerprint,
+when segments are still missing or `gather_fp_pieces.py` fails.
+
 **Debugging tip:** `trace_then_cluster` is easier to debug because
 everything runs off one fixed trace — any issue can be reproduced exactly.
 `cluster_then_trace` uses two separate executions (fingerprint run, then
@@ -153,6 +172,7 @@ the region of interest plus warmup:
 drrun -opt_cleancall 2 -disable_rseq -t drcachesim -jobs <DR_JOBS> \
   -outdir <seg_dir> -offline -count_fetched_instrs \
   -trace_after_instrs <roi_start> -trace_for_instrs <roi_length> \
+  -exit_after_tracing <ref_cap> \
   -- <binary_cmd>
 ```
 
@@ -216,6 +236,9 @@ renormalised. Segments at or above 1% still fail hard even with the flag.
 Silent removal biases the simulated workload toward earlier phases, so the
 conservative default is recommended unless you have characterised the
 workload and accepted the bias.
+
+A trace that holds fewer chunks than its ROI needs is rejected here rather
+than packaged silently.
 
 **Resume**: skipped if `<segment_id>.zip` already exists and is non-empty.
 
@@ -372,6 +395,13 @@ pipeline:
 | `TRACE_PARALLEL` | 1 | Max concurrent segment traces (set via descriptor `trace_parallel`) |
 | `RAW2TRACE_PARALLEL` | 1 | Max concurrent raw2trace processes (set via descriptor `raw2trace_parallel`) |
 | `SCARAB_COPY_LOCAL_RUNDIR` | unset | Set to `1` on a workload's `env_vars` to run it from a private node-local copy of its run dir, so hard-coded relative inputs (e.g. ntest `resource/`, gem5 `Resource(…,".")`) resolve. Data-only copy; the binary stays at its shared path. |
+| `TRACE_ROI_HEADROOM` | 3 | Multiplier on the `-exit_after_tracing` reference cap (must be > 1.5) |
+| `SCARAB_MAIN_SHARD_GLOB` | `*` | `trace_then_cluster`: only process directories matching this glob are candidates for the converted main shard |
+| `SCARAB_TRACE_CWD` | unset | `trace_then_cluster`: working directory of the traced program, for a program that must be the drrun child itself yet depends on its working directory |
+| `TRACE_COMPRESS` | `zip` | Container of the converted trace (`drraw2trace -compress`); `lz4` writes a `.trace.lz4` stream and an `instr_count.txt` beside it |
+| `TRACE_KEEP_RAW` | unset | `trace_then_cluster`: set to `1` to keep the raw shards after the main shard is converted (removed by default to save scratch space) |
+| `FP_JOBS` | 40 | Parallel BBV runs in the fingerprint step of `trace_then_cluster` post-processing |
+| `SCARAB_IMAGE_TAG_<group>` | unset | Use this full image reference for workload group `<group>` instead of the content-hash tag (an image built outside this repository) |
 | `OMP_NUM_THREADS` | 1 (set in Dockerfile) | OpenMP thread count |
 | `MKL_NUM_THREADS` | 1 (set in Dockerfile) | MKL thread count |
 | `OPENBLAS_NUM_THREADS` | 1 (set in Dockerfile) | OpenBLAS thread count |
