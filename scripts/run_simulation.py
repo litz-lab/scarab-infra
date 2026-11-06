@@ -391,52 +391,29 @@ def find_conflicting_containers(workload_manager, docker_prefix_list, experiment
 
     for node, state in node_entries:
         normalized_state = state.lower()
-        if any(token in normalized_state for token in ("down", "drain", "fail", "maint", "unk")):
+        if any(token in normalized_state for token in ("down", "drain", "fail", "maint", "unk", "inval")):
             continue
 
         try:
+            # srun withdraws its own request after --immediate seconds. Killing srun
+            # first (the subprocess timeout) would leave the request queued: it starts
+            # once the node frees up, with no srun left to run the step, and fails.
             result = run_on_node(
                 ["docker", "ps", "-a", "--format", "{{.Names}}\t{{.State}}"],
                 node=node,
+                immediate=CONTAINER_PROBE_TIMEOUT_SECONDS,
                 capture_output=True,
                 text=True,
                 check=True,
-                timeout=CONTAINER_PROBE_TIMEOUT_SECONDS,
+                timeout=CONTAINER_PROBE_TIMEOUT_SECONDS + 10,
             )
-        except subprocess.TimeoutExpired as exc:
-            note(
-                f"Skipping stale-container probe on {node}: preflight docker listing timed out after {CONTAINER_PROBE_TIMEOUT_SECONDS}s",
-                dbg_lvl,
-            )
+        except subprocess.TimeoutExpired:
+            note(f"Skipping stale-container probe on {node}: docker listing timed out", dbg_lvl)
             continue
-        except Exception as first_exc:
-            try:
-                # Busy nodes can fail the fast-fail probe even though they are
-                # still healthy. Retry once without --immediate and rely on the
-                # subprocess timeout to keep the preflight bounded.
-                result = run_on_node(
-                    ["docker", "ps", "-a", "--format", "{{.Names}}\t{{.State}}"],
-                    node=node,
-                    immediate=None,
-                    capture_output=True,
-                    text=True,
-                    check=True,
-                    timeout=CONTAINER_PROBE_TIMEOUT_SECONDS,
-                )
-            except subprocess.TimeoutExpired as retry_exc:
-                note(
-                    f"Skipping stale-container probe on {node}: fast probe failed and retry timed out after {CONTAINER_PROBE_TIMEOUT_SECONDS}s",
-                    dbg_lvl,
-                )
-                continue
-            except Exception as retry_exc:
-                warn(
-                    f"Unable to list docker containers on {node} for preflight check: "
-                    f"{summarize_probe_failure(first_exc)}; retry without --immediate also failed: "
-                    f"{summarize_probe_failure(retry_exc)}",
-                    dbg_lvl,
-                )
-                continue
+        except Exception as exc:
+            warn(f"Unable to list docker containers on {node} for preflight check: {summarize_probe_failure(exc)}",
+                 dbg_lvl)
+            continue
 
         active_node, stale_node = split_matching_containers(result.stdout.splitlines())
         if active_node:
