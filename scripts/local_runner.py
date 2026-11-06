@@ -188,6 +188,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                 seg_size = simulation_data["segment_size"]
             if sim_mode == "pt":
                 trace_warmup = simulation_data["warmup"]
+                seg_size = simulation_data["segment_size"]
             if sim_mode == "exec":
                 require_aslr_disabled(dbg_lvl)
                 env_vars = simulation_data["env_vars"]
