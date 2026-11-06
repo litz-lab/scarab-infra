@@ -107,6 +107,25 @@ only selected segments are traced individually.
 2. Run SimPoint clustering on the resulting trace.
 3. Extract representative segments from the full trace.
 
+When the capture holds several processes or threads (more than one
+`drmemtrace.*.dir`, or more than one raw shard), the pipeline converts only one
+of them: the largest raw shard, which is the main thread of the main process.
+It is linked alone into `<process>.dir/main_only/raw/` with the process's
+module list and converted there (one shard, no portabilize step), which avoids
+the conversion failures of heavily threaded processes. Process directories
+whose `modules.log` is empty (a child that never wrote its module list) are not
+candidates. `SCARAB_MAIN_SHARD_GLOB` restricts the candidates to directories
+whose name matches a glob (for example `drmemtrace.python3.10.*`), for a
+workload whose largest process is not the one to simulate. If drraw2trace names
+an unreadable thread log, that shard is moved to `raw/_unreadable/` and the
+conversion is retried. A rerun that finds a finished `main_only` zip skips the
+capture and the conversion.
+
+The fingerprint step (`run_trace_post_processing.sh`) keeps the BBV pieces of
+an earlier run and only computes the missing ones, retries failed segments
+twice, and stops with an error, instead of clustering a partial fingerprint,
+when segments are still missing or `gather_fp_pieces.py` fails.
+
 **Debugging tip:** `trace_then_cluster` is easier to debug because
 everything runs off one fixed trace — any issue can be reproduced exactly.
 `cluster_then_trace` uses two separate executions (fingerprint run, then
@@ -153,6 +172,7 @@ the region of interest plus warmup:
 drrun -opt_cleancall 2 -disable_rseq -t drcachesim -jobs <DR_JOBS> \
   -outdir <seg_dir> -offline -count_fetched_instrs \
   -trace_after_instrs <roi_start> -trace_for_instrs <roi_length> \
+  -exit_after_tracing <ref_cap> \
   -- <binary_cmd>
 ```
 
@@ -216,6 +236,9 @@ renormalised. Segments at or above 1% still fail hard even with the flag.
 Silent removal biases the simulated workload toward earlier phases, so the
 conservative default is recommended unless you have characterised the
 workload and accepted the bias.
+
+A trace that holds fewer chunks than its ROI needs is rejected here rather
+than packaged silently.
 
 **Resume**: skipped if `<segment_id>.zip` already exists and is non-empty.
 
@@ -364,6 +387,87 @@ pipeline:
    thread activity. The pipeline also sets these (plus `NUMEXPR_NUM_THREADS=1`
    and `TOKENIZERS_PARALLELISM=false`) on the fingerprint command line.
 
+## Multi-process Workloads (per-process mode)
+
+By default `trace_then_cluster` keeps one process of a capture: the one with
+the largest raw shard, or the largest whose directory matches
+`SCARAB_MAIN_SHARD_GLOB`. A capture that followed child processes (an agent's
+tool shell, pytest, git) has one `drmemtrace.<exe>.<pid>.<n>.dir` per process.
+With `SCARAB_PER_PROCESS=1` (in the descriptor's `env_vars`) every process
+becomes its own workload:
+
+* Directories with an empty `modules.log` are skipped (the copy of the parent
+  that a fork leaves before exec), as are those matching
+  `SCARAB_PER_PROCESS_EXCLUDE_GLOB`.
+* Each process's main thread (largest `.raw.lz4`) is converted alone into a
+  chunked zip, `SCARAB_PER_PROCESS_JOBS` at a time.
+* A process with at least `SCARAB_PER_PROCESS_MIN_INSTRS` instructions
+  (default 60 M, the 50 M warmup plus one segment) is fingerprinted, clustered
+  and minimized as usual. A shorter one is simulated whole: one SimPoint at
+  segment 0 with weight 1 and a `segment_size` equal to its instruction count
+  rounded up to whole 10 M chunks, so the simulation runs from its first
+  instruction (no warmup) to the end of its trace.
+* Each process gets a workload home under `<workload>/procs/<name>/`, and the
+  capture gets `<workload>/per_process_manifest.json`: every process with its
+  executable, pid, kind (python, bash, git, other), instruction count, share
+  of the converted instructions, thread count and main-thread share of the raw
+  bytes, the SimPoints, and the skipped directories with their raw bytes.
+* `finish_trace` registers one workload per ready process,
+  `<SCARAB_PER_PROCESS_PREFIX>_<exe>_<pid>` (default prefix: the workload
+  name), with a `per_process` block (kind, instructions, share) for weighting
+  results by instruction share and grouping them by kind.
+  `python -m scripts.per_process_db --manifest ... --suite ... --subsuite ...` does the
+  same for a manifest made outside sci (dry run unless `--write`; it backs up
+  `workloads_db.json` first).
+
+`SCARAB_PER_PROCESS_THREADS=all` converts every thread shard of every process
+alone instead of only the largest one (for rustc, whose LLVM code generation
+runs in worker threads). Each thread is then a workload of its own, SimPoint
+or whole by the same threshold; the largest thread keeps the process name
+`<prefix>_<exe>_<pid>` and the others get `_t<tid>`. The manifest has one entry
+per thread with `tid`, `largest_thread`, instructions and share, and lists
+thread shards with no instructions (`empty`, mostly the 7-byte shard a fork
+leaves before exec) or that cannot be read (`unreadable`) as left out. Each
+thread is simulated alone, so combining threads by instruction share adds up
+their cycles: a CPU-time account that ignores what threads of one process do
+to each other when they run at the same time (shared caches, memory
+bandwidth, waits on each other). The default (`main`) is unchanged.
+
+`run_simpoint_trace.py --simpoint_mode 2 --capture_dir <dir>` with
+`SCARAB_PER_PROCESS=1` converts an existing capture without running drrun; the
+capture is only read. `SCARAB_PER_PROCESS_STOP_AFTER=convert` stops after the
+conversions and the manifest (the short processes are then complete); a later
+run without it resumes with the SimPoint step of the long ones.
+A rerun also reuses the instruction counts and finished SimPoints that an
+earlier run recorded in the manifest, so it redoes only the failed units.
+
+Other settings of this mode:
+
+* `SCARAB_TRACE_SHELL_VAR=NAME` runs the workload natively and traces only the
+  shells it starts: a wrapper that runs `/bin/bash` under drrun (children
+  followed) is written to `<workload>/tool_shell/` and its path is put in the
+  environment variable `NAME` (for example `CLAUDE_CODE_SHELL`).
+  `SCARAB_TRACE_SHELL_VAR=PATH` instead puts a wrapper named `bash` first on
+  `PATH`, for programs that start `/usr/bin/env bash`; that wrapper turns job
+  control off and resumes processes that stop inside DynamoRIO's execve
+  handling.
+* `SCARAB_PER_PROCESS_EXCLUDE_MODULE` leaves out processes whose `modules.log`
+  contains one of the given comma-separated strings (for example the
+  orchestrator's virtualenv path, when the orchestrator is traced on its own).
+* `SCARAB_TRACE_DR_HOME` uses another DynamoRIO installation than
+  `DYNAMORIO_HOME` for the capture, the conversion and instruction counting.
+* `SCARAB_PER_PROCESS_RESTORE` names a tree of files the captured session
+  built (rooted at `/`, absolute or relative to the workload home) that is
+  copied over `/` before conversion, because drraw2trace reads every module
+  again from its path.
+* `SCARAB_PER_PROCESS_NOTE_FILE` copies a text file into the manifest as
+  `capture_note`; the manifest also records `capture_env`.
+
+`common/scripts/replay_and_check.sh <pattern>... -- <command>` is a
+`binary_cmd` wrapper for replayed workloads: it fails the trace job unless the
+command exits 0 and its output contains every pattern, so a replay that drifted
+from its recording is not registered.
+
 ## Environment Variables
 
 | Variable | Default | Description |
@@ -372,6 +476,13 @@ pipeline:
 | `TRACE_PARALLEL` | 1 | Max concurrent segment traces (set via descriptor `trace_parallel`) |
 | `RAW2TRACE_PARALLEL` | 1 | Max concurrent raw2trace processes (set via descriptor `raw2trace_parallel`) |
 | `SCARAB_COPY_LOCAL_RUNDIR` | unset | Set to `1` on a workload's `env_vars` to run it from a private node-local copy of its run dir, so hard-coded relative inputs (e.g. ntest `resource/`, gem5 `Resource(…,".")`) resolve. Data-only copy; the binary stays at its shared path. |
+| `TRACE_ROI_HEADROOM` | 3 | Multiplier on the `-exit_after_tracing` reference cap (must be > 1.5) |
+| `SCARAB_MAIN_SHARD_GLOB` | `*` | `trace_then_cluster`: only process directories matching this glob are candidates for the converted main shard |
+| `SCARAB_TRACE_CWD` | unset | `trace_then_cluster`: working directory of the traced program, for a program that must be the drrun child itself yet depends on its working directory |
+| `TRACE_COMPRESS` | `zip` | Container of the converted trace (`drraw2trace -compress`); `lz4` writes a `.trace.lz4` stream and an `instr_count.txt` beside it |
+| `TRACE_KEEP_RAW` | unset | `trace_then_cluster`: set to `1` to keep the raw shards after the main shard is converted (removed by default to save scratch space) |
+| `FP_JOBS` | 40 | Parallel BBV runs in the fingerprint step of `trace_then_cluster` post-processing |
+| `SCARAB_IMAGE_TAG_<group>` | unset | Use this full image reference for workload group `<group>` instead of the content-hash tag (an image built outside this repository) |
 | `OMP_NUM_THREADS` | 1 (set in Dockerfile) | OpenMP thread count |
 | `MKL_NUM_THREADS` | 1 (set in Dockerfile) | MKL thread count |
 | `OPENBLAS_NUM_THREADS` | 1 (set in Dockerfile) | OpenBLAS thread count |
