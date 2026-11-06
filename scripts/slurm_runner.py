@@ -8,6 +8,7 @@ import subprocess
 import re
 import sys
 import traceback
+from concurrent.futures import ThreadPoolExecutor
 import json
 from pathlib import Path
 
@@ -383,13 +384,12 @@ def kill_jobs(user, job_name, docker_prefix_list, dbg_lvl = 2):
         print(lines)
 
         if confirm_kill("Do you want to kill these jobs?", dbg_lvl):
-            # Kill each job
             info(f"Killing jobs with slurm job ids: {', '.join(map(str, job_ids))}", dbg_lvl)
-            for id in job_ids:
-                try:
-                    subprocess.check_call(["scancel", "-u", user, str(id)])
-                except subprocess.CalledProcessError as e:
-                    err(f"Couldn't cancel job with id {id}. Return code: {e.returncode}", dbg_lvl)
+            # One scancel for all jobs: one per job took minutes on a large sweep.
+            try:
+                subprocess.check_call(["scancel", "-u", user] + [str(id) for id in job_ids])
+            except subprocess.CalledProcessError as e:
+                err(f"Couldn't cancel some of the jobs. Return code: {e.returncode}", dbg_lvl)
             return True
         else:
             print("Operation canceled.")
@@ -423,9 +423,9 @@ def clean_containers(user, job_name, docker_prefix_list, dbg_lvl = 2):
         return
 
     patterns = [re.compile(fr"^{docker_prefix}_.*_{job_name}.*_.*_{user}$") for docker_prefix in docker_prefix_list]
-    removed_any = False
 
-    for node in all_nodes:
+    def clean_node(node):
+        removed = False
         try:
             result = run_on_node(
                 ["docker", "ps", "-a", "--format", "{{.Names}}"],
@@ -437,13 +437,13 @@ def clean_containers(user, job_name, docker_prefix_list, dbg_lvl = 2):
             )
         except subprocess.TimeoutExpired as exc:
             warn(f"Timed out while listing containers on {node}: {exc}", dbg_lvl)
-            continue
+            return False
         except subprocess.CalledProcessError as exc:
             warn(f"Failed to list containers on {node}: {exc}", dbg_lvl)
-            continue
+            return False
         except Exception as exc:
             warn(f"Error while listing containers on {node}: {exc}", dbg_lvl)
-            continue
+            return False
 
         container_names = [line.strip() for line in result.stdout.splitlines() if line.strip()]
         matching = []
@@ -453,13 +453,13 @@ def clean_containers(user, job_name, docker_prefix_list, dbg_lvl = 2):
 
         if not matching:
             info(f"No containers to remove on {node}.", dbg_lvl)
-            continue
+            return False
 
         for container in matching:
             try:
                 run_on_node(["docker", "rm", "-f", container], node=node, check=True, timeout=30)
                 print(f"Removed container {container} on {node}")
-                removed_any = True
+                removed = True
             except subprocess.TimeoutExpired as exc:
                 err(f"Timed out removing container {container} on {node}: {exc}", dbg_lvl)
             except subprocess.CalledProcessError as exc:
@@ -467,6 +467,11 @@ def clean_containers(user, job_name, docker_prefix_list, dbg_lvl = 2):
             except Exception as exc:
                 err(f"Unexpected error removing container {container} on {node}: {exc}", dbg_lvl)
 
+        return removed
+
+    # Nodes are probed in parallel: each probe can wait out its 30 s timeout on a busy node.
+    with ThreadPoolExecutor(max_workers=len(all_nodes)) as pool:
+        removed_any = any(list(pool.map(clean_node, all_nodes)))
     if not removed_any:
         print("No matching containers found on any slurm node.")
 
@@ -474,7 +479,7 @@ def clean_containers(user, job_name, docker_prefix_list, dbg_lvl = 2):
 
 def clean_tmp_run_scripts(nodes, job_name, user, dbg_lvl = 2):
     pattern = re.compile(rf".*_{re.escape(job_name)}_.*_{re.escape(user)}_tmp_run\.sh$")
-    for node in nodes:
+    def clean_node(node):
         try:
             result = run_on_node(
                 ["bash", "-lc", "find . -maxdepth 1 -type f -name '*_tmp_run.sh' -print"],
@@ -486,10 +491,10 @@ def clean_tmp_run_scripts(nodes, job_name, user, dbg_lvl = 2):
             )
         except subprocess.TimeoutExpired as exc:
             warn(f"Timed out while listing temporary scripts on {node}: {exc}", dbg_lvl)
-            continue
+            return
         except Exception as exc:
             warn(f"Failed to list temporary scripts on {node}: {exc}", dbg_lvl)
-            continue
+            return
         files = []
         for line in result.stdout.splitlines():
             candidate = line.strip()
@@ -500,7 +505,7 @@ def clean_tmp_run_scripts(nodes, job_name, user, dbg_lvl = 2):
                 files.append(candidate)
         if not files:
             info(f"No temporary run scripts on {node}.", dbg_lvl)
-            continue
+            return
         for script in files:
             try:
                 run_on_node(["rm", "-f", script], node=node, check=True, timeout=30)
@@ -511,6 +516,9 @@ def clean_tmp_run_scripts(nodes, job_name, user, dbg_lvl = 2):
                 err(f"Failed to remove {script} on {node}: {exc}", dbg_lvl)
             except Exception as exc:
                 err(f"Unexpected error removing {script} on {node}: {exc}", dbg_lvl)
+
+    with ThreadPoolExecutor(max_workers=max(len(nodes), 1)) as pool:
+        list(pool.map(clean_node, nodes))
 
 def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_path, dbg_lvl = 1):
     architecture = descriptor_data["architecture"]
