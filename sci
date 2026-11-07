@@ -37,6 +37,7 @@ OPTIONAL_TITLES = {
     "(Optional) Verify Codex CLI auth",
     "(Optional) Verify Gemini CLI auth",
     "(Optional) Verify Claude CLI auth",
+    "(Optional) Install agent guardrails",
 }
 
 COOKIES_CACHE_PATH = Path.home() / ".cache" / "gdown" / "cookies.txt"
@@ -2072,6 +2073,99 @@ def ensure_aslr_disabled(_: argparse.Namespace) -> Tuple[bool, str]:
         return True, "ASLR is disabled on local host (0)."
     
 
+AGENT_HOOK_REL = "tools/mcp/force_sci_hook.py"
+AGENT_MCP_REL = "tools/mcp/sci_mcp.py"
+
+
+AGENT_INSTALL_DIR = Path.home() / ".claude" / "tools"
+
+
+def _install_agent_copy(src: Path) -> Path:
+    """Copy a guardrail script outside the repo so a branch switch cannot remove it."""
+    AGENT_INSTALL_DIR.mkdir(parents=True, exist_ok=True)
+    dest = AGENT_INSTALL_DIR / src.name
+    shutil.copy2(src, dest)
+    dest.chmod(0o755)
+    return dest
+
+
+def _install_agent_hook(hook_path: Path) -> str:
+    """Add the PreToolUse Bash hook to the user's Claude Code settings."""
+    settings = Path.home() / ".claude" / "settings.json"
+    command = f'python3 "{hook_path}" 2>/dev/null || true'
+
+    data: Dict[str, Any] = {}
+    if settings.exists():
+        try:
+            data = json.loads(settings.read_text())
+        except json.JSONDecodeError:
+            return f"{settings} is not valid JSON; left it untouched."
+
+    entries = data.setdefault("hooks", {}).setdefault("PreToolUse", [])
+    existing = [
+        hook
+        for entry in entries
+        for hook in entry.get("hooks", [])
+        if AGENT_HOOK_REL in hook.get("command", "")
+    ]
+    if existing and all(hook.get("command") == command for hook in existing):
+        return "Bash hook already installed."
+
+    if existing:
+        for hook in existing:
+            hook["command"] = command
+        note = "Updated the scarab-infra hook to this checkout."
+    else:
+        entries.append({"matcher": "Bash", "hooks": [{"type": "command", "command": command}]})
+        note = "Installed the Bash hook."
+
+    settings.parent.mkdir(parents=True, exist_ok=True)
+    if settings.exists():
+        shutil.copy2(settings, settings.parent / f"settings.json.bak-{int(time.time())}")
+    settings.write_text(json.dumps(data, indent=2) + "\n")
+    return note
+
+
+def _install_agent_mcp(server_path: Path) -> str:
+    """Register the sci MCP server at user scope via the Claude CLI."""
+    if shutil.which("claude") is None:
+        return "Claude CLI not found, so the MCP server was not registered."
+    try:
+        listed = subprocess.run(
+            ["claude", "mcp", "list"], capture_output=True, text=True, timeout=60
+        )
+        if "scarab-infra" in (listed.stdout or ""):
+            return "MCP server 'scarab-infra' already registered."
+    except (subprocess.SubprocessError, OSError):
+        pass
+
+    added = subprocess.run(
+        ["claude", "mcp", "add", "--scope", "user", "scarab-infra",
+         "-e", f"SCI_REPO={REPO_ROOT}", "--", "python3", str(server_path)],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    if added.returncode != 0:
+        detail = (added.stderr or added.stdout or "").strip().splitlines()
+        return f"Could not register the MCP server: {detail[-1] if detail else 'unknown error'}"
+    return "Registered MCP server 'scarab-infra' at user scope."
+
+
+def maybe_install_agent_guardrails(_: argparse.Namespace) -> Tuple[bool, str]:
+    """Point coding agents at sci instead of letting them hand-roll it."""
+    hook_path = REPO_ROOT / AGENT_HOOK_REL
+    server_path = REPO_ROOT / AGENT_MCP_REL
+    if not hook_path.exists() or not server_path.exists():
+        return True, "Guardrail scripts are missing from this checkout; skipped."
+
+    server_path = _install_agent_copy(server_path)
+    hook_path = _install_agent_copy(hook_path)
+    parts = [_install_agent_mcp(server_path), _install_agent_hook(hook_path)]
+    parts.append("Restart your agent CLI to load them.")
+    return True, " ".join(parts)
+
+
 def run_init(args: argparse.Namespace) -> int:
     if sys.stdin.isatty():
         print_heading("Prepare Google Drive cookies.txt")
@@ -2107,6 +2201,7 @@ def run_init(args: argparse.Namespace) -> int:
         ("(Optional) Verify Codex CLI auth", maybe_check_codex_cli_auth),
         ("(Optional) Verify Gemini CLI auth", maybe_check_gemini_cli_auth),
         ("(Optional) Verify Claude CLI auth", maybe_check_claude_cli_auth),
+        ("(Optional) Install agent guardrails", maybe_install_agent_guardrails),
     ]
     summary: List[Tuple[str, bool, str]] = []
     for title, func in steps:
@@ -2348,6 +2443,27 @@ def load_simulation_experiment(
     return descriptor_path, descriptor, stats_path, aggregator, experiment, workloads, configs
 
 
+def warn_cumulative_counters(counters: Iterable[Any], field: str) -> None:
+    """Cumulative stat columns include warmup; the periodic ones do not."""
+    for raw in counters:
+        name = str(raw)
+        periodic = None
+        if name.endswith("_total_count"):
+            periodic = name[: -len("_total_count")] + "_count"
+        elif name.endswith("_total_value"):
+            periodic = name[: -len("_total_value")] + "_value"
+        elif name.startswith("Cumulative_"):
+            periodic = "Periodic_" + name[len("Cumulative_") :]
+        elif name == "IPC_total":
+            periodic = "IPC"
+        if periodic:
+            print(
+                f"WARNING: {field} '{name}' is a cumulative counter: it includes the "
+                f"warmup region, so it does not describe the measured simulation. "
+                f"Use '{periodic}' instead unless you deliberately want warmup included."
+            )
+
+
 def resolve_visualize_settings(
     descriptor: Dict[str, Any],
     configs: List[str],
@@ -2369,6 +2485,7 @@ def resolve_visualize_settings(
 
     if not isinstance(stats_to_plot, list) or not stats_to_plot:
         raise StepError("Descriptor field 'visualize.counters' must be a non-empty list when provided.")
+    warn_cumulative_counters(stats_to_plot, "visualize.counters")
 
     # Filter configs to plot when visualize.configs is specified.
     plot_configs: List[str] = list(configs)
@@ -2431,6 +2548,7 @@ def resolve_perf_analyze_settings(
     counters = block.get("counters") or ["IPC"]
     if not isinstance(counters, list) or not counters:
         raise StepError("Descriptor field 'perf_analyze.counters' must be a non-empty list when provided.")
+    warn_cumulative_counters(counters, "perf_analyze.counters")
 
     raw_stat_groups = block.get("stat_groups")
     stat_groups: List[str] = []
@@ -2957,14 +3075,20 @@ def run_visualize(descriptor_name: str) -> int:
         formatted = formatted.rstrip("0").rstrip(".")
         return f"{formatted}%" if as_percent else formatted
 
+    # {stat: {config: {workload: value, ..., "Avg": value}}}, emitted as JSON below.
+    aggregates: Dict[str, Dict[str, Dict[str, Optional[float]]]] = {}
+
     def print_markdown_table(stat_name: str, *, display_name: Optional[str] = None) -> None:
         """
         Render a markdown table for the given stat across workloads/configs, including speedup vs baseline.
+
+        Also records the values into `aggregates` for the JSON emit.
         """
         label = display_name or stat_name
         all_data = experiment.retrieve_stats(configs, [stat_name], workloads)
         if all_data is None:
             return
+        recorded = aggregates.setdefault(stat_name, {})
 
         def average(values: List[float], *, use_geomean: bool) -> Optional[float]:
             if not values:
@@ -3007,6 +3131,7 @@ def run_visualize(descriptor_name: str) -> int:
             base_val = baseline_avg if wl == "Avg" else baseline_values.get(wl)
 
             row.append(format_numeric(base_val))
+            recorded.setdefault(baseline, {})[wl] = base_val
 
             values_by_cfg: Dict[str, Optional[float]] = {}
             for cfg in non_baseline_configs:
@@ -3023,6 +3148,7 @@ def run_visualize(descriptor_name: str) -> int:
                     value = all_data.get(f"{cfg} {wl} {stat_name}")
 
                 values_by_cfg[cfg] = value
+                recorded.setdefault(cfg, {})[wl] = value
                 row.append(format_numeric(value))
 
             for cfg in non_baseline_configs:
@@ -3202,6 +3328,26 @@ def run_visualize(descriptor_name: str) -> int:
                     print(f"  {wl} / {cfg}: +{delta_pct:.1f}%")
         except Exception as exc:
             print(f"Skipping memory table: {exc}")
+
+    # For consumers tracking numbers over time (scripts/weekly_perf_sweep.py);
+    # reuses this function's weighting instead of re-deriving it.
+    if aggregates:
+        aggregates_path = stats_path.with_name("aggregates.json")
+        payload = {
+            "experiment": descriptor.get("experiment"),
+            "stats_file": str(stats_path),
+            "baseline": baseline,
+            "configs": list(configs),
+            "workloads": list(workloads),
+            "aggregates": aggregates,
+        }
+        try:
+            with aggregates_path.open("w", encoding="utf-8") as fh:
+                json.dump(payload, fh, indent=2, sort_keys=True)
+                fh.write("\n")
+            print(f"Wrote aggregates → {aggregates_path.name}")
+        except OSError as exc:
+            print(f"Could not write {aggregates_path.name}: {exc}")
 
     return 0
 
@@ -4260,6 +4406,16 @@ def build_parser() -> argparse.ArgumentParser:
              "Exits non-zero on any enabled-check finding.",
     )
     parser.add_argument(
+        "--prune-builds",
+        dest="prune_builds",
+        nargs="?",
+        const=-1,
+        type=int,
+        metavar="DAYS",
+        help="Drop cached scarab binaries unused for DAYS (default 30, or "
+             "$SCI_BUILDS_MAX_AGE_DAYS). Runs automatically on --build-scarab.",
+    )
+    parser.add_argument(
         "--build-image",
         dest="build_image",
         metavar="WORKLOAD_GROUP",
@@ -4362,6 +4518,7 @@ def main() -> int:
         bool(args.build_scarab),
         bool(args.lint_scarab),
         bool(args.build_image),
+        args.prune_builds is not None,
         bool(args.list),
         bool(args.interactive),
         bool(args.trace),
@@ -4415,6 +4572,13 @@ def main() -> int:
         except StepError as exc:
             print(exc)
             return 1
+    if args.prune_builds is not None:
+        infra_utils = load_infra_utilities()
+        days = None if args.prune_builds == -1 else args.prune_builds
+        count, freed = infra_utils.prune_scarab_builds(str(REPO_ROOT), days)
+        print(f"Pruned {count} cached binaries ({freed / 1e9:.1f} GB)")
+        return 0
+
     if args.build_image:
         try:
             return run_build_image(args.build_image)

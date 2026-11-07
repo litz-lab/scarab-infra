@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "scarab-infra": {
+      "command": "python3",
+      "args": ["${CLAUDE_PROJECT_DIR}/tools/mcp/sci_mcp.py"]
+    }
+  }
+}

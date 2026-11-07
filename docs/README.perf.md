@@ -145,6 +145,7 @@ Create a perf descriptor (e.g., `json/perf.json`):
 |-------|-------------|
 | `user` | Container user (`root` or a regular username) |
 | `root_dir` | Host directory bind-mounted as the container home |
+| `application_dir` | (Optional) Host dir bind-mounted **read-only** at `/tmp_home/application`, so `binary_cmd` can use the same `$tmpdir/application/...` paths as the trace/simulation descriptors. Omit when the workload is baked into the image. When set, each workload is measured in its own local run dir staged as a symlink and used as CWD, so inputs opened by a hard-coded relative path resolve. |
 | `image_name` | Docker image name (built via `./sci --build-image`) |
 | `perf_core` | (Optional) Logical CPU to pin all measurements to. |
 | `max_repeats` | (Optional) Cap on repeats per workload. <br>You can force exactly this many repeats by setting `target_seconds` large enough. |
@@ -160,7 +161,8 @@ Each `perf_configurations` entry specifies:
 
 ### 1. Container setup
 A privileged Docker container is created from the workload image. The host
-scarab-infra checkout is bind-mounted read-only at `/scarab_infra`, and
+scarab-infra checkout is bind-mounted read-only at `/scarab_infra`,
+the descriptor's `application_dir` (when set) read-only at `/tmp_home/application`, and
 `root_entrypoint.sh` publishes the support scripts (`perf_entrypoint.sh`,
 `user_entrypoint.sh`, `utilities.sh`, plus optional per-image
 `workload_*_entrypoint.sh`) into `/usr/local/bin` as symlinks, so iterating on

@@ -390,6 +390,10 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
                 simpoint_mode = "trace_then_post_process"
             elif trace_type == "iterative_trace":
                 simpoint_mode = "iterative_trace"
+            elif trace_type == "cluster_only":
+                simpoint_mode = "cluster_only"
+            elif trace_type == "trace_single_segment":
+                simpoint_mode = "trace_single_segment"
             else:
                 raise Exception(f"Invalid trace type: {trace_type}")
             info(f"Using docker image with name {image_tag_for(image_name, infra_dir)}", dbg_lvl)

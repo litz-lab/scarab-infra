@@ -393,6 +393,46 @@ def prepare_docker_image(docker_prefix, image_tag, dbg_lvl=1):
                 exit(1)
 
 # Locally builds scarab using docker. No caching or skipping logic
+def own_container_name(base: str) -> str:
+    """A container name nobody else's run shares.
+
+    Build and lint containers used to be named just <image>_<user>_scarab_build,
+    and every run began by force-removing that name. Two builds by the same user
+    therefore destroyed each other's container, and the loser's `make` died
+    mid-compile with no error text at all -- only a truncated log.
+    """
+    return f"{base}_{os.getpid()}"
+
+
+def remove_stale_containers(base: str, dbg_lvl: int = 1) -> None:
+    """Remove leftovers of runs that were killed before their cleanup ran.
+
+    Only ones whose pid is gone: a sibling run's container must survive, which
+    is the whole point of the pid suffix.
+    """
+    try:
+        names = subprocess.run(
+            ["docker", "ps", "-a", "--filter", f"name=^{base}_[0-9]+$",
+             "--format", "{{.Names}}"],
+            check=True, capture_output=True, text=True).stdout.split()
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return
+    for name in names:
+        pid = name.rsplit("_", 1)[-1]
+        if not pid.isdigit():
+            continue
+        try:
+            os.kill(int(pid), 0)
+            continue  # still running: not ours to remove
+        except PermissionError:
+            continue  # someone else's live process
+        except OSError:
+            pass
+        info(f"Removing stale container {name} (pid {pid} is gone)", dbg_lvl)
+        subprocess.run(["docker", "rm", "-f", name], check=False,
+                       capture_output=True, text=True)
+
+
 def build_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_prefix, infra_dir, dbg_lvl=1, stream_build=False):
     local_uid = os.getuid()
     local_gid = os.getgid()
@@ -401,13 +441,12 @@ def build_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_pre
 
     scarab_bin = f"{scarab_path}/src/build/{scarab_build}/scarab"
     info(f"Scarab binary at '{scarab_bin}', building it first, please wait...", dbg_lvl)
-    docker_container_name = f"{docker_prefix}_{user}_scarab_build"
-    # The container name is deterministic, so one left over from an earlier run makes
-    # this `docker run` fail with a bare exit 125 and no explanation. Clear it first:
-    # the finally below does not cover a SIGTERM'd sci (slurm timeout, CI kill, or a
-    # wrapper timeout), because Python does not unwind the stack on SIGTERM.
-    subprocess.run(["docker", "rm", "-f", f"{docker_container_name}"],
-                   check=False, capture_output=True, text=True)
+    docker_container_name = own_container_name(f"{docker_prefix}_{user}_scarab_build")
+    # A leftover of the same name makes `docker run` fail with a bare exit 125 and no
+    # explanation, and the finally below does not cover a SIGTERM'd sci (slurm timeout,
+    # CI kill, or a wrapper timeout) because Python does not unwind on SIGTERM. Clear
+    # only dead runs' containers -- never a concurrent build's.
+    remove_stale_containers(f"{docker_prefix}_{user}_scarab_build", dbg_lvl)
     try:
         subprocess.run(
                 ["docker", "run", "-e", f"user_id={local_uid}",
@@ -479,7 +518,7 @@ def lint_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_pref
     local_uid = os.getuid()
     local_gid = os.getgid()
     build_mode = scarab_build if scarab_build else "opt"
-    docker_container_name = f"{docker_prefix}_{user}_scarab_lint"
+    docker_container_name = own_container_name(f"{docker_prefix}_{user}_scarab_lint")
 
     # Keep the enabled check set narrow. Expand intentionally by editing this
     # list; every consumer of --lint-scarab picks up the change automatically.
@@ -607,10 +646,9 @@ def lint_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_pref
 
     info(f"Linting scarab with image {image_ref}...", dbg_lvl)
     exception = None
-    # Same deterministic-name hazard as build_scarab_binary: clear any leftover
-    # container so a previously killed lint run does not block this one.
-    subprocess.run(["docker", "rm", "-f", f"{docker_container_name}"],
-                   check=False, capture_output=True, text=True)
+    # Same hazard as build_scarab_binary: clear leftovers of runs that died before
+    # their cleanup, but never a concurrent lint's container.
+    remove_stale_containers(f"{docker_prefix}_{user}_scarab_lint", dbg_lvl)
     try:
         subprocess.run(
             ["docker", "run",
@@ -995,6 +1033,72 @@ def _build_missing_scarab_version(
         raise
 
 # Wrapper function that handles rebuilding scarab if needed, and caching
+SCARAB_BUILDS_MAX_AGE_DAYS = int(os.environ.get("SCI_BUILDS_MAX_AGE_DAYS", "30"))
+
+
+def prune_scarab_builds(infra_dir, max_age_days=None, dbg_lvl=1, dry_run=False):
+    """Drop cached binaries nobody has used in max_age_days.
+
+    The cache is keyed on the scarab git hash, so every commit -- and every
+    amend during a review cycle -- mints another ~124MB entry that nothing ever
+    removes. One checkout reached 81GB in 650 binaries, inside the directory
+    that is also the docker build context.
+
+    Age is taken from mtime, which _touch_cache_hit() refreshes on reuse, so the
+    window means "unused for N days" rather than "built N days ago" -- a
+    long-lived baseline binary that gets reused stays. scarab_current* and
+    whatever they resolve to are kept whatever their age: the portable and avx
+    links legitimately point at builds many months old.
+    """
+    if max_age_days is None:
+        max_age_days = SCARAB_BUILDS_MAX_AGE_DAYS
+    if max_age_days <= 0:
+        return 0, 0
+
+    cache_dir = Path(infra_dir) / "scarab_builds"
+    if not cache_dir.is_dir():
+        return 0, 0
+
+    keep = set()
+    for link in cache_dir.glob("scarab_current*"):
+        keep.add(link.name)
+        try:
+            keep.add(link.resolve().name)
+        except OSError:
+            pass
+
+    cutoff = time.time() - max_age_days * 86400
+    freed = count = 0
+    for entry in cache_dir.iterdir():
+        if entry.name in keep or not entry.is_file() or entry.is_symlink():
+            continue
+        try:
+            st = entry.stat()
+            if st.st_mtime >= cutoff:
+                continue
+            if not dry_run:
+                entry.unlink()
+        except OSError as exc:
+            # Housekeeping must never fail a build.
+            warn(f"Could not prune {entry.name}: {exc}", dbg_lvl)
+            continue
+        freed += st.st_size
+        count += 1
+
+    if count:
+        note(f"{'Would prune' if dry_run else 'Pruned'} {count} cached scarab binaries "
+             f"unused for {max_age_days}+ days ({freed / 1e9:.1f} GB)", dbg_lvl)
+    return count, freed
+
+
+def _touch_cache_hit(path, dbg_lvl=1):
+    """Mark a cached binary as used, so prune_scarab_builds() spares it."""
+    try:
+        os.utime(path, None)
+    except OSError as exc:
+        info(f"Could not refresh mtime on {path}: {exc}", dbg_lvl)
+
+
 def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, scarab_githash, scarab_build, stream_build=False, dbg_lvl=1):
     build_mode = scarab_build if scarab_build else "opt"
     current_cache_name = _cache_bin_name("scarab_current", build_mode)
@@ -1045,6 +1149,8 @@ def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, sca
 
                 if diff_matches and hash_tag_matches:
                     print("Found recent Scarab binary, no build required")
+                    _touch_cache_hit(current_scarab_bin, dbg_lvl)
+                    prune_scarab_builds(infra_dir, dbg_lvl=dbg_lvl)
                     return
                 if result.returncode == 1 or not hash_tag_matches:
                     info("Cached scarab_current differs from repo binary; rebuilding.", dbg_lvl)
@@ -1089,6 +1195,18 @@ def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, sca
             err("Scarab not found after building", dbg_lvl)
             raise RuntimeError(f"Scarab binary not found at {scarab_bin} after build!")
 
+        # A dirty tree's binary is not the commit's binary, but HEAD's hash says it is.
+        # Tag it so it can never be reused later as that commit: the "-dirty" suffix
+        # does not match the hash pattern descriptors resolve binaries by.
+        cache_tag = scarab_githash
+        if not _scarab_repo_clean(scarab_path):
+            cache_tag = f"{scarab_githash}-dirty"
+            warn(
+                f"Scarab repo has uncommitted changes; caching as scarab_{cache_tag}, "
+                f"not scarab_{scarab_githash}. Commit first to mint a hash-pinned binary.",
+                dbg_lvl,
+            )
+
         # Name with git hash, with index for different iterations
         build_differs = False
         try:
@@ -1105,7 +1223,7 @@ def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, sca
                 scarab_binaries = os.listdir(f"{infra_dir}/scarab_builds")
             except OSError:
                 scarab_binaries = []
-            pattern = re.compile(rf"^scarab_{scarab_githash}(?:_(\d+))?\.{build_mode}$")
+            pattern = re.compile(rf"^scarab_{cache_tag}(?:_(\d+))?\.{build_mode}$")
             candidates = []
             indices = []
             for name in scarab_binaries:
@@ -1125,19 +1243,19 @@ def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, sca
                 # Ensure scarab_current is a symlink to a hash-specific binary for traceability.
                 current_githash_binaries, current_indicies = githash_candidates()
                 if current_githash_binaries == []:
-                    githash_name = _cache_bin_name(f"scarab_{scarab_githash}_0", build_mode)
+                    githash_name = _cache_bin_name(f"scarab_{cache_tag}_0", build_mode)
                     githash_scarab_bin = f"{infra_dir}/scarab_builds/{githash_name}"
                     shutil.copy2(scarab_bin, githash_scarab_bin)
                     pin_exec_src = f"{scarab_path}/src/pin/pin_exec/obj-intel64/pin_exec.so"
                     if os.path.isfile(pin_exec_src):
-                        pin_cache_name = _cache_bin_name(f"pin_exec_scarab_{scarab_githash}_0", build_mode)
+                        pin_cache_name = _cache_bin_name(f"pin_exec_scarab_{cache_tag}_0", build_mode)
                         shutil.copy2(pin_exec_src, f"{infra_dir}/scarab_builds/{pin_cache_name}")
                 elif not current_indicies:
-                    githash_name = _cache_bin_name(f"scarab_{scarab_githash}", build_mode)
+                    githash_name = _cache_bin_name(f"scarab_{cache_tag}", build_mode)
                     githash_scarab_bin = f"{infra_dir}/scarab_builds/{githash_name}"
                 else:
                     githash_name = _cache_bin_name(
-                        f"scarab_{scarab_githash}_{max(current_indicies)}",
+                        f"scarab_{cache_tag}_{max(current_indicies)}",
                         build_mode,
                     )
                     githash_scarab_bin = f"{infra_dir}/scarab_builds/{githash_name}"
@@ -1164,13 +1282,13 @@ def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, sca
             # If none exist, put it without index. Otherwise, add postfix index
             if current_githash_binaries == []:
                 info(f"No binaries with hash {scarab_githash} exist. Creating version 0...", dbg_lvl)
-                githash_name = _cache_bin_name(f"scarab_{scarab_githash}_0", build_mode)
+                githash_name = _cache_bin_name(f"scarab_{cache_tag}_0", build_mode)
                 githash_scarab_bin = f"{infra_dir}/scarab_builds/{githash_name}"
             else:
                 print("Versions matching current githash:", current_githash_binaries)
                 next_index = max(current_indicies) + 1 if current_indicies else 1
                 print("New index:", next_index)
-                githash_name = _cache_bin_name(f"scarab_{scarab_githash}_{next_index}", build_mode)
+                githash_name = _cache_bin_name(f"scarab_{cache_tag}_{next_index}", build_mode)
                 githash_scarab_bin = f"{infra_dir}/scarab_builds/{githash_name}"
 
             info(f"Copying scarab binary for {githash_scarab_bin} to cache", dbg_lvl)
@@ -1202,6 +1320,7 @@ def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, sca
         err(f"Scarab binary for current hash not found in cache after building", dbg_lvl)
         exit(1)
 
+    prune_scarab_builds(infra_dir, dbg_lvl=dbg_lvl)
     print("Scarab build successful!")
 
 # copy_scarab deprecated
@@ -1600,7 +1719,12 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
             f.write("}\n")
             f.write("trap cleanup_container EXIT INT TERM HUP\n")
             f.write(f"cd {infra_dir}\n")
-            f.write(f"python -m scripts.prepare_docker_image --docker-prefix {docker_prefix}\n")
+            # Every step below is checked: an unstarted container used to leave the
+            # script exiting 0, so Slurm recorded COMPLETED for a sim that never ran.
+            f.write(f"if ! python -m scripts.prepare_docker_image --docker-prefix {docker_prefix}; then\n")
+            f.write(f"    echo \"ERROR: prepare_docker_image failed for {docker_prefix}\"\n")
+            f.write("    exit 1\n")
+            f.write("fi\n")
             f.write(f"cd -\n")
             if slurm:
                 f.write("SLURM_CGROUP=$(cat /proc/self/cgroup | cut -d: -f3 | head -n 1)\n")
@@ -1619,7 +1743,7 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
                 --name $CONTAINER_NAME \
                 --mount type=bind,source={traces_dir},target=/simpoint_traces,readonly=true \
                 --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
-                --mount type=bind,source={application_dir},target=/tmp_home/application,readonly=false \
+                --mount type=bind,source={application_dir},target=/tmp_home/application,readonly=true \
                 --mount {infra_mount_arg(infra_dir)} \
                 {image_tag_for(docker_prefix, infra_dir)} \
                 /bin/bash\n")
@@ -1636,20 +1760,34 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
                 --name $CONTAINER_NAME \
                 --mount type=bind,source={traces_dir},target=/simpoint_traces,readonly=true \
                 --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
-                --mount type=bind,source={application_dir},target=/tmp_home/application,readonly=false \
+                --mount type=bind,source={application_dir},target=/tmp_home/application,readonly=true \
                 --mount {infra_mount_arg(infra_dir)} \
                 {image_tag_for(docker_prefix, infra_dir)} \
                 /bin/bash\n")
+            f.write("if [ $? -ne 0 ]; then\n")
+            f.write("    echo \"ERROR: docker run failed for $CONTAINER_NAME\"\n")
+            f.write("    exit 1\n")
+            f.write("fi\n")
+            # -dit can exit 0 and still leave no running container.
+            f.write("if ! docker inspect -f '{{.State.Running}}' \"$CONTAINER_NAME\" 2>/dev/null | grep -q true; then\n")
+            f.write("    echo \"ERROR: container $CONTAINER_NAME is not running after docker run\"\n")
+            f.write("    exit 1\n")
+            f.write("fi\n")
             if scarab_mode == "exec":
-                f.write("docker exec --privileged $CONTAINER_NAME /bin/bash -c \"echo 0 | sudo tee /proc/sys/kernel/randomize_va_space\"\n")
+                f.write("docker exec --privileged $CONTAINER_NAME /bin/bash -c \"echo 0 | sudo tee /proc/sys/kernel/randomize_va_space\" || echo \"WARN: could not disable VA randomization\"\n")
             # No `docker cp` of the infra scripts: they come from the read-only
             # bind mount above, and root_entrypoint.sh publishes them into
             # /usr/local/bin.
-            f.write(f"docker exec --privileged $CONTAINER_NAME /bin/bash -c '{ROOT_ENTRYPOINT}'\n")
-            f.write(f"docker exec --user={user} $CONTAINER_NAME /bin/bash -c \"source /usr/local/bin/user_entrypoint.sh && {scarab_cmd}\" || echo \"Scarab error detected\"\n")
+            f.write(f"if ! docker exec --privileged $CONTAINER_NAME /bin/bash -c '{ROOT_ENTRYPOINT}'; then\n")
+            f.write("    echo \"ERROR: root_entrypoint.sh failed in $CONTAINER_NAME\"\n")
+            f.write("    exit 1\n")
+            f.write("fi\n")
+            f.write("RC=0\n")
+            f.write(f"docker exec --user={user} $CONTAINER_NAME /bin/bash -c \"source /usr/local/bin/user_entrypoint.sh && {scarab_cmd}\" || {{ echo \"Scarab error detected\"; RC=1; }}\n")
             f.write("cleanup_container\n")
             f.write("echo \"Completed Simulation\"\n")
-            f.write(f"sync {docker_home}/simulations/{experiment_name}/logs")
+            f.write(f"sync {docker_home}/simulations/{experiment_name}/logs || true\n")
+            f.write("exit $RC\n")
     except Exception as e:
         raise e
 
@@ -1698,6 +1836,9 @@ def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_contai
             f.write("    docker rm -f \"$CONTAINER_NAME\" >/dev/null 2>&1 || true\n")
             f.write("}\n")
             f.write("trap cleanup_container EXIT INT TERM HUP\n")
+            f.write(f"cd {infra_dir}\n")
+            f.write(f"python -m scripts.prepare_docker_image --docker-prefix {image_name}\n")
+            f.write(f"cd -\n")
             command = f"docker run --privileged \
                     -e user_id={local_uid} \
                     -e group_id={local_gid} \
@@ -1724,7 +1865,7 @@ def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_contai
                     --rm \
                     --name $CONTAINER_NAME \
                     --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
-                    --mount type=bind,source={application_dir},target=/tmp_home/application,readonly=false \
+                    --mount type=bind,source={application_dir},target=/tmp_home/application,readonly=true \
                     --mount {infra_mount_arg(infra_dir)} \
                     {image_tag_for(image_name, infra_dir)} \
                     /bin/bash\n"
@@ -1741,24 +1882,29 @@ def write_trace_docker_command_to_file(user, local_uid, local_gid, docker_contai
 
 def write_phase2_sbatch_tail(f, workload, trace_name, docker_home, phase2_script_path,
                              finalize_cmd, finalize_log_path, segment_mem_mb,
-                             finalize_mem_mb=16384):
+                             finalize_mem_mb=16384, slurm_options=""):
     """Append bash code to Phase 1 sbatch script that submits Phase 2 + Phase 3 jobs.
 
     After Phase 1 (cluster_only) completes inside its Slurm job, this tail:
       1. Reads opt.p.lpt0.99 to get (segment_id, cluster_id) pairs.
-      2. Skips segments where traces_simp/trace/{segment_id}.zip already
-         exists (resume).
+      2. Skips segments where traces_simp/trace/{segment_id}.zip already exists (resume).
       3. Submits one sbatch per remaining segment using the Phase 2 template
-         script (which runs run_simpoint_trace.py in mode 5 for a single
-         segment).
+         script (which runs run_simpoint_trace.py in mode 5 for a single segment).
       4. Submits a Phase 3 finalisation job with --dependency=afterany on
          all Phase 2 jobs to consolidate traces into traces_dir.
     """
     wl_dir = f"{docker_home}/simpoint_flow/{trace_name}/{workload}"
+    phase2_job = f"{workload}_{trace_name}_phase2_seg_$SEGMENT_ID"
+    phase3_job = f"{workload}_{trace_name}_phase3"
+    # Propagate slurm_options (e.g. --nodelist / --constraint) to Phase 2 and 3.
+    # Strip any --mem (each phase sets --mem explicitly below).
+    slurm_options = re.sub(r'--mem\s+\S+', '', slurm_options or '').strip()
+
     f.write("\n# --- Phase 2: submit per-segment jobs ---\n")
+    f.write('echo "Phase 2: submit per-segment jobs"\n')
     f.write(f'SIMPOINTS_FILE="{wl_dir}/simpoints/opt.p.lpt0.99"\n')
-    f.write('if [ ! -f "$SIMPOINTS_FILE" ]; then\n')
-    f.write('    echo "ERROR: opt.p.lpt0.99 not found after Phase 1. Aborting Phase 2."\n')
+    f.write('if [ ! -s "$SIMPOINTS_FILE" ]; then\n')
+    f.write('    echo "ERROR: opt.p.lpt0.99 missing/empty after Phase 1. Aborting Phase 2."\n')
     f.write('    exit 1\n')
     f.write('fi\n')
     f.write('PHASE2_JIDS=""\n')
@@ -1773,7 +1919,7 @@ def write_phase2_sbatch_tail(f, workload, trace_name, docker_home, phase2_script
     f.write('    fi\n')
     seg_log = f"{wl_dir}/logs/seg_%j_${{SEGMENT_ID}}.out"
     f.write(f'    mkdir -p "{wl_dir}/logs"\n')
-    f.write(f'    JID=$(sbatch --mem {segment_mem_mb}M -c 1 -o "{seg_log}" '
+    f.write(f'    JID=$(sbatch -J "{phase2_job}" {slurm_options} --mem {segment_mem_mb}M -c 1 -o "{seg_log}" '
             f'{phase2_script_path} "$SEGMENT_ID" "$CLUSTER_ID" 2>&1 | grep -oP "\\d+")\n')
     f.write('    if [ -n "$JID" ]; then\n')
     f.write('        PHASE2_JIDS="${PHASE2_JIDS:+$PHASE2_JIDS:}$JID"\n')
@@ -1784,17 +1930,20 @@ def write_phase2_sbatch_tail(f, workload, trace_name, docker_home, phase2_script
     f.write('    fi\n')
     f.write('done < "$SIMPOINTS_FILE"\n')
     f.write('echo "Phase 2: submitted $SUBMITTED segment jobs, skipped $SKIPPED already-complete"\n')
+    f.write('echo "PHASE2_JIDS: $PHASE2_JIDS"\n')
     f.write('\n# --- Phase 3: finalization ---\n')
+    f.write('echo "Phase 3: finalization"\n')
     f.write('if [ -n "$PHASE2_JIDS" ]; then\n')
     f.write(f'    mkdir -p "$(dirname {finalize_log_path})"\n')
     finalize_cmd_escaped = finalize_cmd.replace('"', '\\"')
-    f.write(f'    FJID=$(sbatch --mem {finalize_mem_mb}M --dependency=afterany:$PHASE2_JIDS '
+    f.write(f'    FJID=$(sbatch -J "{phase3_job}" {slurm_options} --mem {finalize_mem_mb}M --dependency=afterany:$PHASE2_JIDS '
             f'-o "{finalize_log_path}" --wrap="{finalize_cmd_escaped}" 2>&1 | grep -oP "\\d+")\n')
     f.write('    echo "Phase 3 finalization job: $FJID (depends on $SUBMITTED segment jobs)"\n')
     f.write('elif [ "$SUBMITTED" -eq 0 ] && [ "$SKIPPED" -gt 0 ]; then\n')
     f.write('    echo "All segments already complete. Submitting finalization directly."\n')
     f.write(f'    mkdir -p "$(dirname {finalize_log_path})"\n')
-    f.write(f'    sbatch --mem {finalize_mem_mb}M -o "{finalize_log_path}" --wrap="{finalize_cmd_escaped}"\n')
+    f.write(f'    sbatch -J "{phase3_job}" {slurm_options} --mem {finalize_mem_mb}M '
+            f'-o "{finalize_log_path}" --wrap="{finalize_cmd_escaped}"\n')
     f.write('fi\n')
 
 def get_simpoints (workload_data, sim_mode, dbg_lvl = 2):
@@ -2197,7 +2346,19 @@ def print_simulation_status_summary(
     This lets callers (e.g. the interactive TUI) reuse the exact same
     classification logic instead of re-deriving state from logs.
     """
+    all_records = []
+
     def _record(state, config, suite, subsuite, workload, cluster_id, log_path=None, detail=None):
+        all_records.append({
+            "config": config,
+            "suite": suite,
+            "subsuite": subsuite,
+            "workload": workload,
+            "cluster_id": str(cluster_id),
+            "state": state,
+            "log_path": str(log_path) if log_path is not None else None,
+            "detail": detail,
+        })
         if record_sink is None:
             return
         record_sink.append({
@@ -2393,8 +2554,17 @@ def print_simulation_status_summary(
                                 oom_killed.append(config)
 
             if prep_err:
+                lowered = status_scan_text.lower()
+                if "exceeded memory limit" in lowered or "exceeded job memory limit" in lowered:
+                    prep_detail = "exceeded slurm memory limit"
+                elif "oom_kill" in status_scan_text:
+                    prep_detail = "oom_kill"
+                elif "time limit" in lowered:
+                    prep_detail = "slurm time limit"
+                else:
+                    prep_detail = "slurm node error"
                 _record(prep_failed_label, config, suite, subsuite, workload, cluster_id, log_path,
-                        "oom_kill" if "oom_kill" in status_scan_text else "slurm node error")
+                        prep_detail)
                 continue
 
             error = 0
@@ -2467,6 +2637,19 @@ def print_simulation_status_summary(
 
     print("PRINTING SUMMARY TABLE:")
     print(generate_table(data))
+
+    # Name what did not finish. The table says how many, which is no help when
+    # the question is which workload lost what and why.
+    unfinished = [r for r in all_records
+                  if r["state"] not in ("Completed", "Running", "Pending")]
+    if unfinished:
+        print(f"\nSIMULATIONS THAT DID NOT COMPLETE: {len(unfinished)}")
+        for r in sorted(unfinished, key=lambda r: (r["config"], r["suite"], r["subsuite"],
+                                                   r["workload"], r["cluster_id"])):
+            where = f"{r['suite']}/{r['subsuite']}/{r['workload']}/{r['cluster_id']}"
+            reason = r["detail"] or r["state"]
+            log = f"  {r['log_path']}" if r["log_path"] else ""
+            print(f"  {r['config']} {where}: {r['state']} - {reason}{log}")
 
     if error_runs:
         error_list = sorted(error_runs)
@@ -2717,6 +2900,25 @@ def prepare_trace(user, scarab_path, scarab_build, docker_home, job_name, infra_
         info(f"Unexpected error during scarab build: {str(e)}", dbg_lvl)
         raise e
 
+def missing_cluster_then_trace_segments(trace_dir, workload) -> list[str]:
+    """Checks missing segments in the same way as `write_phase2_sbatch_tail()` does."""
+    simpoints_file = os.path.join(trace_dir, workload, "simpoints", "opt.p.lpt0.99")
+    segments_dir = os.path.join(trace_dir, workload, "traces_simp", "trace")
+    if not os.path.isfile(simpoints_file) or os.path.getsize(simpoints_file) == 0:
+        missing = ["opt.p.lpt0.99 (clustering incomplete)"]
+    else:
+        missing = []
+        with open(simpoints_file) as _sf:
+            for _line in _sf:
+                parts = _line.split()
+                if not parts:
+                    continue
+                seg = parts[0]
+                zpath = os.path.join(segments_dir, f"{seg}.zip")
+                if not (os.path.isfile(zpath) and os.path.getsize(zpath) > 0):
+                    missing.append(seg)
+    return missing
+
 def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
     def read_first_line(file_path):
         with open(file_path, 'r') as f:
@@ -2751,12 +2953,35 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
         target_traces_dir = descriptor_data["traces_dir"]
         docker_home = descriptor_data["root_dir"]
 
+        # Completeness check (all-or-nothing):
+        # Do not finalize unless EVERY cluster_then_trace workload in this descriptor is fully
+        # traced, i.e. every segment in opt.p.lpt0.99 has a non-empty <segment_id>.zip.
+        # Each parallel-segments Phase 3 job runs finish_trace over ALL configs but depends
+        # (--dependency=afterany) only on its own workload's Phase 2 completion, so a Phase 3
+        # can fire while other workloads are still tracing, or after a Phase 2 failure (afterok
+        # is not the right choice here, as it would strand Phase 3 as DependencyNeverSatisfied).
+        # Checking here up front, before the copy/write loop below, avoids partial copies and
+        # keeps incomplete runs out of workloads_db so `./sci --trace` can be resubmitted to resume.
+        # Whichever Phase 3 runs after all workloads complete passes this check, and finalizes the whole descriptor.
+        for config in trace_configs:
+            if config['trace_type'] != 'cluster_then_trace':
+                continue
+            workload = config['workload']
+            missing = missing_cluster_then_trace_segments(trace_dir, workload)
+            if missing:
+                raise RuntimeError(
+                    f"Refusing to finalize: workload '{workload}' has {len(missing)} untraced segment(s): {missing}.\n"
+                    "Not copying traces or updating workloads_db.json so `./sci --trace` "
+                    "can be resubmitted to resume the missing segments."
+                )
+
         print("Copying the successfully collected traces and update workloads_db.json...")
 
         for config in trace_configs:
             workload = config['workload']
             suite = config['suite']
             subsuite = config['subsuite']
+            print(f"Finalizing {suite}/{subsuite}/{workload}")
 
             # Update workload_db_data
             trace_dict = {}
@@ -2793,8 +3018,9 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
             # Copy successfully collected traces to target_traces_dir (simpoints are recorded in workloads_db.json)
             os.system(f"mkdir -p {target_traces_path}/traces/whole")
             os.system(f"mkdir -p {target_traces_path}/traces/simp")
-            trace_clustering_info = read_descriptor_from_json(os.path.join(trace_dir, workload, "trace_clustering_info.json"), dbg_lvl)
+            trace_clustering_info_file = os.path.join(trace_dir, workload, "trace_clustering_info.json")
             if config['trace_type'] == "trace_then_cluster":
+                trace_clustering_info = read_descriptor_from_json(trace_clustering_info_file, dbg_lvl)
                 os.system(f"cp -r {trace_dir}/{workload}/traces_simp/* {target_traces_path}/traces/simp/")
                 os.system(f"mkdir -p {target_traces_path}/traces/whole/")
                 whole_trace_dir = trace_clustering_info['dr_folder']
@@ -2808,6 +3034,7 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
                 memtrace_dict['whole_trace_file'] = None
                 print("cluster_then_trace doesn't have a whole trace file.")
             else: # iterative_trace
+                trace_clustering_info = read_descriptor_from_json(trace_clustering_info_file, dbg_lvl)
                 largest_traces = trace_clustering_info['trace_file']
                 for trace_path in largest_traces:
                     print("Processing trace:", trace_path)
@@ -2837,9 +3064,14 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
                 "simpoints":simpoints
             }
 
+            preserved_fields = {}
             if suite in workload_db_data.keys() and subsuite in workload_db_data[suite].keys() and workload in workload_db_data[suite][subsuite].keys():
-                print("WARNING: workload name should be unique within a subsuite. db will be overwritten!")
-            workload_db_data[suite][subsuite][workload] = workload_dict
+                print("WARNING: workload name should be unique within a subsuite. Existing trace/simulation/simpoints fields will be overwritten!")
+                preserved_fields = {
+                    key: value for key, value in workload_db_data[suite][subsuite][workload].items() if key not in workload_dict
+                }
+            # Update/insert only the related fields and leave the other existing fields unchanged
+            workload_db_data[suite][subsuite][workload] = workload_dict | preserved_fields
 
         write_json_descriptor(workload_db_path, workload_db_data, dbg_lvl)
         extract_top_simpoints.modify_simpoints_in_place(workload_db_data)

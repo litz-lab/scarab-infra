@@ -45,5 +45,6 @@ scarabCmd="$SCARABHOME/src/$SCARAB_BIN --full_warmup $WARMUP --frontend pt --cbp
 
 #echo "simulating clusterID ${clusterID}, segment $segID..."
 #echo "command: ${scarabCmd}"
-eval $scarabCmd &
+PERF_PREFIX=$(perf_stat_prefix "$OUTDIR/$segID/perf_stat.txt")
+eval $PERF_PREFIX $scarabCmd &
 wait $!

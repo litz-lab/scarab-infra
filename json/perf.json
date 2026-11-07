@@ -5,6 +5,8 @@
   "user":"root",
   "_root_dir":"Root directory mounted into the docker container home, for instance, $tmp_dir as a root home directory",
   "root_dir":"/home/$USER",
+  "_application_dir":"(Optional) The path to the benchmark application directory. This directory replaces ISO-based setups by mounting a local application folder (e.g., SPEC CPU2026) into the container during image build or runtime.",
+  "application_dir":"/home/$USER/applications",
   "_image_name":"A docker image name required to run a benchmark with Perf.",
   "image_name":"dcperf",
   "_perf_core":"(Optional) Logical CPU to pin all measurements to. Must be a valid core on the target machine. Omit to use the run_perf.py default PERF_CORE.",

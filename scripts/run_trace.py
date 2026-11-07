@@ -184,7 +184,7 @@ def open_interactive_shell(user, descriptor_name, descriptor_data, infra_dir, db
                         --name {docker_container_name} \
                         --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
                         --mount type=bind,source={scarab_path},target=/scarab,readonly=false \
-                        --mount type=bind,source={application},target=/tmp_home/application,readonly=false \
+                        --mount type=bind,source={application},target=/tmp_home/application,readonly=true \
                         --mount {infra_mount_arg(infra_dir)} \
                         {image_tag_for(docker_prefix, infra_dir)} \
                         /bin/bash"

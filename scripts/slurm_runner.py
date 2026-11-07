@@ -28,6 +28,7 @@ from .utilities import (
         get_docker_prefix,
         prepare_trace,
         finish_trace,
+        missing_cluster_then_trace_segments,
         write_trace_docker_command_to_file,
         write_phase2_sbatch_tail,
         get_weight_by_cluster_id,
@@ -42,12 +43,13 @@ from .utilities import (
 from .image_identity import image_tag_for
 
 # Per-segment memory defaults for parallel_segments mode (PR δ).
+# Overwritten by the environment variables.
 # A single trace_single_segment job runs one drrun then one raw2trace
 # sequentially, so memory requirements are far lower than the full pipeline.
 # These are simple fixed defaults; a follow-up PR can wire peak_rss-based
 # sizing from workloads_db.json on top.
 SEGMENT_MEM_MIN_MB = 10000       # 10 GB per segment job
-PHASE1_MEM_DEFAULT_MB = 32000    # 32 GB for fingerprint + cluster
+PHASE1_MEM_MB = 32000            # 32 GB for fingerprint + cluster
 PHASE3_FINALIZE_MEM_MB = 16384   # 16 GB for finalisation
 
 
@@ -237,7 +239,7 @@ def list_cluster_nodes(dbg_lvl = 1):
 # mem_mb: when provided, sets --mem explicitly; any --mem present in slurm_options is stripped
 #         (deprecated) and a warning is emitted. When None, slurm_options is passed through
 #         unchanged (used for trace jobs where memory is not auto-managed).
-def generate_sbatch_command(experiment_dir, slurm_options="", mem_mb=None):
+def generate_sbatch_command(experiment_dir, slurm_options="", mem_mb=None, job_out_suffix=''):
     if mem_mb is not None:
         cleaned = re.sub(r'--mem\s+\S+', '', slurm_options or '').strip()
         if cleaned != (slurm_options or '').strip():
@@ -250,7 +252,11 @@ def generate_sbatch_command(experiment_dir, slurm_options="", mem_mb=None):
     else:
         slurm_options = ""
 
-    return f"sbatch -c 1{slurm_options} -o {experiment_dir}/logs/job_%j.out "
+    if job_out_suffix:
+        assert isinstance(job_out_suffix, str)
+        job_out_suffix = '_' + job_out_suffix
+
+    return f"sbatch -c 1{slurm_options} -o {experiment_dir}/logs/job_%j{job_out_suffix}.out "
 #return f"sbatch -c 1 --ntasks-per-core=2 --oversubscribe -o {experiment_dir}/logs/job_%j.out "
 
 
@@ -591,6 +597,15 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                         fallback_mb = (descriptor_data.get("mem") or {}).get("fallback_mb") or DEFAULT_MEM_MB
                         mem_mb = fallback_mb + overhead_mb
 
+                    # base_memory_mb_by_mode holds opt figures, but dbg is an
+                    # AddressSanitizer build (-fsanitize=address, -O0): shadow memory,
+                    # redzones and the free quarantine put it several times higher. On
+                    # 2026-09-14 seven weekly dbg simulations were killed for exceeding
+                    # their limit. Double the request, and never add less than the
+                    # headroom a small one would get.
+                    if scarab_build == "dbg":
+                        mem_mb = max(2 * mem_mb, mem_mb + MEM_HEADROOM_MB)
+
                     sbatch_cmd = generate_sbatch_command(experiment_dir, slurm_options=slurm_options, mem_mb=mem_mb)
 
                     if fallback_mb is not None:
@@ -757,7 +772,7 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2,
 
     def run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd, trace_type, drio_args, clustering_k, application_dir, slurm_options):
         try:
-            sbatch_cmd = generate_sbatch_command(trace_dir, slurm_options=slurm_options)
+            sbatch_cmd = generate_sbatch_command(trace_dir, slurm_options=slurm_options, job_out_suffix=workload)
 
             if trace_type == "cluster_then_trace":
                 simpoint_mode = "cluster_then_trace"
@@ -836,20 +851,32 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2,
         )
         tmp_files.add(phase1_filename)
 
+        # Finalisation is intentionally whole-descriptor (instead of per-workload):
+        # every workload's Phase 3 runs finish_trace over all workloads/configs, and its
+        # upfront completeness check ensures finish_trace writes only after every workload
+        # has finished, so the actual update lands on whichever Phase 3 runs last.
+        # Because each finalize writes the complete workloads_db, two Phase 3 jobs writing
+        # at once still produce the same full file; neither can drop another's entry.
+        # Scoping this per-workload would turn the write into a per-entry read-modify-write
+        # and need a file lock to avoid lost updates, so we deliberately keep it whole-descriptor.
         finalize_cmd = (
             f"cd {infra_dir} && python -m scripts.run_trace -d {descriptor_path} "
             f"-f -si {infra_dir}"
         )
-        finalize_log_path = os.path.join(trace_dir, "logs", "finalize_job_%j.out")
+        finalize_log_path = os.path.join(trace_dir, "logs", f"finalize_job_%j_{workload}.out")
         with open(phase1_filename, "a") as f:
             write_phase2_sbatch_tail(
                 f, workload, trace_name, docker_home, phase2_script_path,
-                finalize_cmd, finalize_log_path, SEGMENT_MEM_MIN_MB,
-                finalize_mem_mb=PHASE3_FINALIZE_MEM_MB,
+                finalize_cmd, finalize_log_path,
+                env_vars_dict.get("SEGMENT_MEM_MIN_MB", SEGMENT_MEM_MIN_MB),
+                finalize_mem_mb=env_vars_dict.get("PHASE3_FINALIZE_MEM_MB", PHASE3_FINALIZE_MEM_MB),
+                slurm_options=slurm_options,
             )
 
         sbatch_cmd = generate_sbatch_command(
-            trace_dir, slurm_options=slurm_options, mem_mb=PHASE1_MEM_DEFAULT_MB,
+            trace_dir, slurm_options=slurm_options,
+            mem_mb=env_vars_dict.get("PHASE1_MEM_MB", PHASE1_MEM_MB),
+            job_out_suffix=workload,
         )
         result = subprocess.run((sbatch_cmd + phase1_filename).split(" "),
                                 capture_output=True, text=True)
@@ -895,6 +922,11 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2,
             clustering_k = config["clustering_k"]
             slurm_options = config.get("slurm_options", "")
 
+            if trace_type == "cluster_then_trace" and not missing_cluster_then_trace_segments(trace_dir, workload):
+                # If there are no missing segments, we can skip this workload
+                info(f"Skipping {workload}; no missing segments.", dbg_lvl)
+                continue
+
             if parallel_segments and trace_type == "cluster_then_trace":
                 _run_parallel_segments_trace(workload, image_name, trace_name, env_vars,
                                              binary_cmd, client_bincmd, drio_args,
@@ -911,7 +943,8 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2,
         # In parallel_segments mode, finalisation runs as Phase 3 of the Slurm
         # pipeline (sbatch'd by the appended bash in Phase 1 with a dependency
         # on all Phase 2 segment jobs). Host does not call finish_trace here.
-        if not parallel_segments:
+        # If no jobs were submitted, finish_trace should run here.
+        if not parallel_segments or len(tmp_files) == 0:
             finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl)
     except Exception as e:
         print("An exception occurred:", e)

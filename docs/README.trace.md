@@ -251,6 +251,15 @@ Only valid with `workload_manager: "slurm"` and `trace_type:
 "cluster_then_trace"`. The descriptor validator rejects mixed
 configurations.
 
+```
+  "workload_manager":"slurm",
+  "parallel_segments":true,
+  "trace_configurations":[
+    {
+      ...
+      "trace_type":"cluster_then_trace",
+```
+
 **Important: cross-node ISA consistency.** When fingerprinting (Phase 1)
 and segment tracing (Phase 2) land on nodes with different CPU generations,
 runtime CPU dispatch (e.g., glibc `ifunc` resolvers) can change the
@@ -367,6 +376,7 @@ pipeline:
 | `TRACE_PARALLEL` | 1 | Max concurrent segment traces (set via descriptor `trace_parallel`) |
 | `RAW2TRACE_PARALLEL` | 1 | Max concurrent raw2trace processes (set via descriptor `raw2trace_parallel`) |
 | `TRACE_ROI_HEADROOM` | 3 | Multiplier on the `-exit_after_tracing` reference cap (must be > 1.5) |
+| `SCARAB_COPY_LOCAL_RUNDIR` | unset | Set to `1` on a workload's `env_vars` to run it from a private node-local copy of its run dir, so hard-coded relative inputs (e.g. ntest `resource/`, gem5 `Resource(…,".")`) resolve. Data-only copy; the binary stays at its shared path. |
 | `OMP_NUM_THREADS` | 1 (set in Dockerfile) | OpenMP thread count |
 | `MKL_NUM_THREADS` | 1 (set in Dockerfile) | MKL thread count |
 | `OPENBLAS_NUM_THREADS` | 1 (set in Dockerfile) | OpenBLAS thread count |

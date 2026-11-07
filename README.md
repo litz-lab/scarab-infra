@@ -8,7 +8,7 @@ scarab-infra is a set of tools that automate the execution of Scarab simulations
    ```
    ./sci --init
    ```
-  This installs Docker when possible, configures socket permissions, installs Miniconda if needed, creates/updates the `scarabinfra` conda environment, validates activation, ensures you have an SSH key, and optionally fetches SimPoint traces, Slurm, ghcr.io credentials, and verifies AI CLI auth status (Codex/Gemini/Claude).
+  This installs Docker when possible, configures socket permissions, installs Miniconda if needed, creates/updates the `scarabinfra` conda environment, validates activation, ensures you have an SSH key, and optionally fetches SimPoint traces, Slurm, ghcr.io credentials, and verifies AI CLI auth status (Codex/Gemini/Claude), and installs the agent guardrails described below.
 
 2. **Prepare (or update) your descriptor**
    ```
@@ -30,6 +30,71 @@ scarab-infra is a set of tools that automate the execution of Scarab simulations
 Launches the simulations defined in `json/<descriptor>.json`. Scarab runs in parallel across simpoints and reports status/logs under `<root_dir>/simulations/<descriptor>/` (with `root_dir` taken from the descriptor).
 
 You only need additional steps if you want to inspect workloads, collect traces, or manage jobs manually. The sections below cover those workflows in more detail.
+
+## Using scarab-infra with a coding agent
+
+Coding agents reliably reinvent what `sci` already does: counting `squeue` lines for run status, parsing `stats.out` with throwaway scripts, calling `make` or the Scarab binary directly. Those answers quietly disagree with sci's own — wrong stat column, missed failed cells, stale binaries — and the wasted sweeps are expensive. Two pieces ship in `tools/mcp/` to prevent it.
+
+**`sci_mcp.py`** exposes sci over the [Model Context Protocol](https://modelcontextprotocol.io): `sci_status`, `sci_sim`, `sci_build_scarab`, `sci_collect_stats`, `sci_visualize`, `sci_perf_analyze`, `sci_kill`, `sci_list`. It is a stdio server with no third-party dependencies, so it runs wherever sci runs. There is nothing to start and no port to open: your agent spawns it as a child process and reaps it when the session ends.
+
+**`force_sci_hook.py`** is what actually enforces. MCP only *adds* tools; it does not take Bash away, so a server alone changes nothing. This is a Claude Code `PreToolUse` hook that denies the hand-rolled equivalents and names the tool to use instead:
+
+| denied | use instead |
+| --- | --- |
+| `squeue` / `sacct` filtered on `exp_*` | `sci_status` |
+| python/awk/perl or glob aggregation over `stats.out`, `/simulations/`, `collected_stats.csv` | `sci_collect_stats` |
+| `make ... scarab` | `sci_build_scarab` |
+| direct `scarab_<hash>.opt` launch | `sci_sim` |
+
+Anything beginning `./sci` is always allowed, and so is `cat` or `grep` on a **single** `stats.out` — blocking that would stop you debugging one simpoint. Aggregation is what gets caught, not inspection.
+
+### Install
+
+`./sci --init` installs both at **user scope**, so they apply from whatever directory you start your agent in, not only from this repo:
+
+```
+./sci --init
+```
+
+The step is idempotent and backs up `~/.claude/settings.json` before touching it. To install without a full bootstrap, run the two commands it runs:
+
+```
+claude mcp add --scope user scarab-infra -- python3 "$PWD/tools/mcp/sci_mcp.py"
+```
+
+and add to `~/.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"/abs/path/to/scarab-infra/tools/mcp/force_sci_hook.py\" 2>/dev/null || true"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+The `|| true` matters: the hook then fires on every Bash call you make anywhere, so a moved checkout should cost you enforcement, not your shell.
+
+Restart your agent afterwards — both files are read at session start. `/mcp` should then list `scarab-infra` as connected.
+
+If you would rather scope this to the repo than to your account, `.mcp.json` and `.claude/settings.json` in this repo carry the same configuration via `$CLAUDE_PROJECT_DIR`, and apply when your agent's project root *is* scarab-infra.
+
+### Other agents
+
+The MCP server is protocol-standard, so Codex and Gemini CLI can both consume it — register `python3 <repo>/tools/mcp/sci_mcp.py` as an stdio server in their own config. The hook is Claude Code specific; those tools have no equivalent pre-tool veto, so with them the MCP tools are an option the agent has rather than a rule it must follow.
+
+### Limits
+
+A hook denial is a strong nudge, not a sandbox. The agent is told "use `sci_status`" and could in principle rephrase around the pattern, so the deny message instructs it to raise the gap with you rather than work around it. Making it airtight would need `deny` permission rules on `Bash(python3:*)` and friends, which blocks far too much legitimate work.
 
 ## Additional Workflows
 

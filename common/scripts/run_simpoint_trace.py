@@ -15,6 +15,11 @@ import json
 import shutil
 import zipfile
 
+# root_entrypoint.sh publishes stage_local_rundir.py to the same directory, /usr/local/bin/.
+# sys.path[0] is this script's (symlink-resolved) directory and a plain import finds it.
+from stage_local_rundir import stage_local_rundir
+
+
 def get_dr_jobs():
     """Decide DynamoRIO -jobs fanout based on env var DR_JOBS or auto-detect.
 
@@ -1291,6 +1296,16 @@ if __name__ == "__main__":
     clustering_userk = args.clustering_userk
     manual_trace = args.manual_trace
 
+    # For workloads that open inputs by a hard-coded relative path, run every
+    # drrun below with CWD = a private node-local copy of the run dir's data.
+    # A single chdir here covers all modes (fingerprint + segment traces).
+    # Gated by the workload's env variable, set via the descriptor env_vars.
+    local_rundir = None
+    if os.environ.get("SCARAB_COPY_LOCAL_RUNDIR") == "1":
+        local_rundir = stage_local_rundir(bincmd)
+        os.chdir(local_rundir)
+        print(f"SCARAB_COPY_LOCAL_RUNDIR: staged run dir data and chdir'd to {local_rundir}")
+
     try:
         print("running run_simpoint_trace.py...")
         print(simpoint_mode)
@@ -1310,3 +1325,6 @@ if __name__ == "__main__":
             raise Exception("Invalid simpoint mode")
     except Exception as e:
         traceback.print_exc() # Print the full stack trace
+    finally:
+        if local_rundir:
+            shutil.rmtree(local_rundir, ignore_errors=True)
