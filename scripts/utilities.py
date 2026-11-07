@@ -865,6 +865,18 @@ def _temporary_scarab_checkout(scarab_path: str, target_ref: str, dbg_lvl: int):
             raise RuntimeError(f"Unable to restore scarab repo to {original_ref}") from checkout_error
 
 
+def _copy_atomic(src, dest) -> None:
+    """Copy src to dest via a temporary file and rename, so an interrupted copy never
+    leaves a truncated binary under dest and a running job's binary is never rewritten."""
+    tmp = f"{dest}.tmp.{os.getpid()}"
+    try:
+        shutil.copy2(src, tmp)
+        os.replace(tmp, dest)
+    finally:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+
+
 def _cache_bin_name(bin_name: str, build_mode: str) -> str:
     if bin_name.endswith((".opt", ".dbg")):
         return bin_name
@@ -1073,14 +1085,14 @@ def _build_missing_scarab_version(
             cache_name = _cache_bin_name(bin_name, build_mode)
             dest = Path(infra_dir) / "scarab_builds" / cache_name
             dest.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(built_bin, dest)
+            _copy_atomic(built_bin, dest)
             info(f"Cached new scarab binary at {dest}", dbg_lvl)
             
             built_pin_exec = Path(scarab_path) / "src" / "pin" / "pin_exec" / "obj-intel64" / "pin_exec.so"
             if built_pin_exec.is_file():
                 pin_cache_name = _cache_bin_name(f"pin_exec_{bin_name}", build_mode)
                 pin_dest = Path(infra_dir) / "scarab_builds" / pin_cache_name
-                shutil.copy2(built_pin_exec, pin_dest)
+                _copy_atomic(built_pin_exec, pin_dest)
             info(f"Cached new pin_exec binary at {pin_dest}", dbg_lvl)
     except subprocess.CalledProcessError as exc:
         err(
@@ -1304,11 +1316,11 @@ def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, sca
                 if current_githash_binaries == []:
                     githash_name = _cache_bin_name(f"scarab_{cache_tag}_0", build_mode)
                     githash_scarab_bin = f"{infra_dir}/scarab_builds/{githash_name}"
-                    shutil.copy2(scarab_bin, githash_scarab_bin)
+                    _copy_atomic(scarab_bin, githash_scarab_bin)
                     pin_exec_src = f"{scarab_path}/src/pin/pin_exec/obj-intel64/pin_exec.so"
                     if os.path.isfile(pin_exec_src):
                         pin_cache_name = _cache_bin_name(f"pin_exec_scarab_{cache_tag}_0", build_mode)
-                        shutil.copy2(pin_exec_src, f"{infra_dir}/scarab_builds/{pin_cache_name}")
+                        _copy_atomic(pin_exec_src, f"{infra_dir}/scarab_builds/{pin_cache_name}")
                 elif not current_indicies:
                     githash_name = _cache_bin_name(f"scarab_{cache_tag}", build_mode)
                     githash_scarab_bin = f"{infra_dir}/scarab_builds/{githash_name}"
@@ -1351,11 +1363,11 @@ def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, sca
                 githash_scarab_bin = f"{infra_dir}/scarab_builds/{githash_name}"
 
             info(f"Copying scarab binary for {githash_scarab_bin} to cache", dbg_lvl)
-            shutil.copy2(scarab_bin, githash_scarab_bin)
+            _copy_atomic(scarab_bin, githash_scarab_bin)
             pin_exec_src = f"{scarab_path}/src/pin/pin_exec/obj-intel64/pin_exec.so"
             if os.path.isfile(pin_exec_src):
                 pin_cache = githash_name.replace("scarab_", "pin_exec_scarab_", 1)
-                shutil.copy2(pin_exec_src, f"{infra_dir}/scarab_builds/{pin_cache}")
+                _copy_atomic(pin_exec_src, f"{infra_dir}/scarab_builds/{pin_cache}")
             current_path = Path(current_scarab_bin)
             if current_path.exists() or current_path.is_symlink():
                 current_path.unlink()
@@ -1491,7 +1503,7 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
                         dbg_lvl,
                     )
                 elif os.path.isfile(repo_scarab_bin):
-                    shutil.copy2(repo_scarab_bin, current_scarab_bin)
+                    _copy_atomic(repo_scarab_bin, current_scarab_bin)
                     info(
                         "Interactive mode: reused existing Scarab repo binary without rebuilding.",
                         dbg_lvl,
@@ -1543,12 +1555,12 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
             else:
                 dest_mode = dest_dir / f"{bin_name}.{build_mode}"
             try:
-                shutil.copy2(scarab_ver, dest_plain)
+                _copy_atomic(scarab_ver, dest_plain)
             except Exception:
                 os.system(f"cp {scarab_ver} {dest_plain}")
             if dest_mode != dest_plain:
                 try:
-                    shutil.copy2(scarab_ver, dest_mode)
+                    _copy_atomic(scarab_ver, dest_mode)
                 except Exception:
                     os.system(f"cp {scarab_ver} {dest_mode}")
 
@@ -1563,7 +1575,7 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
 
             pin_src = pin_cached if os.path.isfile(pin_cached) else pin_exec_so
             try:
-                shutil.copy2(pin_src, pin_dest)
+                _copy_atomic(pin_src, pin_dest)
             except Exception:
                 os.system(f"cp {pin_src} {pin_dest}")
 
@@ -2936,7 +2948,7 @@ def prepare_trace(user, scarab_path, scarab_build, docker_home, job_name, infra_
                     dbg_lvl,
                 )
             elif os.path.isfile(repo_scarab_bin):
-                shutil.copy2(repo_scarab_bin, current_scarab_bin)
+                _copy_atomic(repo_scarab_bin, current_scarab_bin)
                 info(
                     "Interactive mode: reused existing Scarab repo binary without rebuilding.",
                     dbg_lvl,
