@@ -217,6 +217,9 @@ Silent removal biases the simulated workload toward earlier phases, so the
 conservative default is recommended unless you have characterised the
 workload and accepted the bias.
 
+A trace that holds fewer chunks than its ROI needs is rejected here rather
+than packaged silently.
+
 **Resume**: skipped if `<segment_id>.zip` already exists and is non-empty.
 
 ### 8. Finalization
