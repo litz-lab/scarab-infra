@@ -26,6 +26,7 @@ if project_root not in sys.path:
 
 import workloads.extract_top_simpoints as extract_top_simpoints
 importlib.reload(extract_top_simpoints)
+import workloads.collect_trace_sizes as collect_trace_sizes
 
 from scripts.image_identity import image_content_hash, image_context_pathspec, image_tag_for
 
@@ -63,6 +64,33 @@ ROOT_ENTRYPOINT = f"{INFRA_MOUNT_TARGET}/common/scripts/root_entrypoint.sh"
 def infra_mount_arg(infra_dir):
     """Return the `docker --mount` spec exposing the host scarab-infra checkout."""
     return f"type=bind,source={infra_dir},target={INFRA_MOUNT_TARGET},readonly=true"
+
+
+# Apptainer mode, for clusters without docker/root (e.g. Hummingbird). Docker is used
+# whenever a docker daemon runs on the host, even if apptainer is also installed;
+# apptainer only where there is no daemon (a socket symlink the user cannot reach counts
+# as none). Images are ~/sif/<image_name>.sif.
+APPTAINER_SIF_DIR = os.path.expanduser("~/sif")
+USER_ENTRYPOINT = f"{INFRA_MOUNT_TARGET}/common/scripts/user_entrypoint.sh"
+
+
+def use_apptainer():
+    return not os.path.exists("/var/run/docker.sock") and shutil.which("apptainer") is not None
+
+
+def apptainer_exec_prefix(docker_prefix):
+    """apptainer exec + the PATH that root_entrypoint.sh's /usr/local/bin symlinks provide under docker.
+    Absolute apptainer path: sbatch scripts do not see the scarabinfra conda env."""
+    return (f"{shutil.which('apptainer') or 'apptainer'} exec --cleanenv",
+            f"{APPTAINER_SIF_DIR}/{docker_prefix}.sif",
+            f"export PATH={INFRA_MOUNT_TARGET}/common/scripts:{INFRA_MOUNT_TARGET}/scripts:"
+            f"{INFRA_MOUNT_TARGET}/workloads/{docker_prefix}:$PATH && source {USER_ENTRYPOINT}")
+
+
+def require_aslr_disabled(dbg_lvl=1):
+    if use_apptainer():
+        raise RuntimeError("Exec-driven simulation and tracing need ASLR disabled, which requires root; "
+                           "not supported with Apptainer. Only trace-driven simulation is supported here.")
 
 def get_docker_client():
     global _docker_client
@@ -187,6 +215,8 @@ def run_on_node(cmd, node=None, immediate=5, **kwargs):
             "--nodes=1",
             "--ntasks=1",
             "--cpus-per-task=1",
+            "--mem=64M",  # not DefMemPerCPU: a node whose memory is all reserved still takes it
+            "--time=5",  # slurm ends the job itself if srun is killed mid-step
         ]
         if immediate is not None:
             command.append(f"--immediate={immediate}")
@@ -362,6 +392,14 @@ def file_lock(lock_path):
 #           diff_output - diff of two git hashes in the directories that change the docker image
 # Output: list of nodes where the docker image is ready
 def prepare_docker_image(docker_prefix, image_tag, dbg_lvl=1):
+    if use_apptainer():
+        sif = f"{APPTAINER_SIF_DIR}/{docker_prefix}.sif"
+        if not os.path.isfile(sif):
+            err(f"Apptainer image {sif} not found. Create it with:\n"
+                f"  apptainer pull {sif} docker://ghcr.io/litz-lab/scarab-infra/{image_tag}", dbg_lvl)
+            exit(1)
+        return
+
     # Fast path: image already exists → nothing to do
     if image_exist(image_tag):
         return
@@ -441,6 +479,15 @@ def build_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_pre
 
     scarab_bin = f"{scarab_path}/src/build/{scarab_build}/scarab"
     info(f"Scarab binary at '{scarab_bin}', building it first, please wait...", dbg_lvl)
+    if use_apptainer():
+        exe, sif, setup = apptainer_exec_prefix(docker_prefix)
+        result = subprocess.run(
+            f"{exe} --home {docker_home}:/home/{user} --bind {scarab_path}:/scarab "
+            f"--bind {infra_dir}:{INFRA_MOUNT_TARGET}:ro {sif} /bin/bash -c "
+            f"'{setup} && cd /scarab/src && make {scarab_build} -j{os.cpu_count()}'", shell=True)
+        if result.returncode != 0:
+            raise RuntimeError("Scarab build returned with non-zero code")
+        return
     docker_container_name = own_container_name(f"{docker_prefix}_{user}_scarab_build")
     # A leftover of the same name makes `docker run` fail with a bare exit 125 and no
     # explanation, and the finally below does not cover a SIGTERM'd sci (slurm timeout,
@@ -962,6 +1009,18 @@ def _warn_interactive_binary_statuses(
             f"cache={current_scarab_bin}, repo={repo_scarab_bin}.{rebuild_note}",
             dbg_lvl,
         )
+
+
+def confirm_kill(question: str, dbg_lvl: int = 2) -> bool:
+    """Ask before killing. `sci --force` answers yes. With no terminal nothing can answer,
+    so refuse rather than block: the MCP server runs one sci command at a time."""
+    if os.environ.get("SCI_ASSUME_YES") == "1":
+        return True
+    if not sys.stdin.isatty():
+        err("Refusing to prompt with no terminal attached. Re-run with --force to kill "
+            "without confirmation.", dbg_lvl)
+        return False
+    return input(f"{question} (y/n): ").strip().lower() == 'y'
 
 
 def _prompt_kill_processes_and_exit(dbg_lvl: int) -> None:
@@ -1569,10 +1628,11 @@ def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_n
     images = ' '.join(image_tag_list)
     clean_cmd = f"scripts/docker_cleaner.py --images {images}"
     if slurm_ids:
-        sbatch_cmd = f"sbatch{slurm_options} --nodelist=bohr3 --dependency=afterany:{','.join(slurm_ids)} -o {experiment_dir}/logs/stat_collection_job_%j.out "
+        sbatch_cmd = f"sbatch --no-requeue{slurm_options} --nodelist=bohr3 --dependency=afterany:{','.join(slurm_ids)} -o {experiment_dir}/logs/stat_collection_job_%j.out "
         clean_cmd = sbatch_cmd + clean_cmd
-    print(clean_cmd)
-    os.system(clean_cmd)
+    if not use_apptainer():  # apptainer has no docker images to clean up
+        print(clean_cmd)
+        os.system(clean_cmd)
 
     if dont_collect:
         return
@@ -1652,7 +1712,7 @@ def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_n
         # afterok will not run if jobs fail. afterany used with stat_collector's error checking
         log_path = os.path.join(experiment_dir, "logs", "stat_collection_job_%j.out")
         sbatch_cmd = (
-            f"sbatch{slurm_options} --dependency=afterany:{','.join(slurm_ids)} "
+            f"sbatch --no-requeue{slurm_options} --dependency=afterany:{','.join(slurm_ids)} "
             f"-o {shlex.quote(log_path)} --wrap={shlex.quote(collect_stats_cmd)}"
         )
         collect_stats_cmd = sbatch_cmd
@@ -1702,17 +1762,38 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
                                  docker_prefix, docker_container_name, traces_dir,
                                  docker_home, config_key, config, scarab_mode, scarab_binary,
                                  seg_size, architecture, cluster_id, warmup, trace_warmup, trace_type,
-                                 trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir, application_dir, slurm=False):
+                                 trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir, application_dir, slurm=False,
+                                 perf_stat=False):
     try:
         scarab_cmd = generate_single_scarab_run_command(user, workload_home, experiment_name, config_key, config,
                                                         scarab_mode, seg_size, architecture, scarab_binary, cluster_id,
                                                         warmup, trace_warmup, trace_type, trace_file, env_vars, bincmd, client_bincmd)
+        # Descriptor "perf_stat": true makes a run fail when perf cannot count host instructions
+        # on its node, instead of running unmeasured.
+        if perf_stat:
+            scarab_cmd = f"REQUIRE_PERF_STAT=1 {scarab_cmd}"
         with open(filename, "w") as f:
             f.write("#!/bin/bash\n")
             f.write(f"echo \"Running {config_key} {workload_home} {cluster_id} {scarab_mode}\"\n")
             f.write(f"echo \"Simulation mode: {scarab_mode}\"\n")
             f.write(f"echo \"Script name: {filename}\"\n")
             f.write("echo \"Running on $(uname -n)\"\n")
+            if use_apptainer():
+                exe, sif, setup = apptainer_exec_prefix(docker_prefix)
+                setup = setup.replace("$", "\\$")  # expand $PATH inside the container, not in the job shell
+                app_bind = f" --bind {application_dir}:/tmp_home/application:ro" if application_dir not in ("", ".") else ""
+                # Same markers as the docker path, so --status reads the log the same way.
+                f.write(f"echo \"BEGIN prepare_docker_image\"\n[ -f {sif} ] || {{ echo \"FAILED prepare_docker_image: {sif} not found\"; exit 1; }}\necho \"END prepare_docker_image\"\n")
+                f.write(f"RC=0\n{exe} --home {docker_home}:/home/{user} --bind {traces_dir}:/simpoint_traces:ro "
+                        f"--bind {infra_dir}:{INFRA_MOUNT_TARGET}:ro{app_bind} "
+                        f"--env APP_GROUPNAME={docker_prefix},APPNAME={workload},username={user} {sif} "
+                        f"/bin/bash -c \"{setup} && cd /home/{user} && {scarab_cmd}\" "
+                        f"|| {{ echo \"Scarab error detected\"; RC=1; }}\n")
+                f.write(f"echo \"Completed Simulation\"\nsync {docker_home}/simulations/{experiment_name}/logs || true\nexit $RC\n")
+                return
+            app_mount = ""
+            if scarab_mode == "exec": 
+                app_mount = f"--mount type=bind,source={application_dir},target=/tmp_home/application,readonly=true"
             f.write(f"CONTAINER_NAME={docker_container_name}\n")
             f.write("cleanup_container() {\n")
             f.write("    docker rm -f \"$CONTAINER_NAME\" >/dev/null 2>&1 || true\n")
@@ -1743,7 +1824,7 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
                 --name $CONTAINER_NAME \
                 --mount type=bind,source={traces_dir},target=/simpoint_traces,readonly=true \
                 --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
-                --mount type=bind,source={application_dir},target=/tmp_home/application,readonly=true \
+                {app_mount} \
                 --mount {infra_mount_arg(infra_dir)} \
                 {image_tag_for(docker_prefix, infra_dir)} \
                 /bin/bash\n")
@@ -1760,7 +1841,7 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
                 --name $CONTAINER_NAME \
                 --mount type=bind,source={traces_dir},target=/simpoint_traces,readonly=true \
                 --mount type=bind,source={docker_home},target=/home/{user},readonly=false \
-                --mount type=bind,source={application_dir},target=/tmp_home/application,readonly=true \
+                {app_mount} \
                 --mount {infra_mount_arg(infra_dir)} \
                 {image_tag_for(docker_prefix, infra_dir)} \
                 /bin/bash\n")
@@ -1803,6 +1884,8 @@ def generate_single_trace_run_command(user, workload, image_name, trace_name, bi
         mode = 4
     elif simpoint_mode == "trace_single_segment":
         mode = 5
+    elif simpoint_mode == "pinball_extraction":
+        mode = 6
     command = f"python3 -u /usr/local/bin/run_simpoint_trace.py --workload {workload} --suite {image_name} --simpoint_mode {mode} --simpoint_home \\\"/home/{user}/simpoint_flow/{trace_name}\\\" --bincmd \\\"{binary_cmd}\\\""
     if client_bincmd != None:
         command = f"{command} --client_bincmd \\\"{client_bincmd}\\\""
@@ -1919,7 +2002,7 @@ def write_phase2_sbatch_tail(f, workload, trace_name, docker_home, phase2_script
     f.write('    fi\n')
     seg_log = f"{wl_dir}/logs/seg_%j_${{SEGMENT_ID}}.out"
     f.write(f'    mkdir -p "{wl_dir}/logs"\n')
-    f.write(f'    JID=$(sbatch -J "{phase2_job}" {slurm_options} --mem {segment_mem_mb}M -c 1 -o "{seg_log}" '
+    f.write(f'    JID=$(sbatch --no-requeue -J "{phase2_job}" {slurm_options} --mem {segment_mem_mb}M -c 1 -o "{seg_log}" '
             f'{phase2_script_path} "$SEGMENT_ID" "$CLUSTER_ID" 2>&1 | grep -oP "\\d+")\n')
     f.write('    if [ -n "$JID" ]; then\n')
     f.write('        PHASE2_JIDS="${PHASE2_JIDS:+$PHASE2_JIDS:}$JID"\n')
@@ -1936,13 +2019,13 @@ def write_phase2_sbatch_tail(f, workload, trace_name, docker_home, phase2_script
     f.write('if [ -n "$PHASE2_JIDS" ]; then\n')
     f.write(f'    mkdir -p "$(dirname {finalize_log_path})"\n')
     finalize_cmd_escaped = finalize_cmd.replace('"', '\\"')
-    f.write(f'    FJID=$(sbatch -J "{phase3_job}" {slurm_options} --mem {finalize_mem_mb}M --dependency=afterany:$PHASE2_JIDS '
+    f.write(f'    FJID=$(sbatch --no-requeue -J "{phase3_job}" {slurm_options} --mem {finalize_mem_mb}M --dependency=afterany:$PHASE2_JIDS '
             f'-o "{finalize_log_path}" --wrap="{finalize_cmd_escaped}" 2>&1 | grep -oP "\\d+")\n')
     f.write('    echo "Phase 3 finalization job: $FJID (depends on $SUBMITTED segment jobs)"\n')
     f.write('elif [ "$SUBMITTED" -eq 0 ] && [ "$SKIPPED" -gt 0 ]; then\n')
     f.write('    echo "All segments already complete. Submitting finalization directly."\n')
     f.write(f'    mkdir -p "$(dirname {finalize_log_path})"\n')
-    f.write(f'    sbatch -J "{phase3_job}" {slurm_options} --mem {finalize_mem_mb}M '
+    f.write(f'    sbatch --no-requeue -J "{phase3_job}" {slurm_options} --mem {finalize_mem_mb}M '
             f'-o "{finalize_log_path}" --wrap="{finalize_cmd_escaped}"\n')
     f.write('fi\n')
 
@@ -2437,15 +2520,16 @@ def print_simulation_status_summary(
     pending = {conf: 0 for conf in confs}
 
     experiment_name = descriptor_data["experiment"]
-    for sim in queued_sims:
-        matches = [conf for conf in confs if f"{experiment_name}_{conf}" in sim]
-        if not matches:
-            info(f"'{experiment_name}_{conf}' not found in any queued sim names", dbg_lvl)
-            continue
-        conf = max(matches, key=len)
-        pending[conf] += 1
-
     all_job_ids = get_simulation_job_identifiers(descriptor_data, workloads_data, dbg_lvl=dbg_lvl)
+
+    # A simulation in the queue is pending even if an earlier attempt left a job log
+    # (Slurm requeues a job after a node failure); its log is stale and not counted.
+    queued = set()
+    for config, suite, subsuite, workload, cluster_id in set(all_job_ids):
+        needle = f"_{workload}_{experiment_name}_{config}_{cluster_id}_"
+        if any(needle in sim for sim in queued_sims):
+            queued.add((config, suite, subsuite, workload, str(cluster_id)))
+            pending[config] += 1
 
     not_in_experiment = []
     oom_killed = []
@@ -2453,6 +2537,8 @@ def print_simulation_status_summary(
     descriptor_aligned_log_count = 0
     for _job_id, log_path, config, suite, subsuite, workload, cluster_id in latest_logs:
         if not (config, suite, subsuite, workload, int(cluster_id)) in all_job_ids:
+            continue
+        if (config, suite, subsuite, workload, str(cluster_id)) in queued:
             continue
 
         descriptor_aligned_log_count += 1
@@ -2468,7 +2554,7 @@ def print_simulation_status_summary(
                 config,
                 workload_path,
                 cluster_id,
-                "sim.log",
+                "scarab.err",
             )
             sim_log_to_job_log[scarab_logfile_path] = str(log_path)
 
@@ -2704,6 +2790,8 @@ def print_simulation_status_summary(
         print("OOM Killed Configs:\n", "\n".join(oom_killed), "\033[0m", sep='')
 
 def remove_docker_containers(docker_prefix_list, job_name, user, dbg_lvl):
+    if use_apptainer():  # apptainer leaves no containers behind
+        return
     try:
         for docker_prefix in docker_prefix_list:
             pattern = re.compile(fr"^{docker_prefix}_.*_{job_name}.*_.*_{user}$")
@@ -2977,6 +3065,7 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
 
         print("Copying the successfully collected traces and update workloads_db.json...")
 
+        finalized = []
         for config in trace_configs:
             workload = config['workload']
             suite = config['suite']
@@ -3033,6 +3122,21 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
                 memtrace_dict['warmup'] = 50000000
                 memtrace_dict['whole_trace_file'] = None
                 print("cluster_then_trace doesn't have a whole trace file.")
+            elif config['trace_type'] == "pinball_extraction":
+                subsuite = config['subsuite'] if config['subsuite'] else suite
+                if workload in workload_db_data.get(suite, {}).get(subsuite, {}):
+                    print(f"{workload}: already in workloads_db; skipping update.")
+                else:
+                    workload_db_data.setdefault(suite, {}).setdefault(subsuite, {})[workload] = {
+                        "trace": trace_dict,
+                        "simulation": {"prioritized_mode": "exec", "exec": exec_dict},
+                        "simpoints": simpoints,
+                    }
+                os.system(f"mkdir -p {target_traces_path}/traces/pinballs")
+                os.system(f"cp -r {trace_dir}/{workload}/traces_simp/* {target_traces_path}/traces/pinballs/")
+                os.system(f"chmod a+w -R {target_traces_path}")
+                print(f"{workload}: pinballs copied to {target_traces_path}/traces/pinballs; skipping workloads_db update.")
+                continue
             else: # iterative_trace
                 trace_clustering_info = read_descriptor_from_json(trace_clustering_info_file, dbg_lvl)
                 largest_traces = trace_clustering_info['trace_file']
@@ -3072,7 +3176,9 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
                 }
             # Update/insert only the related fields and leave the other existing fields unchanged
             workload_db_data[suite][subsuite][workload] = workload_dict | preserved_fields
+            finalized.append((suite, subsuite, workload))
 
+        collect_trace_sizes.update_trace_sizes(workload_db_data, target_traces_dir, finalized)
         write_json_descriptor(workload_db_path, workload_db_data, dbg_lvl)
         extract_top_simpoints.modify_simpoints_in_place(workload_db_data)
         write_json_descriptor(f"{infra_dir}/workloads/workloads_top_simp.json", workload_db_data, dbg_lvl)
@@ -3121,6 +3227,8 @@ def count_interactive_shells(container_name, dbg_lvl):
         return 0
 
 def image_exist(image_tag, node=None):
+    if use_apptainer():
+        return os.path.isfile(f"{APPTAINER_SIF_DIR}/{image_tag.split(':')[0]}.sif")
     try:
         output = subprocess.run(["docker", "images", "-q", image_tag], capture_output=True, text=True)
         return bool(output.stdout.strip())
@@ -3165,7 +3273,7 @@ def clean_failed_run (descriptor_data, config_key, suite, subsuite, workload, ex
     experiment_dir += f"{config_key}/{suite}/{subsuite}/{workload}/{exp_cluster_id}"
 
     experiment_path = Path(experiment_dir)
-    patterns_to_clean = ["*.csv", "*.out", "*.in", "*.csv.warmup", "*.out.warmup", "sim.log"]
+    patterns_to_clean = ["*.csv", "*.out", "*.in", "*.csv.warmup", "*.out.warmup", "scarab.err", "sim.log"]
 
     try:
         if experiment_path.is_dir():

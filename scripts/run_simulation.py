@@ -29,11 +29,15 @@ from .utilities import (
     run_on_node,
     infra_mount_arg,
     ROOT_ENTRYPOINT,
+    use_apptainer,
 )
 from .image_identity import image_tag_for
 from . import slurm_runner, local_runner
 
-client = docker.from_env()
+try:
+    client = docker.from_env()
+except Exception:
+    client = None
 CONTAINER_PROBE_TIMEOUT_SECONDS = 5
 
 # Verify the given descriptor file
@@ -108,6 +112,34 @@ def verify_descriptor(
         err("Need configurations to simulate. Set in descriptor file under 'configurations'", dbg_lvl)
         exit(1)
 
+    # scarab_head means "whatever scarab_path has committed right now": resolve it to
+    # that hash so the descriptor stays valid as the repo moves while the run still
+    # names its commit. A dirty tree has no hash to name, so it is refused.
+    if not open_shell:
+        head_configs = sorted(
+            name
+            for name, config in (descriptor_data["configurations"] or {}).items()
+            if isinstance(config, dict) and str(config.get("binary", "")) == "scarab_head"
+        )
+        if head_configs:
+            scarab_path = descriptor_data["scarab_path"]
+            try:
+                sha = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=scarab_path,
+                                     check=True, text=True, capture_output=True).stdout.strip()
+                dirty = subprocess.run(["git", "status", "--porcelain", "--untracked-files=no"],
+                                       cwd=scarab_path, check=True, text=True,
+                                       capture_output=True).stdout.strip()
+            except (subprocess.CalledProcessError, FileNotFoundError, OSError) as exc:
+                err(f"Could not read the git HEAD of {scarab_path} for scarab_head: {exc}", dbg_lvl)
+                exit(1)
+            if dirty:
+                err(f"{scarab_path} has uncommitted changes, so scarab_head cannot name a commit. "
+                    "Commit them, or pin 'scarab_<githash>' explicitly.", dbg_lvl)
+                exit(1)
+            for name in head_configs:
+                descriptor_data["configurations"][name]["binary"] = f"scarab_{sha}"
+            info(f"scarab_head resolved to scarab_{sha} for {', '.join(head_configs)}", dbg_lvl)
+
     # scarab_current is a mutable name: it tracks whatever was last built, dirty tree
     # included, so results are not attributable to a commit. Simulations must pin a hash.
     # CI is exempt: the container is fresh, the cache starts empty, and the binary is
@@ -125,8 +157,9 @@ def verify_descriptor(
         if floating:
             err(
                 f"Configuration(s) {', '.join(floating)} use scarab_current, which does not identify a "
-                "commit. Commit your changes and pin 'scarab_<githash>[_index].opt' instead; sci builds "
-                "it from that hash on demand. Set SCI_ALLOW_SCARAB_CURRENT=1 to override.",
+                "commit. Pin 'scarab_<githash>[_index].opt', or 'scarab_head' for whatever "
+                "scarab_path has committed; sci builds it from that hash on demand. Set "
+                "SCI_ALLOW_SCARAB_CURRENT=1 to override.",
                 dbg_lvl,
             )
             exit(1)
@@ -263,6 +296,8 @@ def open_interactive_shell(user, descriptor_name, descriptor_data, workloads_dat
 
 
 def find_conflicting_containers(workload_manager, docker_prefix_list, experiment_name, user, dbg_lvl=2):
+    if use_apptainer():
+        return {}, {}
     if not docker_prefix_list:
         return {}, {}
 
@@ -356,52 +391,29 @@ def find_conflicting_containers(workload_manager, docker_prefix_list, experiment
 
     for node, state in node_entries:
         normalized_state = state.lower()
-        if any(token in normalized_state for token in ("down", "drain", "fail", "maint", "unk")):
+        if any(token in normalized_state for token in ("down", "drain", "fail", "maint", "unk", "inval")):
             continue
 
         try:
+            # srun withdraws its own request after --immediate seconds. Killing srun
+            # first (the subprocess timeout) would leave the request queued: it starts
+            # once the node frees up, with no srun left to run the step, and fails.
             result = run_on_node(
                 ["docker", "ps", "-a", "--format", "{{.Names}}\t{{.State}}"],
                 node=node,
+                immediate=CONTAINER_PROBE_TIMEOUT_SECONDS,
                 capture_output=True,
                 text=True,
                 check=True,
-                timeout=CONTAINER_PROBE_TIMEOUT_SECONDS,
+                timeout=CONTAINER_PROBE_TIMEOUT_SECONDS + 10,
             )
-        except subprocess.TimeoutExpired as exc:
-            note(
-                f"Skipping stale-container probe on {node}: preflight docker listing timed out after {CONTAINER_PROBE_TIMEOUT_SECONDS}s",
-                dbg_lvl,
-            )
+        except subprocess.TimeoutExpired:
+            note(f"Skipping stale-container probe on {node}: docker listing timed out", dbg_lvl)
             continue
-        except Exception as first_exc:
-            try:
-                # Busy nodes can fail the fast-fail probe even though they are
-                # still healthy. Retry once without --immediate and rely on the
-                # subprocess timeout to keep the preflight bounded.
-                result = run_on_node(
-                    ["docker", "ps", "-a", "--format", "{{.Names}}\t{{.State}}"],
-                    node=node,
-                    immediate=None,
-                    capture_output=True,
-                    text=True,
-                    check=True,
-                    timeout=CONTAINER_PROBE_TIMEOUT_SECONDS,
-                )
-            except subprocess.TimeoutExpired as retry_exc:
-                note(
-                    f"Skipping stale-container probe on {node}: fast probe failed and retry timed out after {CONTAINER_PROBE_TIMEOUT_SECONDS}s",
-                    dbg_lvl,
-                )
-                continue
-            except Exception as retry_exc:
-                warn(
-                    f"Unable to list docker containers on {node} for preflight check: "
-                    f"{summarize_probe_failure(first_exc)}; retry without --immediate also failed: "
-                    f"{summarize_probe_failure(retry_exc)}",
-                    dbg_lvl,
-                )
-                continue
+        except Exception as exc:
+            warn(f"Unable to list docker containers on {node} for preflight check: {summarize_probe_failure(exc)}",
+                 dbg_lvl)
+            continue
 
         active_node, stale_node = split_matching_containers(result.stdout.splitlines())
         if active_node:

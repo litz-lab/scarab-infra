@@ -8,6 +8,7 @@ import subprocess
 import re
 import sys
 import traceback
+from concurrent.futures import ThreadPoolExecutor
 import json
 from pathlib import Path
 
@@ -16,6 +17,7 @@ DEFAULT_MEM_MB = 4096    # fallback when no base_memory_mb data exists in worklo
 MEM_HEADROOM_MB = 1024   # fixed +1 GiB on top of workloads_db base_memory_mb for Slurm --mem
 
 from .utilities import (
+    confirm_kill,
         err,
         warn,
         info,
@@ -39,6 +41,8 @@ from .utilities import (
         print_simulation_status_summary,
         run_on_node,
         normalize_simulations,
+        require_aslr_disabled,
+        use_apptainer,
         )
 from .image_identity import image_tag_for
 
@@ -235,6 +239,30 @@ def list_cluster_nodes(dbg_lvl = 1):
         nodes.append((node, state))
     return nodes
 
+# The prebuilt SPEC17 binaries under application_dir carry AVX-512 and these
+# nodes are AMD EPYC, so anything that executes the application dies on the first
+# such instruction ("PIN: Found exception sig=4 on rightpath"): exec-driven
+# simulation, and tracing, which runs it under DynamoRIO. Simulating a recorded
+# trace never executes it and runs anywhere.
+NO_AVX512_NODES = ("twilight", "moore", "dennard")
+
+
+def exclude_avx512_incapable(slurm_options, dbg_lvl=1):
+    """Keep a job that executes the application off the CPUs that cannot run it."""
+    options = slurm_options or ""
+    # Whoever placed the job by hand gets to keep their placement.
+    if "--exclude" in options or "--nodelist" in options or "-w " in options:
+        return options
+    known = {node for node, _ in list_cluster_nodes(dbg_lvl)}
+    # Naming a node slurm does not have is a submit error, so only exclude the
+    # ones this cluster actually has; another cluster excludes nothing.
+    excluded = [node for node in NO_AVX512_NODES if not known or node in known]
+    if not excluded:
+        return options
+    addition = "--exclude=" + ",".join(excluded)
+    return f"{options} {addition}".strip()
+
+
 # Get command to sbatch scarab runs. 1 core each, exclude nodes where container isn't running
 # mem_mb: when provided, sets --mem explicitly; any --mem present in slurm_options is stripped
 #         (deprecated) and a warning is emitted. When None, slurm_options is passed through
@@ -256,7 +284,7 @@ def generate_sbatch_command(experiment_dir, slurm_options="", mem_mb=None, job_o
         assert isinstance(job_out_suffix, str)
         job_out_suffix = '_' + job_out_suffix
 
-    return f"sbatch -c 1{slurm_options} -o {experiment_dir}/logs/job_%j{job_out_suffix}.out "
+    return f"sbatch -c 1 --no-requeue{slurm_options} -o {experiment_dir}/logs/job_%j{job_out_suffix}.out "
 #return f"sbatch -c 1 --ntasks-per-core=2 --oversubscribe -o {experiment_dir}/logs/job_%j.out "
 
 
@@ -288,10 +316,11 @@ def print_status(user, job_name, docker_prefix_list, descriptor_data, workloads_
         else:
             print(f"\033[31mUNAVAILABLE: {node}\033[0m")
 
-    cmd = f"squeue --state=PENDING | grep -B 10000 '{user}' | wc -l"
-    output = subprocess.check_output(cmd, shell=True, timeout=5).decode("utf-8").strip()
-    jobs_ahead = int(output) - 2 if output.isnumeric() else -1 # subtract 2 to exclude the header line and job itself
-    if jobs_ahead >= 0: print(f"Jobs ahead in queue: {jobs_ahead}")
+    # Position of the user's first pending job in priority order; held jobs never run.
+    pending = subprocess.check_output(["squeue", "--state=PENDING", "--sort=-p,i", "-h", "-o", "%u|%r"],
+                                      timeout=5).decode("utf-8").splitlines()
+    jobs_ahead = next((i for i, l in enumerate(pending) if l.split("|")[0] == user and "Held" not in l), None)
+    if jobs_ahead is not None: print(f"Jobs ahead in queue: {jobs_ahead}")
 
     # Get dictionary of {node: [processes]}
     # NOTE: This is a list of run commands, not the actual containers. Container name will be same miunus tmp_run.sh
@@ -354,15 +383,13 @@ def kill_jobs(user, job_name, docker_prefix_list, dbg_lvl = 2):
         print("Found jobs: ")
         print(lines)
 
-        confirm = input("Do you want to kill these jobs? (y/n): ").lower()
-        if confirm == 'y':
-            # Kill each job
+        if confirm_kill("Do you want to kill these jobs?", dbg_lvl):
             info(f"Killing jobs with slurm job ids: {', '.join(map(str, job_ids))}", dbg_lvl)
-            for id in job_ids:
-                try:
-                    subprocess.check_call(["scancel", "-u", user, str(id)])
-                except subprocess.CalledProcessError as e:
-                    err(f"Couldn't cancel job with id {id}. Return code: {e.returncode}", dbg_lvl)
+            # One scancel for all jobs: one per job took minutes on a large sweep.
+            try:
+                subprocess.check_call(["scancel", "-u", user] + [str(id) for id in job_ids])
+            except subprocess.CalledProcessError as e:
+                err(f"Couldn't cancel some of the jobs. Return code: {e.returncode}", dbg_lvl)
             return True
         else:
             print("Operation canceled.")
@@ -372,6 +399,8 @@ def kill_jobs(user, job_name, docker_prefix_list, dbg_lvl = 2):
         return True
 
 def clean_containers(user, job_name, docker_prefix_list, dbg_lvl = 2):
+    if use_apptainer():
+        return
     if not docker_prefix_list:
         info("No docker images associated with descriptor; nothing to clean.", dbg_lvl)
         return
@@ -394,9 +423,9 @@ def clean_containers(user, job_name, docker_prefix_list, dbg_lvl = 2):
         return
 
     patterns = [re.compile(fr"^{docker_prefix}_.*_{job_name}.*_.*_{user}$") for docker_prefix in docker_prefix_list]
-    removed_any = False
 
-    for node in all_nodes:
+    def clean_node(node):
+        removed = False
         try:
             result = run_on_node(
                 ["docker", "ps", "-a", "--format", "{{.Names}}"],
@@ -408,13 +437,13 @@ def clean_containers(user, job_name, docker_prefix_list, dbg_lvl = 2):
             )
         except subprocess.TimeoutExpired as exc:
             warn(f"Timed out while listing containers on {node}: {exc}", dbg_lvl)
-            continue
+            return False
         except subprocess.CalledProcessError as exc:
             warn(f"Failed to list containers on {node}: {exc}", dbg_lvl)
-            continue
+            return False
         except Exception as exc:
             warn(f"Error while listing containers on {node}: {exc}", dbg_lvl)
-            continue
+            return False
 
         container_names = [line.strip() for line in result.stdout.splitlines() if line.strip()]
         matching = []
@@ -424,13 +453,13 @@ def clean_containers(user, job_name, docker_prefix_list, dbg_lvl = 2):
 
         if not matching:
             info(f"No containers to remove on {node}.", dbg_lvl)
-            continue
+            return False
 
         for container in matching:
             try:
                 run_on_node(["docker", "rm", "-f", container], node=node, check=True, timeout=30)
                 print(f"Removed container {container} on {node}")
-                removed_any = True
+                removed = True
             except subprocess.TimeoutExpired as exc:
                 err(f"Timed out removing container {container} on {node}: {exc}", dbg_lvl)
             except subprocess.CalledProcessError as exc:
@@ -438,6 +467,11 @@ def clean_containers(user, job_name, docker_prefix_list, dbg_lvl = 2):
             except Exception as exc:
                 err(f"Unexpected error removing container {container} on {node}: {exc}", dbg_lvl)
 
+        return removed
+
+    # Nodes are probed in parallel: each probe can wait out its 30 s timeout on a busy node.
+    with ThreadPoolExecutor(max_workers=len(all_nodes)) as pool:
+        removed_any = any(list(pool.map(clean_node, all_nodes)))
     if not removed_any:
         print("No matching containers found on any slurm node.")
 
@@ -445,7 +479,7 @@ def clean_containers(user, job_name, docker_prefix_list, dbg_lvl = 2):
 
 def clean_tmp_run_scripts(nodes, job_name, user, dbg_lvl = 2):
     pattern = re.compile(rf".*_{re.escape(job_name)}_.*_{re.escape(user)}_tmp_run\.sh$")
-    for node in nodes:
+    def clean_node(node):
         try:
             result = run_on_node(
                 ["bash", "-lc", "find . -maxdepth 1 -type f -name '*_tmp_run.sh' -print"],
@@ -457,10 +491,10 @@ def clean_tmp_run_scripts(nodes, job_name, user, dbg_lvl = 2):
             )
         except subprocess.TimeoutExpired as exc:
             warn(f"Timed out while listing temporary scripts on {node}: {exc}", dbg_lvl)
-            continue
+            return
         except Exception as exc:
             warn(f"Failed to list temporary scripts on {node}: {exc}", dbg_lvl)
-            continue
+            return
         files = []
         for line in result.stdout.splitlines():
             candidate = line.strip()
@@ -471,7 +505,7 @@ def clean_tmp_run_scripts(nodes, job_name, user, dbg_lvl = 2):
                 files.append(candidate)
         if not files:
             info(f"No temporary run scripts on {node}.", dbg_lvl)
-            continue
+            return
         for script in files:
             try:
                 run_on_node(["rm", "-f", script], node=node, check=True, timeout=30)
@@ -482,6 +516,9 @@ def clean_tmp_run_scripts(nodes, job_name, user, dbg_lvl = 2):
                 err(f"Failed to remove {script} on {node}: {exc}", dbg_lvl)
             except Exception as exc:
                 err(f"Unexpected error removing {script} on {node}: {exc}", dbg_lvl)
+
+    with ThreadPoolExecutor(max_workers=max(len(nodes), 1)) as pool:
+        list(pool.map(clean_node, nodes))
 
 def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_path, dbg_lvl = 1):
     architecture = descriptor_data["architecture"]
@@ -527,6 +564,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
             if sim_mode == "pt":
                 trace_warmup = simulation_data["warmup"]
             if sim_mode == "exec":
+                require_aslr_disabled(dbg_lvl)
                 env_vars = simulation_data["env_vars"]
                 bincmd = simulation_data["binary_cmd"]
                 client_bincmd = simulation_data["client_bincmd"]
@@ -606,7 +644,11 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                     if scarab_build == "dbg":
                         mem_mb = max(2 * mem_mb, mem_mb + MEM_HEADROOM_MB)
 
-                    sbatch_cmd = generate_sbatch_command(experiment_dir, slurm_options=slurm_options, mem_mb=mem_mb)
+                    sbatch_cmd = generate_sbatch_command(
+                        experiment_dir,
+                        slurm_options=(exclude_avx512_incapable(slurm_options, dbg_lvl)
+                                       if sim_mode == "exec" else slurm_options),
+                        mem_mb=mem_mb)
 
                     if fallback_mb is not None:
                         print(f"WARN: no base_memory_mb_by_mode entry for {suite}/{subsuite}/{workload} cluster={cluster_id} sim_mode={sim_mode} config={config_key}, using fallback={fallback_mb}MB + overhead={overhead_mb}MB = {mem_mb}MB")
@@ -616,7 +658,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                                                  docker_prefix, docker_container_name, traces_dir,
                                                  docker_home, config_key, config, sim_mode, binary_name,
                                                  seg_size, architecture, cluster_id, warmup, trace_warmup, trace_type,
-                                                 trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir, application_dir, slurm=True)
+                                                 trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir, application_dir, slurm=True, perf_stat=bool(descriptor_data.get("perf_stat", False)))
                     tmp_files.add(filename)
 
                     remove_jobs.add((config_key, suite, subsuite, workload, cluster_id))
@@ -772,7 +814,10 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2,
 
     def run_single_trace(workload, image_name, trace_name, env_vars, binary_cmd, client_bincmd, trace_type, drio_args, clustering_k, application_dir, slurm_options):
         try:
-            sbatch_cmd = generate_sbatch_command(trace_dir, slurm_options=slurm_options, job_out_suffix=workload)
+            sbatch_cmd = generate_sbatch_command(
+                trace_dir,
+                slurm_options=exclude_avx512_incapable(slurm_options, dbg_lvl),
+                job_out_suffix=workload)
 
             if trace_type == "cluster_then_trace":
                 simpoint_mode = "cluster_then_trace"
@@ -870,11 +915,11 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2,
                 finalize_cmd, finalize_log_path,
                 env_vars_dict.get("SEGMENT_MEM_MIN_MB", SEGMENT_MEM_MIN_MB),
                 finalize_mem_mb=env_vars_dict.get("PHASE3_FINALIZE_MEM_MB", PHASE3_FINALIZE_MEM_MB),
-                slurm_options=slurm_options,
+                slurm_options=exclude_avx512_incapable(slurm_options, dbg_lvl),
             )
 
         sbatch_cmd = generate_sbatch_command(
-            trace_dir, slurm_options=slurm_options,
+            trace_dir, slurm_options=exclude_avx512_incapable(slurm_options, dbg_lvl),
             mem_mb=env_vars_dict.get("PHASE1_MEM_MB", PHASE1_MEM_MB),
             job_out_suffix=workload,
         )

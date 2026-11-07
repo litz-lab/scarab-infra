@@ -16,6 +16,9 @@ import re
 import shlex
 import shutil
 import subprocess
+import urllib.error
+import urllib.request
+import tempfile
 import sys
 import time
 from pathlib import Path
@@ -40,8 +43,6 @@ OPTIONAL_TITLES = {
     "(Optional) Install agent guardrails",
 }
 
-COOKIES_CACHE_PATH = Path.home() / ".cache" / "gdown" / "cookies.txt"
-_COOKIES_STATUS = {"prompted": False, "skipped": False}
 WORKLOADS_DB_PATH = REPO_ROOT / "workloads" / "workloads_db.json"
 
 
@@ -565,7 +566,7 @@ def confirm(prompt: str, *, default: bool) -> bool:
 
 
 def format_size(num_bytes: int) -> str:
-    units = ["B", "KB", "MB", "GB", "TB", "PB"]
+    units = ["B", "KiB", "MiB", "GiB", "TiB", "PiB"]
     value = float(num_bytes)
     unit = 0
     while value >= 1024 and unit < len(units) - 1:
@@ -597,125 +598,6 @@ def load_workloads_file(filename: str) -> Dict[str, Any]:
         raise StepError(f"Missing workloads file: {path}") from exc
     except json.JSONDecodeError as exc:
         raise StepError(f"Failed to parse {path}: {exc}") from exc
-
-
-def ensure_gdown_cookies(*, force_prompt: bool = False, initial_prompt: bool = False) -> bool:
-    global _COOKIES_STATUS
-    target = COOKIES_CACHE_PATH
-    if target.exists():
-        info(f"Using browser cookies at {target}")
-        _COOKIES_STATUS["prompted"] = True
-        _COOKIES_STATUS["skipped"] = False
-        return True
-
-    if _COOKIES_STATUS["skipped"]:
-        return False
-
-    if not sys.stdin.isatty():
-        info(
-            f"gdown requires an authenticated cookies file at {target}. Upload cookies.txt to that path and rerun."
-        )
-        _COOKIES_STATUS["skipped"] = True
-        return False
-
-    if _COOKIES_STATUS["prompted"] and not force_prompt:
-        return False
-
-    _COOKIES_STATUS["prompted"] = True
-    header = (
-        "Google Drive downloads require an authenticated cookies.txt file."
-        if initial_prompt
-        else "Google Drive downloads may require authentication on headless servers."
-    )
-    print(
-        header
-        + f"\nUpload your exported cookies.txt to this machine and enter its path to copy it into {target}."
-        + "\nType 'skip' to continue without cookies (downloads may fail)."
-    )
-    while True:
-        user_path = input("Path to cookies.txt: ").strip()
-        if not user_path:
-            print("Please enter a path or type 'skip'.")
-            continue
-        if user_path.lower() in {"skip", "s"}:
-            info("Skipping cookie setup; Google Drive may block some downloads.")
-            _COOKIES_STATUS["skipped"] = True
-            return False
-        source = Path(user_path).expanduser()
-        if not source.is_file():
-            print(f"File not found: {source}. Try again or type 'skip'.")
-            continue
-        try:
-            target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(source, target)
-        except OSError as exc:
-            print(f"Failed to install cookies: {exc}. Try again or type 'skip'.")
-            continue
-        info(f"Stored cookies for gdown at {target}")
-        _COOKIES_STATUS["skipped"] = False
-        return True
-
-
-def build_gdown_command(file_id: str, output_path: Path, *, use_conda: bool) -> List[str]:
-    url = f"https://drive.google.com/uc?id={file_id}"
-    cmd: List[str] = []
-    if use_conda:
-        cmd.extend([
-            "conda",
-            "run",
-            "-n",
-            ENV_NAME,
-            "python",
-            "-m",
-            "gdown",
-        ])
-    else:
-        cmd.append("gdown")
-
-    cmd.extend([url, "-O", str(output_path)])
-    return cmd
-
-
-def download_trace_file(file_id: str, output_path: Path, *, allow_cookie_prompt: bool = True) -> None:
-    commands = [
-        build_gdown_command(file_id, output_path, use_conda=True),
-    ]
-    if shutil.which("gdown"):
-        commands.append(build_gdown_command(file_id, output_path, use_conda=False))
-    last_exc: Optional[StepError] = None
-    attempted_cookie_setup = False
-    while True:
-        retry_requested = False
-        for cmd in commands:
-            try:
-                run_command(cmd)
-                return
-            except StepError as exc:
-                last_exc = exc
-                if not attempted_cookie_setup and allow_cookie_prompt:
-                    attempted_cookie_setup = True
-                    if ensure_gdown_cookies():
-                        info("Retrying download using browser cookies.")
-                        retry_requested = True
-                        break
-        if retry_requested:
-            continue
-        break
-    if last_exc:
-        message = str(last_exc)
-        if "Cannot retrieve the public link" in message or "Failed to retrieve file url" in message:
-            if COOKIES_CACHE_PATH.exists():
-                message += (
-                    "\nGoogle Drive still refused the download even with cookies. "
-                    "Verify that the trace is shared with the account used to export cookies, "
-                    "or try again later when the quota resets."
-                )
-            else:
-                message += (
-                    "\nInstall cookies.txt exported from a browser session with access and rerun."
-                )
-        raise StepError(message)
-    raise StepError("Unknown gdown failure")
 
 
 def conda_env_exists() -> bool:
@@ -882,6 +764,7 @@ def ensure_conda_env(args: argparse.Namespace) -> Tuple[bool, str]:
         return True, "Conda environment already up to date."
 
     if not env_exists:
+        os.environ.setdefault("CONDA_PLUGINS_AUTO_ACCEPT_TOS", "yes")
         try:
             run_command(["conda", "env", "create", "-f", str(yaml_path)])
         except StepError as exc:
@@ -1175,7 +1058,182 @@ def ensure_ssh_key(args: argparse.Namespace) -> Tuple[bool, str]:
     return True, message
 
 
-def ensure_traces(_: argparse.Namespace) -> Tuple[bool, str]:
+TRACE_URL = os.environ.get("SCI_TRACE_URL", "https://scarab.phd/traces")
+# The one trace CI simulates, as a selector like any other.
+CI_TRACE = "spec2017.rate_int_v2.perlbench_r.109678"
+
+
+def trace_source() -> str:
+    """The rclone remote traces are read from.
+
+    The bucket is served publicly, so reading needs no credentials: an rclone
+    connection string wraps the URL, and nothing has to be configured on the
+    machine. Writing still needs a token, which is sync_traces_r2.sh's business.
+    """
+    return f":http,url='{TRACE_URL}':"
+
+
+def load_trace_manifest():
+    """The module the uploader uses, so both sides derive the same paths."""
+    sys.path.insert(0, str(REPO_ROOT / "scripts"))
+    try:
+        import trace_manifest
+    except ImportError as exc:
+        raise StepError(f"Could not load scripts/trace_manifest.py: {exc}")
+    return trace_manifest
+
+
+def trace_entries() -> List[Tuple[Tuple[str, str, str, str], str, int]]:
+    """(suite, path, size) for every trace workloads_db.json refers to.
+
+    A public bucket serves objects but does not list them, so the database is
+    the index: scripts/trace_manifest.py builds the same paths the uploader
+    does, and the recorded sizes make the catalog printable without a request.
+    """
+    trace_manifest = load_trace_manifest()
+    db = load_workloads_file("workloads_db.json")
+    out: List[Tuple[Tuple[str, str, str, str], str, int]] = []
+    for suite, subsuite, workload, tail in trace_manifest.entries(db):
+        info = db[suite][subsuite][workload]
+        if tail.startswith("traces/pt/"):
+            last = "pt"
+            size = int(((info.get("simulation") or {}).get("pt") or {}).get("size_bytes") or 0)
+        else:
+            last = tail.rsplit("/", 1)[1].removesuffix(".zip")
+            size = next((int(sp.get("size_bytes") or 0)
+                         for sp in info.get("simpoints") or []
+                         if str(sp.get("cluster_id")) == last), 0)
+        out.append(((suite, subsuite, workload, last),
+                    f"{suite}/{subsuite}/{workload}/{tail}", size))
+    return out
+
+
+def select_traces(selector: str) -> List[Tuple[Tuple[str, str, str, str], str, int]]:
+    """Everything under a dotted selector.
+
+    suite.subsuite.workload.simpoint, with any tail left off meaning "all of
+    it": spec2017 is the suite, spec2017.rate_int_v2.perlbench_r.109678 is one
+    zip, and a pt workload's last component is 'pt'.
+    """
+    wanted = [part for part in selector.split(".") if part]
+    return [entry for entry in trace_entries() if list(entry[0][:len(wanted)]) == wanted]
+
+
+def selector_children(selector: str) -> List[str]:
+    """What could have been named at the level the selector stopped matching."""
+    parts = [part for part in selector.split(".") if part]
+    for depth in range(len(parts), 0, -1):
+        prefix = parts[:depth - 1]
+        siblings = sorted({entry[0][depth - 1] for entry in trace_entries()
+                           if list(entry[0][:depth - 1]) == prefix})
+        if siblings:
+            return [".".join(prefix + [name]) for name in siblings]
+    return sorted({entry[0][0] for entry in trace_entries()})
+
+
+def published_suites() -> Set[str]:
+    """Suites the uploader publishes: everything in the database bar the skips."""
+    trace_manifest = load_trace_manifest()
+    db = load_workloads_file("workloads_db.json")
+    skip = set(trace_manifest.DEFAULT_SKIP)
+    return {suite for suite, _, _, _ in trace_manifest.entries(db) if suite not in skip}
+
+
+def suite_catalog() -> List[Tuple[str, int, int]]:
+    """(suite, files, bytes) per published suite, biggest first.
+
+    workloads_db.json records a size for every trace and the uploader derives
+    what it sends from the same file, so there is nothing to read back out of
+    the bucket -- and nothing to drift.
+    """
+    published = published_suites()
+    counts: Dict[str, List[int]] = {}
+    for (suite, _, _, _), _, size in trace_entries():
+        if suite not in published:
+            continue
+        entry = counts.setdefault(suite, [0, 0])
+        entry[0] += 1
+        entry[1] += size
+    return sorted(((suite, c, b) for suite, (c, b) in counts.items()),
+                  key=lambda row: -row[2])
+
+
+def print_suite_catalog(catalog: List[Tuple[str, int, int]]) -> None:
+    print(f"\nTraces available at {TRACE_URL}:\n")
+    print(f"  {'suite':18s} {'files':>7s} {'size':>9s}")
+    for suite, files, size in catalog:
+        print(f"  {suite:18s} {files:7d} {format_size(size):>9s}")
+    total = sum(row[2] for row in catalog)
+    print(f"  {'':18s} {'':>7s} {format_size(total):>9s}  total\n")
+
+
+def http_get(rel: str, target: Path) -> None:
+    """Fetch one object over the public domain, writing it only once complete."""
+    # Cloudflare answers the default python user agent with 403.
+    request = urllib.request.Request(f"{TRACE_URL}/{rel}",
+                                     headers={"User-Agent": "scarab-infra/sci"})
+    target.parent.mkdir(parents=True, exist_ok=True)
+    partial = target.with_suffix(target.suffix + ".partial")
+    with urllib.request.urlopen(request, timeout=120) as response, \
+            partial.open("wb") as handle:
+        shutil.copyfileobj(response, handle, 1024 * 1024)
+    partial.replace(target)
+
+
+def download_over_http(paths: List[str], trace_home: Path) -> Tuple[int, str]:
+    """rclone is not everywhere -- CI has none -- and the bucket is public."""
+    import concurrent.futures
+
+    def fetch(rel: str) -> Optional[str]:
+        target = trace_home / rel
+        if target.is_file():
+            return None
+        try:
+            http_get(rel, target)
+        except (urllib.error.URLError, OSError) as exc:
+            return f"{rel}: {exc}"
+        return None
+
+    failures: List[str] = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
+        for failure in pool.map(fetch, paths):
+            if failure:
+                failures.append(failure)
+    if failures:
+        info(f"  {len(failures)} file(s) failed, first: {failures[0]}")
+        return 1, "https"
+    return 0, "https"
+
+
+def download_files(paths: List[str], trace_home: Path) -> Tuple[int, str]:
+    """Fetch the named files, skipping whatever is already the right size."""
+    if not shutil.which("rclone"):
+        return download_over_http(paths, trace_home)
+    listing = Path(tempfile.mkstemp(prefix="sci_traces_")[1])
+    listing.write_text("\n".join(paths) + "\n", encoding="utf-8")
+    cmd = [
+        "rclone", "copy", trace_source(), str(trace_home),
+        "--files-from", str(listing),
+        "--transfers", "16",
+        "--checkers", "16",
+        # Traces never change once written, so size is enough to decide, and a
+        # public bucket cannot be listed: say so rather than walking it.
+        "--size-only",
+        "--no-traverse",
+        "--retries", "5",
+        "--stats", "30s",
+        "--stats-one-line",
+    ]
+    if sys.stdout.isatty():
+        cmd.append("--progress")
+    try:
+        return subprocess.run(cmd).returncode, " ".join(cmd)
+    finally:
+        listing.unlink(missing_ok=True)
+
+
+def download_traces(selectors: List[str]) -> Tuple[bool, str]:
+    """Copy everything the selectors name out of the bucket into trace_home."""
     trace_home = Path(
         os.environ.get("trace_home")
         or (Path.home() / "traces")
@@ -1185,307 +1243,113 @@ def ensure_traces(_: argparse.Namespace) -> Tuple[bool, str]:
     except OSError as exc:
         return False, f"Could not create trace directory {trace_home}: {exc}"
 
-    workloads_db = load_workloads_file("workloads_db.json")
+    catalog = suite_catalog()
+    published = {row[0] for row in catalog}
+    if any(selector.lower() == "all" for selector in selectors):
+        selectors = sorted(published)
+
+    chosen: Dict[str, Tuple[str, int]] = {}
+    for selector in selectors:
+        matched = select_traces(selector)
+        if not matched:
+            children = selector_children(selector)
+            return False, (f"Nothing matches '{selector}'. Try: "
+                           f"{', '.join(children[:12])}"
+                           + (" ..." if len(children) > 12 else ""))
+        held_back = sorted({entry[0][0] for entry in matched} - published)
+        if held_back:
+            print_suite_catalog(catalog)
+            missing = ", ".join(held_back)
+            return False, (f"'{selector}' is in workloads_db.json, but "
+                           + ("it is" if missing == selector else f"{missing} is")
+                           + " not published to the bucket.")
+        for components, path, size in matched:
+            chosen[path] = (components[0], size)
+
+    if not chosen:
+        return True, "Nothing to download."
+    paths = sorted(chosen)
+    info(f"Downloading {len(paths)} file(s), "
+         f"{format_size(sum(size for _, size in chosen.values()))}: "
+         f"{', '.join(selectors)}")
+    code, cmd = download_files(paths, trace_home)
+    if code != 0:
+        return False, (f"Download failed ({code}): {cmd}\nRe-run to continue; what is "
+                       "already present is skipped.")
+    return True, (f"Downloaded {len(paths)} file(s) into {trace_home}: "
+                  f"{', '.join(selectors)}")
+
+
+LEVELS = ("suite", "subsuite", "workload", "simpoint")
+
+
+def print_level(selector: str, published: Set[str]) -> None:
+    """What sits one level below a selector, with counts and sizes."""
+    parts = [part for part in selector.split(".") if part]
+    matched = select_traces(selector)
+    if not matched:
+        children = selector_children(selector)
+        raise StepError(f"Nothing matches '{selector}'. Try: "
+                        + ", ".join(children[:12])
+                        + (" ..." if len(children) > 12 else ""))
+
+    depth = len(parts)
+    groups: Dict[str, List[int]] = {}
+    for components, _, size in matched:
+        name = components[depth] if depth < len(LEVELS) else components[-1]
+        entry = groups.setdefault(name, [0, 0])
+        entry[0] += 1
+        entry[1] += size
+
+    level = LEVELS[depth] if depth < len(LEVELS) else "trace"
+    total = sum(row[1] for row in groups.values())
+    print(f"\n{selector}: {len(groups)} {level}(s), {format_size(total)}")
+    if parts[0] not in published:
+        print(f"  ({parts[0]} is in workloads_db.json but not published)")
+    print()
+    width = max(len(name) for name in groups)
+    for name, (files, size) in sorted(groups.items(), key=lambda kv: -kv[1][1]):
+        print(f"  {selector}.{name:<{width}}  {files:5d} file(s) {format_size(size):>9s}")
+    print()
+
+
+def run_list_traces(args: argparse.Namespace) -> int:
+    """Print what can be downloaded, whole or one level at a time."""
     try:
-        workloads_top = load_workloads_file("workloads_top_simp.json")
-    except StepError:
-        workloads_top = {}
+        catalog = suite_catalog()
+        selector = (getattr(args, "list_traces", "") or "").strip()
+        if selector:
+            print_level(selector, {row[0] for row in catalog})
+            return 0
+        print_suite_catalog(catalog)
+    except StepError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    return 0
 
-    use_top_requested = confirm(
-        "Download only the top 3 simpoints from workloads_top_simp.json? (Choose 'No' for all simpoints)",
-        default=True,
-    )
-    use_top_three = bool(workloads_top) and use_top_requested
-    if use_top_requested and not workloads_top:
-        info("Top-3 simpoint metadata not found; defaulting to all simpoints from workloads_db.json.")
 
-    source_data: Dict[str, Any] = workloads_top if use_top_three else workloads_db
-    if not isinstance(source_data, dict) or not source_data:
-        return True, "No workloads defined for trace download."
-
-    ensure_gdown_cookies(force_prompt=True, initial_prompt=True)
-
-    downloads = 0
-    existing = 0
-    missing_count = 0
-    missing_examples: List[str] = []
-    undownloadable_workloads: Dict[str, int] = {}
-    failures: List[str] = []
-
-    excluded_suites = {"deprecated", "dc_java", "fleetbench", "mongo-perf"}
-    for suite, subsuites in source_data.items():
-        if suite in excluded_suites:
-            info(f"Skipping suite '{suite}' by default.")
-            continue
-        if not isinstance(subsuites, dict):
-            continue
-        db_subsuites = workloads_db.get(suite)
-        if not isinstance(db_subsuites, dict):
-            failures.append(f"Suite '{suite}' missing from workloads_db.json")
-            continue
-
-        suite_plan: Dict[str, List[Tuple[str, List[Dict[str, Any]]]]] = {}
-        suite_missing: Dict[str, int] = {}
-        suite_size_bytes = 0
-
-        print_heading(f"Trace suite: {suite}")
-
-        for subsuite, workloads in subsuites.items():
-            if not isinstance(workloads, dict):
-                continue
-            db_workloads = db_subsuites.get(subsuite)
-            if not isinstance(db_workloads, dict):
-                failures.append(
-                    f"Subsuite '{suite}/{subsuite}' missing from workloads_db.json"
-                )
-                continue
-            subsuite_plan: List[Tuple[str, List[Dict[str, Any]]]] = []
-            subsuite_missing = False
-            for workload, workload_payload in workloads.items():
-                if not isinstance(workload_payload, dict):
-                    continue
-                db_workload_entry = db_workloads.get(workload)
-                if not isinstance(db_workload_entry, dict):
-                    failures.append(
-                        f"Workload '{suite}/{subsuite}/{workload}' missing from workloads_db.json"
-                    )
-                    continue
-                all_simpoints = db_workload_entry.get("simpoints", [])
-                if not isinstance(all_simpoints, list) or not all_simpoints:
-                    continue
-                if use_top_three:
-                    top_simpoints = workload_payload.get("simpoints", [])
-                    cluster_ids = {
-                        simpoint.get("cluster_id")
-                        for simpoint in top_simpoints
-                        if isinstance(simpoint, dict) and simpoint.get("cluster_id") is not None
-                    }
-                    if not cluster_ids:
-                        continue
-                    selected_simpoints = [
-                        simpoint
-                        for simpoint in all_simpoints
-                        if isinstance(simpoint, dict)
-                        and simpoint.get("cluster_id") in cluster_ids
-                    ]
-                    missing_clusters = cluster_ids - {
-                        simpoint.get("cluster_id")
-                        for simpoint in selected_simpoints
-                    }
-                    if missing_clusters:
-                        failures.append(
-                            f"Missing drive_id mapping for {suite}/{subsuite}/{workload}: {sorted(missing_clusters)}"
-                        )
-                        continue
-                else:
-                    selected_simpoints = [
-                        simpoint for simpoint in all_simpoints if isinstance(simpoint, dict)
-                    ]
-
-                missing_ids_for_workload = [
-                    simpoint.get("cluster_id")
-                    for simpoint in selected_simpoints
-                    if not simpoint.get("drive_id")
-                ]
-                workload_key = f"{suite}/{subsuite}/{workload}"
-                if missing_ids_for_workload:
-                    missing_count += len(missing_ids_for_workload)
-                    suite_missing[workload_key] = len(missing_ids_for_workload)
-                    subsuite_missing = True
-                    for cid in missing_ids_for_workload:
-                        if len(missing_examples) < 5:
-                            missing_examples.append(f"{workload_key}:{cid}")
-                    continue
-
-                subsuite_plan.append((workload, selected_simpoints))
-                for simpoint in selected_simpoints:
-                    size_value = simpoint.get("size_bytes")
-                    if isinstance(size_value, int) and size_value > 0:
-                        suite_size_bytes += size_value
-
-            if subsuite_plan:
-                suite_plan[subsuite] = subsuite_plan
-            elif subsuite_missing:
-                info(
-                    f"No downloadable traces for subsuite '{suite}/{subsuite}'; add drive_id entries to enable."
-                )
-
-        if suite_missing:
-            for key, count in suite_missing.items():
-                undownloadable_workloads[key] = count
-
-        prompt = f"Download traces for suite '{suite}'"
-        if suite_size_bytes > 0:
-            prompt += f" (~{format_size(suite_size_bytes)})"
-
-        if not suite_plan:
-            print(f"{prompt}? [skipped - no drive_id entries]")
-            info(
-                f"Add drive_id entries for suite '{suite}' to download its traces for future use."
-            )
-            continue
-
-        if suite_missing:
-            info(
-                f"Suite '{suite}' has workload(s) without drive_id entries; they will be skipped until populated."
-            )
-
-        prompt += "?"
-        default_choice = False
-        if not confirm(prompt, default=default_choice):
-            info(f"Skipped downloads for suite '{suite}' by user choice.")
-            continue
-
-        suite_downloaded_bytes = 0
-        suite_downloads = 0
-        suite_existing = 0
-        suite_start = time.monotonic()
-        for subsuite, workloads in suite_plan.items():
-            subsuite_prompt = f"  Download subsuite '{suite}/{subsuite}'?"
-            subsuite_size = 0
-            for _, selected_simpoints in workloads:
-                for simpoint in selected_simpoints:
-                    size_value = simpoint.get("size_bytes")
-                    if isinstance(size_value, int) and size_value > 0:
-                        subsuite_size += size_value
-            if subsuite_size > 0:
-                subsuite_prompt += f" (~{format_size(subsuite_size)})"
-            if not confirm(subsuite_prompt + "", default=False):
-                info(f"Skipped subsuite '{suite}/{subsuite}'.")
-                continue
-
-            for workload, selected_simpoints in workloads:
-                for simpoint in selected_simpoints:
-                    cluster_id = simpoint.get("cluster_id")
-                    file_id = simpoint.get("drive_id")
-                    if cluster_id is None or not file_id:
-                        continue
-                    target_path = (
-                        trace_home
-                        / suite
-                        / subsuite
-                        / workload
-                        / "traces"
-                        / "simp"
-                        / f"{cluster_id}.zip"
-                    )
-                    if target_path.exists():
-                        existing += 1
-                        suite_existing += 1
-                        continue
-                    try:
-                        target_path.parent.mkdir(parents=True, exist_ok=True)
-                    except OSError as exc:
-                        failures.append(f"Failed to create {target_path.parent}: {exc}")
-                        continue
-                    try:
-                        download_trace_file(str(file_id), target_path)
-                    except StepError as exc:
-                        failures.append(
-                            f"Download failed for {suite}/{subsuite}/{workload}:{cluster_id}: {exc}"
-                        )
-                        continue
-                    downloads += 1
-                    suite_downloads += 1
-                    size_value = simpoint.get("size_bytes")
-                    if isinstance(size_value, int) and size_value > 0:
-                        suite_downloaded_bytes += size_value
-
-        elapsed = time.monotonic() - suite_start
-        summary_details: List[str] = []
-        if suite_downloads:
-            download_detail = f"{suite_downloads} new trace(s)"
-            if suite_downloaded_bytes > 0:
-                download_detail += f" (~{format_size(suite_downloaded_bytes)})"
-            summary_details.append(download_detail)
-        else:
-            summary_details.append("no new downloads")
-        if suite_existing:
-            summary_details.append(f"{suite_existing} already present")
-        summary = f"[{suite}] Completed in {format_duration(elapsed)}"
-        if summary_details:
-            summary += "; " + "; ".join(summary_details)
-        info(summary + ".")
-
-    if failures:
-        return False, failures[0]
-
-    skipped_msg = ""
-    if missing_count:
-        sample = ", ".join(missing_examples)
-        extra = " (and more)" if missing_count > len(missing_examples) else ""
-        skipped_msg = (
-            f" Skipped {missing_count} trace(s) missing drive_id: {sample}{extra}."
-        )
-    if undownloadable_workloads:
-        workload_list = list(undownloadable_workloads.keys())
-        example_str = ", ".join(workload_list[:5])
-        extra = " (and more)" if len(workload_list) > 5 else ""
-        info(
-            "Workload(s) skipped due to missing drive_id entries: "
-            + example_str
-            + extra
-        )
-
-    if downloads and existing:
-        return True, f"Downloaded {downloads} trace(s); {existing} already present." + skipped_msg
-    if downloads:
-        return True, f"Downloaded {downloads} trace(s)." + skipped_msg
-    if existing:
-        return True, f"All requested traces already present ({existing})." + skipped_msg
-    if skipped_msg:
-        return True, skipped_msg.strip()
-    return True, "No traces selected for download."
+def run_fetch_traces(args: argparse.Namespace) -> int:
+    """Download the named suites."""
+    requested = [part.strip() for part in str(args.fetch_traces).split(",") if part.strip()]
+    try:
+        ok, message = download_traces(requested)
+    except StepError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    if ok:
+        info(message)
+        return 0
+    print(message, file=sys.stderr)
+    return 1
 
 
 def ensure_ci_trace(_: argparse.Namespace) -> Tuple[bool, str]:
+    """The single trace CI simulates, straight from R2."""
     trace_home = Path(
         os.environ.get("trace_home")
         or (Path.home() / "traces")
     ).expanduser()
-    try:
-        trace_home.mkdir(parents=True, exist_ok=True)
-    except OSError as exc:
-        return False, f"Could not create trace directory {trace_home}: {exc}"
-
-    workloads_db = load_workloads_file("workloads_db.json")
-    try:
-        simpoints = (
-            workloads_db["spec2017"]["rate_int_v2"]["perlbench_r"].get("simpoints", [])
-        )
-    except (TypeError, KeyError):
-        return False, "CI trace metadata missing for spec2017/rate_int_v2/perlbench_r."
-    ci_entry = None
-    for simpoint in simpoints:
-        if isinstance(simpoint, dict) and simpoint.get("cluster_id") == 109678:
-            ci_entry = simpoint
-            break
-    if not ci_entry:
-        return False, "CI trace simpoint 109678 not found in workloads_db.json."
-    drive_id = ci_entry.get("drive_id")
-    if not drive_id:
-        return False, "CI trace simpoint 109678 missing drive_id in workloads_db.json."
-    target_path = (
-        trace_home
-        / "spec2017"
-        / "rate_int_v2"
-        / "perlbench_r"
-        / "traces"
-        / "simp"
-        / "109678.zip"
-    )
-    if target_path.exists():
-        return True, "CI trace spec2017/rate_int_v2/perlbench_r:109678 already present."
-
-    try:
-        target_path.parent.mkdir(parents=True, exist_ok=True)
-    except OSError as exc:
-        return False, f"Failed to create {target_path.parent}: {exc}"
-    try:
-        download_trace_file(str(drive_id), target_path, allow_cookie_prompt=False)
-    except StepError as exc:
-        return False, f"Download failed for CI trace: {exc}"
-    return True, "Downloaded CI trace spec2017/rate_int_v2/perlbench_r:109678."
+    return download_traces([CI_TRACE])
 
 
 def ensure_conda_installed(_: argparse.Namespace) -> Tuple[bool, str]:
@@ -2033,46 +1897,6 @@ def maybe_check_claude_cli_auth(_: argparse.Namespace) -> Tuple[bool, str]:
     )
 
 
-def ensure_aslr_disabled(_: argparse.Namespace) -> Tuple[bool, str]:
-    aslr_path = "/proc/sys/kernel/randomize_va_space"
-    aslr_file = Path(aslr_path)
-
-    all_nodes = []
-    try:
-        node_output = subprocess.check_output(['sinfo', '-h', '-o', '%N'], 
-                                              universal_newlines=True, stderr=subprocess.DEVNULL).strip()
-        if node_output:
-            all_nodes = subprocess.check_output(['scontrol', 'show', 'hostnames', node_output], 
-                                                universal_newlines=True).splitlines()
-    except (FileNotFoundError, subprocess.CalledProcessError):
-        pass
-
-    if all_nodes:
-        print(f"Detected Slurm cluster. Checking ASLR on {len(all_nodes)} nodes...")
-        for node in all_nodes:
-            try:
-                node_aslr = subprocess.check_output(
-                    ['srun', '-w', node, '-N1', '-n1', 'cat', aslr_path],
-                    universal_newlines=True, stderr=subprocess.DEVNULL, timeout=3
-                ).strip()
-                
-                if node_aslr != '0':
-                    print(f"\n[!] ERROR: ASLR is enabled on Slurm node [{node}] (value: {node_aslr}).")
-                    print(f"    Please run: srun -w {node} sudo sh -c 'echo 0 > {aslr_path}'")
-                    sys.exit(1)
-            except Exception:
-                continue
-        return True, f"ASLR is disabled across all {len(all_nodes)} Slurm nodes."
-    
-    else:
-        content = aslr_file.read_text().strip()
-        if content != "0":
-            print(f"\n[!] ERROR: ASLR is currently enabled on local host (value: {content}).")
-            print(f"    Please run: echo 0 | sudo tee {aslr_path}")
-            sys.exit(1)
-        return True, "ASLR is disabled on local host (0)."
-    
-
 AGENT_HOOK_REL = "tools/mcp/force_sci_hook.py"
 AGENT_MCP_REL = "tools/mcp/sci_mcp.py"
 
@@ -2089,6 +1913,48 @@ def _install_agent_copy(src: Path) -> Path:
     return dest
 
 
+def refresh_agent_guardrails() -> None:
+    """Install the guardrails, and keep them matching this checkout, from any command.
+
+    They are copies rather than symlinks so a branch switch cannot break them, which
+    also means `git pull` does not update them: whoever ran --init in July kept a July
+    hook through every pull since, missing every rule added in between. Doing this from
+    every sci command makes a pull enough, and makes --init unnecessary for guardrails.
+
+    Registering the MCP server runs the Claude CLI, which is far too slow to repeat, so
+    the full install is gated on the hook not being there yet -- it happens once per
+    machine. After that only a byte comparison runs. Upkeep must never be the reason a
+    command fails, so an unwritable install dir is skipped rather than raised.
+    """
+    src_hook = REPO_ROOT / AGENT_HOOK_REL
+    if not src_hook.is_file() or not (REPO_ROOT / AGENT_MCP_REL).is_file():
+        return
+
+    try:
+        if not (AGENT_INSTALL_DIR / src_hook.name).is_file():
+            print_heading("Install agent guardrails")
+            info(maybe_install_agent_guardrails(None)[1])
+            return
+
+        for rel in (AGENT_HOOK_REL, AGENT_MCP_REL):
+            src = REPO_ROOT / rel
+            dest = AGENT_INSTALL_DIR / Path(rel).name
+            if not dest.is_file() or src.read_bytes() == dest.read_bytes():
+                continue
+            shutil.copy2(src, dest)
+            dest.chmod(0o755)
+            info(f"Updated {dest.name} from this checkout.")
+
+        # Registration too, not just the scripts: it is a small JSON read that writes
+        # only when something is wrong, so it can run every command, and it is what
+        # repairs a settings file that already accumulated duplicates.
+        note = _install_agent_hook(AGENT_INSTALL_DIR / src_hook.name)
+        if note != "Bash hook already installed.":
+            info(note)
+    except OSError:
+        return
+
+
 def _install_agent_hook(hook_path: Path) -> str:
     """Add the PreToolUse Bash hook to the user's Claude Code settings."""
     settings = Path.home() / ".claude" / "settings.json"
@@ -2102,22 +1968,33 @@ def _install_agent_hook(hook_path: Path) -> str:
             return f"{settings} is not valid JSON; left it untouched."
 
     entries = data.setdefault("hooks", {}).setdefault("PreToolUse", [])
+    # Match on the file name, not AGENT_HOOK_REL: the installed command names the copy
+    # under ~/.claude/tools, which never contains the repo-relative tools/mcp path, so
+    # matching on that found nothing and appended a duplicate on every install.
+    hook_name = Path(AGENT_HOOK_REL).name
     existing = [
         hook
         for entry in entries
         for hook in entry.get("hooks", [])
-        if AGENT_HOOK_REL in hook.get("command", "")
+        if hook_name in hook.get("command", "")
     ]
-    if existing and all(hook.get("command") == command for hook in existing):
+    if len(existing) == 1 and existing[0].get("command") == command:
         return "Bash hook already installed."
 
-    if existing:
-        for hook in existing:
-            hook["command"] = command
+    if len(existing) > 1:
+        note = f"Collapsed {len(existing)} duplicate {hook_name} hook entries into one."
+    elif existing:
         note = "Updated the scarab-infra hook to this checkout."
     else:
-        entries.append({"matcher": "Bash", "hooks": [{"type": "command", "command": command}]})
         note = "Installed the Bash hook."
+
+    # Drop every copy wherever it sits, then add exactly one back. Each install appended
+    # a whole new entry, so duplicates are separate entries rather than several hooks
+    # inside one, and editing only the first would leave the rest behind.
+    for entry in entries:
+        entry["hooks"] = [h for h in entry.get("hooks", []) if hook_name not in h.get("command", "")]
+    entries[:] = [entry for entry in entries if entry.get("hooks")]
+    entries.append({"matcher": "Bash", "hooks": [{"type": "command", "command": command}]})
 
     settings.parent.mkdir(parents=True, exist_ok=True)
     if settings.exists():
@@ -2166,36 +2043,42 @@ def maybe_install_agent_guardrails(_: argparse.Namespace) -> Tuple[bool, str]:
     return True, " ".join(parts)
 
 
+# `--init --apptainer`: for hosts without docker/root (e.g. HPC clusters). Docker setup is
+# skipped and apptainer is installed into the env; at run time containers then use it
+# (scripts/utilities.py:use_apptainer). Plain `--init` is unchanged.
+DOCKER_SETUP_TITLES = ("Install Docker", "Start Docker daemon", "Configure Docker permissions")
+
+
+def skip_if_apptainer(step):
+    def wrapped(args: argparse.Namespace) -> Tuple[bool, str]:
+        if args.apptainer:
+            return True, "--apptainer: containers run with apptainer, docker not needed."
+        return step(args)
+    return wrapped
+
+
+def ensure_apptainer(args: argparse.Namespace) -> Tuple[bool, str]:
+    if not args.apptainer:
+        return True, "Not requested."
+    try:
+        run_command(["conda", "install", "-y", "-n", ENV_NAME, "-c", "conda-forge", "apptainer"])
+    except StepError as exc:
+        return False, f"Failed to install apptainer: {exc}"
+    return True, ("Installed apptainer into the env. Put images at ~/sif/<image_name>.sif "
+                  "(./sci --sim prints the pull command).")
+
+
 def run_init(args: argparse.Namespace) -> int:
-    if sys.stdin.isatty():
-        print_heading("Prepare Google Drive cookies.txt")
-        info(
-            "Google limits bulk downloads from shared folders; providing browser cookies lets gdown reuse your session when Drive throttles direct access. "
-            "If you can still open the files in your browser, exporting cookies.txt may unblock automated downloads."
-        )
-        info(
-            "For users who need to download traces from the shared Google Drive, prepare cookies.txt before continuing:"
-            "\n1. Open this 'entry-level' folder in a logged-in browser session:"
-            "\n   https://drive.google.com/drive/folders/1y9bgl1rA13AhEFx-1ZbodYZIa0Q5QJuW"
-            "\n2. Install a cookies export extension (e.g. 'Get cookies.txt LOCALLY')."
-            "\n3. Use the extension to export cookies in **Netscape** format and save as 'cookies.txt'."
-            f"\n4. Upload cookies.txt to this server at: {COOKIES_CACHE_PATH}"
-            "\n   (Example: scp cookies.txt user@host:~/.cache/gdown/cookies.txt)"
-        )
-        if not confirm("Ready to continue with the setup now?", default=True):
-            print("Re-run `./sci --init` after cookies.txt is uploaded.")
-            return 0
     steps = [
-        ("Check ASLR setting", ensure_aslr_disabled),
-        ("Install Docker", ensure_docker),
-        ("Start Docker daemon", ensure_docker_running),
-        ("Configure Docker permissions", configure_docker_permissions),
+        ("Install Docker", skip_if_apptainer(ensure_docker)),
+        ("Start Docker daemon", skip_if_apptainer(ensure_docker_running)),
+        ("Configure Docker permissions", skip_if_apptainer(configure_docker_permissions)),
         ("Install Miniconda", ensure_conda_installed),
         ("Create scarabinfra conda env", ensure_conda_env),
+        ("Install apptainer (--apptainer)", ensure_apptainer),
         ("Configure conda shell hook", ensure_conda_shell_hook),
         ("Validate conda env activation", validate_conda_env),
         ("Ensure GitHub SSH key", ensure_ssh_key),
-        ("Download simpoint traces", ensure_traces),
         ("(Optional) Slurm installation", maybe_install_slurm),
         ("(Optional) ghcr.io login to pull pre-built images from GitHub Container Registry (recommended)", maybe_docker_login),
         ("(Optional) Verify Codex CLI auth", maybe_check_codex_cli_auth),
@@ -2212,6 +2095,10 @@ def run_init(args: argparse.Namespace) -> int:
             success, message = False, str(exc)
         info(message)
         summary.append((title, success, message))
+        if not success and title in DOCKER_SETUP_TITLES:
+            print(f"\n[!] {title} failed. If this host has no root/Docker (e.g. an HPC cluster), "
+                  "rerun `./sci --init --apptainer` to use Apptainer instead.")
+            return 1
     print("\nInit summary:")
     for title, success, message in summary:
         status = "ok" if success else "failed"
@@ -2225,6 +2112,8 @@ def run_init(args: argparse.Namespace) -> int:
             print(f"- {title}")
         print("Resolve the issues above and rerun `sci --init`.")
         return 1
+    print("\nTraces are not downloaded by setup: `./sci --list-traces` shows what "
+          "is available,\n`./sci --fetch-traces <suite,...>` downloads it.")
     return 0
 
 
@@ -4386,6 +4275,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Run environment bootstrap steps.",
     )
     parser.add_argument(
+        "--apptainer",
+        action="store_true",
+        help="With --init: skip docker setup and install apptainer, for hosts without docker/root.",
+    )
+    parser.add_argument(
         "--ci-init",
         dest="ci_init",
         action="store_true",
@@ -4425,6 +4319,26 @@ def build_parser() -> argparse.ArgumentParser:
         "--list",
         action="store_true",
         help="List workload group names (requires jq and python modules).",
+    )
+    parser.add_argument(
+        "--list-traces",
+        nargs="?",
+        const="",
+        default=None,
+        metavar="SELECTOR",
+        help="List what can be downloaded. Bare, it lists the published suites "
+             "with their sizes; given a selector it lists one level below it, "
+             "so --list-traces spec2017 shows subsuites and --list-traces "
+             "spec2017.rate_int_v2 shows workloads.",
+    )
+    parser.add_argument(
+        "--fetch-traces",
+        metavar="SELECTORS",
+        help="Download traces into trace_home. Comma-separated selectors of the "
+             "form suite[.subsuite[.workload[.simpoint]]], naming anything in "
+             "workloads_db.json: 'spec2017' is the suite, "
+             "'spec2017.rate_int_v2.perlbench_r.109678' is one trace, and "
+             "'all' is everything published.",
     )
     parser.add_argument(
         "--interactive",
@@ -4483,6 +4397,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Kill active simulations for json/<DESCRIPTOR>.json.",
     )
     parser.add_argument(
+        "-y",
+        "--force",
+        action="store_true",
+        help="Answer --kill's confirmation with yes; needed when no terminal is attached.",
+    )
+    parser.add_argument(
         "--status",
         metavar="DESCRIPTOR",
         help="Show run and node status for json/<DESCRIPTOR>.json.",
@@ -4512,6 +4432,9 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
+    if args.force:
+        os.environ["SCI_ASSUME_YES"] = "1"  # read by confirm_kill, deep in the runners
+    refresh_agent_guardrails()
     requested = [
         bool(args.init),
         bool(args.ci_init),
@@ -4520,6 +4443,8 @@ def main() -> int:
         bool(args.build_image),
         args.prune_builds is not None,
         bool(args.list),
+        args.list_traces is not None,
+        bool(args.fetch_traces),
         bool(args.interactive),
         bool(args.trace),
         bool(args.sim),
@@ -4587,6 +4512,12 @@ def main() -> int:
             return 1
     if args.init:
         return run_init(args)
+
+    if args.list_traces is not None:
+        return run_list_traces(args)
+
+    if args.fetch_traces:
+        return run_fetch_traces(args)
     if args.ci_init:
         return run_ci_init(args)
     if args.list:

@@ -58,13 +58,13 @@
   "configurations":{
     "icache_32k":{
       "params":"--icache_size 32768",
-      "binary":"scarab_current",
+      "binary":"scarab_head",
       "slurm_options":"",
       "memory_overhead_mb":0
     },
     "icache_64k":{
       "params":"--icache_size 65536",
-      "binary":"scarab_current",
+      "binary":"scarab_head",
       "slurm_options":"",
       "memory_overhead_mb":0
     }

@@ -18,13 +18,15 @@ PROTOCOL = "2024-11-05"
 # name -> (sci flag, help, needs descriptor, extra timeout)
 TOOLS = [
     ("sci_status",        "--status",        "Run/node status for a sweep. Call this right after a launch and on every check-in.", True,  600),
-    ("sci_sim",           "--sim",           "Launch the simulations defined in json/<descriptor>.json.",                          True,  1800),
-    ("sci_build_scarab",  "--build-scarab",  "Build scarab for json/<descriptor>.json. Never run make directly.",                  True,  3600),
+    ("sci_sim",           "--sim",           "Launch the simulations defined in json/<descriptor>.json. A configuration whose binary is named scarab_<githash> is checked out and built automatically when it is not already cached, so pin the hashes you want in the descriptor rather than building them yourself.", True,  1800),
+    ("sci_build_scarab",  "--build-scarab",  "Build scarab from the current working tree for json/<descriptor>.json. Never invoke the compiler directly, and never loop this over commits: to run several commits, name each one scarab_<githash> in the descriptor and let sci_sim build them.", True,  3600),
     ("sci_collect_stats", "--collect-stats", "Collect stats into collected_stats.csv. Never parse stats.out by hand.",             True,  1800),
     ("sci_visualize",     "--visualize",     "Plot IPC/speedup from collected stats.",                                             True,  900),
     ("sci_perf_analyze",  "--perf-analyze",  "Analyze IPC drift from collected stats.",                                            True,  900),
     ("sci_kill",          "--kill",          "Kill active simulations for a descriptor.",                                          True,  600),
     ("sci_list",          "--list",          "List workload group names.",                                                         False, 300),
+    ("sci_list_traces",   "--list-traces",   "List what can be downloaded, with file counts and sizes. Bare it lists the published suites; with 'selector' it lists one level below, so spec2017 gives subsuites and spec2017.rate_int_v2 gives workloads.", False, 300),
+    ("sci_fetch_traces",  "--fetch-traces",  "Download traces into trace_home. 'selectors' is a comma-separated list of suite[.subsuite[.workload[.simpoint]]], naming anything in workloads_db.json, or 'all'. Traces are not downloaded by --init, so this is how a machine gets them.", False, 14400),
 ]
 
 DESC_SCHEMA = {
@@ -35,7 +37,29 @@ DESC_SCHEMA = {
     },
     "required": ["descriptor"],
 }
+KILL_SCHEMA = {
+    "type": "object",
+    "properties": dict(DESC_SCHEMA["properties"], force={
+        "type": "boolean", "description": "Kill without confirmation (`--force`). Without it, sci refuses: there is no terminal to answer."}),
+    "required": ["descriptor"],
+}
 NOARG_SCHEMA = {"type": "object", "properties": {"tail": {"type": "integer"}}, "required": []}
+SELECTOR_SCHEMA = {
+    "type": "object",
+    "properties": dict(NOARG_SCHEMA["properties"], selectors={
+        "type": "string",
+        "description": "Comma-separated selectors, e.g. 'spec2017', "
+                       "'spec2017.rate_fp_v2.povray_r', "
+                       "'spec2017.rate_int_v2.perlbench_r.109678', or 'all'."}),
+    "required": ["selectors"],
+}
+LIST_SCHEMA = {
+    "type": "object",
+    "properties": dict(NOARG_SCHEMA["properties"], selector={
+        "type": "string",
+        "description": "Optional: list one level below this selector."}),
+    "required": [],
+}
 
 
 def tool_defs():
@@ -44,7 +68,10 @@ def tool_defs():
         out.append({
             "name": name,
             "description": f"{desc} (runs `./sci {flag}`)",
-            "inputSchema": DESC_SCHEMA if needs_desc else NOARG_SCHEMA,
+            "inputSchema": KILL_SCHEMA if name == "sci_kill"
+            else SELECTOR_SCHEMA if name == "sci_fetch_traces"
+            else LIST_SCHEMA if name == "sci_list_traces"
+            else DESC_SCHEMA if needs_desc else NOARG_SCHEMA,
         })
     return out
 
@@ -68,6 +95,17 @@ def run_tool(name, args):
             avail = sorted(p.stem for p in (REPO / "json").glob("*.json"))
             return True, f"no descriptor json/{d}.json. available: {', '.join(avail[:40])}"
         cmd.append(d)
+    if name == "sci_kill" and (args or {}).get("force"):
+        cmd.append("--force")
+    if name == "sci_fetch_traces":
+        selectors = str((args or {}).get("selectors") or "").strip()
+        if not selectors:
+            return True, "missing required argument: selectors (try sci_list_traces first)"
+        cmd.append(selectors)
+    if name == "sci_list_traces":
+        selector = str((args or {}).get("selector") or "").strip()
+        if selector:
+            cmd.append(selector)
 
     try:
         p = subprocess.run(cmd, cwd=str(REPO), capture_output=True, text=True, timeout=timeout)

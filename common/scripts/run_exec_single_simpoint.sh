@@ -115,6 +115,6 @@ printf '%q ' "${scarabCmd[@]}" > $SIMHOME/launch_cmd.txt
 
 # Counts the whole launcher subtree: python, PIN and the benchmark as well as
 # Scarab itself.
-PERF_PREFIX=$(perf_stat_prefix "$OUTDIR/$segID/perf_stat.txt")
+PERF_PREFIX=$(perf_stat_prefix "$OUTDIR/$segID/perf_stat.txt") || exit 1
 eval $PERF_PREFIX $scarabCmd &
 wait $!

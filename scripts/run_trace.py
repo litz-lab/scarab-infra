@@ -20,6 +20,7 @@ from .utilities import (
     count_interactive_shells,
     infra_mount_arg,
     ROOT_ENTRYPOINT,
+    require_aslr_disabled,
 )
 from .image_identity import image_tag_for
 from . import slurm_runner, local_runner
@@ -33,7 +34,7 @@ def validate_tracing(trace_data, workload_db_path, dbg_lvl = 2):
             err(f"A workload name must be provided.", dbg_lvl)
             exit(1)
 
-        if trace["suite"] in workload_data.keys() and trace["subsuite"] in workload_data[trace["suite"]].keys() and trace["workload"] in workload_data[trace["suite"]][trace["subsuite"]].keys():
+        if trace["trace_type"] not in "pinball_extraction" and trace["suite"] in workload_data.keys() and trace["subsuite"] in workload_data[trace["suite"]].keys() and trace["workload"] in workload_data[trace["suite"]][trace["subsuite"]].keys():
             if "trace" in workload_data[trace["suite"]][trace["subsuite"]][trace["workload"]].keys():
                 err(f"{trace['workload']} already exists in workload database (workloads/workloads_db.json). Choose a different workload name.", dbg_lvl)
                 exit(1)
@@ -274,6 +275,7 @@ def run_trace_command(descriptor_path, action, dbg_lvl=2, infra_dir=None):
         except SystemExit as exc:
             raise RuntimeError("Descriptor verification failed") from exc
 
+        require_aslr_disabled(dbg_lvl)
         if workload_manager == "manual":
             local_runner.run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl)
         else:
