@@ -1728,7 +1728,7 @@ def generate_single_scarab_run_command(user, workload_home, experiment, config_k
     if mode == "memtrace":
         command = f"run_memtrace_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{seg_size}\\\" \\\"{arch}\\\" \\\"{warmup}\\\" \\\"{trace_warmup}\\\" \\\"{trace_type}\\\" /home/{user}/simulations/{experiment}/scarab {cluster_id} {trace_file} {scarab_binary}"
     elif mode == "pt":
-        command = f"run_pt_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{arch}\\\" \\\"{warmup}\\\" /home/{user}/simulations/{experiment}/scarab {scarab_binary}"
+        command = f"run_pt_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{arch}\\\" \\\"{warmup}\\\" /home/{user}/simulations/{experiment}/scarab {scarab_binary} {seg_size}"
     elif mode == "exec":
         env_vars_safe = env_vars if env_vars else ""
         client_bincmd_safe = client_bincmd if client_bincmd else ""
