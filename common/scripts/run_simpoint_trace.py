@@ -280,8 +280,8 @@ def minimize_simpoint_traces(cluster_map, workload_home, needed_chunks):
             # Final check on trace roi_length
             unzip_output = subprocess.getoutput(f"unzip -l {trace_file}")
             num_chunk = len([line for line in unzip_output.splitlines() if 'chunk.' in line])
-            needed_chunks = min(segment_id + 1, needed_chunks)
-            if num_chunk < needed_chunks:
+            seg_needed_chunks = min(segment_id + 1, needed_chunks)
+            if num_chunk < seg_needed_chunks:
                 if 'End-of-central-directory signature not found.' in unzip_output:
                     # Discard the corrupted files to make sure a re-run does not skip.
                     shutil.rmtree(os.path.join(trace_dir, "raw"), ignore_errors=True)
@@ -292,15 +292,15 @@ def minimize_simpoint_traces(cluster_map, workload_home, needed_chunks):
                         "It is likely drrun overran -trace_for_instrs and produced a raw file too "
                         f"large to convert. unzip's output:\n{unzip_output}")
                 # trace_file is left in place so the next run still finds it.
-                raise RuntimeError(f"segment {segment_id}: trace has {num_chunk} chunks, ROI needs {needed_chunks}")
-            elif num_chunk == needed_chunks:
+                raise RuntimeError(f"segment {segment_id}: trace has {num_chunk} chunks, ROI needs {seg_needed_chunks}")
+            elif num_chunk == seg_needed_chunks:
                 # False-positive (trace stops at the exactly last instruction) is extremely rare
                 raise RuntimeError(f"segment {segment_id}: last chunk may not be full.")
 
             big_zip_file = os.path.join(trace_dir, "trace", f"{segment_id}.big.zip")
             subprocess.run(f"mv {trace_file} {big_zip_file}", check=True, shell=True)
             print(f"minimizing {segment_id} out of recorded {num_chunk} chunks")
-            chunk_list = ' '.join([f'chunk.{i:04d}' for i in range(needed_chunks)])
+            chunk_list = ' '.join([f'chunk.{i:04d}' for i in range(seg_needed_chunks)])
             subprocess.run(f"zip {big_zip_file} --copy {chunk_list} --out {os.path.join(dest_trace_dir, f'{segment_id}.zip')}", shell=True)
 
             # Remove the big zip file
