@@ -153,7 +153,6 @@ the region of interest plus warmup:
 drrun -opt_cleancall 2 -disable_rseq -t drcachesim -jobs <DR_JOBS> \
   -outdir <seg_dir> -offline -count_fetched_instrs \
   -trace_after_instrs <roi_start> -trace_for_instrs <roi_length> \
-  -exit_after_tracing <ref_cap> \
   -- <binary_cmd>
 ```
 
@@ -375,7 +374,6 @@ pipeline:
 | `DR_JOBS` | auto (2–40, clamped by CPU count) | DynamoRIO `-jobs` fanout |
 | `TRACE_PARALLEL` | 1 | Max concurrent segment traces (set via descriptor `trace_parallel`) |
 | `RAW2TRACE_PARALLEL` | 1 | Max concurrent raw2trace processes (set via descriptor `raw2trace_parallel`) |
-| `TRACE_ROI_HEADROOM` | 3 | Multiplier on the `-exit_after_tracing` reference cap (must be > 1.5) |
 | `SCARAB_COPY_LOCAL_RUNDIR` | unset | Set to `1` on a workload's `env_vars` to run it from a private node-local copy of its run dir, so hard-coded relative inputs (e.g. ntest `resource/`, gem5 `Resource(…,".")`) resolve. Data-only copy; the binary stays at its shared path. |
 | `OMP_NUM_THREADS` | 1 (set in Dockerfile) | OpenMP thread count |
 | `MKL_NUM_THREADS` | 1 (set in Dockerfile) | MKL thread count |
