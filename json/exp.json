@@ -73,12 +73,13 @@
   "collect_stats":{
     "configs":null
   },
-  "_visualize":"Visualization settings for ./sci --visualize. Configure baseline and counters.",
+  "_visualize":"Visualization settings for ./sci --visualize. Configure baseline, configs, counters, and optional IPC S-curves.",
   "visualize":{
     "baseline":"icache_32k",
     "configs":[
       "icache_64k"
     ],
+    "scurve":true,
     "counters":[
       "IPC",
       [
