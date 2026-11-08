@@ -107,6 +107,25 @@ only selected segments are traced individually.
 2. Run SimPoint clustering on the resulting trace.
 3. Extract representative segments from the full trace.
 
+When the capture holds several processes or threads (more than one
+`drmemtrace.*.dir`, or more than one raw shard), the pipeline converts only one
+of them: the largest raw shard, which is the main thread of the main process.
+It is linked alone into `<process>.dir/main_only/raw/` with the process's
+module list and converted there (one shard, no portabilize step), which avoids
+the conversion failures of heavily threaded processes. Process directories
+whose `modules.log` is empty (a child that never wrote its module list) are not
+candidates. `SCARAB_MAIN_SHARD_GLOB` restricts the candidates to directories
+whose name matches a glob (for example `drmemtrace.python3.10.*`), for a
+workload whose largest process is not the one to simulate. If drraw2trace names
+an unreadable thread log, that shard is moved to `raw/_unreadable/` and the
+conversion is retried. A rerun that finds a finished `main_only` zip skips the
+capture and the conversion.
+
+The fingerprint step (`run_trace_post_processing.sh`) keeps the BBV pieces of
+an earlier run and only computes the missing ones, retries failed segments
+twice, and stops with an error, instead of clustering a partial fingerprint,
+when segments are still missing or `gather_fp_pieces.py` fails.
+
 **Debugging tip:** `trace_then_cluster` is easier to debug because
 everything runs off one fixed trace — any issue can be reproduced exactly.
 `cluster_then_trace` uses two separate executions (fingerprint run, then
@@ -375,6 +394,12 @@ pipeline:
 | `TRACE_PARALLEL` | 1 | Max concurrent segment traces (set via descriptor `trace_parallel`) |
 | `RAW2TRACE_PARALLEL` | 1 | Max concurrent raw2trace processes (set via descriptor `raw2trace_parallel`) |
 | `SCARAB_COPY_LOCAL_RUNDIR` | unset | Set to `1` on a workload's `env_vars` to run it from a private node-local copy of its run dir, so hard-coded relative inputs (e.g. ntest `resource/`, gem5 `Resource(…,".")`) resolve. Data-only copy; the binary stays at its shared path. |
+| `SCARAB_MAIN_SHARD_GLOB` | `*` | `trace_then_cluster`: only process directories matching this glob are candidates for the converted main shard |
+| `SCARAB_TRACE_CWD` | unset | `trace_then_cluster`: working directory of the traced program, for a program that must be the drrun child itself yet depends on its working directory |
+| `TRACE_COMPRESS` | `zip` | Container of the converted trace (`drraw2trace -compress`); `lz4` writes a `.trace.lz4` stream and an `instr_count.txt` beside it |
+| `TRACE_KEEP_RAW` | unset | `trace_then_cluster`: set to `1` to keep the raw shards after the main shard is converted (removed by default to save scratch space) |
+| `FP_JOBS` | 40 | Parallel BBV runs in the fingerprint step of `trace_then_cluster` post-processing |
+| `SCARAB_IMAGE_TAG_<group>` | unset | Use this full image reference for workload group `<group>` instead of the content-hash tag (an image built outside this repository) |
 | `OMP_NUM_THREADS` | 1 (set in Dockerfile) | OpenMP thread count |
 | `MKL_NUM_THREADS` | 1 (set in Dockerfile) | MKL thread count |
 | `OPENBLAS_NUM_THREADS` | 1 (set in Dockerfile) | OpenBLAS thread count |
