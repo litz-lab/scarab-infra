@@ -24,6 +24,7 @@ bare checkout, without installing the docker SDK or the rest of the infra deps.
 from __future__ import annotations
 
 import hashlib
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -134,7 +135,19 @@ def image_content_hash(workload_group: str, infra_dir=None) -> str:
 
 
 def image_tag_for(workload_group: str, infra_dir=None) -> str:
-    """Full local image reference, e.g. 'spec2017:3f9a12c0be44'."""
+    """Full local image reference, e.g. 'spec2017:3f9a12c0be44'.
+
+    ``SCARAB_IMAGE_TAG_<workload_group>`` overrides the computed tag, for an
+    image built outside this repository's build context (for example from a
+    benchmark's own checkout, which mints its own tag) that cannot be
+    content-hashed here. Without it the runner would look up
+    <workload_group>:<hash of workloads/<workload_group>> and use a stale
+    in-repo image. The value is a full reference ('mygroup:96a5ff3cb582'); every
+    call site that prints "Using docker image with name" logs it.
+    """
+    override = os.environ.get(f"SCARAB_IMAGE_TAG_{workload_group}")
+    if override:
+        return override
     return f"{workload_group}:{image_content_hash(workload_group, infra_dir)}"
 
 

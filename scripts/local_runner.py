@@ -349,7 +349,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
         # Clean up temp files
         for tmp in tmp_files:
             info(f"Removing temporary run script {tmp}", dbg_lvl)
-            os.remove(tmp)
+            os.path.exists(tmp) and os.remove(tmp)  # guard: temp script may be absent (relative cwd / already removed / creation aborted)
 
         remove_old_job_logs(old_job_logs, remove_jobs, dbg_lvl)
 
@@ -367,7 +367,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
         # Clean up temp files
         for tmp in tmp_files:
             info(f"Removing temporary run script {tmp}", dbg_lvl)
-            os.remove(tmp)
+            os.path.exists(tmp) and os.remove(tmp)  # guard: temp script may be absent (relative cwd / already removed / creation aborted)
 
         remove_old_job_logs(old_job_logs, remove_jobs, dbg_lvl)
 
@@ -469,7 +469,7 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
         # Clean up temp files
         for tmp in tmp_files:
             info(f"Removing temporary run script {tmp}", dbg_lvl)
-            os.remove(tmp)
+            os.path.exists(tmp) and os.remove(tmp)  # guard: temp script may be absent (relative cwd / already removed / creation aborted)
 
         finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl)
     except Exception as e:
@@ -485,7 +485,7 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2)
         # Clean up temp files
         for tmp in tmp_files:
             info(f"Removing temporary run script {tmp}", dbg_lvl)
-            os.remove(tmp)
+            os.path.exists(tmp) and os.remove(tmp)  # guard: temp script may be absent (relative cwd / already removed / creation aborted)
 
         kill_jobs(user, "trace", trace_name, docker_prefix_list, infra_dir, dbg_lvl)
 
