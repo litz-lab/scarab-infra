@@ -12,6 +12,7 @@ SCARABARCH="$4"
 WARMUP="$5"
 SCARABHOME="$6"
 SCARAB_BIN="$7"
+SEGSIZE="$8"
 SEGMENT_ID=0
 
 PARAMS_FILE="$SCARABHOME/src/PARAMS.$SCARABARCH"
@@ -41,7 +42,7 @@ mkdir -p $OUTDIR/$segID
 cp "$PARAMS_FILE" "$OUTDIR/$segID/PARAMS.in"
 cd $OUTDIR/$segID
 
-scarabCmd="$SCARABHOME/src/$SCARAB_BIN --full_warmup $WARMUP --frontend pt --cbp_trace_r0=$trace_home/$WORKLOAD_HOME/traces/pt/${traceMap} $SCARABPARAMS > scarab.out 2> scarab.err"
+scarabCmd="$SCARABHOME/src/$SCARAB_BIN --full_warmup $WARMUP --inst_limit $(( WARMUP + SEGSIZE )) --frontend pt --cbp_trace_r0=$trace_home/$WORKLOAD_HOME/traces/pt/${traceMap} $SCARABPARAMS > scarab.out 2> scarab.err"
 
 #echo "simulating clusterID ${clusterID}, segment $segID..."
 #echo "command: ${scarabCmd}"
