@@ -239,12 +239,19 @@ def list_cluster_nodes(dbg_lvl = 1):
         nodes.append((node, state))
     return nodes
 
-# The prebuilt SPEC17 binaries under application_dir carry AVX-512 and these
-# nodes are AMD EPYC, so anything that executes the application dies on the first
-# such instruction ("PIN: Found exception sig=4 on rightpath"): exec-driven
-# simulation, and tracing, which runs it under DynamoRIO. Simulating a recorded
-# trace never executes it and runs anywhere.
-NO_AVX512_NODES = ("twilight", "moore", "dennard")
+# The prebuilt SPEC17 binaries under application_dir carry AVX-512, so anything
+# that executes the application needs a CPU that has it: exec-driven simulation,
+# and tracing, which runs it under DynamoRIO. Without it the run dies on the
+# first such instruction -- "PIN: Found exception sig=4 on rightpath" in
+# pin.err.*.out, which reaches the job log only as scarab's non-zero exit.
+# Simulating a recorded trace never executes it and runs anywhere.
+#
+# A node is listed once `grep -c avx512f /proc/cpuinfo` says it has it. Naming
+# the capable nodes rather than the AMD ones keeps an unclassified node out:
+# this was a list of AMD nodes when xenon (EPYC 7282) joined on 2026-11-13, and
+# it took 64 of the 106 exec simulations in the 2026-11-16 weekly sweep and
+# failed all 64. A cluster with none of these nodes excludes nothing.
+AVX512_NODES = ("bohr2", "bohr3", "bohr4", "bohr5", "ohm", "maxwell")
 
 
 def exclude_avx512_incapable(slurm_options, dbg_lvl=1):
@@ -254,9 +261,9 @@ def exclude_avx512_incapable(slurm_options, dbg_lvl=1):
     if "--exclude" in options or "--nodelist" in options or "-w " in options:
         return options
     known = {node for node, _ in list_cluster_nodes(dbg_lvl)}
-    # Naming a node slurm does not have is a submit error, so only exclude the
-    # ones this cluster actually has; another cluster excludes nothing.
-    excluded = [node for node in NO_AVX512_NODES if not known or node in known]
+    if not known & set(AVX512_NODES):
+        return options
+    excluded = sorted(known - set(AVX512_NODES))
     if not excluded:
         return options
     addition = "--exclude=" + ",".join(excluded)
