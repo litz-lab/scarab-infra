@@ -1553,15 +1553,14 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
                     os.system(f"cp {scarab_ver} {dest_mode}")
 
             pin_cache_name = _cache_bin_name(f"pin_exec_{bin_name}", build_mode)
-            if not pin_cache_name.endswith(".so"):
-                pin_cache_name += ".so"
-            
             pin_cached = f"{infra_dir}/scarab_builds/{pin_cache_name}"
+            if not os.path.isfile(pin_cached):
+                raise FileNotFoundError(f"pin_exec for {bin_name} not found in scarab_builds")
             pin_obj_dir = dest_dir / "pin" / "pin_exec" / "obj-intel64"
             pin_obj_dir.mkdir(parents=True, exist_ok=True)
             pin_dest = pin_obj_dir / f"pin_exec_{bin_name}.so"
 
-            pin_src = pin_cached if os.path.isfile(pin_cached) else pin_exec_so
+            pin_src = pin_cached
             try:
                 shutil.copy2(pin_src, pin_dest)
             except Exception:
