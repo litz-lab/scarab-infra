@@ -84,6 +84,39 @@ else
     --use_fetched_count=0 \
     $SCARABPARAMS \
     > scarab.out 2> scarab.err"
+  elif [ "$TRACE_TYPE" == "capped_iterative_trace" ]; then
+    # Like iterative_trace -- one whole trace file per simpoint, no skip -- but
+    # stopped after a fixed number of instructions instead of running to the end.
+    # For core-sharded traces (google) each "simpoint" is an entire core's stream,
+    # 350M-16.3B instructions long, so running to the end is not affordable.
+    #
+    # segID is a CORE INDEX here, not a segment offset, so the roiStart/roiEnd
+    # arithmetic above does not apply.  It also has a side effect that must be
+    # undone: for core 0, roiStart is 1, which fails the "$roiStart > $WARMUP"
+    # test and zeroes WARMUP -- that one core would then be measured cold while
+    # every other core got the configured warmup.  Take the warmup as configured.
+    WARMUP="$6"
+
+    # Budget follows the datacenter convention: SEGSIZE is the measured region and
+    # WARMUP is simulated ahead of it, so the run is SEGSIZE + WARMUP long and
+    # --full_warmup dumps a stats checkpoint at the boundary.
+    instLimit=$(( $SEGSIZE + $WARMUP ))
+
+    # Do not ask for more than the trace holds.  Short cores just run to the end.
+    numChunk=$(unzip -l "$TRACEFILE" 2>/dev/null | grep "chunk." | wc -l)
+    wholeFileLimit=$(( $numChunk * 10000000 ))
+    if [ "$wholeFileLimit" -gt 0 ] && [ "$instLimit" -gt "$wholeFileLimit" ]; then
+      instLimit=$wholeFileLimit
+    fi
+
+    scarabCmd="$SCARABHOME/src/$SCARAB_BIN \
+    --frontend memtrace \
+    --cbp_trace_r0=$TRACEFILE \
+    --inst_limit=$instLimit \
+    --full_warmup=$WARMUP \
+    --use_fetched_count=0 \
+    $SCARABPARAMS \
+    > scarab.out 2> scarab.err"
   elif [ "$TRACE_TYPE" == "trace_then_cluster" ]; then
     # simultion uses the specific trace file
     # the roiStart is the second chunk, which is assumed to be segment size
