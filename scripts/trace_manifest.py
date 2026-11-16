@@ -19,10 +19,10 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
-# Held back from the bucket by size: driving is 465 GB and google 144 GB. The
+# Held back from the bucket by size: driving is 465 GB, google 144 GB and google_v2 870 GB. The
 # uploader skips them and sci tells you they are unavailable, both from here,
 # so there is one list rather than a copy published beside the traces.
-DEFAULT_SKIP = ("google", "driving")
+DEFAULT_SKIP = ("google", "google_v2", "driving")
 
 
 def entries(db):
