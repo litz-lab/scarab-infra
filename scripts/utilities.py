@@ -2081,6 +2081,12 @@ def get_image_name(workloads_data, simulation):
 
     return workloads_data[suite][subsuite][workload]["simulation"][sim_mode]["image_name"]
 
+def resolve_warmup(workloads_data, suite, subsuite, workload, sim_mode, sim_warmup):
+    """The descriptor's warmup, or all the trace has when the descriptor is silent."""
+    if sim_warmup is not None:
+        return sim_warmup
+    return workloads_data[suite][subsuite][workload]["simulation"][sim_mode]["warmup"]
+
 def normalize_simulations(simulations):
     """Expand simulation entries where 'workload' is a list into individual entries."""
     expanded = []

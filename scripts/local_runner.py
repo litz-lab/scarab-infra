@@ -29,6 +29,7 @@ from .utilities import (
         remove_old_job_logs,
         print_simulation_status_summary,
         normalize_simulations,
+        resolve_warmup,
         require_aslr_disabled,
         use_apptainer,
         )
@@ -308,9 +309,8 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                         sim_mode_ = sim_mode
                         if sim_mode_ == None:
                             sim_mode_ = workloads_data[suite][subsuite_][workload_]["simulation"]["prioritized_mode"]
-                        if sim_warmup == None:  # Use the whole warmup available in the trace if not specified
-                            sim_warmup = workloads_data[suite][subsuite_][workload_]["simulation"][sim_mode_]["warmup"]
-                        run_single_workload(suite, subsuite_, workload_, exp_cluster_id, sim_mode_, sim_warmup)
+                        warmup = resolve_warmup(workloads_data, suite, subsuite_, workload_, sim_mode_, sim_warmup)
+                        run_single_workload(suite, subsuite_, workload_, exp_cluster_id, sim_mode_, warmup)
             elif workload == None and subsuite != None:
                 for workload_ in workloads_data[suite][subsuite].keys():
                     if workload_.startswith("_"):  # skip metadata keys (e.g. _scarab_sim_githash)
@@ -318,9 +318,8 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                     sim_mode_ = sim_mode
                     if sim_mode_ == None:
                         sim_mode_ = workloads_data[suite][subsuite][workload_]["simulation"]["prioritized_mode"]
-                    if sim_warmup == None:  # Use the whole warmup available in the trace if not specified
-                        sim_warmup = workloads_data[suite][subsuite][workload_]["simulation"][sim_mode_]["warmup"]
-                    run_single_workload(suite, subsuite, workload_, exp_cluster_id, sim_mode_, sim_warmup)
+                    warmup = resolve_warmup(workloads_data, suite, subsuite, workload_, sim_mode_, sim_warmup)
+                    run_single_workload(suite, subsuite, workload_, exp_cluster_id, sim_mode_, warmup)
             elif workload != None and subsuite == None:
                 found = False
                 for subsuite_ in workloads_data[suite].keys():
@@ -334,16 +333,14 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                 sim_mode_ = sim_mode
                 if sim_mode_ == None:
                     sim_mode_ = workloads_data[suite][_subsuite][workload]["simulation"]["prioritized_mode"]
-                if sim_warmup == None:  # Use the whole warmup available in the trace if not specified
-                    sim_warmup = workloads_data[suite][_subsuite][workload]["simulation"][sim_mode_]["warmup"]
-                run_single_workload(suite, _subsuite, workload, exp_cluster_id, sim_mode_, sim_warmup)
+                warmup = resolve_warmup(workloads_data, suite, _subsuite, workload, sim_mode_, sim_warmup)
+                run_single_workload(suite, _subsuite, workload, exp_cluster_id, sim_mode_, warmup)
             else:
                 sim_mode_ = sim_mode
                 if sim_mode_ == None:
                     sim_mode_ = workloads_data[suite][subsuite][workload]["simulation"]["prioritized_mode"]
-                if sim_warmup == None:  # Use the whole warmup available in the trace if not specified
-                    sim_warmup = workloads_data[suite][subsuite][workload]["simulation"][sim_mode_]["warmup"]
-                run_single_workload(suite, subsuite, workload, exp_cluster_id, sim_mode_, sim_warmup)
+                warmup = resolve_warmup(workloads_data, suite, subsuite, workload, sim_mode_, sim_warmup)
+                run_single_workload(suite, subsuite, workload, exp_cluster_id, sim_mode_, warmup)
 
         print("Wait processes...")
         for p in processes:
