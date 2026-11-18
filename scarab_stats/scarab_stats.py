@@ -1056,6 +1056,7 @@ class stat_aggregator:
                 found_subsuite = simulation["subsuite"]
                 found_workload = simulation["workload"]
                 found_cluster_id = simulation["cluster_id"]
+                found_sim_mode = simulation.get("simulation_type")
 
                 if found_cluster_id != None:
                     assert found_workload is not None, "Workload cannot be None when cluster_id is specified"
@@ -1066,7 +1067,7 @@ class stat_aggregator:
                 elif found_workload != None:
                     assert found_suite is not None, "Suite cannot be None when workload is specified"
                     assert found_subsuite is not None, "Subsuite cannot be None when workload is specified"
-                    for cid in self.get_cluster_ids(found_workload, found_suite, found_subsuite, top_simpoint_only):
+                    for cid in self.get_cluster_ids(found_workload, found_suite, found_subsuite, top_simpoint_only, sim_mode=found_sim_mode):
                         tasks.append((config, found_suite, found_subsuite, found_workload, str(cid)))
 
                 elif found_subsuite != None:
@@ -1074,7 +1075,7 @@ class stat_aggregator:
                     for workload in list(workloads_data[found_suite][found_subsuite].keys()):
                         if not isinstance(workloads_data[found_suite][found_subsuite][workload], dict):
                             continue
-                        for cid in self.get_cluster_ids(workload, found_suite, found_subsuite, top_simpoint_only, workloads_data=workloads_data):
+                        for cid in self.get_cluster_ids(workload, found_suite, found_subsuite, top_simpoint_only, workloads_data=workloads_data, sim_mode=found_sim_mode):
                             tasks.append((config, found_suite, found_subsuite, workload, str(cid)))
 
                 else:
@@ -1082,7 +1083,7 @@ class stat_aggregator:
                         for workload in list(workloads_data[found_suite][subsuite].keys()):
                             if not isinstance(workloads_data[found_suite][subsuite][workload], dict):
                                 continue
-                            for cid in self.get_cluster_ids(workload, found_suite, subsuite, top_simpoint_only, workloads_data=workloads_data):
+                            for cid in self.get_cluster_ids(workload, found_suite, subsuite, top_simpoint_only, workloads_data=workloads_data, sim_mode=found_sim_mode):
                                 tasks.append((config, found_suite, subsuite, workload, str(cid)))
 
         # ... after building tasks ...
@@ -2616,6 +2617,8 @@ class stat_aggregator:
                     return 1, 0
                 if cid_i in m:
                     return m[cid_i]
+                if cid_i == 0:
+                    return 1, 0  # whole-trace run of a mode without simpoints (utilities.get_simpoints)
                 raise StopIteration
 
             # No cache provided: fall back to linear scan.
@@ -2623,7 +2626,11 @@ class stat_aggregator:
             if simpoints is None:
                 return 1, 0
             cid_i = int(cluster_id)
-            sp = next(sp for sp in simpoints if int(sp["cluster_id"]) == cid_i)
+            sp = next((sp for sp in simpoints if int(sp["cluster_id"]) == cid_i), None)
+            if sp is None and cid_i == 0:
+                return 1, 0  # whole-trace run of a mode without simpoints (utilities.get_simpoints)
+            if sp is None:
+                raise StopIteration
             return sp["weight"], sp["segment_id"]
         except StopIteration:
 
@@ -2636,7 +2643,7 @@ class stat_aggregator:
                 print(f"ERROR: Could not find workload {workload} in workloads_db.json")
             return None
 
-    def get_cluster_ids(self, workload, suite, subsuite, top_simpoint_only, workloads_data=None):
+    def get_cluster_ids(self, workload, suite, subsuite, top_simpoint_only, workloads_data=None, sim_mode=None):
         """Get list of cluster_ids for a given workload from workloads_db.json or workloads_top_simp.json.
 
         Args:
@@ -2657,7 +2664,11 @@ class stat_aggregator:
             workloads_data = utilities.read_descriptor_from_json(workload_db_path)
 
         try:
-            sim_mode = workloads_data[suite][subsuite][workload]["simulation"]["prioritized_mode"]
+            # Use the mode the launcher used (the descriptor's simulation_type; None means the
+            # prioritized mode): a 'pt' run of a workload with memtrace simpoints is one
+            # whole-trace job, cluster 0, not one job per memtrace simpoint.
+            if sim_mode is None:
+                sim_mode = workloads_data[suite][subsuite][workload]["simulation"]["prioritized_mode"]
             simpoints = utilities.get_simpoints(workloads_data[suite][subsuite][workload], sim_mode)
             return list(simpoints.keys())
         except (KeyError, TypeError):
