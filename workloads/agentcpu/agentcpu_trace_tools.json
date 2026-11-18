@@ -1,0 +1,39 @@
+{
+  "descriptor_type": "trace",
+  "workload_manager": "manual",
+  "root_dir": "/home/$USER",
+  "application_dir": "/home/$USER/applications",
+  "scarab_path": "/home/$USER/agentcpu_home/scarab",
+  "scarab_build": "opt",
+  "traces_dir": "/soe/hlitz/lab/traces/agent",
+  "trace_name": "agentcpu_trace_tools",
+  "_comment": "Tool-side traces of the code-py and code-node requests_5414 sessions, captured in the agentcpu image (84acdbf2c813) with the per-process mode of run_simpoint_trace.py (SCARAB_PER_PROCESS=1, see docs/README.trace.md): every process of the capture becomes its own workload, <workload>_<exe>_<pid>, with SimPoints when it has at least 60 M instructions and simulated whole otherwise; per_process_manifest.json in the workload home has the instruction shares. codepy_requests_5414_tools: the SWE-ReX local deployment replay (bundles/code-py/tools_replay.sh in the benchmark: replay_local.sh with the tool command timeout raised to 1800 s) with the orchestrator running natively and a drrun wrapper as the first bash on PATH (SCARAB_TRACE_SHELL_VAR=PATH), so the SWE-agent process (registered as codepy_requests_5414) is not traced; with the whole tree under drrun on bohr1, SWE-agent's fixed 25 s command timeout fired in setup. The replay must give 12 steps and timing_normalized_hash 4951a99fb8d06197: the content hash of the untraced replay in this image (two runs), computed like content_hash.py but also dropping pytest's \"(H:MM:SS)\" duration suffix (printed for runs over a minute, so only under DynamoRIO) and object addresses; the replay output is kept in replay_out/ of the workload home. codenode_requests_5414_tools: node runs natively and Claude Code's shell is a drrun wrapper (SCARAB_TRACE_SHELL_VAR=CLAUDE_CODE_SHELL), so only the tool shells and their children are traced; the replay must report 0 misses and the recorded tool hash of build 2.1.112 (replay_and_check.sh), or the job fails. Paths are bohr1's; scarab_path is a checkout at 0617432 (agentcpu-trace-support), the Scarab the released traces were fingerprinted with.",
+  "trace_configurations": [
+    {
+      "workload": "codepy_requests_5414_tools",
+      "image_name": "agentcpu",
+      "suite": "agentcpu",
+      "subsuite": "code-py-tools",
+      "env_vars": "SCARAB_PER_PROCESS=1 SCARAB_TRACE_SHELL_VAR=PATH TRACE_KEEP_RAW=1 HOME=/tmp REPLAY_KEEP_DIR=/home/$USER/simpoint_flow/agentcpu_trace_tools/codepy_requests_5414_tools/replay_out PYTHONHASHSEED=0 OMP_NUM_THREADS=1 LITELLM_LOCAL_MODEL_COST_MAP=True GLIBC_TUNABLES=glibc.cpu.hwcaps=-AVX512F,-AVX512BW,-AVX512DQ,-AVX512VL OPENBLAS_CORETYPE=HASWELL",
+      "binary_cmd": "/bin/bash /usr/local/bin/replay_and_check.sh steps=12 timing_normalized_hash=4951a99fb8d06197 -- /bin/bash /tmp_home/agentcpu-bench/bundles/code-py/tools_replay.sh /tmp/codepy_tools_out",
+      "client_bincmd": null,
+      "trace_type": "trace_then_cluster",
+      "dynamorio_args": "-disable_optimizations",
+      "clustering_k": null,
+      "slurm_options": ""
+    },
+    {
+      "workload": "codenode_requests_5414_tools",
+      "image_name": "agentcpu",
+      "suite": "agentcpu",
+      "subsuite": "code-node-tools",
+      "env_vars": "SCARAB_PER_PROCESS=1 SCARAB_TRACE_SHELL_VAR=CLAUDE_CODE_SHELL TRACE_KEEP_RAW=1 CLAUDE_BUILD=2.1.112 CC_HOME=/tmp BASH_DEFAULT_TIMEOUT_MS=1800000 BASH_MAX_TIMEOUT_MS=1800000",
+      "binary_cmd": "/bin/bash /usr/local/bin/replay_and_check.sh replay_misses=0 match=yes -- /bin/bash /tmp_home/agentcpu-bench/agentcpu/anchors/claude_code/tasks/requests_5414/replay.sh /tmp/cn_tools_out",
+      "client_bincmd": null,
+      "trace_type": "trace_then_cluster",
+      "dynamorio_args": "-disable_optimizations",
+      "clustering_k": null,
+      "slurm_options": ""
+    }
+  ]
+}

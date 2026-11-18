@@ -29,6 +29,16 @@ def map_conversion(segment_map, addr_id_map, bb_count):
 def gather_fp_pieces(fp_dir, num_of_segments, file_prefix, no_convert):
     import glob
     
+    # Verify completeness first: a partial bbfp (rows written until the first
+    # gap, then an assert) silently truncates clustering to a prefix of the trace.
+    import os
+    import sys
+    have = {int(f.rsplit('.', 1)[1]) for f in os.listdir(fp_dir)
+            if f.startswith(file_prefix + '.') and f.rsplit('.', 1)[1].isdigit()}
+    missing = sorted(set(range(int(num_of_segments))) - have)
+    if missing:
+        print(f"gather_fp_pieces: {len(missing)} missing segments (first: {missing[:10]}); refusing to write a truncated bbfp")
+        sys.exit(1)
     pre_segment_id = -1
     bb_count = 1
     addr_id_map = {}

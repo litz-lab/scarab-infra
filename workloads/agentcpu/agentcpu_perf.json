@@ -1,0 +1,38 @@
+{
+  "descriptor_type":"perf",
+  "user":"root",
+  "root_dir":"/home/$USER",
+  "image_name":"agentcpu",
+  "max_repeats":3,
+  "_comment":"Hardware counters over whole replayed sessions (process tree: orchestrator and tools). Each command replays one recorded bundle; the session is the unit, so repeats are capped at 3.",
+  "perf_configurations":[
+    {
+      "workload":"api_langchain_n2",
+      "suite":"agentcpu",
+      "subsuite":"api",
+      "binary_cmd":"python3 -m agentcpu langchain --agentic-mode --tool-backend appworld --appworld-task 287e338_1 --task-id trace --seed 42 --context-size short --iterations 2 --trace-output /tmp/agent_trace.json --summary-output /tmp/agent_summary.json",
+      "env_vars":"AGENT_MOCK_REPLAY_KEY=langchain_n2_287e338_1 AGENT_MOCK_REPLAY_ROOT=/tmp_home/agentcpu-bench/bundles/api PYTHONHASHSEED=0 AGENT_DETERMINISTIC_TRANSPORT=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 LITELLM_LOCAL_MODEL_COST_MAP=True GLIBC_TUNABLES=glibc.cpu.hwcaps=-AVX512F,-AVX512BW,-AVX512DQ,-AVX512VL OPENBLAS_CORETYPE=HASWELL"
+    },
+    {
+      "workload":"codepy_requests_5414",
+      "suite":"agentcpu",
+      "subsuite":"code-py",
+      "binary_cmd":"/bin/bash /tmp_home/agentcpu-bench/bundles/code-py/replay_local.sh /tmp/codepy_out",
+      "env_vars":"PYTHONHASHSEED=0 OMP_NUM_THREADS=1 LITELLM_LOCAL_MODEL_COST_MAP=True GLIBC_TUNABLES=glibc.cpu.hwcaps=-AVX512F,-AVX512BW,-AVX512DQ,-AVX512VL OPENBLAS_CORETYPE=HASWELL"
+    },
+    {
+      "workload":"data_oi_dabstep_hard7",
+      "suite":"agentcpu",
+      "subsuite":"data",
+      "binary_cmd":"/bin/bash /tmp_home/agentcpu-bench/bundles/data/replay_oi_trace.sh 1273,1305,1464,1681,1753,1871,2697 /tmp_home/agentcpu-bench/bundles/data/rec/hard7/recorder/dabstep_1273_1305_1464_1681_1753_1871_2697 /tmp/data_out",
+      "env_vars":"USER=agentcpu LOGNAME=agentcpu PYTHONHASHSEED=0 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 TOKENIZERS_PARALLELISM=false RAYON_NUM_THREADS=1 GLIBC_TUNABLES=glibc.cpu.hwcaps=-AVX512F,-AVX512BW,-AVX512DQ,-AVX512VL OPENBLAS_CORETYPE=HASWELL LITELLM_LOCAL_MODEL_COST_MAP=True HOME=/tmp"
+    },
+    {
+      "workload":"codenode_requests_5414",
+      "suite":"agentcpu",
+      "subsuite":"code-node",
+      "binary_cmd":"bash /tmp_home/agentcpu-bench/agentcpu/anchors/claude_code/tasks/requests_5414/replay.sh /tmp/cc_perf",
+      "env_vars":"CC_HOME=/tmp/cc_home CLAUDE_BUILD=2.1.112 SIMDUTF_FORCE_IMPLEMENTATION=haswell SIMDJSON_FORCE_IMPLEMENTATION=haswell"
+    }
+  ]
+}
