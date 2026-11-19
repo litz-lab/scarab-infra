@@ -4745,7 +4745,8 @@
           "pt":{
             "image_name":"allbench_traces",
             "warmup":49999999,
-            "size_bytes":300184223
+            "size_bytes":300184223,
+            "segment_size":10000000
           }
         },
         "simpoints":[
@@ -5430,7 +5431,8 @@
           "pt":{
             "image_name":"allbench_traces",
             "warmup":49999999,
-            "size_bytes":265825420
+            "size_bytes":265825420,
+            "segment_size":10000000
           }
         },
         "simpoints":[
@@ -5495,7 +5497,8 @@
           "pt":{
             "image_name":"allbench_traces",
             "warmup":49999999,
-            "size_bytes":249057842
+            "size_bytes":249057842,
+            "segment_size":10000000
           }
         },
         "simpoints":[
@@ -5629,7 +5632,8 @@
           "pt":{
             "image_name":"allbench_traces",
             "warmup":49999999,
-            "size_bytes":436603925
+            "size_bytes":436603925,
+            "segment_size":10000000
           }
         },
         "simpoints":[
@@ -6247,7 +6251,8 @@
           "pt":{
             "image_name":"allbench_traces",
             "warmup":49999999,
-            "size_bytes":260889150
+            "size_bytes":260889150,
+            "segment_size":10000000
           }
         },
         "base_memory_mb_by_mode":{
@@ -6267,7 +6272,8 @@
           "pt":{
             "image_name":"allbench_traces",
             "warmup":49999999,
-            "size_bytes":179554364
+            "size_bytes":179554364,
+            "segment_size":10000000
           }
         },
         "base_memory_mb_by_mode":{
@@ -6287,7 +6293,8 @@
           "pt":{
             "image_name":"allbench_traces",
             "warmup":49999999,
-            "size_bytes":231432432
+            "size_bytes":231432432,
+            "segment_size":10000000
           }
         },
         "base_memory_mb_by_mode":{
@@ -6307,7 +6314,8 @@
           "pt":{
             "image_name":"allbench_traces",
             "warmup":49999999,
-            "size_bytes":210185052
+            "size_bytes":210185052,
+            "segment_size":10000000
           }
         },
         "base_memory_mb_by_mode":{
@@ -6330,7 +6338,8 @@
           "pt":{
             "image_name":"allbench_traces",
             "warmup":49999999,
-            "size_bytes":295271376
+            "size_bytes":295271376,
+            "segment_size":10000000
           }
         },
         "base_memory_mb_by_mode":{
@@ -6350,7 +6359,8 @@
           "pt":{
             "image_name":"allbench_traces",
             "warmup":49999999,
-            "size_bytes":174310232
+            "size_bytes":174310232,
+            "segment_size":10000000
           }
         },
         "base_memory_mb_by_mode":{
@@ -6364,7 +6374,8 @@
           "pt":{
             "image_name":"allbench_traces",
             "warmup":49999999,
-            "size_bytes":266630823
+            "size_bytes":266630823,
+            "segment_size":10000000
           }
         },
         "base_memory_mb_by_mode":{
@@ -6386,7 +6397,8 @@
           "pt":{
             "image_name":"allbench_traces",
             "warmup":49999999,
-            "size_bytes":224966295
+            "size_bytes":224966295,
+            "segment_size":10000000
           }
         },
         "base_memory_mb_by_mode":{
@@ -6406,7 +6418,8 @@
           "pt":{
             "image_name":"allbench_traces",
             "warmup":49999999,
-            "size_bytes":204313008
+            "size_bytes":204313008,
+            "segment_size":10000000
           }
         },
         "base_memory_mb_by_mode":{
