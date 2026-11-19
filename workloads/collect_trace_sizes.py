@@ -59,7 +59,7 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--traces-dir", required=True, help="Root of the local traces, e.g. /soe/hlitz/lab/traces")
     parser.add_argument("--workloads", nargs="+",
-                        default=["workloads/workloads_db.json", "workloads/workloads_top_simp.json"],
+                        default=["workloads/workloads_db.json"],
                         help="workloads DB JSON files to update in place")
     args = parser.parse_args(argv)
 

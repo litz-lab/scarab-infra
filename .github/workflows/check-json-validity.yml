@@ -23,7 +23,6 @@ jobs:
           jq empty ./json/top_simpoint.json
           jq empty ./json/top_simpoint_dbg.json
           jq empty ./workloads/workloads_db.json
-          jq empty ./workloads/workloads_top_simp.json
 
       - name: Validate JSON formatting (no spaces after colons or commas)
         run: |
@@ -39,7 +38,6 @@ jobs:
               Path("./json/top_simpoint.json"),
               Path("./json/top_simpoint_dbg.json"),
               Path("./workloads/workloads_db.json"),
-              Path("./workloads/workloads_top_simp.json"),
           ]
 
           failed = False

@@ -10,7 +10,6 @@ import shlex
 import shutil
 from collections import deque
 from pathlib import Path
-import importlib
 import sys
 from typing import Dict, Iterator, Optional, Tuple
 
@@ -24,8 +23,6 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-import workloads.extract_top_simpoints as extract_top_simpoints
-importlib.reload(extract_top_simpoints)
 import workloads.collect_trace_sizes as collect_trace_sizes
 
 from scripts.image_identity import image_content_hash, image_context_pathspec, image_tag_for
@@ -185,6 +182,32 @@ def read_descriptor_from_json(filename="experiment.json", dbg_lvl = 1):
     except json.JSONDecodeError as e:
         err(f"Error decoding JSON in file '{filename}': {e}", dbg_lvl)
         return None
+
+def keep_top_simpoints(data, count = 3):
+    # Keep the `count` highest-weight simpoints of every workload and renormalize their weights
+    if isinstance(data, dict):
+        simpoints = data.get("simpoints")
+        if isinstance(simpoints, list):
+            simpoints = sorted([sp for sp in simpoints if sp.get("weight") is not None],
+                               key = lambda sp: sp["weight"], reverse = True)[:count]
+            total = sum(sp["weight"] for sp in simpoints)
+            if total:
+                for sp in simpoints:
+                    sp["weight"] = sp["weight"] / total
+            data["simpoints"] = simpoints
+        for value in data.values():
+            keep_top_simpoints(value, count)
+    elif isinstance(data, list):
+        for item in data:
+            keep_top_simpoints(item, count)
+
+# workloads database reader
+def read_workloads_db(infra_dir, top_simpoint = False, dbg_lvl = 1):
+    # Read workloads_db.json, reduced to the top simpoints when the descriptor asks for them
+    workloads_data = read_descriptor_from_json(f"{infra_dir}/workloads/workloads_db.json", dbg_lvl)
+    if workloads_data is not None and top_simpoint:
+        keep_top_simpoints(workloads_data)
+    return workloads_data
 
 # json descriptor writer
 def write_json_descriptor(filename, descriptor_data, dbg_lvl = 1):
@@ -3024,7 +3047,7 @@ def missing_cluster_then_trace_segments(trace_dir, workload) -> list[str]:
                     missing.append(seg)
     return missing
 
-def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
+def finish_trace(user, descriptor_data, workload_db_path, dbg_lvl):
     def read_first_line(file_path):
         with open(file_path, 'r') as f:
             value = f.readline().rstrip('\n')
@@ -3197,8 +3220,6 @@ def finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl):
 
         collect_trace_sizes.update_trace_sizes(workload_db_data, target_traces_dir, finalized)
         write_json_descriptor(workload_db_path, workload_db_data, dbg_lvl)
-        extract_top_simpoints.modify_simpoints_in_place(workload_db_data)
-        write_json_descriptor(f"{infra_dir}/workloads/workloads_top_simp.json", workload_db_data, dbg_lvl)
 
 
     except Exception as e:

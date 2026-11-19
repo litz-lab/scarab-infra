@@ -392,6 +392,7 @@ def collect_snapshot(descriptor_path: str, infra_dir: str, dbg_lvl: int = 1) -> 
 
     from scripts.utilities import (
         read_descriptor_from_json,
+        read_workloads_db,
         print_simulation_status_summary,
         get_image_list,
     )
@@ -401,12 +402,7 @@ def collect_snapshot(descriptor_path: str, infra_dir: str, dbg_lvl: int = 1) -> 
     if descriptor_data is None:
         raise RuntimeError(f"Failed to read descriptor {descriptor_path}")
 
-    db_name = (
-        "workloads_top_simp.json"
-        if descriptor_data.get("top_simpoint")
-        else "workloads_db.json"
-    )
-    workloads_data = read_descriptor_from_json(f"{infra_dir}/workloads/{db_name}", dbg_lvl)
+    workloads_data = read_workloads_db(infra_dir, descriptor_data.get("top_simpoint"), dbg_lvl)
     if workloads_data is None:
         raise RuntimeError("Failed to read workloads database")
 
