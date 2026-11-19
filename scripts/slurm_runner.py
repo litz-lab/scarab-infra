@@ -9,8 +9,6 @@ import re
 import sys
 import traceback
 from concurrent.futures import ThreadPoolExecutor
-import json
-from pathlib import Path
 
 # Per-simpoint memory scheduling constants
 DEFAULT_MEM_MB = 4096    # fallback when no base_memory_mb data exists in workloads_db
@@ -625,7 +623,7 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                     # Compute per-simpoint memory request from workloads_db base_memory_mb_by_mode for this simulation mode.
                     base_memory_mb = None
                     try:
-                        wl_entry = memory_db[suite][subsuite][workload]
+                        wl_entry = workloads_data[suite][subsuite][workload]
                         lookup_mode = sim_mode
                         if str(cluster_id) == "0":
                             base_memory_mb = get_mode_specific_base_memory(wl_entry, lookup_mode, wl_entry)
@@ -707,15 +705,6 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
         except RuntimeError as e:
             # This error prints a message. Now stop execution
             return
-
-        # Load workloads_db.json for base_memory_mb_by_mode lookups.
-        # When top_simpoint=true, workloads_data comes from workloads_top_simp.json which lacks
-        # base_memory_mb_by_mode; always read from the full DB instead.
-        try:
-            with open(Path(infra_dir) / "workloads" / "workloads_db.json") as _fh:
-                memory_db = json.load(_fh)
-        except Exception:
-            memory_db = workloads_data
 
         # Collect old job logs before submitting new jobs
         old_job_logs = get_old_job_logs(f"{experiment_dir}/logs")
@@ -994,7 +983,7 @@ def run_tracing(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl = 2,
         # on all Phase 2 segment jobs). Host does not call finish_trace here.
         # If no jobs were submitted, finish_trace should run here.
         if not parallel_segments or len(tmp_files) == 0:
-            finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl)
+            finish_trace(user, descriptor_data, workload_db_path, dbg_lvl)
     except Exception as e:
         print("An exception occurred:", e)
         traceback.print_exc()  # Print the full stack trace

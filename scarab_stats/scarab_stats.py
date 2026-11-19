@@ -1031,8 +1031,7 @@ class stat_aggregator:
 
         infra_dir = _infra_root()
         top_simpoint_only = bool(json_data["top_simpoint"])
-        workload_db_path = str(infra_dir / "workloads" / ("workloads_top_simp.json" if top_simpoint_only else "workloads_db.json"))
-        workloads_data = utilities.read_descriptor_from_json(workload_db_path)
+        workloads_data = utilities.read_workloads_db(infra_dir, top_simpoint_only)
         # ---------------------------------------------------------------------
         # Step 2: Expand the descriptor into a concrete list of simpoint tasks.
         #
@@ -2576,7 +2575,7 @@ class stat_aggregator:
 # TODO: Make accessible
 
     def get_simpoint_info(self, cluster_id, workload, subsuite, suite, top_simpoint_only, workloads_data=None, sp_cache=None):
-        """Get weight and segment_id for a given cluster_id from workloads_db.json or workloads_top_simp.json.
+        """Get weight and segment_id for a given cluster_id from workloads_db.json.
 
         Args:
             cluster_id: The cluster_id to look up
@@ -2588,13 +2587,8 @@ class stat_aggregator:
         Returns:
             tuple: (weight, segment_id) if found, None if not found
         """
-        infra_dir = _infra_root()
-        if top_simpoint_only:
-            workload_db_path = str(infra_dir / "workloads" / "workloads_top_simp.json")
-        else:
-            workload_db_path = str(infra_dir / "workloads" / "workloads_db.json")
         if workloads_data is None:
-            workloads_data = utilities.read_descriptor_from_json(workload_db_path)
+            workloads_data = utilities.read_workloads_db(_infra_root(), top_simpoint_only)
 
         try:
             key = (suite, subsuite, workload)
@@ -2637,14 +2631,11 @@ class stat_aggregator:
             print(f"ERROR: Could not find cluster_id {cluster_id} in simpoints for workload {workload} from suite {suite}, subsuite {subsuite}")
             return None
         except KeyError:
-            if top_simpoint_only:
-                print(f"ERROR: Could not find workload {workload} in workloads_top_simpoint.json")
-            else:
-                print(f"ERROR: Could not find workload {workload} in workloads_db.json")
+            print(f"ERROR: Could not find workload {workload} in workloads_db.json")
             return None
 
     def get_cluster_ids(self, workload, suite, subsuite, top_simpoint_only, workloads_data=None, sim_mode=None):
-        """Get list of cluster_ids for a given workload from workloads_db.json or workloads_top_simp.json.
+        """Get list of cluster_ids for a given workload from workloads_db.json.
 
         Args:
             workload: The workload name
@@ -2655,13 +2646,8 @@ class stat_aggregator:
         Returns:
             list: List of cluster_ids if found, None if workload not found
         """
-        infra_dir = _infra_root()
         if workloads_data is None:
-            if top_simpoint_only:
-                workload_db_path = str(infra_dir / "workloads" / "workloads_top_simp.json")
-            else:
-                workload_db_path = str(infra_dir / "workloads" / "workloads_db.json")
-            workloads_data = utilities.read_descriptor_from_json(workload_db_path)
+            workloads_data = utilities.read_workloads_db(_infra_root(), top_simpoint_only)
 
         try:
             # Use the mode the launcher used (the descriptor's simulation_type; None means the
@@ -2672,10 +2658,7 @@ class stat_aggregator:
             simpoints = utilities.get_simpoints(workloads_data[suite][subsuite][workload], sim_mode)
             return list(simpoints.keys())
         except (KeyError, TypeError):
-            if top_simpoint_only:
-                print(f"ERROR: Could not find workload {workload} in workloads_top_simp.json")
-            else:
-                print(f"ERROR: Could not find workload {workload} in workloads_db.json")
+            print(f"ERROR: Could not find workload {workload} in workloads_db.json")
             return None
 
     # Print markdown table to easily report to github

@@ -18,6 +18,7 @@ from .utilities import (
     err,
     warn,
     read_descriptor_from_json,
+    read_workloads_db,
     remove_docker_containers,
     remove_tmp_run_scripts,
     get_image_list,
@@ -435,8 +436,7 @@ def run_simulation_command(descriptor_path, action, dbg_lvl=2, infra_dir=None):
     if descriptor_data is None:
         raise RuntimeError(f"Failed to read descriptor {descriptor_path}")
 
-    workload_db_path = f"{infra_dir}/workloads/workloads_top_simp.json" if descriptor_data.get("top_simpoint") else f"{infra_dir}/workloads/workloads_db.json"
-    workloads_data = read_descriptor_from_json(workload_db_path, dbg_lvl)
+    workloads_data = read_workloads_db(infra_dir, descriptor_data.get("top_simpoint"), dbg_lvl)
     if workloads_data is None:
         raise RuntimeError("Failed to read workloads database")
 

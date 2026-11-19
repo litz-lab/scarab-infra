@@ -267,7 +267,7 @@ def run_trace_command(descriptor_path, action, dbg_lvl=2, infra_dir=None):
             # Invoked by Phase 3 of the parallel_segments pipeline (from inside
             # a Slurm job with --dependency=afterany on all Phase 2 jobs).
             # Consolidates traces into traces_dir and updates workloads_db.json.
-            finish_trace(user, descriptor_data, workload_db_path, infra_dir, dbg_lvl)
+            finish_trace(user, descriptor_data, workload_db_path, dbg_lvl)
             return 0
 
         try:
