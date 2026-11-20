@@ -7,10 +7,15 @@ weighting lives in one place):
     ipc                 IPC
     mem_latency_cycles  TOTAL_MEM_LATENCY_pct  (a RATIO over L1_FILL, not a %)
     offpath_cycle_pct   ICACHE_CYCLE_OFFPATH / (ONPATH + OFFPATH)
+    host_instructions   instructions:u retired to run the simulation (perf stat)
     kips                Cumulative_Instructions / SIM_HOST_WALL_SECONDS_value / 1e3
 
 The two ratios divide separately-weighted aggregates, so they track drift
 correctly but are not exact weighted ratios. Don't quote them as paper numbers.
+
+Simulator cost is reported as host_instructions, not kips: a node's load and
+clock move KIPS as much as Scarab does, while the instructions a simulation
+retires do not. kips stays in history.csv so the old series is still readable.
 """
 
 from __future__ import annotations
@@ -93,6 +98,8 @@ FIELDNAMES = [
     "mem_latency_cycles",
     "offpath_cycle_pct",
     "kips",
+    "host_instructions",
+    "complete",
 ]
 
 # (csv column, title, y label)
@@ -100,7 +107,7 @@ PLOTS = [
     ("ipc", "IPC", "IPC"),
     ("mem_latency_cycles", "Average memory latency", "cycles per L1 fill"),
     ("offpath_cycle_pct", "Off-path icache cycles", "% of icache cycles"),
-    ("kips", "Simulation speed", "KIPS"),
+    ("host_instructions", "Simulation cost", "host instructions"),
 ]
 
 
@@ -395,12 +402,15 @@ def run_mode(stem: str, experiment: str, scarab_sha: str, *, skip_sim: bool,
                 STATE.setdefault("submitted", []).append(stem)
                 save_state()
         wait_for_sims(experiment)
-        shortfall = simulation_shortfall(descriptor_stem)
-        if shortfall:
-            log(f"WARNING: {experiment}: {shortfall}")
-            SHORTFALLS[experiment] = shortfall
         if not sci(["--collect-stats", descriptor_stem]):
             return None
+
+    # Outside the branch above: --skip-sim re-reports an experiment that already
+    # ran, and whether it lost simulations is a property of that experiment.
+    shortfall = simulation_shortfall(descriptor_stem)
+    if shortfall:
+        log(f"WARNING: {experiment}: {shortfall}")
+        SHORTFALLS[experiment] = shortfall
 
     if not (exp_dir / "collected_stats.csv").is_file():
         log(f"ERROR: no collected_stats.csv in {exp_dir}")
@@ -418,6 +428,61 @@ def run_mode(stem: str, experiment: str, scarab_sha: str, *, skip_sim: bool,
 # Metrics
 # ---------------------------------------------------------------------------
 
+def host_instructions(exp_dir: Path, config: str) -> Dict[str, float]:
+    """{workload: instructions:u}, summed over a workload's simpoints.
+
+    run_memtrace_single_simpoint.sh and friends wrap Scarab in `perf stat`
+    (scripts/utilities.sh:perf_stat_prefix), which writes one perf_stat.txt per
+    simpoint next to its stats. perf prints `<count>,,<event>,...`, and prints
+    nothing countable when the event could not be enabled.
+    """
+    root = exp_dir / config
+    totals: Dict[str, float] = {}
+    simpoints: Dict[str, int] = {}
+    counted: Dict[str, int] = {}
+    for sim_dir in sorted(root.glob("*/*/*/*")):
+        if not sim_dir.is_dir():
+            continue
+        workload = "/".join(sim_dir.relative_to(root).parts[:3])
+        simpoints[workload] = simpoints.get(workload, 0) + 1
+        perf_file = sim_dir / "perf_stat.txt"
+        value: Optional[float] = None
+        try:
+            for line in perf_file.read_text(encoding="utf-8", errors="replace").splitlines():
+                fields = line.split(",")
+                if len(fields) > 2 and fields[2].startswith("instructions") \
+                        and fields[0].strip().isdigit():
+                    value = float(fields[0])
+                    break
+        except FileNotFoundError:
+            continue
+        except OSError as exc:
+            log(f"WARNING: could not read {perf_file}: {exc}")
+            continue
+        if value is None:
+            continue
+        totals[workload] = totals.get(workload, 0.0) + value
+        counted[workload] = counted.get(workload, 0) + 1
+
+    # The number is a sum over a workload's simpoints, so counting only some of
+    # them reads as a drop rather than as missing data. Report a workload only
+    # when every simpoint it ran was counted.
+    partial = {w: (counted.get(w, 0), n) for w, n in simpoints.items()
+               if counted.get(w, 0) != n}
+    for workload in partial:
+        totals.pop(workload, None)
+    if partial:
+        shown = ", ".join(f"{w} {have}/{n}" for w, (have, n) in sorted(partial.items())[:5])
+        log(f"WARNING: perf stat counted only part of {len(partial)} workload(s), "
+            f"left out of host_instructions: {shown}"
+            + (" ..." if len(partial) > 5 else ""))
+    if not totals:
+        log(f"WARNING: no complete perf stat coverage under {root}")
+    else:
+        log(f"perf stat: {len(totals)} of {len(simpoints)} workload(s) fully counted")
+    return totals
+
+
 def _get(aggregates: Dict, stat: str, config: str, workload: str) -> Optional[float]:
     try:
         value = aggregates[stat][config][workload]
@@ -432,6 +497,7 @@ def derive_metrics(aggregates_path: Path) -> Dict[str, Dict[str, Optional[float]
     aggregates = payload["aggregates"]
     config = payload["baseline"]
     workloads = list(payload["workloads"]) + ["Avg"]
+    retired = host_instructions(aggregates_path.parent, config)
 
     out: Dict[str, Dict[str, Optional[float]]] = {}
     for wl in workloads:
@@ -454,6 +520,7 @@ def derive_metrics(aggregates_path: Path) -> Dict[str, Dict[str, Optional[float]
             "mem_latency_cycles": latency,
             "offpath_cycle_pct": offpath,
             "kips": kips,
+            "host_instructions": retired.get(wl),
         }
 
     # One failed simpoint makes the aggregate's own Avg nan, which erased the
@@ -461,7 +528,8 @@ def derive_metrics(aggregates_path: Path) -> Dict[str, Dict[str, Optional[float]
     # a single workload (gcc_r). Fall back to the mean of the workloads that did
     # report. Unweighted, so it is not identical to the aggregate's Avg; it is
     # only used when that one is unusable.
-    for metric in ("ipc", "mem_latency_cycles", "offpath_cycle_pct", "kips"):
+    for metric in ("ipc", "mem_latency_cycles", "offpath_cycle_pct", "kips",
+                   "host_instructions"):
         current = out["Avg"].get(metric)
         if current is not None and math.isfinite(current):
             continue
@@ -480,6 +548,7 @@ def append_history(rows: List[Dict[str, object]]) -> Path:
     ensure_clone(HISTORY_DIR, HISTORY_REMOTE)
     run(["git", "pull", "--ff-only"], cwd=HISTORY_DIR, check=False)
     path = HISTORY_DIR / HISTORY_CSV
+    migrate_history_columns(path)
     exists = path.is_file()
     with path.open("a", newline="", encoding="utf-8") as fh:
         writer = csv.DictWriter(fh, fieldnames=FIELDNAMES)
@@ -489,6 +558,31 @@ def append_history(rows: List[Dict[str, object]]) -> Path:
             writer.writerow(row)
     log(f"appended {len(rows)} rows to {path}")
     return path
+
+
+def migrate_history_columns(path: Path) -> None:
+    """Rewrite the file when FIELDNAMES has grown, so appends stay aligned.
+
+    DictWriter writes the current columns whatever the header says, so adding
+    one without this would silently shift every later row by a field.
+    """
+    if not path.is_file():
+        return
+    with path.open(newline="", encoding="utf-8") as fh:
+        reader = csv.DictReader(fh)
+        if reader.fieldnames == FIELDNAMES:
+            return
+        rows = list(reader)
+        old = list(reader.fieldnames or [])
+    dropped = [name for name in old if name not in FIELDNAMES]
+    if dropped:
+        log(f"WARNING: {path} has columns this sweep no longer writes: {dropped}")
+    with path.open("w", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(fh, fieldnames=FIELDNAMES, extrasaction="ignore")
+        writer.writeheader()
+        for row in rows:
+            writer.writerow({name: row.get(name, "") for name in FIELDNAMES})
+    log(f"migrated {path} to columns {FIELDNAMES}")
 
 
 def read_history(path: Path) -> List[Dict[str, str]]:
@@ -532,7 +626,8 @@ def make_plots(history: List[Dict[str, str]], outdir: Path) -> List[Path]:
         legend_handles, legend_labels = [], []
 
         for ax, mode in zip((a[0] for a in axes), modes):
-            subset = [r for r in history if r["mode"] == mode]
+            subset = [r for r in history
+                      if r["mode"] == mode and r.get("complete", "1") != "0"]
             dates = sorted({r["date"] for r in subset})
             if not dates:
                 ax.set_title(f"{title} — {mode} (no data)")
@@ -602,48 +697,79 @@ def make_plots(history: List[Dict[str, str]], outdir: Path) -> List[Path]:
 # Report + email
 # ---------------------------------------------------------------------------
 
-def latest_two_dates(history: List[Dict[str, str]]) -> Tuple[Optional[str], Optional[str]]:
+def latest_date(history: List[Dict[str, str]]) -> Optional[str]:
     dates = sorted({r["date"] for r in history})
-    if not dates:
-        return None, None
-    return (dates[-2] if len(dates) > 1 else None), dates[-1]
+    return dates[-1] if dates else None
 
 
 def build_report(history: List[Dict[str, str]], scarab_sha: str, infra_sha: str) -> str:
-    previous, current = latest_two_dates(history)
+    current = latest_date(history)
     lines = [
         f"SPEC CPU2017 weekly sweep — {current}",
         f"scarab {scarab_sha}, scarab-infra {infra_sha}",
         "",
     ]
+    def avg_row(mode: str, date: Optional[str]) -> Optional[Dict[str, str]]:
+        """That run's Avg row for the mode; the last one, so a re-run wins."""
+        rows = [r for r in history if r["mode"] == mode and r["date"] == date
+                and r["workload"] == "Avg"]
+        return rows[-1] if date is not None and rows else None
+
     def avg_for(mode: str, date: Optional[str], column: str) -> Optional[float]:
-        if date is None:
+        row = avg_row(mode, date)
+        if row is None:
             return None
-        for row in history:
-            if row["mode"] == mode and row["date"] == date and row["workload"] == "Avg":
-                try:
-                    value = float(row[column])
-                except (TypeError, ValueError):
-                    return None
-                # A failed simpoint can leave nan in the CSV; never report it.
-                return value if math.isfinite(value) else None
+        try:
+            # A row written before this metric existed has no such key.
+            value = float(row.get(column, ""))
+        except (TypeError, ValueError):
+            return None
+        # A failed simpoint can leave nan in the CSV; never report it.
+        return value if math.isfinite(value) else None
+
+    def complete(mode: str, date: Optional[str]) -> bool:
+        row = avg_row(mode, date)
+        # Rows written before the column existed are from complete runs.
+        return row is not None and row.get("complete", "1") != "0"
+
+    def baseline(mode: str) -> Optional[str]:
+        """The latest earlier run of this mode that lost no simulation.
+
+        A mode that loses simulations still averages what is left, over fewer
+        workloads and partial segments, so comparing against it invents drift:
+        on 2026-11-16 exec/opt ran 42 of its 106 simulations and the mail
+        reported mem_latency_cycles +107.65% and offpath_cycle_pct -50.06%.
+        """
+        for date in sorted({r["date"] for r in history if r["mode"] == mode},
+                           reverse=True):
+            if date < (current or "") and complete(mode, date):
+                return date
         return None
 
     def drift(mode: str, column: str) -> Optional[float]:
-        now, was = avg_for(mode, current, column), avg_for(mode, previous, column)
+        if not complete(mode, current):
+            return None
+        now, was = avg_for(mode, current, column), avg_for(mode, baseline(mode), column)
         if now is None or was is None or was == 0:
             return None
         return (now / was - 1.0) * 100.0
 
     # Headline first: the whole point is seeing drift without opening a plot.
-    if previous:
-        lines.append(f"Average drift vs previous run ({previous}):")
+    if any(baseline(mode) for _, mode in MODES):
+        lines.append("Average drift vs the previous complete run:")
         for _, mode in MODES:
+            if not complete(mode, current):
+                lines.append(f"  {mode:<14} incomplete run, not compared")
+                continue
+            was = baseline(mode)
+            if was is None:
+                lines.append(f"  {mode:<14} no earlier complete run to compare against")
+                continue
             parts = []
             for column, _, _ in PLOTS:
                 d = drift(mode, column)
                 parts.append(f"{column}={'n/a' if d is None else f'{d:+.2f}%'}")
-            lines.append(f"  {mode:<14} " + "  ".join(parts))
+            lines.append(f"  {mode:<14} (vs {was})  " + "  ".join(parts))
         flagged = [
             f"{mode} {column} {drift(mode, column):+.2f}%"
             for _, mode in MODES for column, _, _ in PLOTS
@@ -652,7 +778,7 @@ def build_report(history: List[Dict[str, str]], scarab_sha: str, infra_sha: str)
         lines.append("")
         lines.append("  >2% moves: " + (", ".join(flagged) if flagged else "none"))
     else:
-        lines.append("First recorded run; no previous data to compare against.")
+        lines.append("No earlier complete run to compare against.")
     lines.append("")
 
     for _, mode in MODES:
@@ -661,17 +787,16 @@ def build_report(history: List[Dict[str, str]], scarab_sha: str, infra_sha: str)
         any_row = False
         for column, title, unit in PLOTS:
             now = avg_for(mode, current, column)
-            was = avg_for(mode, previous, column)
             if now is None:
                 continue
             any_row = True
-            if was is None or was == 0:
+            delta = drift(mode, column)
+            if delta is None:
                 lines.append(f"  {title:<26} {now:>12.4g}  ({unit})")
             else:
-                delta = (now / was - 1.0) * 100.0
                 lines.append(
                     f"  {title:<26} {now:>12.4g}  ({unit})   "
-                    f"{delta:+.2f}% vs previous"
+                    f"{delta:+.2f}% vs {baseline(mode)}"
                 )
         if not any_row:
             lines.append("  no data")
@@ -923,6 +1048,7 @@ def run_sweep(args, today: str) -> int:
                 "infra_sha": infra_sha,
                 "mode": label,
                 "workload": workload,
+                "complete": "0" if experiment in SHORTFALLS else "1",
                 **{k: ("" if v is None else f"{v:.6g}") for k, v in values.items()},
             })
 
