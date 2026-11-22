@@ -181,6 +181,18 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
             bincmd = ""
             client_bincmd = ""
             seg_size = None
+            target_stride = None
+            target_pool_size = None
+            t_nt_ratio = None
+            mem_hierachy_level = None
+            dependence_chain_count = None
+            inst_size = None
+            target_sampling_strategy = None
+            direction_sampling_strategy = None
+            workload_length = None
+            starting_target = None
+            nop_size = None
+            
             simulation_data = workloads_data[suite][subsuite][workload]["simulation"][sim_mode]
             if sim_mode == "memtrace":
                 trace_warmup = simulation_data["warmup"]
@@ -195,6 +207,20 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                 bincmd = simulation_data["binary_cmd"]
                 client_bincmd = simulation_data["client_bincmd"]
                 seg_size = simulation_data["segment_size"]
+            if sim_mode == "synthetic":
+                trace_warmup = simulation_data.get("trace_warmup", 0)
+                seg_size = simulation_data.get("segment_size", None)
+                target_stride =simulation_data.get("target_stride", None)
+                target_pool_size=simulation_data.get("target_pool_size", None)
+                t_nt_ratio=simulation_data.get("t_nt_ratio", None)
+                mem_hierachy_level=simulation_data.get("mem_hierachy_level", None)
+                dependence_chain_count=simulation_data.get("dependence_chain_count", None)
+                inst_size=simulation_data.get("inst_size", None)
+                target_sampling_strategy=simulation_data.get("target_sampling_strategy", None)
+                direction_sampling_strategy=simulation_data.get("direction_sampling_strategy", None)
+                workload_length=simulation_data.get("workload_length", None)
+                starting_target=simulation_data.get("starting_target", None)
+                nop_size=simulation_data.get("nop_size", None)
 
             if "simpoints" not in workloads_data[suite][subsuite][workload].keys():
                 weight = 1
@@ -231,7 +257,18 @@ def run_simulation(user, descriptor_data, workloads_data, infra_dir, descriptor_
                                                  docker_prefix, docker_container_name, traces_dir,
                                                  docker_home, config_key, config, sim_mode, scarab_binary,
                                                  seg_size, architecture, cluster_id, warmup, trace_warmup, trace_type,
-                                                 trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir, application_dir, perf_stat=bool(descriptor_data.get("perf_stat", False)))
+                                                 trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir, application_dir, perf_stat=bool(descriptor_data.get("perf_stat", False)),  
+                                                 target_stride=target_stride,
+                                                 target_pool_size=target_pool_size,  
+                                                 t_nt_ratio=t_nt_ratio,
+                                                 mem_hierachy_level=mem_hierachy_level,
+                                                 dependence_chain_count=dependence_chain_count,
+                                                 inst_size=inst_size,
+                                                 target_sampling_strategy=target_sampling_strategy,
+                                                 direction_sampling_strategy=direction_sampling_strategy,
+                                                 workload_length=workload_length, 
+                                                 starting_target=starting_target,
+                                                 nop_size=nop_size)
                     tmp_files.add(filename)
                     command = '/bin/bash ' + filename
                     remove_jobs.add((config_key, suite, subsuite, workload, cluster_id))

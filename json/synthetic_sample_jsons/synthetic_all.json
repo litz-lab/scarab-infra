@@ -1,0 +1,109 @@
+{
+  "_descriptor_type": "A type of descriptor. One of 'simulation', 'trace', and 'perf'.",
+  "descriptor_type": "simulation",
+  "_architecture": "A name of the available architectures (PARAMS.<architecture>) found in scarab repository, which defines the machine parameters of the default configuration.",
+  "architecture": "sunny_cove",
+  "_experiment": "The name of the experiment. scarab-infra will create a new folder named containing all files needed to execute the simulation in the <ROOT_DIR>/simulations/<experiment> directory. The folder will also contain all generated simulation statistics/outputs.",
+  "experiment": "synthetic_suite",
+  "_workload_manager": "manual: run each exp scenario with all the simpoints at a time, slurm: Slurm schedules simulations based on its policy",
+  "workload_manager": "manual",
+  "_root_dir": "Root directory mounted into the docker container home, for instance, the user's home directory",
+  "root_dir": "/home/chris",
+  "_application_dir": "The path to the benchmark application directory used for tracing or simulation. This directory replaces ISO-based setups by mounting a local application folder (e.g., SPEC CPU2017) into the container during image build or runtime.",
+  "application_dir": "/home/chris/application",
+  "_scarab_path": "The path to the scarab repository that contains the scarab binary used to run the experiment.",
+  "scarab_path": "/home/chris/Projects/scarab",
+  "_scarab_build": "scarab build mode. 'opt', 'dbg', or null",
+  "scarab_build": "opt",
+  "_traces_dir": "The local directory containing all simpointed traces",
+  "traces_dir": "/home/chris/traces",
+  "_top_simpoint": "Run only top 3 simpoints stored in 'workloads_top_simp.json' instead of the entire simpoints in 'workloads_db.json'",
+  "top_simpoint": false,
+  "_simulations": "A list of [suite, subsuite, workload, simpoint's cluster #, simulation type]. Available suite, subsuite, workloads, and each workload's available cluster_id and simulation_type are found in workloads/workloads_db.json. It runs all the simpoints if cluster_id is null and simulation type is one of 'exec', 'memtrace', 'pt'. When only 'suite' or 'suite'+'subsuite' is given and the rest are null, it launches simulations for all the workloads, all the simpoints if available, and in prioritized_mode (simulation type) in workloads/workloads_db.json. The 'workload' field can also be a list of strings (e.g. ['gcc_r', 'mcf_r']) to run multiple specific workloads in a single entry, or an empty list [] to run all workloads (same as null).",
+  "simulations": [
+    {
+      "_note": "this script is insufficient to simultaneously orchestrate every bottleneck kernel, if the goal is to orchestrate bottlenecks, you probably need to tailor it according to a single requirement raher than all",
+      "suite": "SYNTHETIC_SUITE",
+      "subsuite": null,
+      "workload": null,
+      "cluster_id": null,
+      "simulation_type": "synthetic",
+      "warmup": 10000000
+    }
+  ],
+  "_configurations": "scarab configurations to sweep. slurm_options passes extra arguments to sbatch (ignored for manual runner); '--mem' is no longer needed here as memory is scheduled per-simpoint automatically. memory_overhead_mb (optional, default 0) adds a fixed MB overhead on top of the per-simpoint base memory for configs that allocate extra Scarab structures. Options: https://slurm.schedmd.com/sbatch.html",
+  "configurations": {
+    "icache_32k": {
+      "params": "--btb_entries 1048576 --btb_assoc 1024 --uop_cache_lines 1048576 --uop_cache_assoc 1024 --icache_size 524288 --icache_assoc  512",
+      "binary": "scarab_head",
+      "slurm_options": "",
+      "memory_overhead_mb": 0
+    }
+  },
+  "_collect_stats": "Stats collection settings for ./sci --collect-stats. configs: optional list of configuration names to collect (null or omitted = all configurations).",
+  "collect_stats": {
+    "configs": null
+  },
+  "_visualize": "Visualization settings for ./sci --visualize. Configure baseline and counters.",
+  "visualize": {
+    "configs": [
+      "icache_32k"
+    ],
+    "counters": [
+      [
+        "TOPDOWN_FRONTEND_BOUND",
+        "TOPDOWN_BACKEND_BOUND",
+        "TOPDOWN_BAD_SPEC_BOUND",
+        "TOPDOWN_RETIRING_BOUND",
+        "TOPDOWN_FETCH_LATENCY_BOUND",
+        "TOPDOWN_FETCH_BANDWIDTH_BOUND",
+        "TOPDOWN_MEM_BOUND",
+        "TOPDOWN_CORE_BOUND",
+        "TOPDOWN_BR_RECOVER_AT_EXEC_BOUND",
+        "TOPDOWN_MACHINE_CLEARS_BOUND"
+      ],
+      {
+        "type": "stacked",
+        "name": "Topdown Breakdown wih Exclusive Frontend and Backend Counters",
+        "title": "Topdown Breakdown wih Exclusive Frontend and Backend Counters",
+        "y_label": "Events",
+        "stats": [
+          "TOPDOWN_FRONTEND_BOUND",
+          "TOPDOWN_BACKEND_BOUND",
+          "TOPDOWN_BAD_SPEC_BOUND",
+          "TOPDOWN_RETIRING_BOUND"
+        ]
+      }
+    ]
+  },
+  "_mem": "Memory scheduling and collection settings for Slurm jobs. collection_baseline specifies which config's MaxRSS is recorded in the mode-specific base_memory_mb_by_mode fields by ./sci --collect-mem (defaults to visualize.baseline). fallback_mb is the --mem limit used for workloads or simpoints that have no measured base_memory for the requested simulation mode yet; set it conservatively high to avoid OOM kills on the first run.",
+  "mem": {
+    "collection_baseline": null,
+    "fallback_mb": 16384
+  },
+  "_perf_analyze": "Performance drift analysis settings for ./sci --perf-analyze. It diffs stats and also compares baseline-vs-target Scarab binary hashes; when hashes differ it runs git diff/log in scarab_path and includes that context in reports and AI prompt. analyzer_cli_cmd examples: codex (auto-runs as non-interactive codex exec -), codex exec -, gemini -p \"@{prompt_file}\", or claude (auto-runs as non-interactive claude -p via stdin). Supported placeholders: {prompt_file}, {summary_file}, {report_file}.",
+  "perf_analyze": {
+    "baseline": "icache_32k",
+    "counters": [
+      "IPC",
+      "ICACHE_MISS"
+    ],
+    "_stat_groups": "Optional list of Scarab stat groups to compare: bp, core, fetch, inst, l2l1pref, memory, power, pref, stream.",
+    "stat_groups": [
+      "bp",
+      "fetch",
+      "core"
+    ],
+    "_compare_all_stats": "When true, compare all stats in collected_stats.csv that match stat_groups (or all stats if stat_groups is empty). Drift trigger still uses counters[0].",
+    "compare_all_stats": false,
+    "_drift_top_workloads": "How many top drifting workloads (by trigger counter abs delta) to expand in deterministic/AI reports.",
+    "drift_top_workloads": 5,
+    "_drift_top_simpoints": "How many top drifting simpoints per selected workload to expand (ranked by abs(delta_pct) * baseline weight).",
+    "drift_top_simpoints": 5,
+    "_prompt_budget_tokens": "Approximate max tokens allowed for analyzer prompt assembly.",
+    "prompt_budget_tokens": 12000,
+    "threshold_pct": 2.0,
+    "_analyzer_cli_cmd": "CLI command for LLM-based analysis. Examples: codex, codex exec -, gemini -p \"@{prompt_file}\", claude",
+    "analyzer_cli_cmd": "codex"
+  }
+}

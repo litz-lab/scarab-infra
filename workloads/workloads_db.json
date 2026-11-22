@@ -262791,5 +262791,281 @@
         }
       }
     }
+  }, 
+    "SYNTHETIC_SUITE": {
+    "MEM_LIMITED": {
+      "load_latency_limited": {
+        "simulation": {
+          "prioritized_mode": "synthetic",
+          "synthetic": {
+            "warmup": 10000000,
+            "segment_size": 10000000,
+            "image_name": "allbench_traces",
+            "target_stride": 128,
+            "target_pool_size": 1024,
+            "t_nt_ratio": 0.5,
+            "mem_hierachy_level": "dcache_level",
+            "dependence_chain_count": 1,
+            "inst_size": 8,
+            "target_sampling_strategy": "uniform_sequential",
+            "direction_sampling_strategy": "", 
+            "workload_length" : 1024,
+            "starting_target" : 256,
+            "nop_size": 8
+          },
+          "simpoints": {
+            "cluster_id": 0,
+            "segment_id": 0,
+            "weight": 1.0
+          },
+          "performance": {
+            "topdown": {
+              "retiring": null,
+              "bad_speculation": null,
+              "frontend_bound": null,
+              "backend_bound": null
+            },
+            "execution_time": {
+              "min": null,
+              "sec": null
+            }
+          }
+        }
+      },
+      "mem_fu_limited": {
+        "simulation": {
+          "prioritized_mode": "synthetic",
+          "synthetic": {
+            "warmup": 10000000,
+            "segment_size": 10000000,
+            "image_name": "allbench_traces",
+            "target_stride": "4",
+            "target_pool_size": "100",
+            "t_nt_ratio": "",
+            "mem_hierachy_level": "dcache_level",
+            "dependence_chain_count": "0",
+            "inst_size": "8",
+            "target_sampling_strategy": "uniform_sequential",
+            "direction_sampling_strategy": "", 
+            "workload_length" : "1024",
+            "starting_target" : "256",
+            "nop_size": "8"
+          },
+          "simpoints": {
+            "cluster_id": 0,
+            "segment_id": 0,
+            "weight": 1.0
+          },
+          "performance": {
+            "topdown": {
+              "retiring": null,
+              "bad_speculation": null,
+              "frontend_bound": null,
+              "backend_bound": null
+            },
+            "execution_time": {
+              "min": null,
+              "sec": null
+            }
+          }
+        }
+      }
+    },
+    "CF_LIMITED": {
+      "cbr_limited": {
+        "simulation": {
+          "prioritized_mode": "synthetic",
+          "synthetic": {
+            "warmup": 10000000,
+            "segment_size": 10000000,
+            "image_name": "allbench_traces",
+            "target_stride": "8",
+            "target_pool_size": "256",
+            "t_nt_ratio": "0.5",
+            "mem_hierachy_level": null,
+            "inst_size": "1",
+            "target_sampling_strategy": "uniform_random",
+            "direction_sampling_strategy": "discrete_random", 
+            "workload_length" : "1024",
+            "starting_target" : "256",
+            "nop_size": "1"
+          },
+          "simpoints": {
+            "cluster_id": 0,
+            "segment_id": 0,
+            "weight": 1.0
+          },
+          "performance": {
+            "topdown": {
+              "retiring": null,
+              "bad_speculation": null,
+              "frontend_bound": null,
+              "backend_bound": null
+            },
+            "execution_time": {
+              "min": null,
+              "sec": null
+            }
+          }
+        }
+      },
+      "btb_limited": {
+        "simulation": {
+          "prioritized_mode": "synthetic",
+          "synthetic": {
+            "warmup": 10000000,
+            "segment_size": 10000000,
+            "image_name": "allbench_traces",
+            "target_stride": "6",
+            "target_pool_size": "128",
+            "t_nt_ratio": "",
+            "mem_hierachy_level": "",
+            "dependence_chain_count": "",
+            "inst_size": "1",
+            "target_sampling_strategy": "uniform_random",
+            "direction_sampling_strategy": "", 
+            "workload_length" : "1024",
+            "starting_target" : "256",
+            "nop_size": "1"
+          },
+          "simpoints": {
+            "cluster_id": 0,
+            "segment_id": 0,
+            "weight": 1.0
+          },
+          "performance": {
+            "topdown": {
+              "retiring": null,
+              "bad_speculation": null,
+              "frontend_bound": null,
+              "backend_bound": null
+            },
+            "execution_time": {
+              "min": null,
+              "sec": null
+            }
+          }
+        }
+      },
+
+      "ibr_limited": {
+        "simulation": {
+          "prioritized_mode": "synthetic",
+          "synthetic": {
+            "warmup": 10000000,
+            "segment_size": 10000000,
+            "image_name": "allbench_traces",
+            "target_stride": "6",
+            "target_pool_size": "4",
+            "t_nt_ratio": "",
+            "mem_hierachy_level": "",
+            "dependence_chain_count": "",
+            "inst_size": "1",
+            "target_sampling_strategy": "uniform_random",
+            "direction_sampling_strategy": "", 
+            "workload_length" : "1024",
+            "starting_target" : "256",
+            "nop_size": "1"
+          },
+          "simpoints": {
+            "cluster_id": 0,
+            "segment_id": 0,
+            "weight": 1.0
+          },
+          "performance": {
+            "topdown": {
+              "retiring": null,
+              "bad_speculation": null,
+              "frontend_bound": null,
+              "backend_bound": null
+            },
+            "execution_time": {
+              "min": null,
+              "sec": null
+            }
+          }
+        }
+      }
+    },
+    "ILP_LIMITED": {
+      "ilp_limited": {
+        "simulation": {
+          "prioritized_mode": "synthetic",
+          "synthetic": {
+            "warmup": 10000000,
+            "segment_size": 10000000,
+            "image_name": "allbench_traces",
+            "target_stride": "",
+            "target_pool_size": "",
+            "t_nt_ratio": "",
+            "mem_hierachy_level": "",
+            "dependence_chain_count": "2",
+            "inst_size": "8",
+            "target_sampling_strategy": "",
+            "direction_sampling_strategy": "", 
+            "workload_length" : "1024",
+            "starting_target" : "",
+            "nop_size": "1"
+          },
+          "simpoints": {
+            "cluster_id": 0,
+            "segment_id": 0,
+            "weight": 1.0
+          },
+          "performance": {
+            "topdown": {
+              "retiring": null,
+              "bad_speculation": null,
+              "frontend_bound": null,
+              "backend_bound": null
+            },
+            "execution_time": {
+              "min": null,
+              "sec": null
+            }
+          }
+        }
+      }
+    },
+    "ICACHE_LIMITED": {
+      "icache_limited": {
+        "simulation": {
+          "prioritized_mode": "synthetic",
+          "synthetic": {
+            "warmup": 10000000,
+            "segment_size": 10000000,
+            "image_name": "allbench_traces",
+            "target_stride": "",
+            "target_pool_size": "",
+            "t_nt_ratio": "",
+            "mem_hierachy_level": "",
+            "dependence_chain_count": "",
+            "inst_size": "64",
+            "target_sampling_strategy": "",
+            "direction_sampling_strategy": "", 
+            "workload_length" : "1024",
+            "starting_target" : "256",
+            "nop_size": "8"
+          },
+          "simpoints": {
+            "cluster_id": 0,
+            "segment_id": 0,
+            "weight": 1.0
+          },
+          "performance": {
+            "topdown": {
+              "retiring": null,
+              "bad_speculation": null,
+              "frontend_bound": null,
+              "backend_bound": null
+            },
+            "execution_time": {
+              "min": null,
+              "sec": null
+            }
+          }
+        }
+      }
+    }
   }
 }

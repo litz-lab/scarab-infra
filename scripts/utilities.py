@@ -30,7 +30,7 @@ from scripts.image_identity import image_content_hash, image_context_pathspec, i
 DEFAULT_CONDA_ENV = "scarabinfra"
 _docker_client = None
 BASE_MEMORY_BY_MODE_KEY = "base_memory_mb_by_mode"
-VALID_SIMULATION_MODES = ("memtrace", "pt", "exec")
+VALID_SIMULATION_MODES = ("memtrace", "pt", "exec", "synthetic")
 
 # The container-side scarab-infra scripts are not baked into the images. Every
 # container instead gets the host checkout bind-mounted read-only here, and
@@ -1757,7 +1757,8 @@ def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_n
 def generate_single_scarab_run_command(user, workload_home, experiment, config_key, config,
                                        mode, seg_size, arch, scarab_binary, cluster_id,
                                        warmup, trace_warmup, trace_type, trace_file,
-                                       env_vars, bincmd, client_bincmd):
+                                       env_vars, bincmd, client_bincmd, target_stride, target_pool_size, t_nt_ratio, mem_hierachy_level, dependence_chain_count,
+                                       inst_size, target_sampling_strategy, direction_sampling_strategy, workload_length, nop_size, starting_target):
 
     if mode == "memtrace":
         command = f"run_memtrace_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{seg_size}\\\" \\\"{arch}\\\" \\\"{warmup}\\\" \\\"{trace_warmup}\\\" \\\"{trace_type}\\\" /home/{user}/simulations/{experiment}/scarab {cluster_id} {trace_file} {scarab_binary}"
@@ -1781,6 +1782,36 @@ def generate_single_scarab_run_command(user, workload_home, experiment, config_k
             f"\\\"{client_bincmd_safe}\\\" "                 # $11 CLIENT_BINCMD
             f"\\\"{scarab_binary}\\\""                       # $12 SCARAB_BIN
         )
+        
+    elif mode == "synthetic":
+        kernel_name = workload_home.split('/')[-1]
+        synthetic_config = f"{config} --kernel {kernel_name}" if config else f"--kernel {kernel_name}"
+
+        command = (
+            "run_synthetic_single_simpoint.sh "
+            f"\\\"{workload_home}\\\" "                      # $1 WORKLOAD_HOME
+            f"\\\"/home/{user}/simulations/{experiment}/{config_key}\\\" "  # $2 SCENARIO
+            f"\\\"{synthetic_config}\\\" "                   # $3 SCARABPARAMS
+            f"\\\"{seg_size}\\\" "                           # $4 SEGSIZE
+            f"\\\"{arch}\\\" "                               # $5 SCARABARCH
+            f"\\\"{warmup}\\\" "                             # $6 WARMUP
+            f"\\\"/home/{user}/simulations/{experiment}/scarab\\\" "  # $7 SCARABHOME
+            f"\\\"{cluster_id}\\\" "                         # $8 SEGMENT_ID
+            f"\\\"{scarab_binary}\\\" "                       # $9 SCARAB_BIN
+            f"\\\"{target_pool_size}\\\" "                    # $10 SYNTHETIC_KERNEL_KNOB_target_pool_size
+            f"\\\"{target_sampling_strategy}\\\" "            # $11 SYNTHETIC_KERNEL_KNOB_target_sampling_strategy
+            f"\\\"{t_nt_ratio}\\\" "                          # $12 SYNTHETIC_KERNEL_KNOB_t_nt_ratio
+            f"\\\"{mem_hierachy_level}\\\" "                  # $13 SYNTHETIC_KERNEL_KNOB_mem_hierachy_level
+            f"\\\"{dependence_chain_count}\\\" "              # $14 SYNTHETIC_KERNEL_KNOB_dependence_chain_count
+            f"\\\"{inst_size}\\\" "                           # $15 SYNTHETIC_KERNEL_KNOB_inst_size
+            f"\\\"{direction_sampling_strategy}\\\" "         # $16 SYNTHETIC_KERNEL_KNOB_direction_sampling_strategy
+            f"\\\"{workload_length}\\\" "                     # $17 SYNTHETIC_KERNEL_KNOB_workload_length
+            f"\\\"{nop_size}\\\" "                            # $18 SYNTHETIC_KERNEL_KNOB_nop_size
+            f"\\\"{starting_target}\\\" "                     # $19 SYNTHETIC_KERNEL_KNOB_starting_target
+            f"\\\"{target_stride}\\\""                        # $20 SYNTHETIC_KERNEL_KNOB_target_stride
+
+        )
+
     else:
         command = ""
 
@@ -1797,11 +1828,25 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
                                  docker_home, config_key, config, scarab_mode, scarab_binary,
                                  seg_size, architecture, cluster_id, warmup, trace_warmup, trace_type,
                                  trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir, application_dir, slurm=False,
-                                 perf_stat=False):
+                                 perf_stat=False,                                 
+                                 target_stride =None,
+                                 target_pool_size=None,  
+                                 t_nt_ratio=None,
+                                 mem_hierachy_level=None,
+                                 dependence_chain_count=None,
+                                 inst_size=None,
+                                 target_sampling_strategy=None,
+                                 direction_sampling_strategy=None,                                                  
+                                 workload_length=None, 
+                                 nop_size=None, 
+                                 starting_target=None):
     try:
         scarab_cmd = generate_single_scarab_run_command(user, workload_home, experiment_name, config_key, config,
                                                         scarab_mode, seg_size, architecture, scarab_binary, cluster_id,
-                                                        warmup, trace_warmup, trace_type, trace_file, env_vars, bincmd, client_bincmd)
+                                                        warmup, trace_warmup, trace_type, trace_file, env_vars, bincmd, client_bincmd, 
+                                                        target_stride, target_pool_size, t_nt_ratio, mem_hierachy_level, dependence_chain_count, 
+                                                        inst_size, target_sampling_strategy, direction_sampling_strategy, 
+                                                        workload_length, nop_size, starting_target)
         # Descriptor "perf_stat": true makes a run fail when perf cannot count host instructions
         # on its node, instead of running unmeasured.
         if perf_stat:
