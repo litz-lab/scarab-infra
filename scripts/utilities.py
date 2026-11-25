@@ -507,7 +507,7 @@ def build_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_pre
         result = subprocess.run(
             f"{exe} --home {docker_home}:/home/{user} --bind {scarab_path}:/scarab "
             f"--bind {infra_dir}:{INFRA_MOUNT_TARGET}:ro {sif} /bin/bash -c "
-            f"'{setup} && cd /scarab/src && make {scarab_build} -j{os.cpu_count()}'", shell=True)
+            f"'{setup} && cd /scarab/src && make clean_pin_exec && make {scarab_build} -j{os.cpu_count()}'", shell=True)
         if result.returncode != 0:
             raise RuntimeError("Scarab build returned with non-zero code")
         return
@@ -541,7 +541,8 @@ def build_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_pre
                     f"{docker_container_name}",
                     "/bin/bash",
                     "-c",
-                    f"cd /scarab/src && make {scarab_build} -j{os.cpu_count()}"
+                    # the pin tool's dependency files name the Pin kit it was last built with
+                    f"cd /scarab/src && make clean_pin_exec && make {scarab_build} -j{os.cpu_count()}"
             ]
 
         if stream_build:
