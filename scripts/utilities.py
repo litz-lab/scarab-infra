@@ -494,6 +494,21 @@ def remove_stale_containers(base: str, dbg_lvl: int = 1) -> None:
                        capture_output=True, text=True)
 
 
+# Scarab trees with an in_pin target also build the PIN tool with scarab inside it (obj-in-pin/pin_exec.so),
+# for configurations with "scarab_in_pin": true.
+IN_PIN_BUILD = "if grep -q '^in_pin:' Makefile; then make in_pin -j{jobs}; fi"
+
+
+def _cache_in_pin_tool(scarab_path, infra_dir, cache_name, build_mode, dbg_lvl):
+    """Caches the scarab-in-PIN tool (scarab's in_pin target) under cache_name, if it was built."""
+    built = Path(scarab_path) / "src" / "pin" / "pin_exec" / "obj-in-pin" / "pin_exec.so"
+    if not built.is_file():
+        return
+    name = _cache_bin_name(cache_name, build_mode) if build_mode else cache_name
+    _copy_atomic(built, Path(infra_dir) / "scarab_builds" / name)
+    info(f"Cached scarab-in-PIN tool as {name}", dbg_lvl)
+
+
 def build_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_prefix, infra_dir, dbg_lvl=1, stream_build=False):
     local_uid = os.getuid()
     local_gid = os.getgid()
@@ -507,7 +522,8 @@ def build_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_pre
         result = subprocess.run(
             f"{exe} --home {docker_home}:/home/{user} --bind {scarab_path}:/scarab "
             f"--bind {infra_dir}:{INFRA_MOUNT_TARGET}:ro {sif} /bin/bash -c "
-            f"'{setup} && cd /scarab/src && make clean_pin_exec && make {scarab_build} -j{os.cpu_count()}'", shell=True)
+            f"'{setup} && cd /scarab/src && make clean_pin_exec && make {scarab_build} -j{os.cpu_count()} && "
+            f"{IN_PIN_BUILD.format(jobs=os.cpu_count())}'", shell=True)
         if result.returncode != 0:
             raise RuntimeError("Scarab build returned with non-zero code")
         return
@@ -542,7 +558,8 @@ def build_scarab_binary(user, scarab_path, scarab_build, docker_home, docker_pre
                     "/bin/bash",
                     "-c",
                     # the pin tool's dependency files name the Pin kit it was last built with
-                    f"cd /scarab/src && make clean_pin_exec && make {scarab_build} -j{os.cpu_count()}"
+                    f"cd /scarab/src && make clean_pin_exec && make {scarab_build} -j{os.cpu_count()} && "
+                    f"{IN_PIN_BUILD.format(jobs=os.cpu_count())}"
             ]
 
         if stream_build:
@@ -1118,6 +1135,7 @@ def _build_missing_scarab_version(
                 pin_dest = Path(infra_dir) / "scarab_builds" / pin_cache_name
                 _copy_atomic(built_pin_exec, pin_dest)
             info(f"Cached new pin_exec binary at {pin_dest}", dbg_lvl)
+            _cache_in_pin_tool(scarab_path, infra_dir, f"pin_exec_in_pin_{bin_name}", build_mode, dbg_lvl)
     except subprocess.CalledProcessError as exc:
         err(
             f"Failed to checkout {target_hash} in scarab repository: {exc.stderr or exc.stdout or exc}",
@@ -1392,6 +1410,8 @@ def rebuild_scarab(infra_dir, scarab_path, user, docker_home, docker_prefix, sca
             if os.path.isfile(pin_exec_src):
                 pin_cache = githash_name.replace("scarab_", "pin_exec_scarab_", 1)
                 _copy_atomic(pin_exec_src, f"{infra_dir}/scarab_builds/{pin_cache}")
+            _cache_in_pin_tool(scarab_path, infra_dir, githash_name.replace("scarab_", "pin_exec_in_pin_scarab_", 1),
+                               None, dbg_lvl)
             current_path = Path(current_scarab_bin)
             if current_path.exists() or current_path.is_symlink():
                 current_path.unlink()
@@ -1595,6 +1615,9 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
             pin_obj_dir = dest_dir / "pin" / "pin_exec" / "obj-intel64"
             pin_obj_dir.mkdir(parents=True, exist_ok=True)
             pin_dest = pin_obj_dir / f"pin_exec_{bin_name}.so"
+            in_pin_cached = Path(infra_dir) / "scarab_builds" / _cache_bin_name(f"pin_exec_in_pin_{bin_name}", build_mode)
+            if in_pin_cached.is_file():
+                _copy_atomic(in_pin_cached, pin_obj_dir / f"pin_exec_in_pin_{bin_name}.so")
 
             pin_src = pin_cached
             try:
@@ -1626,6 +1649,24 @@ def prepare_simulation(user, scarab_path, scarab_build, docker_home, experiment_
                 continue
             with open(params_target, "wb") as handle:
                 handle.write(params_blob)
+
+        # Export each hash's launcher too: it changes with the binary (e.g. --scarab_in_pin), and the working
+        # tree's copy below may be from another commit.
+        for bin_name in scarab_binaries:
+            match = binary_pattern.match(bin_name)
+            if not match:
+                continue
+            target_hash = match.group(1)
+            bin_target = Path(experiment_dir) / "scarab" / f"bin.{target_hash}"
+            if bin_target.is_dir():
+                continue
+            try:
+                archive = subprocess.check_output(
+                    ["git", "archive", target_hash, "bin/scarab_launch.py", "bin/scarab_globals"], cwd=scarab_path)
+                bin_target.mkdir(parents=True)
+                subprocess.run(["tar", "-x", "--strip-components=1", "-C", str(bin_target)], input=archive, check=True)
+            except Exception as exc:
+                warn(f"Unable to export the launcher for scarab {target_hash}: {exc}", dbg_lvl)
 
         # Required for non mode 4. Copy launch scripts from the docker container's scarab repo.
         # NOTE: Could cause issues if a copied version of scarab is incompatible with the version of
@@ -1758,7 +1799,7 @@ def finish_simulation(user, docker_home, descriptor_path, root_dir, experiment_n
 def generate_single_scarab_run_command(user, workload_home, experiment, config_key, config,
                                        mode, seg_size, arch, scarab_binary, cluster_id,
                                        warmup, trace_warmup, trace_type, trace_file,
-                                       env_vars, bincmd, client_bincmd):
+                                       env_vars, bincmd, client_bincmd, scarab_in_pin=False):
 
     if mode == "memtrace":
         command = f"run_memtrace_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{seg_size}\\\" \\\"{arch}\\\" \\\"{warmup}\\\" \\\"{trace_warmup}\\\" \\\"{trace_type}\\\" /home/{user}/simulations/{experiment}/scarab {cluster_id} {trace_file} {scarab_binary}"
@@ -1766,6 +1807,8 @@ def generate_single_scarab_run_command(user, workload_home, experiment, config_k
         command = f"run_pt_single_simpoint.sh \\\"{workload_home}\\\" \\\"/home/{user}/simulations/{experiment}/{config_key}\\\" \\\"{config}\\\" \\\"{arch}\\\" \\\"{warmup}\\\" /home/{user}/simulations/{experiment}/scarab {scarab_binary}"
     elif mode == "exec":
         env_vars_safe = env_vars if env_vars else ""
+        if scarab_in_pin:  # run_exec_single_simpoint.sh: scarab inside the PIN tool
+            env_vars_safe = f"{env_vars_safe} SCARAB_IN_PIN=1".strip()
         client_bincmd_safe = client_bincmd if client_bincmd else ""
         command = (
             "run_exec_single_simpoint.sh "
@@ -1798,11 +1841,12 @@ def write_docker_command_to_file(user, local_uid, local_gid, workload, workload_
                                  docker_home, config_key, config, scarab_mode, scarab_binary,
                                  seg_size, architecture, cluster_id, warmup, trace_warmup, trace_type,
                                  trace_file, env_vars, bincmd, client_bincmd, filename, infra_dir, application_dir, slurm=False,
-                                 perf_stat=False):
+                                 perf_stat=False, scarab_in_pin=False):
     try:
         scarab_cmd = generate_single_scarab_run_command(user, workload_home, experiment_name, config_key, config,
                                                         scarab_mode, seg_size, architecture, scarab_binary, cluster_id,
-                                                        warmup, trace_warmup, trace_type, trace_file, env_vars, bincmd, client_bincmd)
+                                                        warmup, trace_warmup, trace_type, trace_file, env_vars, bincmd, client_bincmd,
+                                                        scarab_in_pin=scarab_in_pin)
         # Descriptor "perf_stat": true makes a run fail when perf cannot count host instructions
         # on its node, instead of running unmeasured.
         if perf_stat:

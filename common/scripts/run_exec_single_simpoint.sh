@@ -39,8 +39,15 @@ if [[ "$SCARAB_BIN" =~ ^scarab_([0-9a-fA-F]+) ]]; then
   fi
 fi
 cp "$PARAMS_FILE" "$OUTDIR/$segID/PARAMS.in"
+LAUNCHER_DIR="$SCARABHOME/bin"
+[ -n "$HASH" ] && [ -d "$SCARABHOME/bin.$HASH" ] && LAUNCHER_DIR="$SCARABHOME/bin.$HASH"  # the binary's own launcher
 
 PIN_EXEC="$SCARABHOME/src/pin/pin_exec/obj-intel64/pin_exec_${SCARAB_BIN}.so"
+IN_PIN_ARG=""
+if [ "${SCARAB_IN_PIN:-0}" = "1" ]; then  # config "scarab_in_pin": scarab runs inside the PIN tool
+  PIN_EXEC="$SCARABHOME/src/pin/pin_exec/obj-intel64/pin_exec_in_pin_${SCARAB_BIN}.so"
+  IN_PIN_ARG="--scarab_in_pin"
+fi
 cp "$PIN_EXEC" "$OUTDIR/$segID/pin_exec.so"
 
 cd $OUTDIR/$segID
@@ -99,7 +106,7 @@ fi
 
 instLimit=$(( $roiEnd - $roiStart + 1 ))
 
-scarabCmd="python3 $SCARABHOME/bin/scarab_launch.py --program=\"$BINCMD\" \
+scarabCmd="python3 $LAUNCHER_DIR/scarab_launch.py --program=\"$BINCMD\" \
   --scarab=\"$SCARABHOME/src/$SCARAB_BIN\" \
   --frontend_pin_tool=\"$OUTDIR/$segID/pin_exec.so\" \
   --simdir=\"$SIMHOME/$SCENARIONUM/$segID\" \
@@ -109,7 +116,7 @@ scarabCmd="python3 $SCARABHOME/bin/scarab_launch.py --program=\"$BINCMD\" \
   --scarab_stderr=\"$SIMHOME/$SCENARIONUM/$segID/scarab.err\" \
   --pin_stdout=\"$SIMHOME/$SCENARIONUM/$segID/pin.out\" \
   --pin_stderr=\"$SIMHOME/$SCENARIONUM/$segID/pin.err\" \
-  "
+  $IN_PIN_ARG"
 
 printf '%q ' "${scarabCmd[@]}" > $SIMHOME/launch_cmd.txt
 
